@@ -1,0 +1,101 @@
+/**
+ * @file users.controller.js
+ * @description HTTP layer for Auth APIs.
+ */
+const { registerSchema, loginSchema, refreshTokenSchema } = require("./users.validators");
+const usersService = require("./users.service");
+const { successResponse, errorResponse } = require("../../../utils/response");
+
+const register = async (req, res) => {
+    try {
+        const { error, value } = registerSchema.validate(req.body);
+        if (error) {
+            return res.status(400).json(errorResponse(
+                "VALIDATION_ERROR",
+                error.details[0].message,
+                error.details[0].message
+            ));
+        }
+
+        const reqInfo = {
+            ip: req.ip || req.connection.remoteAddress,
+            userAgent: req.headers["user-agent"]
+        };
+
+        const newUser = await usersService.register(value, reqInfo);
+        
+        return res.status(201).json(successResponse(
+            "USER_REGISTERED",
+            "User registered successfully.",
+            "User registered successfully.",
+            newUser
+        ));
+    } catch (err) {
+        if (err.message === "Email already registered") {
+            return res.status(409).json(errorResponse("EMAIL_EXISTS", err.message, "This email is already in use."));
+        }
+        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "An unexpected error occurred."));
+    }
+};
+
+const login = async (req, res) => {
+    try {
+        const { error, value } = loginSchema.validate(req.body);
+        if (error) {
+            return res.status(400).json(errorResponse(
+                "VALIDATION_ERROR",
+                error.details[0].message,
+                error.details[0].message
+            ));
+        }
+
+        const reqInfo = {
+            ip: req.ip || req.connection.remoteAddress,
+            userAgent: req.headers["user-agent"]
+        };
+
+        const data = await usersService.login(value, reqInfo);
+
+        return res.status(200).json(successResponse(
+            "LOGIN_SUCCESS",
+            "User logged in successfully.",
+            "Login successful.",
+            data
+        ));
+    } catch (err) {
+        if (err.message === "Invalid email or password" || err.message.startsWith("Account is")) {
+            return res.status(401).json(errorResponse("AUTH_FAILED", err.message, err.message));
+        }
+        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "An unexpected error occurred."));
+    }
+};
+
+const rotateToken = async (req, res) => {
+    try {
+        const { error, value } = refreshTokenSchema.validate(req.body);
+        if (error) {
+            return res.status(400).json(errorResponse(
+                "VALIDATION_ERROR",
+                error.details[0].message,
+                error.details[0].message
+            ));
+        }
+
+        const data = await usersService.rotateToken(value.refresh_token);
+
+        return res.status(200).json(successResponse(
+            "TOKEN_REFRESHED",
+            "Tokens rotated successfully.",
+            "Tokens refreshed.",
+            data
+        ));
+    } catch (err) {
+        return res.status(403).json(errorResponse("FORBIDDEN", err.message, "Invalid or expired refresh token. Please login again."));
+    }
+};
+
+module.exports = {
+    register,
+    login,
+    rotateToken
+};
