@@ -3,14 +3,36 @@
  * @description HTTP layer for Company APIs.
  */
 const { v4: uuidv4 } = require("uuid");
-const { createCompanySchema, updateCompanySchema } = require("./company.validators");
+const { 
+    createCompanySchema, 
+    updateCompanySchema, 
+    createCompanyNewSchema, 
+    updateCompanyNewSchema 
+} = require("./company.validators");
 const companyService = require("./company.service");
 const { successResponse, errorResponse } = require("../../../utils/response");
 
 const create = async (req, res) => {
     try {
-        // Validation using Joi
-        const { error, value } = createCompanySchema.validate(req.body);
+        const userId = req.user.user_id;
+
+        // Ensure user can only create one company
+        const existingNewCompany = await companyService.getCompanyByUserId(userId);
+        const existingOldCompanies = await companyService.getCompaniesByUser(userId);
+        if (existingNewCompany || (existingOldCompanies && existingOldCompanies.length > 0)) {
+            return res.status(400).json(errorResponse(
+                "BAD_REQUEST",
+                "User already has a company.",
+                "Every user can only create one company."
+            ));
+        }
+
+        const body = req.body || {};
+        // Determine validation schema based on input fields (support backward compatibility)
+        const isNewSchema = body.companyName !== undefined || body.companyEmail !== undefined;
+        const schemaToUse = isNewSchema ? createCompanyNewSchema : createCompanySchema;
+
+        const { error, value } = schemaToUse.validate(body);
         if (error) {
             return res.status(400).json(errorResponse(
                 "VALIDATION_ERROR",
@@ -19,10 +41,7 @@ const create = async (req, res) => {
             ));
         }
 
-        // We use req.company_id that was injected by our middleware, or fallback
         const generatedId = req.company_id || req.body.company_id || uuidv4();
-
-        const userId = req.user.user_id; // Injected by auth.middleware
 
         const reqInfo = {
             ip: req.ip || req.connection.remoteAddress,
@@ -48,7 +67,24 @@ const create = async (req, res) => {
 const update = async (req, res) => {
     try {
         const { id } = req.params;
-        const { error, value } = updateCompanySchema.validate(req.body);
+        const userId = req.user.user_id;
+
+        // Verify ownership before update
+        const isOwner = await companyService.checkOwnership(id, userId);
+        if (!isOwner) {
+            return res.status(403).json(errorResponse(
+                "FORBIDDEN",
+                "You do not have permission to update this company.",
+                "Access Denied: You do not own this company."
+            ));
+        }
+
+        const body = req.body || {};
+        // Determine validation schema based on input fields (support backward compatibility)
+        const isNewSchema = body.companyName !== undefined || body.companyEmail !== undefined;
+        const schemaToUse = isNewSchema ? updateCompanyNewSchema : updateCompanySchema;
+
+        const { error, value } = schemaToUse.validate(body);
         if (error) {
             return res.status(400).json(errorResponse(
                 "VALIDATION_ERROR",
@@ -56,6 +92,7 @@ const update = async (req, res) => {
                 error.details[0].message
             ));
         }
+
         const reqInfo = {
             ip: req.ip || req.connection.remoteAddress,
             userAgent: req.headers["user-agent"]
@@ -83,16 +120,34 @@ const update = async (req, res) => {
 const getMyCompanies = async (req, res) => {
     try {
         const userId = req.user.user_id;
-        const companies = await companyService.getCompaniesByUser(userId);
+
+        // Try getting via direct userId field
+        let company = await companyService.getCompanyByUserId(userId);
+
+        // Fallback to legacy UserCompanies mapping table
+        if (!company) {
+            const companies = await companyService.getCompaniesByUser(userId);
+            if (companies && companies.length > 0) {
+                company = companies[0];
+            }
+        }
+
+        if (!company) {
+            return res.status(404).json(errorResponse(
+                "NOT_FOUND",
+                "Company not found.",
+                "You do not have a company registered."
+            ));
+        }
 
         return res.status(200).json(successResponse(
-            "COMPANIES_FETCHED",
-            "Companies fetched successfully.",
-            "Companies retrieved.",
-            companies
+            "COMPANY_FETCHED",
+            "Company fetched successfully.",
+            "Company retrieved.",
+            company
         ));
     } catch (err) {
-        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Failed to fetch companies."));
+        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Failed to fetch company."));
     }
 };
 
@@ -100,6 +155,16 @@ const remove = async (req, res) => {
     try {
         const { id } = req.params;
         const userId = req.user.user_id;
+
+        // Verify ownership before delete
+        const isOwner = await companyService.checkOwnership(id, userId);
+        if (!isOwner) {
+            return res.status(403).json(errorResponse(
+                "FORBIDDEN",
+                "You do not have permission to delete this company.",
+                "Access Denied: You do not own this company."
+            ));
+        }
 
         const reqInfo = {
             ip: req.ip || req.connection.remoteAddress,

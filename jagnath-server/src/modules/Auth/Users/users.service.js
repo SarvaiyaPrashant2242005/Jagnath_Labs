@@ -10,9 +10,9 @@ const Users = require("./users.model");
 const RefreshTokens = require("../RefreshTokens/refresh_tokens.model");
 const { writeLogToFile } = require("../../../services/loggerService");
 
-const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret";
-const REFRESH_SECRET = process.env.REFRESH_SECRET || "fallback_refresh_secret";
-const ACCESS_TOKEN_EXPIRES = "15m";
+const JWT_SECRET = process.env.JWT_SECRET || process.env.JWT_ACCESS_SECRET || "fallback_secret";
+const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "fallback_refresh_secret";
+const ACCESS_TOKEN_EXPIRES = process.env.JWT_EXPIRE || process.env.ACCESS_TOKEN_EXPIRES || "7d";
 const REFRESH_TOKEN_EXPIRES_DAYS = 30;
 
 const registerLogPath = path.join(__dirname, "../../../../logs/Auth/Register.txt");
@@ -29,7 +29,8 @@ const register = async (userData, reqInfo) => {
         const hashedPassword = await bcrypt.hash(userData.password, 10);
         
         const newUser = await Users.create({
-            full_name: userData.full_name,
+            name: userData.name || userData.full_name,
+            full_name: userData.full_name || userData.name,
             email: userData.email,
             password: hashedPassword,
             status: "Active"
@@ -91,10 +92,22 @@ const login = async (credentials, reqInfo) => {
         writeLogToFile(`[${new Date().toISOString()}] Email: ${user.email} | IP: ${reqInfo.ip} | UserAgent: ${reqInfo.userAgent} | Success: true`, loginLogPath);
 
         return {
-            user: { id: user.id, full_name: user.full_name, email: user.email, status: user.status },
+            user: { id: user.id, name: user.name || user.full_name, full_name: user.full_name || user.name, email: user.email, status: user.status },
+            token: accessToken,
             accessToken,
             refreshToken: rawRefreshToken // Return raw only once
         };
+    } catch (error) {
+        throw error;
+    }
+};
+
+const getUserById = async (id) => {
+    try {
+        const user = await Users.findByPk(id, {
+            attributes: { exclude: ["password", "deleted_at"] }
+        });
+        return user;
     } catch (error) {
         throw error;
     }
@@ -154,5 +167,6 @@ const rotateToken = async (rawRefreshToken) => {
 module.exports = {
     register,
     login,
-    rotateToken
+    rotateToken,
+    getUserById
 };

@@ -27,4 +27,7 @@ db.RefreshTokens.belongsTo(db.Users, { foreignKey: "user_id" });
 db.Users.belongsToMany(db.Company, { through: db.UserCompanies, foreignKey: "user_id" });
 db.Company.belongsToMany(db.Users, { through: db.UserCompanies, foreignKey: "company_id" });
 
+db.Users.hasOne(db.Company, { foreignKey: "userId", as: "company" });
+db.Company.belongsTo(db.Users, { foreignKey: "userId", as: "user" });
+
 module.exports = db;

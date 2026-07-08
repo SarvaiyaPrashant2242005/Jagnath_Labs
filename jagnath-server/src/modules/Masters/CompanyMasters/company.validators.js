@@ -41,7 +41,32 @@ const updateCompanySchema = Joi.object({
     company_name: Joi.string().optional()
 });
 
+const companyNewBaseSchema = {
+    companyName: Joi.string().required().messages({
+        "any.required": "Company Name is required."
+    }),
+    companyEmail: Joi.string().email().required().messages({
+        "string.email": "Please enter a valid email address for company email.",
+        "any.required": "Company Email is required."
+    }),
+    phone: Joi.string().allow('', null),
+    website: Joi.string().allow('', null),
+    address: Joi.string().allow('', null),
+    description: Joi.string().allow('', null),
+    status: Joi.string().valid("Active", "Inactive").default("Active")
+};
+
+const createCompanyNewSchema = Joi.object(companyNewBaseSchema);
+
+const updateCompanyNewSchema = Joi.object({
+    ...companyNewBaseSchema,
+    companyName: Joi.string().optional(),
+    companyEmail: Joi.string().email().optional()
+});
+
 module.exports = {
     createCompanySchema,
-    updateCompanySchema
+    updateCompanySchema,
+    createCompanyNewSchema,
+    updateCompanyNewSchema
 };

@@ -14,10 +14,10 @@
 const successResponse = (code, message, messageToShow, data = null) => {
     return {
         success: true,
-        code,
-        message,
-        messageToShow,
+        message: messageToShow || message || "Operation successful.",
         data,
+        code,
+        messageToShow,
     };
 };
 
@@ -31,6 +31,7 @@ const successResponse = (code, message, messageToShow, data = null) => {
 const errorResponse = (errorCode, errorMessage, messageToShow) => {
     return {
         success: false,
+        message: messageToShow || errorMessage || "An error occurred.",
         errorCode,
         errorMessage,
         messageToShow,

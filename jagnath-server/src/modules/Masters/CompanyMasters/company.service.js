@@ -20,9 +20,14 @@ const deleteLogPath = path.join(__dirname, "../../../../logs/Company/Delete.txt"
 const createCompany = async (companyData, userId, files, generatedId, reqInfo) => {
     const transaction = await sequelize.transaction();
     try {
+        let companyCode = companyData.company_code;
+        if (!companyCode) {
+            companyCode = "COMP-" + Math.random().toString(36).substring(2, 11).toUpperCase();
+        }
+
         // Check uniqueness of company_code
         const existingCompany = await Company.findOne({
-            where: { company_code: companyData.company_code },
+            where: { company_code: companyCode },
             transaction
         });
 
@@ -30,7 +35,15 @@ const createCompany = async (companyData, userId, files, generatedId, reqInfo) =
             throw new Error("Company Code must be unique.");
         }
 
-        const dataToInsert = { ...companyData, id: generatedId };
+        const dataToInsert = { 
+            ...companyData, 
+            id: generatedId,
+            userId: userId,
+            company_code: companyCode,
+            company_name: companyData.company_name || companyData.companyName,
+            company_email: companyData.company_email || companyData.companyEmail,
+            contact_number: companyData.contact_number || companyData.phone
+        };
 
         if (files) {
             if (files.logo && files.logo.length > 0) {
@@ -83,6 +96,15 @@ const updateCompany = async (companyId, companyData, files, reqInfo) => {
         }
 
         const dataToUpdate = { ...companyData };
+        if (companyData.companyName !== undefined && dataToUpdate.company_name === undefined) {
+            dataToUpdate.company_name = companyData.companyName;
+        }
+        if (companyData.companyEmail !== undefined && dataToUpdate.company_email === undefined) {
+            dataToUpdate.company_email = companyData.companyEmail;
+        }
+        if (companyData.phone !== undefined && dataToUpdate.contact_number === undefined) {
+            dataToUpdate.contact_number = companyData.phone;
+        }
 
         if (files) {
             if (files.logo && files.logo.length > 0) {
@@ -148,9 +170,38 @@ const getCompaniesByUser = async (userId) => {
     return companies;
 };
 
+const getCompanyByUserId = async (userId) => {
+    try {
+        const company = await Company.findOne({
+            where: { userId }
+        });
+        return company;
+    } catch (error) {
+        throw error;
+    }
+};
+
+const checkOwnership = async (companyId, userId) => {
+    try {
+        const company = await Company.findByPk(companyId);
+        if (!company) return false;
+        if (company.userId === userId) return true;
+
+        // Check fallback mapping table UserCompanies
+        const mapping = await UserCompanies.findOne({
+            where: { company_id: companyId, user_id: userId }
+        });
+        return !!mapping;
+    } catch (error) {
+        throw error;
+    }
+};
+
 module.exports = {
     createCompany,
     updateCompany,
     deleteCompany,
-    getCompaniesByUser
+    getCompaniesByUser,
+    getCompanyByUserId,
+    checkOwnership
 };

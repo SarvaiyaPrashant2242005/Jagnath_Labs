@@ -8,7 +8,7 @@ const { successResponse, errorResponse } = require("../../../utils/response");
 
 const register = async (req, res) => {
     try {
-        const { error, value } = registerSchema.validate(req.body);
+        const { error, value } = registerSchema.validate(req.body || {});
         if (error) {
             return res.status(400).json(errorResponse(
                 "VALIDATION_ERROR",
@@ -40,7 +40,7 @@ const register = async (req, res) => {
 
 const login = async (req, res) => {
     try {
-        const { error, value } = loginSchema.validate(req.body);
+        const { error, value } = loginSchema.validate(req.body || {});
         if (error) {
             return res.status(400).json(errorResponse(
                 "VALIDATION_ERROR",
@@ -72,7 +72,7 @@ const login = async (req, res) => {
 
 const rotateToken = async (req, res) => {
     try {
-        const { error, value } = refreshTokenSchema.validate(req.body);
+        const { error, value } = refreshTokenSchema.validate(req.body || {});
         if (error) {
             return res.status(400).json(errorResponse(
                 "VALIDATION_ERROR",
@@ -94,8 +94,41 @@ const rotateToken = async (req, res) => {
     }
 };
 
+const getMe = async (req, res) => {
+    try {
+        const userId = req.user.user_id;
+        const user = await usersService.getUserById(userId);
+        if (!user) {
+            return res.status(404).json(errorResponse("NOT_FOUND", "User not found.", "User not found."));
+        }
+        return res.status(200).json(successResponse(
+            "USER_ME",
+            "User retrieved successfully.",
+            "User profile retrieved successfully.",
+            user
+        ));
+    } catch (err) {
+        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "An unexpected error occurred."));
+    }
+};
+
+const logout = async (req, res) => {
+    try {
+        return res.status(200).json(successResponse(
+            "LOGOUT_SUCCESS",
+            "Logged out successfully.",
+            "Logged out successfully.",
+            null
+        ));
+    } catch (err) {
+        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "An unexpected error occurred."));
+    }
+};
+
 module.exports = {
     register,
     login,
-    rotateToken
+    rotateToken,
+    getMe,
+    logout
 };

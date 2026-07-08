@@ -26,7 +26,8 @@ const storage = multer.diskStorage({
         // Let's use a temporary fallback if company_id is not in params/body, but usually it should be provided
         // or we handle upload AFTER company creation. 
         // A common pattern is generating the UUID in the controller and passing it to req.
-        const companyId = req.body.company_id || req.params.id || req.query.company_id || 'temp';
+        const body = req.body || {};
+        const companyId = body.company_id || req.params.id || req.query.company_id || 'temp';
         const fieldName = file.fieldname; // 'logo' or 'signature'
 
         const destFolder = path.join(__dirname, "../../uploads/Companies", companyId, fieldName);
