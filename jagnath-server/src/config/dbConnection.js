@@ -6,6 +6,7 @@
  */
 
 const sequelize = require("./database");
+require("../database/index");
 
 /**
  * Authenticates the database connection asynchronously.

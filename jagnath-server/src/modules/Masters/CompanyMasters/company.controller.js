@@ -98,7 +98,7 @@ const update = async (req, res) => {
             userAgent: req.headers["user-agent"]
         };
 
-        const updatedCompany = await companyService.updateCompany(id, value, req.files, reqInfo);
+        const updatedCompany = await companyService.updateCompany(id, value, userId, req.files, reqInfo);
 
         return res.status(200).json(successResponse(
             "COMPANY_UPDATED",
