@@ -20,10 +20,6 @@ const Parameter = sequelize.define("Parameter", {
             key: "id",
         }
     },
-    categoryId: {
-        type: DataTypes.STRING,
-        allowNull: false,
-    },
     parameterName: {
         type: DataTypes.STRING,
         allowNull: false,

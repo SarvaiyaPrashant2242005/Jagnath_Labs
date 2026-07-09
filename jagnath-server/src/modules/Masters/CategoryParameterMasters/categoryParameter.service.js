@@ -1,8 +1,8 @@
 /**
- * @file categoryParameterMapping.service.js
- * @description Business logic for CategoryParameterMapping operations.
+ * @file categoryParameter.service.js
+ * @description Business logic for CategoryParameter operations.
  */
-const CategoryParameterMapping = require("./categoryParameterMapping.model");
+const CategoryParameter = require("./categoryParameter.model");
 const Company = require("../CompanyMasters/company.model");
 const Category = require("../CategoryMasters/category.model");
 const Parameter = require("../ParameterMasters/parameter.model");
@@ -11,14 +11,13 @@ const sequelize = require("../../../config/database");
 const path = require("path");
 const { writeLogToFile } = require("../../../services/loggerService");
 
-const createLogPath = path.join(__dirname, "../../../../logs/CategoryParameterMapping/Create.txt");
-const updateLogPath = path.join(__dirname, "../../../../logs/CategoryParameterMapping/Update.txt");
-const deleteLogPath = path.join(__dirname, "../../../../logs/CategoryParameterMapping/Delete.txt");
+const createLogPath = path.join(__dirname, "../../../../logs/CategoryParameter/Create.txt");
+const updateLogPath = path.join(__dirname, "../../../../logs/CategoryParameter/Update.txt");
+const deleteLogPath = path.join(__dirname, "../../../../logs/CategoryParameter/Delete.txt");
 
 const fieldLabels = {
     categoryId: "Category ID",
     parameterId: "Parameter ID",
-    sequence: "Sequence",
     status: "Status"
 };
 
@@ -30,13 +29,15 @@ const getLoggableValues = (instance) => {
     const values = instance.toJSON ? instance.toJSON() : { ...instance };
     delete values.created_at;
     delete values.updated_at;
+    delete values.deleted_at;
     delete values.createdAt;
     delete values.updatedAt;
+    delete values.deletedAt;
     return values;
 };
 
 /**
- * Helper to format CategoryParameterMapping response.
+ * Helper to format CategoryParameter response.
  */
 const formatMapping = (mapping) => {
     if (!mapping) return null;
@@ -95,7 +96,7 @@ const getChangesBlock = (oldValues, newValues) => {
     const lines = [];
     const keysToCheck = new Set([...Object.keys(oldValues), ...Object.keys(newValues)]);
     for (const key of keysToCheck) {
-        if (['id', 'created_at', 'updated_at', 'createdAt', 'updatedAt', 'companyId', 'company', 'category', 'parameter'].includes(key)) {
+        if (['id', 'created_at', 'updated_at', 'deleted_at', 'createdAt', 'updatedAt', 'deletedAt', 'companyId', 'company', 'category', 'parameter'].includes(key)) {
             continue;
         }
         const oldValue = oldValues[key];
@@ -119,7 +120,7 @@ const getChangesBlock = (oldValues, newValues) => {
 const createMapping = async (mappingData, userId, reqInfo) => {
     const transaction = await sequelize.transaction();
     try {
-        const newMapping = await CategoryParameterMapping.create(mappingData, { transaction });
+        const newMapping = await CategoryParameter.create(mappingData, { transaction });
 
         // Fetch details for logging
         const company = await Company.findByPk(newMapping.companyId, { transaction });
@@ -139,7 +140,7 @@ const createMapping = async (mappingData, userId, reqInfo) => {
         const logMessage = `==================================================
 Date & Time : ${formattedDate}
 
-Module      : CategoryParameterMapping
+Module      : CategoryParameter
 
 Operation   : CREATE
 
@@ -171,7 +172,7 @@ Status      : SUCCESS
 const updateMapping = async (mappingId, mappingData, userId, companyId, reqInfo) => {
     const transaction = await sequelize.transaction();
     try {
-        const mapping = await CategoryParameterMapping.findOne({
+        const mapping = await CategoryParameter.findOne({
             where: { id: mappingId, companyId },
             include: [
                 { model: Company, as: "company" },
@@ -202,7 +203,7 @@ const updateMapping = async (mappingId, mappingData, userId, companyId, reqInfo)
         const logMessage = `==================================================
 Date & Time : ${formattedDate}
 
-Module      : CategoryParameterMapping
+Module      : CategoryParameter
 
 Operation   : UPDATE
 
@@ -228,12 +229,12 @@ ${changesBlock}
 };
 
 /**
- * Deletes a mapping.
+ * Deletes a mapping (soft-delete).
  */
 const deleteMapping = async (mappingId, userId, companyId, reqInfo) => {
     const transaction = await sequelize.transaction();
     try {
-        const mapping = await CategoryParameterMapping.findOne({
+        const mapping = await CategoryParameter.findOne({
             where: { id: mappingId, companyId },
             include: [
                 { model: Company, as: "company" },
@@ -259,7 +260,7 @@ const deleteMapping = async (mappingId, userId, companyId, reqInfo) => {
         const logMessage = `==================================================
 Date & Time : ${formattedDate}
 
-Module      : CategoryParameterMapping
+Module      : CategoryParameter
 
 Operation   : DELETE
 
@@ -290,7 +291,7 @@ Status      : SUCCESS
  */
 const getMappingById = async (mappingId, companyId) => {
     try {
-        const mapping = await CategoryParameterMapping.findOne({
+        const mapping = await CategoryParameter.findOne({
             where: { id: mappingId, companyId },
             include: [
                 {
@@ -321,7 +322,7 @@ const getMappingById = async (mappingId, companyId) => {
  */
 const getAllMappings = async (companyId) => {
     try {
-        const mappings = await CategoryParameterMapping.findAll({
+        const mappings = await CategoryParameter.findAll({
             where: { companyId },
             include: [
                 {
@@ -339,8 +340,7 @@ const getAllMappings = async (companyId) => {
                     as: "parameter",
                     attributes: ["parameterName"]
                 }
-            ],
-            order: [['sequence', 'ASC']]
+            ]
         });
         return mappings.map(m => formatMapping(m));
     } catch (error) {
@@ -353,7 +353,7 @@ const getAllMappings = async (companyId) => {
  */
 const getParametersByCategoryId = async (categoryId, companyId) => {
     try {
-        const mappings = await CategoryParameterMapping.findAll({
+        const mappings = await CategoryParameter.findAll({
             where: { categoryId, companyId },
             include: [{
                 model: Parameter,
@@ -363,11 +363,9 @@ const getParametersByCategoryId = async (categoryId, companyId) => {
                     as: "company",
                     attributes: ["companyName", "company_name"]
                 }]
-            }],
-            order: [['sequence', 'ASC']]
+            }]
         });
 
-        // Format Parameter items properly (re-using Company mapping layout)
         const formatParam = (param) => {
             if (!param) return null;
             const paramObj = param.toJSON ? param.toJSON() : { ...param };

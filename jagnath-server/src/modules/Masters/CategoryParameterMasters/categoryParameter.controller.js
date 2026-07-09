@@ -1,9 +1,9 @@
 /**
- * @file categoryParameterMapping.controller.js
- * @description HTTP layer for CategoryParameterMapping APIs.
+ * @file categoryParameter.controller.js
+ * @description HTTP layer for CategoryParameter APIs.
  */
-const { createMappingSchema, updateMappingSchema } = require("./categoryParameterMapping.validators");
-const categoryParameterMappingService = require("./categoryParameterMapping.service");
+const { createMappingSchema, updateMappingSchema } = require("./categoryParameter.validators");
+const categoryParameterService = require("./categoryParameter.service");
 const companyService = require("../CompanyMasters/company.service");
 const { successResponse, errorResponse } = require("../../../utils/response");
 
@@ -19,7 +19,7 @@ const getUserCompany = async (userId) => {
 };
 
 /**
- * Create a new CategoryParameterMapping.
+ * Create a new mapping.
  */
 const create = async (req, res) => {
     try {
@@ -52,7 +52,7 @@ const create = async (req, res) => {
             userAgent: req.headers["user-agent"]
         };
 
-        const newMapping = await categoryParameterMappingService.createMapping(mappingData, userId, reqInfo);
+        const newMapping = await categoryParameterService.createMapping(mappingData, userId, reqInfo);
 
         return res.status(201).json(successResponse(
             "MAPPING_CREATED",
@@ -66,7 +66,7 @@ const create = async (req, res) => {
 };
 
 /**
- * Get all CategoryParameterMappings.
+ * Get all mappings.
  */
 const getAll = async (req, res) => {
     try {
@@ -79,7 +79,7 @@ const getAll = async (req, res) => {
             return res.status(404).json(errorResponse("NOT_FOUND", e.message, e.message));
         }
 
-        const mappings = await categoryParameterMappingService.getAllMappings(company.id);
+        const mappings = await categoryParameterService.getAllMappings(company.id);
 
         return res.status(200).json(successResponse(
             "MAPPINGS_FETCHED",
@@ -93,8 +93,7 @@ const getAll = async (req, res) => {
 };
 
 /**
- * Get CategoryParameterMapping by ID OR fetch Parameters mapped to a Category ID.
- * Combined logic resolving the request based on what ID type is provided.
+ * Combined GET endpoint (Mapping Details by mapping ID OR mapped parameters list by Category ID).
  */
 const getByIdOrCategory = async (req, res) => {
     try {
@@ -108,8 +107,8 @@ const getByIdOrCategory = async (req, res) => {
             return res.status(404).json(errorResponse("NOT_FOUND", e.message, e.message));
         }
 
-        // 1. Try to find the CategoryParameterMapping by primary key ID
-        const mapping = await categoryParameterMappingService.getMappingById(id, company.id);
+        // 1. Try to find the mapping by primary key ID
+        const mapping = await categoryParameterService.getMappingById(id, company.id);
         if (mapping) {
             return res.status(200).json(successResponse(
                 "MAPPING_FETCHED",
@@ -119,8 +118,8 @@ const getByIdOrCategory = async (req, res) => {
             ));
         }
 
-        // 2. If not found, check if it maps category parameters (acting as categoryId lookup)
-        const parameters = await categoryParameterMappingService.getParametersByCategoryId(id, company.id);
+        // 2. Fallback to check if it's a categoryId and return mapped parameters
+        const parameters = await categoryParameterService.getParametersByCategoryId(id, company.id);
         if (parameters && parameters.length > 0) {
             return res.status(200).json(successResponse(
                 "PARAMETERS_FETCHED",
@@ -130,7 +129,6 @@ const getByIdOrCategory = async (req, res) => {
             ));
         }
 
-        // 3. Otherwise return 404
         return res.status(404).json(errorResponse(
             "NOT_FOUND",
             "Mapping or Category parameters not found.",
@@ -142,7 +140,7 @@ const getByIdOrCategory = async (req, res) => {
 };
 
 /**
- * Get Parameters mapped to a Category ID.
+ * Explicit helper to fetch parameters by Category ID.
  */
 const getParametersByCategory = async (req, res) => {
     try {
@@ -156,7 +154,7 @@ const getParametersByCategory = async (req, res) => {
             return res.status(404).json(errorResponse("NOT_FOUND", e.message, e.message));
         }
 
-        const parameters = await categoryParameterMappingService.getParametersByCategoryId(categoryId, company.id);
+        const parameters = await categoryParameterService.getParametersByCategoryId(categoryId, company.id);
 
         return res.status(200).json(successResponse(
             "PARAMETERS_FETCHED",
@@ -170,7 +168,7 @@ const getParametersByCategory = async (req, res) => {
 };
 
 /**
- * Update CategoryParameterMapping details.
+ * Update mapping details.
  */
 const update = async (req, res) => {
     try {
@@ -199,7 +197,7 @@ const update = async (req, res) => {
             userAgent: req.headers["user-agent"]
         };
 
-        const updatedMapping = await categoryParameterMappingService.updateMapping(id, value, userId, company.id, reqInfo);
+        const updatedMapping = await categoryParameterService.updateMapping(id, value, userId, company.id, reqInfo);
 
         return res.status(200).json(successResponse(
             "MAPPING_UPDATED",
@@ -239,7 +237,7 @@ const remove = async (req, res) => {
             userAgent: req.headers["user-agent"]
         };
 
-        await categoryParameterMappingService.deleteMapping(id, userId, company.id, reqInfo);
+        await categoryParameterService.deleteMapping(id, userId, company.id, reqInfo);
 
         return res.status(200).json(successResponse(
             "MAPPING_DELETED",

@@ -23,7 +23,7 @@ db.Client = require("../modules/Masters/ClientMasters/client.model");
 db.Parameter = require("../modules/Masters/ParameterMasters/parameter.model");
 db.Category = require("../modules/Masters/CategoryMasters/category.model");
 db.TestRequest = require("../modules/Forms/TestRequestForm/testRequest.model");
-db.CategoryParameterMapping = require("../modules/Masters/CategoryParameterMappings/categoryParameterMapping.model");
+db.CategoryParameter = require("../modules/Masters/CategoryParameterMasters/categoryParameter.model");
 db.TestRequestParameter = require("../modules/Transactions/TestRequestParameters/testRequestParameter.model");
 
 // Define Associations
@@ -51,14 +51,14 @@ db.TestRequest.belongsTo(db.Company, { foreignKey: "companyId", as: "company" })
 db.Client.hasMany(db.TestRequest, { foreignKey: "clientId", as: "testRequests" });
 db.TestRequest.belongsTo(db.Client, { foreignKey: "clientId", as: "client" });
 
-db.Company.hasMany(db.CategoryParameterMapping, { foreignKey: "companyId", as: "categoryParameterMappings" });
-db.CategoryParameterMapping.belongsTo(db.Company, { foreignKey: "companyId", as: "company" });
+db.Company.hasMany(db.CategoryParameter, { foreignKey: "companyId", as: "categoryParameters" });
+db.CategoryParameter.belongsTo(db.Company, { foreignKey: "companyId", as: "company" });
 
-db.Category.hasMany(db.CategoryParameterMapping, { foreignKey: "categoryId", as: "categoryParameterMappings" });
-db.CategoryParameterMapping.belongsTo(db.Category, { foreignKey: "categoryId", as: "category" });
+db.Category.hasMany(db.CategoryParameter, { foreignKey: "categoryId", as: "categoryParameters" });
+db.CategoryParameter.belongsTo(db.Category, { foreignKey: "categoryId", as: "category" });
 
-db.Parameter.hasMany(db.CategoryParameterMapping, { foreignKey: "parameterId", as: "categoryParameterMappings" });
-db.CategoryParameterMapping.belongsTo(db.Parameter, { foreignKey: "parameterId", as: "parameter" });
+db.Parameter.hasMany(db.CategoryParameter, { foreignKey: "parameterId", as: "categoryParameters" });
+db.CategoryParameter.belongsTo(db.Parameter, { foreignKey: "parameterId", as: "parameter" });
 
 db.TestRequest.hasMany(db.TestRequestParameter, { foreignKey: "testRequestId", as: "testRequestParameters" });
 db.TestRequestParameter.belongsTo(db.TestRequest, { foreignKey: "testRequestId", as: "testRequest" });

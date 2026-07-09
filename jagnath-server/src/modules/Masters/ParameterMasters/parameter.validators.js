@@ -5,10 +5,6 @@
 const Joi = require("joi");
 
 const createParameterSchema = Joi.object({
-    categoryId: Joi.string().required().messages({
-        "any.required": "Category ID is required.",
-        "string.empty": "Category ID must not be empty."
-    }),
     parameterName: Joi.string().required().messages({
         "any.required": "Parameter Name is required.",
         "string.empty": "Parameter Name must not be empty."
@@ -21,9 +17,6 @@ const createParameterSchema = Joi.object({
 });
 
 const updateParameterSchema = Joi.object({
-    categoryId: Joi.string().optional().messages({
-        "string.empty": "Category ID must not be empty."
-    }),
     parameterName: Joi.string().optional().messages({
         "string.empty": "Parameter Name must not be empty."
     }),

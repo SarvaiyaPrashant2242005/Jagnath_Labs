@@ -1,5 +1,5 @@
 /**
- * @file categoryParameterMapping.validators.js
+ * @file categoryParameter.validators.js
  * @description Joi validation schemas for Category-Parameter mappings.
  */
 const Joi = require("joi");
@@ -15,7 +15,6 @@ const createMappingSchema = Joi.object({
         "string.guid": "Parameter ID must be a valid UUIDv4.",
         "string.empty": "Parameter ID must not be empty."
     }),
-    sequence: Joi.number().integer().optional().allow(null),
     status: Joi.string().valid("Active", "Inactive").optional().allow("", null).messages({
         "any.only": "Status must be Active or Inactive."
     })
@@ -28,7 +27,6 @@ const updateMappingSchema = Joi.object({
     parameterId: Joi.string().guid({ version: 'uuidv4' }).optional().messages({
         "string.guid": "Parameter ID must be a valid UUIDv4."
     }),
-    sequence: Joi.number().integer().optional().allow(null),
     status: Joi.string().valid("Active", "Inactive").optional().allow("", null).messages({
         "any.only": "Status must be Active or Inactive."
     })

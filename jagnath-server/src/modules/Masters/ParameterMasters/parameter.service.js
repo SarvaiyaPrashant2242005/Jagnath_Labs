@@ -14,7 +14,6 @@ const updateLogPath = path.join(__dirname, "../../../../logs/Parameter/Update.tx
 const deleteLogPath = path.join(__dirname, "../../../../logs/Parameter/Delete.txt");
 
 const fieldLabels = {
-    categoryId: "Category ID",
     parameterName: "Parameter Name",
     description: "Description",
     status: "Status"
