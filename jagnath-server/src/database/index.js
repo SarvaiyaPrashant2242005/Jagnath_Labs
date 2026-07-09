@@ -22,6 +22,7 @@ db.UserCompanies = require("../modules/Masters/CompanyMasters/user_companies.mod
 db.Client = require("../modules/Masters/ClientMasters/client.model");
 db.Parameter = require("../modules/Masters/ParameterMasters/parameter.model");
 db.Category = require("../modules/Masters/CategoryMasters/category.model");
+db.TestRequest = require("../modules/Forms/TestRequestForm/testRequest.model");
 
 // Define Associations
 db.Users.hasMany(db.RefreshTokens, { foreignKey: "user_id" });
@@ -41,5 +42,11 @@ db.Parameter.belongsTo(db.Company, { foreignKey: "companyId", as: "company" });
 
 db.Company.hasMany(db.Category, { foreignKey: "companyId", as: "categories" });
 db.Category.belongsTo(db.Company, { foreignKey: "companyId", as: "company" });
+
+db.Company.hasMany(db.TestRequest, { foreignKey: "companyId", as: "testRequests" });
+db.TestRequest.belongsTo(db.Company, { foreignKey: "companyId", as: "company" });
+
+db.Client.hasMany(db.TestRequest, { foreignKey: "clientId", as: "testRequests" });
+db.TestRequest.belongsTo(db.Client, { foreignKey: "clientId", as: "client" });
 
 module.exports = db;
