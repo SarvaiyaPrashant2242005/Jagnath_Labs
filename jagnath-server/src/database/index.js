@@ -23,6 +23,8 @@ db.Client = require("../modules/Masters/ClientMasters/client.model");
 db.Parameter = require("../modules/Masters/ParameterMasters/parameter.model");
 db.Category = require("../modules/Masters/CategoryMasters/category.model");
 db.TestRequest = require("../modules/Forms/TestRequestForm/testRequest.model");
+db.CategoryParameterMapping = require("../modules/Masters/CategoryParameterMappings/categoryParameterMapping.model");
+db.TestRequestParameter = require("../modules/Transactions/TestRequestParameters/testRequestParameter.model");
 
 // Define Associations
 db.Users.hasMany(db.RefreshTokens, { foreignKey: "user_id" });
@@ -48,5 +50,20 @@ db.TestRequest.belongsTo(db.Company, { foreignKey: "companyId", as: "company" })
 
 db.Client.hasMany(db.TestRequest, { foreignKey: "clientId", as: "testRequests" });
 db.TestRequest.belongsTo(db.Client, { foreignKey: "clientId", as: "client" });
+
+db.Company.hasMany(db.CategoryParameterMapping, { foreignKey: "companyId", as: "categoryParameterMappings" });
+db.CategoryParameterMapping.belongsTo(db.Company, { foreignKey: "companyId", as: "company" });
+
+db.Category.hasMany(db.CategoryParameterMapping, { foreignKey: "categoryId", as: "categoryParameterMappings" });
+db.CategoryParameterMapping.belongsTo(db.Category, { foreignKey: "categoryId", as: "category" });
+
+db.Parameter.hasMany(db.CategoryParameterMapping, { foreignKey: "parameterId", as: "categoryParameterMappings" });
+db.CategoryParameterMapping.belongsTo(db.Parameter, { foreignKey: "parameterId", as: "parameter" });
+
+db.TestRequest.hasMany(db.TestRequestParameter, { foreignKey: "testRequestId", as: "testRequestParameters" });
+db.TestRequestParameter.belongsTo(db.TestRequest, { foreignKey: "testRequestId", as: "testRequest" });
+
+db.Parameter.hasMany(db.TestRequestParameter, { foreignKey: "parameterId", as: "testRequestParameters" });
+db.TestRequestParameter.belongsTo(db.Parameter, { foreignKey: "parameterId", as: "parameter" });
 
 module.exports = db;
