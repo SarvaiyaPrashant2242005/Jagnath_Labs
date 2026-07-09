@@ -1,0 +1,150 @@
+/* Custom Keyframe Animations */
+
+/* Marquee Scrolling Animation */
+.marquee-wrapper {
+  overflow: hidden;
+  width: 100%;
+  position: relative;
+  display: flex;
+  padding: 1.25rem 0;
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee-scroll 30s linear infinite;
+}
+
+
+@keyframes marquee-scroll {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+/* Partner Logo styling inside marquee */
+.partner-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin: 0 2.5rem;
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-light);
+  opacity: 0.6;
+  transition: all 0.3s ease;
+  user-select: none;
+  cursor: default;
+}
+
+.partner-logo:hover {
+  opacity: 1;
+  color: var(--primary-dark);
+  transform: scale(1.05);
+}
+
+.partner-icon {
+  font-size: 1.8rem;
+  color: var(--primary);
+}
+
+/* Floating Card Keyframes (Fallbacks or supplementary to GSAP) */
+@keyframes soft-float-y {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-0.75rem);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.soft-floating {
+  animation: soft-float-y 6s ease-in-out infinite;
+}
+
+/* Ripple effect placeholder */
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  transform: scale(0);
+  animation: ripple-effect 0.6s linear;
+  background-color: rgba(255, 255, 255, 0.35);
+  pointer-events: none;
+}
+
+@keyframes ripple-effect {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+/* Green Background CTA box card (#50C878) */
+.cta-gradient-card {
+  background: linear-gradient(135deg, var(--secondary) 0%, var(--secondary-dark) 100%);
+  border: 0.0625rem solid rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(1.875rem);
+  -webkit-backdrop-filter: blur(1.875rem);
+  border-radius: var(--radius-xl);
+  padding: 5rem 4%;
+  position: relative;
+  text-align: center;
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+}
+
+.cta-gradient-card::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -30%;
+  width: 18.75rem;
+  height: 18.75rem;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.25) 0%, transparent 60%);
+  filter: blur(1.875rem);
+  pointer-events: none;
+}
+
+.cta-gradient-card::after {
+  content: '';
+  position: absolute;
+  bottom: -50%;
+  right: -30%;
+  width: 18.75rem;
+  height: 18.75rem;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, transparent 60%);
+  filter: blur(1.875rem);
+  pointer-events: none;
+}
+
+/* Overrides for buttons inside the green card for accessibility/contrast */
+.cta-gradient-card .btn-secondary {
+  background: var(--white);
+  color: var(--secondary-dark);
+  border-color: var(--white);
+  box-shadow: 0 0.625rem 1.25rem -0.625rem rgba(0, 0, 0, 0.25);
+}
+
+.cta-gradient-card .btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--secondary-dark);
+  box-shadow: 0 0.75rem 1.5rem -0.5rem rgba(0, 0, 0, 0.35);
+}
+
+.cta-gradient-card .btn-glass {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: var(--white);
+}
+
+.cta-gradient-card .btn-glass:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.5);
+}
