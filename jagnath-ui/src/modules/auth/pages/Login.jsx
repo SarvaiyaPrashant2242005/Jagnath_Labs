@@ -116,12 +116,12 @@ const Login = ({ onLoginSuccess, onNavigate }) => {
 
           <div className="login-heading-area">
             <h1 className="login-heading">
-              Global<br />
-              Logistics,<br />
+              Advanced<br />
+              Laboratory,<br />
               Simplified<span>.</span>
             </h1>
             <p className="login-subheading">
-              The premium cloud-based ERP built exclusively for global freight forwarders and logistics leaders.
+              The premium cloud-based portal built exclusively for pathology diagnostic laboratories and medical testing.
             </p>
           </div>
         </div>
@@ -135,7 +135,7 @@ const Login = ({ onLoginSuccess, onNavigate }) => {
             onClick={() => onNavigate && onNavigate('landing')}
             title="Go to landing page"
           >
-            FreightFlow
+            Jaganath Lab
           </div>
           <div className="login-header-group">
             <h2 className="login-title">Welcome Back</h2>
@@ -259,7 +259,7 @@ const Login = ({ onLoginSuccess, onNavigate }) => {
 
           {/* Footer details */}
           <footer className="login-footer">
-            Jagnath ERP Version 1.0.0
+            Jagnath Lab Version 1.0.0
           </footer>
         </div>
       </div>
