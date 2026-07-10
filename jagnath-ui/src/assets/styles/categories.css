@@ -1,0 +1,299 @@
+/* Jaganath Lab LIMS - Category Master Stylesheet */
+
+.categories-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+/* Page action buttons header */
+.cat-master-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0 0.25rem;
+}
+
+.cat-header-left-text {
+  font-size: 0.9rem;
+  color: var(--text-light);
+  font-weight: 600;
+}
+
+.cat-header-right-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* Manage Parameters & Create Category buttons */
+.cat-manage-btn {
+  background-color: var(--white);
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  padding: 0.625rem 1.25rem;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-dark);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  transition: all 0.2s ease;
+}
+
+.cat-manage-btn:hover {
+  background-color: #F8FAFC;
+  border-color: #CBD5E1;
+}
+
+.cat-create-btn {
+  background-color: #1E3A8A; /* Brand royal blue */
+  color: var(--white);
+  border: none;
+  border-radius: 8px;
+  padding: 0.625rem 1.25rem;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.cat-create-btn:hover {
+  background-color: #172554;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(30, 58, 138, 0.2);
+}
+
+/* Categories cards 3-column grid */
+.cat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.cat-card {
+  background-color: var(--white);
+  padding: 1.5rem;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(135, 206, 235, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  min-height: 380px;
+}
+
+.cat-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cat-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.cat-card-title {
+  font-family: var(--font-heading);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1E3A8A; /* Soft brand blue */
+}
+
+.cat-count-sub {
+  font-size: 0.775rem;
+  color: var(--text-light);
+  font-weight: 600;
+}
+
+/* Top-right card category icons */
+.cat-icon-badge {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.cat-icon-badge.drinking-water { color: #2563EB; background-color: rgba(37, 99, 235, 0.08); }
+.cat-icon-badge.ground-water { color: #0D9488; background-color: rgba(13, 148, 136, 0.08); }
+.cat-icon-badge.surface-water { color: #8B5CF6; background-color: rgba(139, 92, 246, 0.08); }
+.cat-icon-badge.waste-water { color: #D97706; background-color: rgba(217, 119, 6, 0.08); }
+.cat-icon-badge.food { color: #059669; background-color: rgba(5, 150, 105, 0.08); }
+.cat-icon-badge.soil { color: #DC2626; background-color: rgba(220, 38, 38, 0.08); }
+.cat-icon-badge.generic { color: #4F46E5; background-color: rgba(79, 70, 229, 0.08); }
+
+/* Parameter Tags inside card */
+.cat-tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.15rem;
+  align-content: flex-start;
+  flex-grow: 1;
+}
+
+.cat-tag {
+  background-color: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.725rem;
+  font-weight: 600;
+  color: var(--text-dark);
+  white-space: nowrap;
+}
+
+.cat-tag-more {
+  background-color: rgba(30, 58, 138, 0.05);
+  border: 1px solid rgba(30, 58, 138, 0.15);
+  border-radius: 6px;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.725rem;
+  font-weight: 700;
+  color: #1E3A8A;
+  white-space: nowrap;
+}
+
+/* Edit Parameter Mapping dashboard panel box */
+.cat-edit-panel {
+  border: 1.5px dashed #E2E8F0;
+  border-radius: 12px;
+  background-color: var(--white);
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  margin-top: auto;
+  user-select: none;
+}
+
+.cat-edit-panel:hover {
+  border-color: #EA580C; /* Accent orange */
+  background-color: rgba(234, 88, 12, 0.01);
+  box-shadow: 0 4px 14px rgba(234, 88, 12, 0.05);
+}
+
+.cat-edit-graphic {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.cat-edit-icon-svg {
+  width: 48px;
+  height: 48px;
+  opacity: 0.22;
+  transition: opacity 0.3s ease;
+  color: var(--text-light);
+}
+
+.cat-edit-panel:hover .cat-edit-icon-svg {
+  opacity: 0.35;
+}
+
+.cat-edit-text {
+  font-size: 0.825rem;
+  font-weight: 700;
+  color: #EA580C; /* Orange/rust */
+  transition: transform 0.3s ease;
+}
+
+.cat-edit-panel:hover .cat-edit-text {
+  transform: translateX(2px);
+}
+
+/* Checklist grid drawer form */
+.cat-drawer-checklist {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-bottom: 1.5rem;
+}
+
+.cat-checklist-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.825rem;
+  cursor: pointer;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid #E2E8F0;
+  background-color: var(--white);
+  transition: all 0.2s ease;
+  user-select: none;
+  font-weight: 500;
+  color: var(--text-dark);
+}
+
+.cat-checklist-item:hover {
+  background-color: #F8FAFC;
+  border-color: #CBD5E1;
+}
+
+.cat-checklist-item.checked {
+  background-color: rgba(30, 58, 138, 0.02);
+  border-color: #1E3A8A;
+  font-weight: 600;
+}
+
+.cat-checklist-box {
+  width: 15px;
+  height: 15px;
+  border-radius: 4px;
+  border: 1.5px solid #CBD5E1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+  color: transparent;
+  background-color: var(--white);
+  transition: all 0.2s ease;
+}
+
+.cat-checklist-item.checked .cat-checklist-box {
+  background-color: #1E3A8A;
+  border-color: #1E3A8A;
+  color: var(--white);
+}
+
+@media (max-width: 992px) {
+  .cat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 650px) {
+  .cat-grid {
+    grid-template-columns: 1fr;
+  }
+  .cat-master-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+  .cat-header-right-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .cat-drawer-checklist {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,285 @@
+/* Jaganath Lab LIMS - Parameter Master Stylesheet */
+
+.parameters-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+/* Card main container */
+.param-card {
+  background-color: var(--white);
+  padding: 1.75rem;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(135, 206, 235, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Header and filtering tools */
+.param-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.param-filters-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  flex-grow: 1;
+}
+
+/* Parameters Search input wrapper */
+.param-search-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 280px;
+}
+
+.param-search-icon {
+  position: absolute;
+  left: 0.85rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.param-search-input {
+  background-color: var(--white);
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  padding: 0.55rem 1rem 0.55rem 2.1rem;
+  font-family: var(--font-body);
+  font-size: 0.825rem;
+  width: 100%;
+  outline: none;
+  transition: all 0.3s ease;
+  color: var(--text-dark);
+}
+
+.param-search-input:focus {
+  border-color: var(--primary-dark);
+  box-shadow: 0 0 0 3px rgba(135, 206, 235, 0.15);
+}
+
+.param-results-count {
+  font-size: 0.85rem;
+  color: var(--text-light);
+  font-weight: 600;
+}
+
+/* Create Parameter CTA button */
+.param-create-btn {
+  background-color: #1E3A8A; /* Premium royal blue */
+  color: var(--white);
+  border: none;
+  border-radius: 8px;
+  padding: 0.625rem 1.25rem;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.param-create-btn:hover {
+  background-color: #172554;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(30, 58, 138, 0.2);
+}
+
+/* Master Table formats */
+.param-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 8px;
+}
+
+.param-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.85rem;
+  color: var(--text-dark);
+}
+
+.param-table th {
+  color: var(--text-light);
+  background-color: var(--bg-light);
+  padding: 0.875rem 1rem;
+  font-weight: 700;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border-bottom: 2px solid #E2E8F0;
+  user-select: none;
+}
+
+.param-table td {
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid #F1F5F9;
+  vertical-align: middle;
+  position: relative;
+}
+
+.param-table tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+.param-table tbody tr:hover {
+  background-color: #F8FAFC;
+}
+
+/* Parameter Name styling */
+.param-name-text {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  color: var(--text-dark);
+  font-size: 0.875rem;
+}
+
+.param-unit-text {
+  color: var(--text-light);
+  font-weight: 500;
+}
+
+.param-price-text {
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.param-time-text {
+  font-weight: 600;
+  color: var(--text-light);
+}
+
+/* Categories mapped pills */
+.param-cat-pills-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.param-cat-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #2563EB;
+  background-color: rgba(37, 99, 235, 0.06);
+  white-space: nowrap;
+}
+
+/* Edit action icon on hover row */
+.param-edit-icon-wrapper {
+  opacity: 0;
+  position: absolute;
+  right: 1.25rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: var(--white);
+  border: 1px solid #E2E8F0;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-light);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  z-index: 5;
+}
+
+.param-table tbody tr:hover .param-edit-icon-wrapper {
+  opacity: 1;
+}
+
+.param-edit-icon-wrapper:hover {
+  color: var(--primary-dark);
+  border-color: var(--primary-dark);
+  background-color: rgba(135, 206, 235, 0.05);
+}
+
+/* Pagination structure */
+.param-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 0.5rem 0 0.5rem;
+  border-top: 1px solid #F1F5F9;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.param-showing-text {
+  font-size: 0.85rem;
+  color: var(--text-light);
+  font-weight: 600;
+}
+
+.param-pagination {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.param-page-btn {
+  background-color: var(--white);
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-dark);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.param-page-btn:hover:not(:disabled) {
+  background-color: #F8FAFC;
+  border-color: #CBD5E1;
+}
+
+.param-page-btn.active {
+  background-color: var(--primary-dark);
+  border-color: var(--primary-dark);
+  color: var(--white);
+}
+
+.param-page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+  .param-card-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .param-filters-left {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .param-search-wrapper {
+    width: 100%;
+  }
+}
