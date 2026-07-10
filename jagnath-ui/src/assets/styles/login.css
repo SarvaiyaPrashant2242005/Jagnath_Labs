@@ -302,7 +302,7 @@
 .login-submit-btn {
   width: 100%;
   padding: 0.875rem;
-  background: linear-gradient(135deg, var(--secondary) 0%, var(--secondary-dark) 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
   color: var(--white);
   border: none;
   border-radius: var(--radius-sm);
@@ -321,7 +321,7 @@
 .login-submit-btn:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 6px 20px -2px rgba(80, 200, 120, 0.45);
-  background: linear-gradient(135deg, var(--secondary-dark) 0%, var(--secondary) 100%);
+  background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
 }
 
 .login-submit-btn:active:not(:disabled) {

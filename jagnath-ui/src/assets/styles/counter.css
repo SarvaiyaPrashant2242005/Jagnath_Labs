@@ -1,55 +1,64 @@
 .counter-section {
-  padding: 3.75rem 4%;
+  padding: 80px 6% 60px;
   background: var(--bg-light);
   position: relative;
-  margin-top: -2.5rem;
+  margin-top: 0;
   z-index: 10;
 }
 
 .counter-container {
-  max-width: 75rem;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 2.5rem;
-  border-radius: var(--radius-xl);
+  padding: 40px;
+  border-radius: var(--radius-lg);
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 1.875rem;
+  gap: 30px;
   text-align: center;
-  box-shadow: var(--shadow-lg);
-  border: 0.0625rem solid rgba(135, 206, 235, 0.25);
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(1.25rem);
-  -webkit-backdrop-filter: blur(1.25rem);
+  box-shadow: var(--shadow-premium), 0 20px 50px rgba(0, 0, 0, 0.03);
+  border: 1px solid var(--border-color);
+  background: var(--white);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.counter-container:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-glow), 0 20px 50px rgba(34, 197, 94, 0.08);
+  border-color: rgba(34, 197, 94, 0.25);
 }
 
 .counter-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
+  gap: 8px;
   position: relative;
 }
 
 .counter-item:not(:last-child)::after {
   content: '';
   position: absolute;
-  right: -0.9375rem;
+  right: -15px;
   top: 15%;
   height: 70%;
-  width: 0.0625rem;
-  background: linear-gradient(to bottom, transparent, rgba(135, 206, 235, 0.4), transparent);
+  width: 1px;
+  background: linear-gradient(to bottom, transparent, var(--border-color), transparent);
 }
 
 .counter-number {
   font-family: var(--font-heading);
-  font-size: clamp(2rem, 4vw, 3rem);
+  font-size: clamp(2.2rem, 4vw, 3.2rem);
   font-weight: 800;
   color: var(--text-dark);
   line-height: 1;
+  letter-spacing: -0.03em;
 }
 
 .counter-number.highlight {
-  color: var(--secondary-dark);
+  color: var(--primary);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .counter-label {
@@ -62,7 +71,7 @@
 @media (max-width: 991px) {
   .counter-container {
     grid-template-columns: repeat(2, 1fr);
-    gap: 2.5rem;
+    gap: 40px;
   }
   
   .counter-item:nth-child(2)::after {
@@ -73,7 +82,8 @@
 @media (max-width: 576px) {
   .counter-container {
     grid-template-columns: 1fr;
-    gap: 1.875rem;
+    gap: 30px;
+    padding: 30px 20px;
   }
   
   .counter-item::after {
