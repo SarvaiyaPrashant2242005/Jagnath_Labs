@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import './assets/styles/index.css';
 import LandingPage from './modules/landingPage/LandingPage';
 import Login from './modules/auth/pages/Login';
+import Dashboard from './modules/dashboard/pages/Dashboard';
 
 function App() {
   // Sync page state with browser URL hash for standard history support
   const getPageFromHash = () => {
     const hash = window.location.hash;
     if (hash === '#/login') return 'login';
+    if (hash === '#/dashboard') return 'dashboard';
     return 'landing'; // Default to landing page
   };
 
@@ -25,6 +27,8 @@ function App() {
   const navigateTo = (page) => {
     if (page === 'login') {
       window.location.hash = '#/login';
+    } else if (page === 'dashboard') {
+      window.location.hash = '#/dashboard';
     } else {
       window.location.hash = '#/landing';
     }
@@ -32,11 +36,15 @@ function App() {
 
   const handleLoginSuccess = (userData) => {
     console.log('Login success:', userData);
-    navigateTo('landing');
+    navigateTo('dashboard');
   };
 
   if (currentPage === 'login') {
     return <Login onLoginSuccess={handleLoginSuccess} onNavigate={navigateTo} />;
+  }
+
+  if (currentPage === 'dashboard') {
+    return <Dashboard onNavigate={navigateTo} />;
   }
 
   return <LandingPage onNavigate={navigateTo} />;
