@@ -1,6 +1,6 @@
 /**
  * @file index.js
- * @description Main entry point for the FreightFlow backend server.
+ * @description Main entry point for the Jagnath Labs backend server.
  * Loads environment variables, connects to the database, and boots up the HTTP listener.
  * @requires dotenv
  * @requires app
@@ -29,7 +29,7 @@ const startServer = async () => {
 
     app.listen(PORT, () => {
         console.log(`🚀 Server Running On Port ${PORT}`);
-        console.debug(`http://localhost:5000/freightflow/test`);
+        console.debug(`http://localhost:5000/jagnath/test`);
     });
 };
 

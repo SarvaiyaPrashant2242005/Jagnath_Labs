@@ -47,13 +47,11 @@ import {
   FaNotesMedical
 } from 'react-icons/fa';
 import {
-  MdBloodtype,
-  MdOutlineVerifiedUser,
-  MdAccessTime
+  MdBloodtype
 } from 'react-icons/md';
 import { GiMicroscope } from 'react-icons/gi';
 import { TbReportAnalytics } from 'react-icons/tb';
-import { FiActivity, FiShield } from 'react-icons/fi';
+import { FiActivity } from 'react-icons/fi';
 
 // Register GSAP ScrollTrigger
 gsap.registerPlugin(ScrollTrigger);

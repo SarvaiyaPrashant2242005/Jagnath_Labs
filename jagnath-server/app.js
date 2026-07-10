@@ -56,15 +56,15 @@ app.use(morgan(":method :url :status :response-time ms - :res[content-length]", 
  * Diagnostic / Health Check Endpoint
  * Simple endpoint to verify the server status and API availability.
  * 
- * @name GET/freightflow/test
+ * @name GET/jagnath/test
  * @function
  * @param {import('express').Request} req - Express request object
  * @param {import('express').Response} res - Express response object
  */
-app.get("/freightflow/test", (req, res) => {
+app.get("/jagnath/test", (req, res) => {
     res.status(200).json({
         success: true,
-        message: "FreightFlow API Running"
+        message: "Jagnath Labs API Running"
     });
 });
 
