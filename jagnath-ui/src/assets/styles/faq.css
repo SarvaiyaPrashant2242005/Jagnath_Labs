@@ -90,6 +90,7 @@
 }
 
 .faq-item.active .faq-content {
+  max-height: 15.625rem; /* 250px */
   padding: 0 1.875rem 1.5rem;
 }
 
@@ -117,6 +118,7 @@
   }
   
   .faq-item.active .faq-content {
+    max-height: 18.75rem; /* 300px on mobile to handle wrapped texts */
     padding: 0 1.25rem 1.25rem;
   }
 }

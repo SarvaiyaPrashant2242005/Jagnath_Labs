@@ -11,6 +11,9 @@ import Card from '../../shared/components/Card/Card';
 // Local Video Import
 import landingVideo from '../../assets/video/jagnath Landing page.mp4';
 
+// Logo Image
+import logoImage from '../../assets/images/J-logo.png';
+
 // React Icons
 import { 
   FaCalendarAlt, 
@@ -45,22 +48,19 @@ import {
   FaShieldAlt,
   FaNotesMedical
 } from 'react-icons/fa';
-import { 
-  MdBloodtype, 
-  MdOutlineVerifiedUser,
-  MdAccessTime
-} from 'react-icons/md';
+import { MdBloodtype } from 'react-icons/md';
 import { GiMicroscope } from 'react-icons/gi';
 import { TbReportAnalytics } from 'react-icons/tb';
-import { FiActivity, FiShield } from 'react-icons/fi';
+import { FiActivity } from 'react-icons/fi';
 
 // Register GSAP ScrollTrigger
 gsap.registerPlugin(ScrollTrigger);
 
-function LandingPage() {
+function LandingPage({ onNavigate }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeSlide, setActiveSlide] = useState(0);
   const [openFaq, setOpenFaq] = useState(null);
+  const isAnimatingRef = useRef(false);
 
   // GSAP Refs
   const heroHeadingRef = useRef(null);
@@ -344,13 +344,19 @@ function LandingPage() {
 
   useEffect(() => {
     const timer = setInterval(() => {
-      changeSlide((activeSlide + 1) % testimonials.length);
+      if (!isAnimatingRef.current) {
+        changeSlide((activeSlide + 1) % testimonials.length);
+      }
     }, 6000);
     return () => clearInterval(timer);
-  }, [activeSlide]);
+  }, [activeSlide, testimonials.length]);
 
   const changeSlide = (index) => {
+    if (isAnimatingRef.current) return;
+    if (index === activeSlide) return;
+
     if (testimonialSliderRef.current) {
+      isAnimatingRef.current = true;
       gsap.to(testimonialSliderRef.current, {
         opacity: 0,
         scale: 0.96,
@@ -364,6 +370,9 @@ function LandingPage() {
             y: 0,
             duration: 0.5,
             ease: 'power2.out',
+            onComplete: () => {
+              isAnimatingRef.current = false;
+            }
           });
         }
       });
@@ -406,9 +415,15 @@ function LandingPage() {
       <header className={`navbar-container ${isScrolled ? 'scrolled' : ''}`}>
         <div className="navbar-wrapper">
           <a href="#" className="nav-logo" id="logo-anchor">
-            <img src={revrv} alt="" />
-            Jaganath<span className="logo-text-highlight">- Lab</span>
+            <img src={logoImage} alt="Jaganath Lab" className="nav-logo-img" />
+            Jaganath<span className="logo-text-highlight"> - Lab</span>
           </a>
+
+          <div className="nav-actions">
+            <Button variant="secondary" onClick={() => onNavigate('login')} className="nav-login-btn">
+              Login
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -441,10 +456,10 @@ function LandingPage() {
               </p>
 
               <div ref={heroBtnsRef} className="hero-ctas">
-                <Button variant="primary">
+                <Button variant="primary" onClick={() => onNavigate('login')}>
                   Book a Test
                 </Button>
-                <Button variant="glass">
+                <Button variant="glass" onClick={() => document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' })}>
                   View Health Packages
                 </Button>
               </div>
@@ -674,6 +689,9 @@ function LandingPage() {
             <h2 className="section-title">
               Our Precise <span className="highlight">Diagnostic Process</span>
             </h2>
+            <p className="section-desc">
+              From booking to report delivery, experience a seamless diagnostic journey powered by precision and technology.
+            </p>
           </div>
 
           <div ref={timelineSectionRef} className="timeline-outer-container">
@@ -687,10 +705,7 @@ function LandingPage() {
                 className="timeline-step"
               >
                 <div className="timeline-node"><FaCalendarAlt /></div>
-                <div className="timeline-info">
-                  <h3 className="timeline-step-title">1. Book Test</h3>
-                  <p className="timeline-step-desc">Select tests and schedule home collection slot.</p>
-                </div>
+                <span className="timeline-label">Book Test</span>
               </div>
 
               <div 
@@ -698,10 +713,7 @@ function LandingPage() {
                 className="timeline-step"
               >
                 <div className="timeline-node"><FaVial /></div>
-                <div className="timeline-info">
-                  <h3 className="timeline-step-title">2. Collection</h3>
-                  <p className="timeline-step-desc">Phlebotomist extracts samples hygienically.</p>
-                </div>
+                <span className="timeline-label">Collection</span>
               </div>
 
               <div 
@@ -709,10 +721,7 @@ function LandingPage() {
                 className="timeline-step"
               >
                 <div className="timeline-node"><GiMicroscope /></div>
-                <div className="timeline-info">
-                  <h3 className="timeline-step-title">3. Analysis</h3>
-                  <p className="timeline-step-desc">Automated equipment screens the samples.</p>
-                </div>
+                <span className="timeline-label">Analysis</span>
               </div>
 
               <div 
@@ -720,10 +729,7 @@ function LandingPage() {
                 className="timeline-step"
               >
                 <div className="timeline-node"><FaAward /></div>
-                <div className="timeline-info">
-                  <h3 className="timeline-step-title">4. Verification</h3>
-                  <p className="timeline-step-desc">Pathologists crosscheck the analysis results.</p>
-                </div>
+                <span className="timeline-label">Verification</span>
               </div>
 
               <div 
@@ -731,10 +737,7 @@ function LandingPage() {
                 className="timeline-step"
               >
                 <div className="timeline-node"><FaFileMedical /></div>
-                <div className="timeline-info">
-                  <h3 className="timeline-step-title">5. Generation</h3>
-                  <p className="timeline-step-desc">Detailed PDF report is securely compiled.</p>
-                </div>
+                <span className="timeline-label">Generation</span>
               </div>
 
               <div 
@@ -742,10 +745,7 @@ function LandingPage() {
                 className="timeline-step"
               >
                 <div className="timeline-node"><FaCloudDownloadAlt /></div>
-                <div className="timeline-info">
-                  <h3 className="timeline-step-title">6. Delivery</h3>
-                  <p className="timeline-step-desc">Get your NABL reports on email & WhatsApp.</p>
-                </div>
+                <span className="timeline-label">Delivery</span>
               </div>
 
               <div 
@@ -753,10 +753,7 @@ function LandingPage() {
                 className="timeline-step"
               >
                 <div className="timeline-node"><FaCheckDouble /></div>
-                <div className="timeline-info">
-                  <h3 className="timeline-step-title">7. Completed</h3>
-                  <p className="timeline-step-desc">Consult specialists with your online reports.</p>
-                </div>
+                <span className="timeline-label">Completed</span>
               </div>
             </div>
           </div>
@@ -899,7 +896,7 @@ function LandingPage() {
                     <FaChevronDown />
                   </span>
                 </button>
-                <div className="faq-content" style={{ maxHeight: openFaq === index ? '12.5rem' : '0rem' }}>
+                <div className="faq-content">
                   <p className="faq-answer">{faq.a}</p>
                 </div>
               </div>
@@ -917,10 +914,10 @@ function LandingPage() {
               Book your diagnostic laboratory tests and home sample collection in minutes.
             </p>
             <div className="hero-ctas" style={{ justifyContent: 'center' }}>
-              <Button variant="secondary">
+              <Button variant="secondary" onClick={() => onNavigate('login')}>
                 Book Appointment
               </Button>
-              <Button variant="glass">
+              <Button variant="glass" onClick={() => document.getElementById('footer-contact')?.scrollIntoView({ behavior: 'smooth' })}>
                 <FaPhoneAlt style={{ marginRight: '0.5rem' }} /> Contact Us
               </Button>
             </div>
@@ -929,12 +926,12 @@ function LandingPage() {
       </main>
 
       {/* Footer Section */}
-      <footer className="footer-section">
+      <footer className="footer-section" id="footer-contact">
         <div className="footer-container">
           <div className="footer-col">
             <a href="#" className="footer-logo">
-              <GiMicroscope className="logo-icon" />
-              Jaganath<span className="logo-text-highlight">-Lab</span>
+              <img src={logoImage} alt="Jaganath Lab" className="footer-logo-img" />
+              Jaganath<span className="logo-text-highlight"> - Lab</span>
             </a>
             <p className="footer-desc">
               Providing modern, premium diagnostic parameters, advanced biological screening, and precise reports compiled by expert pathologists.
