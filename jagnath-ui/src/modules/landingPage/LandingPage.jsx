@@ -403,11 +403,11 @@ function LandingPage({ onNavigate }) {
       {/* Navbar Section */}
       <header className={`navbar-container ${isScrolled || isMobileMenuOpen ? 'scrolled' : ''}`}>
         <div className="navbar-wrapper">
-          <a href="#" className="nav-logo" id="logo-anchor">
+          <a href="#home" className="nav-logo" id="logo-anchor">
             <img src="/Images/Navbar_Logo.png" alt="Jaganath Lab" className="nav-logo-img" />
           </a>
           <ul className="nav-menu">
-            <li><a href="#" className="nav-link">Home</a></li>
+            <li><a href="#home" className="nav-link">Home</a></li>
             <li><a href="#services" className="nav-link">Services</a></li>
             <li><a href="#why-us" className="nav-link">Why Us</a></li>
             <li><a href="#process" className="nav-link">Process</a></li>
@@ -432,7 +432,7 @@ function LandingPage({ onNavigate }) {
         {/* Mobile Menu Drawer */}
         <div className={`mobile-menu-drawer ${isMobileMenuOpen ? 'open' : ''}`}>
           <ul className="mobile-nav-links">
-            <li><a href="#" className="mobile-nav-link" onClick={() => setIsMobileMenuOpen(false)}>Home</a></li>
+            <li><a href="#home" className="mobile-nav-link" onClick={() => setIsMobileMenuOpen(false)}>Home</a></li>
             <li><a href="#services" className="mobile-nav-link" onClick={() => setIsMobileMenuOpen(false)}>Services</a></li>
             <li><a href="#why-us" className="mobile-nav-link" onClick={() => setIsMobileMenuOpen(false)}>Why Us</a></li>
             <li><a href="#process" className="mobile-nav-link" onClick={() => setIsMobileMenuOpen(false)}>Process</a></li>
@@ -483,10 +483,13 @@ function LandingPage({ onNavigate }) {
               </p>
 
               <div ref={heroBtnsRef} className="hero-ctas">
-                <Button variant="primary">
+                <Button variant="primary" onClick={() => onNavigate && onNavigate('login')}>
                   Book a Test
                 </Button>
-                <Button variant="outline">
+                <Button variant="outline" onClick={() => {
+                  const el = document.getElementById('services');
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                }}>
                   View Health Packages
                 </Button>
               </div>
@@ -1013,7 +1016,7 @@ function LandingPage({ onNavigate }) {
       <footer className="footer-section">
         <div className="footer-container">
           <div className="footer-col">
-            <a href="#" className="footer-logo">
+            <a href="#home" className="footer-logo">
               <img src="/Images/Navbar_Logo.png" alt="Jaganath Lab" className="footer-logo-img" />
             </a>
             <p className="footer-desc">
@@ -1030,7 +1033,7 @@ function LandingPage({ onNavigate }) {
           <div className="footer-col">
             <h3 className="footer-title">Quick Links</h3>
             <ul className="footer-links">
-              <li><a href="#" className="footer-link">Home</a></li>
+              <li><a href="#home" className="footer-link">Home</a></li>
               <li><a href="#services" className="footer-link">Services</a></li>
               <li><a href="#why-us" className="footer-link">Why Choose Us</a></li>
               <li><a href="#process" className="footer-link">Process</a></li>

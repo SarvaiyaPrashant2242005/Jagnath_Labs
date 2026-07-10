@@ -57,14 +57,33 @@
   color: var(--white);
 }
 
+/* Logo container styling */
 .login-logo {
-  font-family: var(--font-heading);
-  font-size: 1.85rem;
-  font-weight: 800;
-  letter-spacing: -0.025em;
-  color: var(--white);
   user-select: none;
   animation: fadeInDown 0.8s ease-out;
+}
+
+.login-logo-img {
+  height: 3.2rem;
+  width: auto;
+  object-fit: contain;
+  background: var(--white);
+  padding: 8px 18px;
+  border-radius: var(--radius-sm);
+  display: inline-block;
+  box-shadow: var(--shadow-sm);
+}
+
+.mobile-logo-wrapper {
+  display: none;
+}
+
+.mobile-logo-img {
+  height: 2.8rem;
+  width: auto;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto;
 }
 
 .login-heading-area {
@@ -456,19 +475,9 @@
 
   .mobile-logo-wrapper {
     display: block;
-    font-family: var(--font-heading);
-    font-size: 1.85rem;
-    font-weight: 800;
-    color: var(--secondary-dark);
     margin-bottom: 1.5rem;
     cursor: pointer;
     text-align: center;
-    letter-spacing: -0.025em;
-    transition: color 0.3s ease;
-  }
-
-  .mobile-logo-wrapper:hover {
-    color: var(--secondary);
   }
 
   .login-title {

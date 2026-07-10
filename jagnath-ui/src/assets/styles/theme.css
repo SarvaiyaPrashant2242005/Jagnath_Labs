@@ -7,6 +7,12 @@
   --primary-dark: #16A34A;
   --primary-rgb: 34, 197, 94;
 
+  --secondary: #22C55E;
+  --secondary-light: #4ADE80;
+  --secondary-dark: #16A34A;
+  --bg-dark: #0B0F19;
+  --border-glass-dark: rgba(255, 255, 255, 0.05);
+
   --dark: #111827;
   --dark-rgb: 17, 24, 39;
 
@@ -51,6 +57,14 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+section[id] {
+  scroll-margin-top: 90px;
 }
 
 html, body {
