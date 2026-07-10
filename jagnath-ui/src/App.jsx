@@ -3,13 +3,28 @@ import './assets/styles/index.css';
 import LandingPage from './modules/landingPage/LandingPage';
 import Login from './modules/auth/pages/Login';
 import Dashboard from './modules/dashboard/pages/Dashboard';
+import authService from './shared/services/authService';
 
 function App() {
   // Sync page state with browser URL hash for standard history support
   const getPageFromHash = () => {
     const hash = window.location.hash;
-    if (hash === '#/login') return 'login';
-    if (hash === '#/dashboard') return 'dashboard';
+    if (hash === '#/login') {
+      // If already logged in, redirect to dashboard
+      if (authService.isAuthenticated()) {
+        window.location.hash = '#/dashboard';
+        return 'dashboard';
+      }
+      return 'login';
+    }
+    if (hash === '#/dashboard') {
+      // Route Protection: Redirect if unauthorized
+      if (!authService.isAuthenticated()) {
+        window.location.hash = '#/login';
+        return 'login';
+      }
+      return 'dashboard';
+    }
     return 'landing'; // Default to landing page
   };
 

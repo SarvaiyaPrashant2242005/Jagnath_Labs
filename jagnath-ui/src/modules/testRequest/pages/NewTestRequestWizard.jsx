@@ -2,76 +2,25 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { 
   FaSearch, FaCheck, FaChevronRight, FaTimes, FaFlask 
 } from 'react-icons/fa';
-
-// Rich parameters dataset categorized by group
-const PARAMETERS_DATA = [
-  // Frequently Used
-  { id: 'p_ph', name: 'pH', category: 'Frequently Used', price: 150, turnaround: '1 day' },
-  { id: 'p_tds', name: 'TDS', category: 'Frequently Used', price: 150, turnaround: '1 day' },
-  { id: 'p_bod', name: 'BOD', category: 'Frequently Used', price: 300, turnaround: '3 days' },
-  { id: 'p_cod', name: 'COD', category: 'Frequently Used', price: 300, turnaround: '2 days' },
-
-  // Drinking Water
-  { id: 'dw_ph', name: 'pH', category: 'Drinking Water', price: 150, turnaround: '1 day' },
-  { id: 'dw_tds', name: 'TDS', category: 'Drinking Water', price: 150, turnaround: '1 day' },
-  { id: 'dw_chloride', name: 'Chloride', category: 'Drinking Water', price: 200, turnaround: '1 day' },
-  { id: 'dw_fluoride', name: 'Fluoride', category: 'Drinking Water', price: 250, turnaround: '2 days' },
-  { id: 'dw_hardness', name: 'Total Hardness', category: 'Drinking Water', price: 200, turnaround: '1 day' },
-  { id: 'dw_calcium', name: 'Calcium', category: 'Drinking Water', price: 180, turnaround: '1 day' },
-  { id: 'dw_turbidity', name: 'Turbidity', category: 'Drinking Water', price: 120, turnaround: '1 day' },
-  { id: 'dw_iron', name: 'Iron', category: 'Drinking Water', price: 220, turnaround: '2 days' },
-  { id: 'dw_chlorine', name: 'Residual Chlorine', category: 'Drinking Water', price: 150, turnaround: '1 day' },
-  { id: 'dw_ecoli', name: 'E.Coli', category: 'Drinking Water', price: 350, turnaround: '2 days' },
-
-  // Ground Water
-  { id: 'gw_ph', name: 'pH', category: 'Ground Water', price: 150, turnaround: '1 day' },
-  { id: 'gw_tds', name: 'TDS', category: 'Ground Water', price: 150, turnaround: '1 day' },
-  { id: 'gw_hardness', name: 'Total Hardness', category: 'Ground Water', price: 200, turnaround: '1 day' },
-  { id: 'gw_fluoride', name: 'Fluoride', category: 'Ground Water', price: 250, turnaround: '2 days' },
-  { id: 'gw_iron', name: 'Iron', category: 'Ground Water', price: 220, turnaround: '2 days' },
-  { id: 'gw_arsenic', name: 'Arsenic', category: 'Ground Water', price: 400, turnaround: '3 days' },
-  { id: 'gw_alkalinity', name: 'Alkalinity', category: 'Ground Water', price: 180, turnaround: '1 day' },
-
-  // Surface Water
-  { id: 'sw_ph', name: 'pH', category: 'Surface Water', price: 150, turnaround: '1 day' },
-  { id: 'sw_do', name: 'DO', category: 'Surface Water', price: 200, turnaround: '1 day' },
-  { id: 'sw_tss', name: 'TSS', category: 'Surface Water', price: 180, turnaround: '1 day' },
-  { id: 'sw_cod', name: 'COD', category: 'Surface Water', price: 300, turnaround: '2 days' },
-  { id: 'sw_tds', name: 'TDS', category: 'Surface Water', price: 150, turnaround: '1 day' },
-  { id: 'sw_turbidity', name: 'Turbidity', category: 'Surface Water', price: 120, turnaround: '1 day' },
-  { id: 'sw_ammonia', name: 'Ammonia', category: 'Surface Water', price: 220, turnaround: '2 days' },
-  { id: 'sw_phosphate', name: 'Phosphate', category: 'Surface Water', price: 250, turnaround: '2 days' },
-
-  // Waste Water
-  { id: 'ww_ph', name: 'pH', category: 'Waste Water', price: 150, turnaround: '1 day' },
-  { id: 'ww_tss', name: 'TSS', category: 'Waste Water', price: 180, turnaround: '1 day' },
-  { id: 'ww_cod', name: 'COD', category: 'Waste Water', price: 300, turnaround: '2 days' },
-  { id: 'ww_bod', name: 'BOD', category: 'Waste Water', price: 300, turnaround: '3 days' },
-  { id: 'ww_turbidity', name: 'Turbidity', category: 'Waste Water', price: 120, turnaround: '1 day' },
-  { id: 'ww_sulphide', name: 'Sulphide', category: 'Waste Water', price: 250, turnaround: '2 days' },
-  { id: 'ww_phenolic', name: 'Phenolic Compounds', category: 'Waste Water', price: 450, turnaround: '3 days' },
-
-  // Food
-  { id: 'fd_moisture', name: 'Moisture', category: 'Food', price: 200, turnaround: '1 day' },
-  { id: 'fd_protein', name: 'Protein', category: 'Food', price: 350, turnaround: '3 days' },
-  { id: 'fd_fat', name: 'Fat Content', category: 'Food', price: 300, turnaround: '2 days' },
-  { id: 'fd_ash', name: 'Ash Content', category: 'Food', price: 250, turnaround: '1 day' },
-  { id: 'fd_tpc', name: 'Total Plate Count', category: 'Food', price: 400, turnaround: '3 days' },
-  { id: 'fd_yeast', name: 'Yeast & Mold', category: 'Food', price: 400, turnaround: '3 days' },
-  { id: 'fd_salmonella', name: 'Salmonella', category: 'Food', price: 600, turnaround: '4 days' },
-
-  // Soil
-  { id: 'sl_ph', name: 'pH', category: 'Soil', price: 150, turnaround: '1 day' },
-  { id: 'sl_carbon', name: 'Organic Carbon', category: 'Soil', price: 250, turnaround: '2 days' },
-  { id: 'sl_nitrogen', name: 'Available Nitrogen', category: 'Soil', price: 300, turnaround: '2 days' },
-  { id: 'sl_phosphorus', name: 'Available Phosphorus', category: 'Soil', price: 300, turnaround: '2 days' },
-  { id: 'sl_potassium', name: 'Available Potassium', category: 'Soil', price: 300, turnaround: '2 days' },
-  { id: 'sl_ec', name: 'Electrical Conductivity', category: 'Soil', price: 150, turnaround: '1 day' }
-];
+import companyService from '../../../shared/services/companyService';
+import clientService from '../../../shared/services/clientService';
+import categoryService from '../../../shared/services/categoryService';
+import parameterService from '../../../shared/services/parameterService';
+import categoryParameterService from '../../../shared/services/categoryParameterService';
+import testRequestService from '../../../shared/services/testRequestService';
 
 const NewTestRequestWizard = ({ onCancel, onSubmitSuccess, requests }) => {
   // Wizard active step tracker
   const [step, setStep] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Database catalogs loaded from API
+  const [companiesCatalog, setCompaniesCatalog] = useState([]);
+  const [clientsCatalog, setClientsCatalog] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [dbParameters, setDbParameters] = useState([]);
+  const [mappings, setMappings] = useState([]);
 
   // STEP 1 - Basic Details States
   const [company, setCompany] = useState('');
@@ -111,10 +60,65 @@ const NewTestRequestWizard = ({ onCancel, onSubmitSuccess, requests }) => {
     }
   }, [step, sampleCategory]);
 
-  // Companies & Client mock catalog
-  const companiesCatalog = ['ABC Industries Pvt. Ltd.', 'UltraTech Cement Ltd.', 'Tata Chemicals Ltd.', 'Jagnath Municipal Corp.', 'Reliance Industries Ltd.'];
-  const clientsCatalog = ['Rajesh Patel', 'Vikram Solanki', 'Harsh Mehta', 'Ketan Desai', 'Ami Rana', 'Nilesh Shah'];
-  const sampleTypesCatalog = ['Drinking Water', 'Soil', 'Waste Water', 'Surface Water', 'Ground Water', 'Food'];
+  // Load backend database catalogs
+  useEffect(() => {
+    const fetchCatalogs = async () => {
+      setIsLoading(true);
+      try {
+        const compRes = await companyService.getCompany();
+        const clientRes = await clientService.getClients();
+        const catRes = await categoryService.getCategories();
+        const paramRes = await parameterService.getParameters();
+        const mapRes = await categoryParameterService.getMappings();
+
+        if (compRes.success && compRes.data) {
+          const cName = compRes.data.companyName || compRes.data.company_name;
+          setCompaniesCatalog([cName]);
+          setCompany(cName);
+        } else {
+          setCompaniesCatalog([]);
+        }
+
+        if (clientRes.success && clientRes.data) {
+          setClientsCatalog(clientRes.data.map(c => c.clientName));
+        } else {
+          setClientsCatalog([]);
+        }
+
+        const dbCats = catRes.success && catRes.data ? catRes.data : [];
+        setCategories(dbCats);
+
+        const dbParams = paramRes.success && paramRes.data ? paramRes.data : [];
+        const dbMaps = mapRes.success && mapRes.data ? mapRes.data : [];
+        setMappings(dbMaps);
+
+        // Associate categories checklist mapping to parameters
+        const mappedParameters = dbParams.map(p => {
+          const paramMaps = dbMaps.filter(m => m.parameterId === p.id);
+          return {
+            ...p,
+            rawCategories: paramMaps.map(m => m.categoryId),
+            categoryNames: paramMaps.map(m => {
+              const cat = dbCats.find(c => c.id === m.categoryId);
+              return cat ? cat.name : m.categoryName;
+            }).filter(Boolean)
+          };
+        });
+        setDbParameters(mappedParameters);
+      } catch (err) {
+        console.error(err);
+        setError('Failed to load database master configurations for the wizard.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCatalogs();
+  }, []);
+
+  const sampleTypesCatalog = useMemo(() => {
+    return categories.map(cat => cat.name);
+  }, [categories]);
 
   // Handle parameter selection toggling
   const handleToggleParam = (param) => {
@@ -132,39 +136,45 @@ const NewTestRequestWizard = ({ onCancel, onSubmitSuccess, requests }) => {
 
   // Cost and Turnaround computations
   const estimatedCost = useMemo(() => {
-    return selectedParams.reduce((sum, p) => sum + p.price, 0);
+    return selectedParams.reduce((sum, p) => sum + Number(p.price || 150), 0);
   }, [selectedParams]);
 
   const estimatedTurnaround = useMemo(() => {
     if (selectedParams.length === 0) return '-';
     // Get max turnaround days
-    const days = selectedParams.map(p => parseInt(p.turnaround.split(' ')[0], 10));
+    const days = selectedParams.map(p => {
+      const parts = p.turnaround.split(' ');
+      const val = parseInt(parts[0], 10);
+      if (isNaN(val)) return 1;
+      return parts[1]?.toLowerCase().includes('day') ? val : 1; // convert hours to 1 day for simplicity in calculating max days
+    });
     const maxDays = Math.max(...days);
     return `${maxDays} day${maxDays > 1 ? 's' : ''}`;
   }, [selectedParams]);
 
   // Live filter parameters by category pill and search bar
   const filteredParamsByCategory = useMemo(() => {
-    // 1. Group parameters by original category
-    const categories = ['Frequently Used', 'Drinking Water', 'Ground Water', 'Surface Water', 'Waste Water', 'Food', 'Soil'];
-    
     return categories.map(cat => {
-      const items = PARAMETERS_DATA.filter(p => {
-        // Match category filter
-        const matchCategory = categoryFilter === 'All' || categoryFilter === 'All Categories' || cat === categoryFilter;
-        if (!matchCategory) return false;
-        
-        // Match category of item
-        if (p.category !== cat) return false;
+      const items = dbParameters.filter(p => {
+        // Check if parameter is mapped to this category ID
+        const isMapped = p.rawCategories.includes(cat.id);
+        if (!isMapped) return false;
+
+        // Match category filter pill
+        const matchFilter = categoryFilter === 'All' || cat.name === categoryFilter;
+        if (!matchFilter) return false;
         
         // Match search query
         const q = searchQuery.toLowerCase().trim();
-        return q === '' || p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q);
-      });
+        return q === '' || p.name.toLowerCase().includes(q) || cat.name.toLowerCase().includes(q);
+      }).map(p => ({
+        ...p,
+        category: cat.name // inject current category name for tag layout
+      }));
       
-      return { category: cat, items };
+      return { category: cat.name, items };
     }).filter(group => group.items.length > 0);
-  }, [categoryFilter, searchQuery]);
+  }, [categories, dbParameters, categoryFilter, searchQuery]);
 
   // Validation routines
   const validateStep1 = () => {
@@ -209,33 +219,64 @@ const NewTestRequestWizard = ({ onCancel, onSubmitSuccess, requests }) => {
     setStep(prev => Math.max(1, prev - 1));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (step !== 4) return;
 
-    // Generate TR Number
-    const ids = requests.map(r => parseInt(r.id.split('-')[2], 10));
-    const nextNumericId = Math.max(...ids) + 1;
-    const paddedId = String(nextNumericId).padStart(6, '0');
-    const newTrId = `TR-2026-${paddedId}`;
+    setIsLoading(true);
+    try {
+      // 1. Submit basic details and sample details to create Test Request
+      const trRes = await testRequestService.createTestRequest({
+        company,
+        client: clientContact,
+        remarks: remarks || notes || '',
+        sampleType,
+        collectionDate,
+        quantity,
+        collectedBy,
+        containerType
+      });
 
-    const newRequest = {
-      id: newTrId,
-      client: clientContact,
-      company: company,
-      category: sampleCategory || sampleType,
-      date: collectionDate,
-      priority: priority,
-      progress: 0, // Freshly created, moves to Pending Testing
-      status: 'Pending Testing'
-    };
+      if (trRes.success && trRes.data) {
+        const trId = trRes.data.id;
+        
+        // 2. Submit linking test parameters
+        const parameterPromises = selectedParams.map(param => 
+          testRequestService.createTransaction(trId, param.id, {
+            unit: param.unit,
+            status: 'Pending'
+          })
+        );
+        await Promise.all(parameterPromises);
 
-    // Save and submit
-    onSubmitSuccess(newRequest);
+        // 3. Return callback response representing the newly created Test Request to Dashboard
+        onSubmitSuccess({
+          id: trRes.data.id,
+          client: clientContact,
+          company: company,
+          category: sampleType,
+          date: collectionDate,
+          priority: priority,
+          progress: 0,
+          status: 'Active'
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to submit test request. Please check values.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <div className="test-requests-container">
+      {error && (
+        <div className="form-alert form-alert-error" style={{ marginBottom: '1.25rem' }}>
+          <span>{error}</span>
+        </div>
+      )}
+
       {/* Wizard Steps indicator bar */}
       <div className="wiz-steps-container">
         {/* Step 1 */}
@@ -283,21 +324,33 @@ const NewTestRequestWizard = ({ onCancel, onSubmitSuccess, requests }) => {
         </div>
       </div>
 
+      {isLoading && step !== 4 && (
+        <div className="wiz-card" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-light)' }}>
+          <span className="spinner" style={{ display: 'inline-block', marginRight: '0.5rem' }}></span>
+          Loading wizard catalog settings...
+        </div>
+      )}
+
       {/* Main wizard cards render dynamically based on step state */}
-      {step === 1 && (
+      {!isLoading && step === 1 && (
         <div className="wiz-card">
           <div className="wiz-form-grid">
             {/* Company Dropdown */}
             <div className="wiz-form-group">
               <label className="wiz-field-label">Company <span>*</span></label>
-              <select 
-                className="wiz-field-select" 
-                value={company}
-                onChange={(e) => { setCompany(e.target.value); setErrors(prev => ({ ...prev, company: '' })); }}
-              >
-                <option value="">Select company...</option>
-                {companiesCatalog.map(comp => <option key={comp} value={comp}>{comp}</option>)}
-              </select>
+              {companiesCatalog.length === 0 ? (
+                <div style={{ fontSize: '0.85rem', color: '#EF4444', fontWeight: 'bold' }}>
+                  Please register a Company first in the Companies Master tab!
+                </div>
+              ) : (
+                <select 
+                  className="wiz-field-select" 
+                  value={company}
+                  onChange={(e) => { setCompany(e.target.value); setErrors(prev => ({ ...prev, company: '' })); }}
+                >
+                  {companiesCatalog.map(comp => <option key={comp} value={comp}>{comp}</option>)}
+                </select>
+              )}
               {errors.company && <span className="wiz-field-error">{errors.company}</span>}
             </div>
 
@@ -356,7 +409,7 @@ const NewTestRequestWizard = ({ onCancel, onSubmitSuccess, requests }) => {
           {/* Action Footer */}
           <div className="wiz-action-bar">
             <button type="button" className="wiz-back-btn" onClick={onCancel}>Cancel</button>
-            <button type="button" className="wiz-continue-btn" onClick={handleNext}>
+            <button type="button" className="wiz-continue-btn" onClick={handleNext} disabled={companiesCatalog.length === 0}>
               <span>Continue</span>
               <FaChevronRight style={{ fontSize: '0.75rem' }} />
             </button>
@@ -364,7 +417,7 @@ const NewTestRequestWizard = ({ onCancel, onSubmitSuccess, requests }) => {
         </div>
       )}
 
-      {step === 2 && (
+      {!isLoading && step === 2 && (
         <div className="wiz-card">
           <div className="wiz-form-grid">
             {/* Sample Type dropdown */}
@@ -473,7 +526,7 @@ const NewTestRequestWizard = ({ onCancel, onSubmitSuccess, requests }) => {
         </div>
       )}
 
-      {step === 3 && (
+      {!isLoading && step === 3 && (
         <div className="wiz-params-layout">
           {/* Main search and parameters cards grid */}
           <div className="wiz-params-left">
@@ -492,7 +545,7 @@ const NewTestRequestWizard = ({ onCancel, onSubmitSuccess, requests }) => {
 
               {/* Dynamic Filter Pills */}
               <div className="wiz-filter-pills">
-                {['All Categories', 'Drinking Water', 'Ground Water', 'Surface Water', 'Waste Water', 'Food', 'Soil'].map(pill => (
+                {['All Categories', ...sampleTypesCatalog].map(pill => (
                   <button 
                     key={pill} 
                     type="button"
@@ -505,32 +558,38 @@ const NewTestRequestWizard = ({ onCancel, onSubmitSuccess, requests }) => {
               </div>
 
               {/* Render Parameter listings grouped by category */}
-              {filteredParamsByCategory.map(group => (
-                <div key={group.category} className="wiz-cat-group">
-                  <h3 className="wiz-cat-title">{group.category}</h3>
-                  <div className="wiz-param-grid">
-                    {group.items.map(param => {
-                      const isSelected = selectedParams.some(p => p.id === param.id);
-                      return (
-                        <div 
-                          key={param.id} 
-                          className={`wiz-param-card ${isSelected ? 'selected' : ''}`}
-                          onClick={() => handleToggleParam(param)}
-                        >
-                          <div className="wiz-param-info">
-                            <span className="wiz-param-name">{param.name}</span>
-                            <span className="wiz-param-price">₹{param.price} • <span style={{ color: 'var(--text-muted)' }}>{param.turnaround}</span></span>
-                          </div>
-                          
-                          <div className="wiz-param-checkbox">
-                            <FaCheck />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+              {filteredParamsByCategory.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-light)', fontSize: '0.9rem' }}>
+                  No parameters mapped to this category. Register parameters and map them in "Category Master" tab.
                 </div>
-              ))}
+              ) : (
+                filteredParamsByCategory.map(group => (
+                  <div key={group.category} className="wiz-cat-group">
+                    <h3 className="wiz-cat-title">{group.category}</h3>
+                    <div className="wiz-param-grid">
+                      {group.items.map(param => {
+                        const isSelected = selectedParams.some(p => p.id === param.id);
+                        return (
+                          <div 
+                            key={param.id} 
+                            className={`wiz-param-card ${isSelected ? 'selected' : ''}`}
+                            onClick={() => handleToggleParam(param)}
+                          >
+                            <div className="wiz-param-info">
+                              <span className="wiz-param-name">{param.name}</span>
+                              <span className="wiz-param-price">₹{param.price} • <span style={{ color: 'var(--text-muted)' }}>{param.turnaround}</span></span>
+                            </div>
+                            
+                            <div className="wiz-param-checkbox">
+                              <FaCheck />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
 
             {/* Back & Next Navigation buttons */}
@@ -660,15 +719,24 @@ const NewTestRequestWizard = ({ onCancel, onSubmitSuccess, requests }) => {
 
           {/* Automatic TR generation Banner Alert */}
           <div className="wiz-alert-banner">
-            On submission, a request number in the format <strong>TR-2026-000246</strong> (or next available ID) will be generated automatically and the request will move to <strong>Pending Testing</strong> status. The assigned technician will be notified instantly.
+            On submission, the test request will be registered, linked parameter transactions will be created, and status will be updated to <strong>Active</strong>.
           </div>
 
           {/* Footer Action buttons */}
           <div className="wiz-action-bar">
-            <button type="button" className="wiz-back-btn" onClick={handleBack}>Back</button>
-            <button type="submit" className="wiz-continue-btn">
-              <FaCheck />
-              <span>Submit Request</span>
+            <button type="button" className="wiz-back-btn" onClick={handleBack} disabled={isLoading}>Back</button>
+            <button type="submit" className="wiz-continue-btn" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <span className="spinner" style={{ marginRight: '0.5rem' }}></span>
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  <FaCheck />
+                  <span>Submit Request</span>
+                </>
+              )}
             </button>
           </div>
         </form>

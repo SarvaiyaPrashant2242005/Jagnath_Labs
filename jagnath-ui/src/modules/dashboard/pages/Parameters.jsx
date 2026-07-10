@@ -1,58 +1,18 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
-  FaSearch, FaPlus, FaTimes, FaCheck, FaEdit, FaChevronLeft, FaChevronRight 
+  FaSearch, FaPlus, FaTimes, FaCheck, FaEdit, FaTrash, FaChevronLeft, FaChevronRight 
 } from 'react-icons/fa';
-
-// Catalog of Categories for Parameter mappings
-const CATEGORIES_LIST = [
-  'Drinking Water', 'Ground Water', 'Surface Water', 'Waste Water', 'Food', 'Soil'
-];
-
-// Initial parameters database matching the screenshot exactly
-const INITIAL_PARAMETERS_DATA = [
-  { id: 'p1', name: 'pH', unit: '—', price: 150, turnaround: '2 hrs', categories: ['Drinking Water', 'Ground Water', 'Surface Water', 'Waste Water', 'Soil'] },
-  { id: 'p2', name: 'TDS', unit: 'mg/L', price: 150, turnaround: '2 hrs', categories: ['Drinking Water', 'Ground Water'] },
-  { id: 'p3', name: 'Chloride', unit: 'mg/L', price: 200, turnaround: '3 hrs', categories: ['Drinking Water'] },
-  { id: 'p4', name: 'Fluoride', unit: 'mg/L', price: 250, turnaround: '4 hrs', categories: ['Drinking Water', 'Ground Water'] },
-  { id: 'p5', name: 'Total Hardness', unit: 'mg/L', price: 200, turnaround: '3 hrs', categories: ['Drinking Water', 'Ground Water'] },
-  { id: 'p6', name: 'Calcium', unit: 'mg/L', price: 220, turnaround: '3 hrs', categories: ['Drinking Water'] },
-  { id: 'p7', name: 'Turbidity', unit: 'NTU', price: 150, turnaround: '1 hr', categories: ['Drinking Water', 'Surface Water'] },
-  { id: 'p8', name: 'Iron', unit: 'mg/L', price: 200, turnaround: '4 hrs', categories: ['Drinking Water', 'Ground Water'] },
-  { id: 'p9', name: 'Residual Chlorine', unit: 'mg/L', price: 150, turnaround: '1 hr', categories: ['Drinking Water'] },
-  { id: 'p10', name: 'E. Coli', unit: 'CFU/100mL', price: 450, turnaround: '24 hrs', categories: ['Drinking Water'] },
-  
-  { id: 'p11', name: 'Nitrate', unit: 'mg/L', price: 260, turnaround: '4 hrs', categories: ['Ground Water'] },
-  { id: 'p12', name: 'Sulphate', unit: 'mg/L', price: 240, turnaround: '4 hrs', categories: ['Ground Water'] },
-  { id: 'p13', name: 'Arsenic', unit: 'mg/L', price: 550, turnaround: '6 hrs', categories: ['Ground Water'] },
-  { id: 'p14', name: 'Alkalinity', unit: 'mg/L', price: 100, turnaround: '2 hrs', categories: ['Ground Water'] },
-  { id: 'p15', name: 'DO', unit: 'mg/L', price: 200, turnaround: '1 hr', categories: ['Surface Water'] },
-  { id: 'p16', name: 'BOD', unit: 'mg/L', price: 400, turnaround: '5 days', categories: ['Surface Water', 'Waste Water'] },
-  { id: 'p17', name: 'COD', unit: 'mg/L', price: 350, turnaround: '3 hrs', categories: ['Surface Water', 'Waste Water'] },
-  { id: 'p18', name: 'TSS', unit: 'mg/L', price: 220, turnaround: '3 hrs', categories: ['Surface Water', 'Waste Water'] },
-  { id: 'p19', name: 'Ammonia', unit: 'mg/L', price: 200, turnaround: '3 hrs', categories: ['Surface Water'] },
-  { id: 'p20', name: 'Phosphate', unit: 'mg/L', price: 260, turnaround: '3 hrs', categories: ['Surface Water'] },
-  
-  { id: 'p21', name: 'Oil & Grease', unit: 'mg/L', price: 450, turnaround: '6 hrs', categories: ['Waste Water'] },
-  { id: 'p22', name: 'Ammonical Nitrogen', unit: 'mg/L', price: 280, turnaround: '4 hrs', categories: ['Waste Water'] },
-  { id: 'p23', name: 'Sulphide', unit: 'mg/L', price: 300, turnaround: '4 hrs', categories: ['Waste Water'] },
-  { id: 'p24', name: 'Phenolic Compounds', unit: 'mg/L', price: 600, turnaround: '8 hrs', categories: ['Waste Water'] },
-  { id: 'p25', name: 'Moisture', unit: '%', price: 150, turnaround: '2 hrs', categories: ['Food'] },
-  { id: 'p26', name: 'Protein', unit: '%', price: 350, turnaround: '6 hrs', categories: ['Food'] },
-  { id: 'p27', name: 'Fat Content', unit: '%', price: 300, turnaround: '5 hrs', categories: ['Food'] },
-  { id: 'p28', name: 'Ash Content', unit: '%', price: 200, turnaround: '3 hrs', categories: ['Food'] },
-  { id: 'p29', name: 'Total Plate Count', unit: 'CFU/g', price: 400, turnaround: '48 hrs', categories: ['Food'] },
-  { id: 'p30', name: 'Yeast & Mould', unit: 'CFU/g', price: 400, turnaround: '48 hrs', categories: ['Food'] },
-  
-  { id: 'p31', name: 'Salmonella', unit: '—', price: 700, turnaround: '72 hrs', categories: ['Food'] },
-  { id: 'p32', name: 'Organic Carbon', unit: '%', price: 300, turnaround: '4 hrs', categories: ['Soil'] },
-  { id: 'p33', name: 'Available Nitrogen', unit: 'kg/ha', price: 320, turnaround: '5 hrs', categories: ['Soil'] },
-  { id: 'p34', name: 'Available Phosphorus', unit: 'kg/ha', price: 320, turnaround: '5 hrs', categories: ['Soil'] },
-  { id: 'p35', name: 'Available Potassium', unit: 'kg/ha', price: 320, turnaround: '5 hrs', categories: ['Soil'] },
-  { id: 'p36', name: 'Electrical Conductivity', unit: 'dS/m', price: 150, turnaround: '1 hr', categories: ['Soil'] }
-];
+import parameterService from '../../../shared/services/parameterService';
+import categoryService from '../../../shared/services/categoryService';
+import categoryParameterService from '../../../shared/services/categoryParameterService';
 
 const Parameters = ({ triggerNotification, openAddDrawerDirectly = false, onCloseAddDrawer }) => {
-  const [parameters, setParameters] = useState(INITIAL_PARAMETERS_DATA);
+  const [parameters, setParameters] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [mappings, setMappings] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   const [searchQuery, setSearchQuery] = useState('');
   
   // Pagination
@@ -66,7 +26,7 @@ const Parameters = ({ triggerNotification, openAddDrawerDirectly = false, onClos
     unit: 'mg/L',
     price: '',
     turnaround: '',
-    categories: new Set()
+    categories: new Set() // Category IDs
   });
   const [formErrors, setFormErrors] = useState({});
 
@@ -80,16 +40,58 @@ const Parameters = ({ triggerNotification, openAddDrawerDirectly = false, onClos
     }
   }, [openAddDrawerDirectly]);
 
+  // Load all parameters, categories, and mappings
+  const loadData = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const paramRes = await parameterService.getParameters();
+      const catRes = await categoryService.getCategories();
+      const mapRes = await categoryParameterService.getMappings();
+
+      const dbCats = catRes.success && catRes.data ? catRes.data : [];
+      setCategories(dbCats);
+
+      const dbMaps = mapRes.success && mapRes.data ? mapRes.data : [];
+      setMappings(dbMaps);
+
+      if (paramRes.success && paramRes.data) {
+        const paramList = paramRes.data.map(p => {
+          // Resolve categories mapped to this parameter
+          const paramMaps = dbMaps.filter(m => m.parameterId === p.id);
+          const mappedCatNames = paramMaps.map(m => {
+            const cat = dbCats.find(c => c.id === m.categoryId);
+            return cat ? cat.name : m.categoryName;
+          }).filter(Boolean);
+
+          return {
+            ...p,
+            categories: mappedCatNames,
+            rawCategories: paramMaps.map(m => m.categoryId) // store category IDs
+          };
+        });
+        setParameters(paramList);
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Failed to retrieve parameter catalog.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
   // Live filter parameters by search queries
-  const filteredParameters = useMemo(() => {
-    return parameters.filter(p => {
-      const q = searchQuery.toLowerCase().trim();
-      return q === '' || 
-        p.name.toLowerCase().includes(q) || 
-        p.unit.toLowerCase().includes(q) || 
-        p.categories.some(cat => cat.toLowerCase().includes(q));
-    });
-  }, [parameters, searchQuery]);
+  const filteredParameters = parameters.filter(p => {
+    const q = searchQuery.toLowerCase().trim();
+    return q === '' || 
+      p.name.toLowerCase().includes(q) || 
+      p.unit.toLowerCase().includes(q) || 
+      p.categories.some(cat => cat.toLowerCase().includes(q));
+  });
 
   // Reset pagination on search
   useEffect(() => {
@@ -105,23 +107,23 @@ const Parameters = ({ triggerNotification, openAddDrawerDirectly = false, onClos
   const totalPages = Math.max(1, Math.ceil(filteredParameters.length / itemsPerPage));
 
   // Drawer checklist helpers
-  const handleToggleFormCategory = (cat) => {
+  const handleToggleFormCategory = (catId) => {
     const next = new Set(formData.categories);
-    if (next.has(cat)) {
-      next.delete(cat);
+    if (next.has(catId)) {
+      next.delete(catId);
     } else {
-      next.add(cat);
+      next.add(catId);
     }
     setFormData(prev => ({ ...prev, categories: next }));
   };
 
-  const handleToggleEditCategory = (cat) => {
+  const handleToggleEditCategory = (catId) => {
     if (!editingParameter) return;
     const next = new Set(editingParameter.categories);
-    if (next.has(cat)) {
-      next.delete(cat);
+    if (next.has(catId)) {
+      next.delete(catId);
     } else {
-      next.add(cat);
+      next.add(catId);
     }
     setEditingParameter(prev => ({ ...prev, categories: next }));
   };
@@ -146,8 +148,8 @@ const Parameters = ({ triggerNotification, openAddDrawerDirectly = false, onClos
     setEditingParameter(null);
   };
 
-  // Submit handers
-  const handleCreateSubmit = (e) => {
+  // Submit handlers
+  const handleCreateSubmit = async (e) => {
     e.preventDefault();
     const errs = {};
     if (!formData.name.trim()) errs.name = 'Parameter name is required';
@@ -159,24 +161,32 @@ const Parameters = ({ triggerNotification, openAddDrawerDirectly = false, onClos
       return;
     }
 
-    const newParam = {
-      id: `p${parameters.length + 1}`,
-      name: formData.name.trim(),
-      unit: formData.unit,
-      price: parseInt(formData.price, 10),
-      turnaround: formData.turnaround.trim(),
-      categories: Array.from(formData.categories)
-    };
+    setIsLoading(true);
+    try {
+      const res = await parameterService.createParameter(formData);
+      if (res.success && res.data) {
+        const parameterId = res.data.id;
+        // Create category parameter mappings
+        const mapPromises = Array.from(formData.categories).map(categoryId =>
+          categoryParameterService.createMapping(categoryId, parameterId)
+        );
+        await Promise.all(mapPromises);
+      }
 
-    setParameters([newParam, ...parameters]);
-    
-    if (triggerNotification) {
-      triggerNotification();
+      if (triggerNotification) {
+        triggerNotification();
+      }
+      closeCreateDrawer();
+      await loadData();
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || 'Failed to create parameter.');
+    } finally {
+      setIsLoading(false);
     }
-    closeCreateDrawer();
   };
 
-  const handleEditSubmit = (e) => {
+  const handleEditSubmit = async (e) => {
     e.preventDefault();
     if (!editingParameter) return;
 
@@ -184,21 +194,65 @@ const Parameters = ({ triggerNotification, openAddDrawerDirectly = false, onClos
     if (!editingParameter.price || isNaN(editingParameter.price)) return;
     if (!editingParameter.turnaround.trim()) return;
 
-    const updated = parameters.map(p => {
-      if (p.id === editingParameter.id) {
-        return {
-          ...editingParameter,
-          categories: Array.from(editingParameter.categories)
-        };
-      }
-      return p;
-    });
+    setIsLoading(true);
+    try {
+      const paramId = editingParameter.id;
+      // 1. Update parameter metadata
+      await parameterService.updateParameter(paramId, editingParameter);
 
-    setParameters(updated);
-    if (triggerNotification) {
-      triggerNotification();
+      // 2. Resolve mapping deletions
+      const toDelete = mappings.filter(m =>
+        m.parameterId === paramId && !editingParameter.categories.has(m.categoryId)
+      );
+
+      // 3. Resolve mapping creations
+      const existingCatIds = new Set(
+        mappings.filter(m => m.parameterId === paramId).map(m => m.categoryId)
+      );
+      const toCreate = Array.from(editingParameter.categories).filter(catId => !existingCatIds.has(catId));
+
+      // Execute database mapping changes
+      const deletePromises = toDelete.map(m => categoryParameterService.deleteMapping(m.id));
+      const createPromises = toCreate.map(catId => categoryParameterService.createMapping(catId, paramId));
+
+      await Promise.all([...deletePromises, ...createPromises]);
+
+      if (triggerNotification) {
+        triggerNotification();
+      }
+      closeEditDrawer();
+      await loadData();
+    } catch (err) {
+      console.error(err);
+      setError('Failed to update parameter details.');
+    } finally {
+      setIsLoading(false);
     }
-    closeEditDrawer();
+  };
+
+  const handleDeleteParameter = async (p) => {
+    if (window.confirm(`Are you sure you want to delete parameter "${p.name}"? This will also remove all its category mappings.`)) {
+      setIsLoading(true);
+      try {
+        // Delete all associated mappings first
+        const paramMaps = mappings.filter(m => m.parameterId === p.id);
+        const mapDeletePromises = paramMaps.map(m => categoryParameterService.deleteMapping(m.id));
+        await Promise.all(mapDeletePromises);
+
+        // Delete parameter itself
+        await parameterService.deleteParameter(p.id);
+
+        if (triggerNotification) {
+          triggerNotification();
+        }
+        await loadData();
+      } catch (err) {
+        console.error(err);
+        setError('Failed to delete parameter.');
+      } finally {
+        setIsLoading(false);
+      }
+    }
   };
 
   return (
@@ -206,13 +260,19 @@ const Parameters = ({ triggerNotification, openAddDrawerDirectly = false, onClos
       {/* Top Header metrics summary */}
       <div className="cat-master-header">
         <span className="cat-header-left-text">
-          {parameters.length} parameters in catalog
+          {isLoading ? 'Loading...' : `${parameters.length} parameters in catalog`}
         </span>
-        <button className="param-create-btn" onClick={() => setIsCreateOpen(true)}>
+        <button className="param-create-btn" onClick={() => setIsCreateOpen(true)} disabled={isLoading}>
           <FaPlus />
           <span>Create Parameter</span>
         </button>
       </div>
+
+      {error && (
+        <div className="form-alert form-alert-error" style={{ margin: '1rem 0.25rem' }}>
+          <span>{error}</span>
+        </div>
+      )}
 
       {/* Table block */}
       <div className="param-card">
@@ -242,12 +302,20 @@ const Parameters = ({ triggerNotification, openAddDrawerDirectly = false, onClos
                 <th>Standard Price</th>
                 <th>Turnaround</th>
                 <th>Mapped Categories</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {paginatedParameters.length === 0 ? (
+              {isLoading ? (
                 <tr>
-                  <td colSpan="5" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-light)' }}>
+                  <td colSpan="6" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-light)' }}>
+                    <span className="spinner" style={{ display: 'inline-block', marginRight: '0.5rem' }}></span>
+                    Loading parameter details...
+                  </td>
+                </tr>
+              ) : paginatedParameters.length === 0 ? (
+                <tr>
+                  <td colSpan="6" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-light)' }}>
                     No parameters found matching search.
                   </td>
                 </tr>
@@ -266,15 +334,28 @@ const Parameters = ({ triggerNotification, openAddDrawerDirectly = false, onClos
                           </span>
                         ))}
                       </div>
-                      {/* Hover edit action pencil */}
-                      <div 
-                        className="param-edit-icon-wrapper"
-                        onClick={() => setEditingParameter({
-                          ...p,
-                          categories: new Set(p.categories)
-                        })}
-                      >
-                        <FaEdit />
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                        <button 
+                          className="action-btn-edit" 
+                          onClick={() => setEditingParameter({
+                            ...p,
+                            categories: new Set(p.rawCategories)
+                          })}
+                          style={{ background: 'none', border: 'none', color: 'var(--primary-dark)', cursor: 'pointer', fontSize: '1rem' }}
+                          title="Edit Parameter"
+                        >
+                          <FaEdit />
+                        </button>
+                        <button 
+                          className="action-btn-delete" 
+                          onClick={() => handleDeleteParameter(p)}
+                          style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: '1rem' }}
+                          title="Delete Parameter"
+                        >
+                          <FaTrash />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -399,23 +480,29 @@ const Parameters = ({ triggerNotification, openAddDrawerDirectly = false, onClos
                 {/* Categories Checkboxes checklist */}
                 <div className="tr-form-group" style={{ marginTop: '1rem' }}>
                   <label className="tr-form-label">Map to Categories</label>
-                  <div className="cat-drawer-checklist">
-                    {CATEGORIES_LIST.map(cat => {
-                      const isChecked = formData.categories.has(cat);
-                      return (
-                        <div 
-                          key={cat}
-                          className={`cat-checklist-item ${isChecked ? 'checked' : ''}`}
-                          onClick={() => handleToggleFormCategory(cat)}
-                        >
-                          <div className="cat-checklist-box">
-                            <FaCheck />
+                  {categories.length === 0 ? (
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-light)', fontStyle: 'italic' }}>
+                      No categories registered yet.
+                    </div>
+                  ) : (
+                    <div className="cat-drawer-checklist">
+                      {categories.map(cat => {
+                        const isChecked = formData.categories.has(cat.id);
+                        return (
+                          <div 
+                            key={cat.id} 
+                            className={`cat-checklist-item ${isChecked ? 'checked' : ''}`}
+                            onClick={() => handleToggleFormCategory(cat.id)}
+                          >
+                            <div className="cat-checklist-box">
+                              <FaCheck />
+                            </div>
+                            <span>{cat.name}</span>
                           </div>
-                          <span>{cat}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -441,15 +528,14 @@ const Parameters = ({ triggerNotification, openAddDrawerDirectly = false, onClos
 
             <form onSubmit={handleEditSubmit} style={{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 70px)' }}>
               <div className="tr-drawer-body">
-                {/* Parameter Name (ReadOnly for Master Keys) */}
+                {/* Parameter Name */}
                 <div className="tr-form-group">
                   <label className="tr-form-label">Parameter Name</label>
                   <input 
                     type="text"
                     className="tr-form-input"
-                    style={{ backgroundColor: '#F1F5F9', color: 'var(--text-light)', cursor: 'not-allowed' }}
                     value={editingParameter.name}
-                    readOnly
+                    onChange={(e) => setEditingParameter(prev => ({ ...prev, name: e.target.value }))}
                   />
                 </div>
 
@@ -480,7 +566,7 @@ const Parameters = ({ triggerNotification, openAddDrawerDirectly = false, onClos
                       type="number"
                       className="tr-form-input"
                       value={editingParameter.price}
-                      onChange={(e) => setEditingParameter(prev => ({ ...prev, price: parseInt(e.target.value, 10) }))}
+                      onChange={(e) => setEditingParameter(prev => ({ ...prev, price: e.target.value }))}
                     />
                   </div>
 
@@ -498,23 +584,29 @@ const Parameters = ({ triggerNotification, openAddDrawerDirectly = false, onClos
                 {/* Categories Checkboxes checklist */}
                 <div className="tr-form-group" style={{ marginTop: '1rem' }}>
                   <label className="tr-form-label">Map to Categories</label>
-                  <div className="cat-drawer-checklist">
-                    {CATEGORIES_LIST.map(cat => {
-                      const isChecked = editingParameter.categories.has(cat);
-                      return (
-                        <div 
-                          key={cat}
-                          className={`cat-checklist-item ${isChecked ? 'checked' : ''}`}
-                          onClick={() => handleToggleEditCategory(cat)}
-                        >
-                          <div className="cat-checklist-box">
-                            <FaCheck />
+                  {categories.length === 0 ? (
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-light)', fontStyle: 'italic' }}>
+                      No categories registered yet.
+                    </div>
+                  ) : (
+                    <div className="cat-drawer-checklist">
+                      {categories.map(cat => {
+                        const isChecked = editingParameter.categories.has(cat.id);
+                        return (
+                          <div 
+                            key={cat.id} 
+                            className={`cat-checklist-item ${isChecked ? 'checked' : ''}`}
+                            onClick={() => handleToggleEditCategory(cat.id)}
+                          >
+                            <div className="cat-checklist-box">
+                              <FaCheck />
+                            </div>
+                            <span>{cat.name}</span>
                           </div>
-                          <span>{cat}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
 

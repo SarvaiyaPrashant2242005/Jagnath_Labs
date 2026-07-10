@@ -10,15 +10,14 @@ import Card from '../../shared/components/Card/Card';
 
 // Local Video Import
 import landingVideo from '../../assets/video/jagnath Landing page.mp4';
-import logoImg from '../../assets/images/J-logo.png';
 
 // React Icons
-import {
-  FaCalendarAlt,
-  FaVial,
-  FaAward,
-  FaFileMedical,
-  FaCloudDownloadAlt,
+import { 
+  FaCalendarAlt, 
+  FaVial, 
+  FaAward, 
+  FaFileMedical, 
+  FaCloudDownloadAlt, 
   FaCheckDouble,
   FaHome,
   FaHeartbeat,
@@ -46,17 +45,19 @@ import {
   FaShieldAlt,
   FaNotesMedical
 } from 'react-icons/fa';
-import {
-  MdBloodtype
+import { 
+  MdBloodtype, 
+  MdOutlineVerifiedUser,
+  MdAccessTime
 } from 'react-icons/md';
 import { GiMicroscope } from 'react-icons/gi';
 import { TbReportAnalytics } from 'react-icons/tb';
-import { FiActivity } from 'react-icons/fi';
+import { FiActivity, FiShield } from 'react-icons/fi';
 
 // Register GSAP ScrollTrigger
 gsap.registerPlugin(ScrollTrigger);
 
-function LandingPage({ onNavigate }) {
+function LandingPage() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeSlide, setActiveSlide] = useState(0);
   const [openFaq, setOpenFaq] = useState(null);
@@ -108,21 +109,21 @@ function LandingPage({ onNavigate }) {
 
     // 3. Hero Animations (Entrance)
     const tlHero = gsap.timeline();
-    tlHero.fromTo(heroBadgeRef.current,
+    tlHero.fromTo(heroBadgeRef.current, 
       { opacity: 0, y: 30 },
       { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out' }
     );
-    tlHero.fromTo(heroHeadingRef.current,
+    tlHero.fromTo(heroHeadingRef.current, 
       { opacity: 0, y: 40 },
       { opacity: 1, y: 0, duration: 0.8, ease: 'power3.out' },
       '-=0.4'
     );
-    tlHero.fromTo(heroDescRef.current,
+    tlHero.fromTo(heroDescRef.current, 
       { opacity: 0, y: 30 },
       { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out' },
       '-=0.4'
     );
-    tlHero.fromTo(heroBtnsRef.current,
+    tlHero.fromTo(heroBtnsRef.current, 
       { opacity: 0, y: 20 },
       { opacity: 1, y: 0, duration: 0.5, ease: 'power3.out' },
       '-=0.3'
@@ -134,8 +135,8 @@ function LandingPage({ onNavigate }) {
       const targetVal = parseFloat(el.getAttribute('data-target'));
       const isFloat = el.getAttribute('data-float') === 'true';
       const suffix = el.getAttribute('data-suffix') || '';
-
-      gsap.fromTo(el,
+      
+      gsap.fromTo(el, 
         { textContent: 0 },
         {
           textContent: targetVal,
@@ -147,7 +148,7 @@ function LandingPage({ onNavigate }) {
             toggleActions: 'play none none none',
           },
           snap: { textContent: isFloat ? 0.1 : 1 },
-          onUpdate: function () {
+          onUpdate: function() {
             const currentVal = parseFloat(el.textContent);
             el.textContent = (isFloat ? currentVal.toFixed(1) : Math.floor(currentVal)) + suffix;
           }
@@ -403,14 +404,11 @@ function LandingPage({ onNavigate }) {
     <>
       {/* Navbar Section */}
       <header className={`navbar-container ${isScrolled ? 'scrolled' : ''}`}>
-        <div className="navbar-wrapper" style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+        <div className="navbar-wrapper">
           <a href="#" className="nav-logo" id="logo-anchor">
-            <img src={logoImg} alt="Jaganath Logo" className="nav-logo-img" />
+            <img src={revrv} alt="" />
             Jaganath<span className="logo-text-highlight">- Lab</span>
           </a>
-          <Button variant="secondary" onClick={() => onNavigate && onNavigate('login')}>
-            Login
-          </Button>
         </div>
       </header>
 
@@ -458,10 +456,10 @@ function LandingPage({ onNavigate }) {
         <section className="counter-section">
           <div className="counter-container">
             <div className="counter-item">
-              <span
-                ref={(el) => (counterRefs.current[0] = el)}
-                className="counter-number highlight"
-                data-target="100000"
+              <span 
+                ref={(el) => (counterRefs.current[0] = el)} 
+                className="counter-number highlight" 
+                data-target="100000" 
                 data-suffix="+"
               >
                 0
@@ -470,10 +468,10 @@ function LandingPage({ onNavigate }) {
             </div>
 
             <div className="counter-item">
-              <span
-                ref={(el) => (counterRefs.current[1] = el)}
-                className="counter-number"
-                data-target="250"
+              <span 
+                ref={(el) => (counterRefs.current[1] = el)} 
+                className="counter-number" 
+                data-target="250" 
                 data-suffix="+"
               >
                 0
@@ -482,11 +480,11 @@ function LandingPage({ onNavigate }) {
             </div>
 
             <div className="counter-item">
-              <span
-                ref={(el) => (counterRefs.current[2] = el)}
-                className="counter-number highlight"
-                data-target="99.8"
-                data-float="true"
+              <span 
+                ref={(el) => (counterRefs.current[2] = el)} 
+                className="counter-number highlight" 
+                data-target="99.8" 
+                data-float="true" 
                 data-suffix="%"
               >
                 0
@@ -495,10 +493,10 @@ function LandingPage({ onNavigate }) {
             </div>
 
             <div className="counter-item">
-              <span
-                ref={(el) => (counterRefs.current[3] = el)}
-                className="counter-number"
-                data-target="24"
+              <span 
+                ref={(el) => (counterRefs.current[3] = el)} 
+                className="counter-number" 
+                data-target="24" 
                 data-suffix="/7"
               >
                 0
@@ -684,8 +682,8 @@ function LandingPage({ onNavigate }) {
             </div>
 
             <div className="timeline-steps">
-              <div
-                ref={(el) => (timelineStepsRef.current[0] = el)}
+              <div 
+                ref={(el) => (timelineStepsRef.current[0] = el)} 
                 className="timeline-step"
               >
                 <div className="timeline-node"><FaCalendarAlt /></div>
@@ -695,8 +693,8 @@ function LandingPage({ onNavigate }) {
                 </div>
               </div>
 
-              <div
-                ref={(el) => (timelineStepsRef.current[1] = el)}
+              <div 
+                ref={(el) => (timelineStepsRef.current[1] = el)} 
                 className="timeline-step"
               >
                 <div className="timeline-node"><FaVial /></div>
@@ -706,8 +704,8 @@ function LandingPage({ onNavigate }) {
                 </div>
               </div>
 
-              <div
-                ref={(el) => (timelineStepsRef.current[2] = el)}
+              <div 
+                ref={(el) => (timelineStepsRef.current[2] = el)} 
                 className="timeline-step"
               >
                 <div className="timeline-node"><GiMicroscope /></div>
@@ -717,8 +715,8 @@ function LandingPage({ onNavigate }) {
                 </div>
               </div>
 
-              <div
-                ref={(el) => (timelineStepsRef.current[3] = el)}
+              <div 
+                ref={(el) => (timelineStepsRef.current[3] = el)} 
                 className="timeline-step"
               >
                 <div className="timeline-node"><FaAward /></div>
@@ -728,8 +726,8 @@ function LandingPage({ onNavigate }) {
                 </div>
               </div>
 
-              <div
-                ref={(el) => (timelineStepsRef.current[4] = el)}
+              <div 
+                ref={(el) => (timelineStepsRef.current[4] = el)} 
                 className="timeline-step"
               >
                 <div className="timeline-node"><FaFileMedical /></div>
@@ -739,8 +737,8 @@ function LandingPage({ onNavigate }) {
                 </div>
               </div>
 
-              <div
-                ref={(el) => (timelineStepsRef.current[5] = el)}
+              <div 
+                ref={(el) => (timelineStepsRef.current[5] = el)} 
                 className="timeline-step"
               >
                 <div className="timeline-node"><FaCloudDownloadAlt /></div>
@@ -750,8 +748,8 @@ function LandingPage({ onNavigate }) {
                 </div>
               </div>
 
-              <div
-                ref={(el) => (timelineStepsRef.current[6] = el)}
+              <div 
+                ref={(el) => (timelineStepsRef.current[6] = el)} 
                 className="timeline-step"
               >
                 <div className="timeline-node"><FaCheckDouble /></div>
@@ -847,10 +845,10 @@ function LandingPage({ onNavigate }) {
                 </div>
                 <div className="testimonial-profile">
                   <div className="testimonial-avatar-wrapper">
-                    <img
-                      className="testimonial-avatar"
-                      src={testimonials[activeSlide].image}
-                      alt={testimonials[activeSlide].name}
+                    <img 
+                      className="testimonial-avatar" 
+                      src={testimonials[activeSlide].image} 
+                      alt={testimonials[activeSlide].name} 
                     />
                   </div>
                   <div className="testimonial-info-text">
@@ -886,13 +884,13 @@ function LandingPage({ onNavigate }) {
 
           <div ref={faqContainerRef} className="faq-container">
             {faqs.map((faq, index) => (
-              <div
-                key={index}
+              <div 
+                key={index} 
                 className={`faq-item ${openFaq === index ? 'active' : ''}`}
               >
-                <button
+                <button 
                   type="button"
-                  className="faq-header"
+                  className="faq-header" 
                   onClick={() => toggleFaq(index)}
                   aria-expanded={openFaq === index}
                 >

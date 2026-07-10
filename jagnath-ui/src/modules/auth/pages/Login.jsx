@@ -3,6 +3,8 @@ import { FaEnvelope, FaLock, FaEye, FaEyeSlash, FaCheckCircle, FaExclamationCirc
 import landingVideo from '../../../assets/video/jagnath Landing page.mp4';
 import '../../../assets/styles/login.css';
 
+import authService from '../../../shared/services/authService';
+
 const Login = ({ onLoginSuccess, onNavigate }) => {
   // Form fields state
   const [email, setEmail] = useState('');
@@ -68,24 +70,39 @@ const Login = ({ onLoginSuccess, onNavigate }) => {
       return;
     }
 
-    // Trigger loading and mock API call
+    // Trigger loading and API call
     setIsLoading(true);
 
-    setTimeout(() => {
-      // For demonstration, approve any valid input
-      setIsLoading(false);
-      setAlert({
-        type: 'success',
-        message: 'Successfully authenticated. Access granted!'
-      });
+    authService.login(email, password)
+      .then((data) => {
+        setIsLoading(false);
+        if (data.success) {
+          setAlert({
+            type: 'success',
+            message: 'Successfully authenticated. Access granted!'
+          });
 
-      // Execute callback after a brief delay for visual feedback
-      setTimeout(() => {
-        if (onLoginSuccess) {
-          onLoginSuccess({ email, rememberMe });
+          // Execute callback after a brief delay for visual feedback
+          setTimeout(() => {
+            if (onLoginSuccess) {
+              onLoginSuccess(data.data.user);
+            }
+          }, 1000);
+        } else {
+          setAlert({
+            type: 'error',
+            message: data.message || 'Authentication failed. Please check your details.'
+          });
         }
-      }, 1000);
-    }, 1500);
+      })
+      .catch((err) => {
+        setIsLoading(false);
+        const errMsg = err.response?.data?.message || err.message || 'Authentication failed.';
+        setAlert({
+          type: 'error',
+          message: errMsg
+        });
+      });
   };
 
   return (

@@ -1,22 +1,16 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
-  FaSearch, FaFilter, FaPlus, FaTimes, FaUserAlt 
+  FaSearch, FaFilter, FaPlus, FaTimes, FaUserAlt, FaEdit, FaTrash 
 } from 'react-icons/fa';
-
-// Initial client dataset matching the screenshot exactly
-const INITIAL_CLIENTS_DATA = [
-  { id: 'u1', name: 'Rajesh Patel', initials: 'RP', company: 'ABC Industries Pvt. Ltd.', designation: 'QA Manager', phone: '+91 98250 11223', email: 'rajesh.patel@abcind.com', requests: 14 },
-  { id: 'u2', name: 'Nilesh Shah', initials: 'NS', company: 'Reliance Industries Ltd.', designation: 'Plant Head — Env.', phone: '+91 98200 44556', email: 'nilesh.shah@ril.com', requests: 23 },
-  { id: 'u3', name: 'Harsh Mehta', initials: 'HM', company: 'Tata Chemicals Ltd.', designation: 'Compliance Officer', phone: '+91 97120 88991', email: 'harsh.mehta@tatachem.com', requests: 11 },
-  { id: 'u4', name: 'Priya Joshi', initials: 'PJ', company: 'Adani Power Ltd.', designation: 'Site Engineer', phone: '+91 99040 33221', email: 'priya.joshi@adani.com', requests: 18 },
-  { id: 'u5', name: 'Vikram Solanki', initials: 'VS', company: 'UltraTech Cement Ltd.', designation: 'EHS Coordinator', phone: '+91 98988 77665', email: 'vikram.s@ultratech.com', requests: 7 },
-  { id: 'u6', name: 'Ketan Desai', initials: 'KD', company: 'Jagnath Municipal Corp.', designation: 'Health Inspector', phone: '+91 97370 22114', email: 'ketan.desai@jmc.gov.in', requests: 16 },
-  { id: 'u7', name: 'Ami Rana', initials: 'AR', company: 'ABC Industries Pvt. Ltd.', designation: 'Lab Coordinator', phone: '+91 98795 65321', email: 'ami.rana@abcind.com', requests: 9 }
-];
+import clientService from '../../../shared/services/clientService';
+import companyService from '../../../shared/services/companyService';
 
 const Clients = ({ triggerNotification, openAddDrawerDirectly = false, onCloseAddDrawer }) => {
   // State variables for clients database
-  const [clients, setClients] = useState(INITIAL_CLIENTS_DATA);
+  const [clients, setClients] = useState([]);
+  const [companyName, setCompanyName] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   
   // Filter settings states
   const [searchQuery, setSearchQuery] = useState('');
@@ -24,14 +18,18 @@ const Clients = ({ triggerNotification, openAddDrawerDirectly = false, onCloseAd
 
   // Slide Drawer open state
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [editingClientId, setEditingClientId] = useState(null);
 
   // Form registration state
   const [formData, setFormData] = useState({
     name: '',
-    company: 'ABC Industries Pvt. Ltd.',
+    company: '',
     designation: '',
     phone: '',
-    email: ''
+    email: '',
+    gender: 'Male',
+    city: 'Rajkot',
+    address: ''
   });
   const [formErrors, setFormErrors] = useState({});
 
@@ -42,29 +40,77 @@ const Clients = ({ triggerNotification, openAddDrawerDirectly = false, onCloseAd
     }
   }, [openAddDrawerDirectly]);
 
-  // Extract companies list dynamically
+  // Load clients and company info
+  const loadData = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      // 1. Get user's company
+      const compRes = await companyService.getCompany();
+      let currentCompany = '';
+      if (compRes.success && compRes.data) {
+        currentCompany = compRes.data.companyName || compRes.data.company_name || '';
+        setCompanyName(currentCompany);
+        setFormData(prev => ({ ...prev, company: currentCompany }));
+      }
+
+      // 2. Get clients list
+      const clientRes = await clientService.getClients();
+      if (clientRes.success && clientRes.data) {
+        const clientList = clientRes.data.map(c => {
+          const words = (c.clientName || '').trim().split(/\s+/);
+          let initials = 'CL';
+          if (words.length >= 2) {
+            initials = (words[0][0] + words[1][0]).toUpperCase();
+          } else if (words.length === 1 && words[0].length >= 2) {
+            initials = words[0].substring(0, 2).toUpperCase();
+          }
+          return {
+            id: c.id,
+            name: c.clientName,
+            initials: initials,
+            company: currentCompany, // All clients belong to user's company
+            designation: 'Contact Person', // Backend doesn't store this, mock display
+            phone: c.contactNumber || '',
+            email: c.address && c.address.includes('@') ? c.address : '',
+            gender: c.gender || 'Male',
+            city: c.city || 'Rajkot',
+            address: c.address || ''
+          };
+        });
+        setClients(clientList);
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Failed to retrieve client contacts.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  // Extract companies list dynamically (for filtering)
   const companiesList = useMemo(() => {
-    const list = new Set(clients.map(c => c.company));
-    return ['All', ...Array.from(list)];
-  }, [clients]);
+    return ['All', companyName].filter(Boolean);
+  }, [companyName]);
 
   // Live filter clients by search query and company dropdown
-  const filteredClients = useMemo(() => {
-    return clients.filter(c => {
-      // 1. Search Query filter (name, designation, email, phone)
-      const q = searchQuery.toLowerCase().trim();
-      const matchQuery = q === '' || 
-        c.name.toLowerCase().includes(q) || 
-        c.designation.toLowerCase().includes(q) || 
-        c.phone.toLowerCase().includes(q) || 
-        c.email.toLowerCase().includes(q);
-        
-      // 2. Company filter
-      const matchCompany = companyFilter === 'All' || c.company === companyFilter;
+  const filteredClients = clients.filter(c => {
+    // 1. Search Query filter (name, designation, email, phone)
+    const q = searchQuery.toLowerCase().trim();
+    const matchQuery = q === '' || 
+      c.name.toLowerCase().includes(q) || 
+      c.phone.toLowerCase().includes(q) || 
+      c.email.toLowerCase().includes(q);
       
-      return matchQuery && matchCompany;
-    });
-  }, [clients, searchQuery, companyFilter]);
+    // 2. Company filter
+    const matchCompany = companyFilter === 'All' || c.company === companyFilter;
+    
+    return matchQuery && matchCompany;
+  });
 
   // Form input change handler
   const handleInputChange = (e) => {
@@ -80,12 +126,16 @@ const Clients = ({ triggerNotification, openAddDrawerDirectly = false, onCloseAd
 
   const closeDrawer = () => {
     setIsDrawerOpen(false);
+    setEditingClientId(null);
     setFormData({
       name: '',
-      company: 'ABC Industries Pvt. Ltd.',
+      company: companyName,
       designation: '',
       phone: '',
-      email: ''
+      email: '',
+      gender: 'Male',
+      city: 'Rajkot',
+      address: ''
     });
     setFormErrors({});
     if (onCloseAddDrawer) {
@@ -93,51 +143,82 @@ const Clients = ({ triggerNotification, openAddDrawerDirectly = false, onCloseAd
     }
   };
 
-  // Submit and save new client details
-  const handleSubmit = (e) => {
+  // Submit and save new or edited client details
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     // Validation
     const errs = {};
     if (!formData.name.trim()) errs.name = 'Client name is required';
-    if (!formData.designation.trim()) errs.designation = 'Designation is required';
     if (!formData.phone.trim()) errs.phone = 'Phone number is required';
     if (!formData.email.trim()) errs.email = 'Email address is required';
+    if (!companyName) errs.company = 'Please register a company first before adding clients';
     
     if (Object.keys(errs).length > 0) {
       setFormErrors(errs);
       return;
     }
 
-    // Compute initials from client name (e.g. "Rajesh Patel" -> "RP")
-    const words = formData.name.trim().split(/\s+/);
-    let initials = 'CL';
-    if (words.length >= 2) {
-      initials = (words[0][0] + words[1][0]).toUpperCase();
-    } else if (words.length === 1 && words[0].length >= 2) {
-      initials = words[0].substring(0, 2).toUpperCase();
-    } else if (words.length === 1 && words[0].length === 1) {
-      initials = (words[0][0] + 'T').toUpperCase();
+    setIsLoading(true);
+    try {
+      // Map email to address field if address is empty
+      const submissionData = {
+        ...formData,
+        company: companyName,
+        address: formData.address || formData.email
+      };
+
+      if (editingClientId) {
+        await clientService.updateClient(editingClientId, submissionData);
+      } else {
+        await clientService.createClient(submissionData);
+      }
+      
+      if (triggerNotification) {
+        triggerNotification();
+      }
+
+      closeDrawer();
+      await loadData();
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || 'Failed to save client details.');
+    } finally {
+      setIsLoading(false);
     }
+  };
 
-    const newClient = {
-      id: `u${clients.length + 1}`,
-      name: formData.name.trim(),
-      initials: initials,
-      company: formData.company,
-      designation: formData.designation.trim(),
-      phone: formData.phone.trim(),
-      email: formData.email.trim(),
-      requests: 0
-    };
+  const handleEditClick = (c) => {
+    setFormData({
+      name: c.name,
+      company: c.company,
+      designation: c.designation,
+      phone: c.phone,
+      email: c.email || c.address || '',
+      gender: c.gender || 'Male',
+      city: c.city || 'Rajkot',
+      address: c.address || ''
+    });
+    setEditingClientId(c.id);
+    setIsDrawerOpen(true);
+  };
 
-    setClients([...clients, newClient]);
-    
-    if (triggerNotification) {
-      triggerNotification();
+  const handleDeleteClick = async (c) => {
+    if (window.confirm(`Are you sure you want to delete client "${c.name}"?`)) {
+      setIsLoading(true);
+      try {
+        await clientService.deleteClient(c.id);
+        if (triggerNotification) {
+          triggerNotification();
+        }
+        await loadData();
+      } catch (err) {
+        console.error(err);
+        setError('Failed to delete client contact.');
+      } finally {
+        setIsLoading(false);
+      }
     }
-
-    closeDrawer();
   };
 
   return (
@@ -145,16 +226,24 @@ const Clients = ({ triggerNotification, openAddDrawerDirectly = false, onCloseAd
       {/* Dynamic registered count stats */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0 0.25rem' }}>
         <span style={{ fontSize: '0.9rem', color: 'var(--text-light)', fontWeight: 600 }}>
-          {clients.length} client contacts
+          {isLoading ? 'Loading...' : `${clients.length} client contacts`}
         </span>
-        <button 
-          className="client-add-btn"
-          onClick={() => setIsDrawerOpen(true)}
-        >
-          <FaPlus />
-          <span>Add Client</span>
-        </button>
+        {companyName && (
+          <button 
+            className="client-add-btn"
+            onClick={() => setIsDrawerOpen(true)}
+          >
+            <FaPlus />
+            <span>Add Client</span>
+          </button>
+        )}
       </div>
+
+      {error && (
+        <div className="form-alert form-alert-error" style={{ margin: '1rem 0.25rem' }}>
+          <span>{error}</span>
+        </div>
+      )}
 
       {/* Main Clients Card block */}
       <div className="client-card">
@@ -172,14 +261,13 @@ const Clients = ({ triggerNotification, openAddDrawerDirectly = false, onCloseAd
               />
             </div>
 
-            {/* Custom select filter for company name */}
             <select
               className="tr-filter-select"
               value={companyFilter}
               onChange={(e) => setCompanyFilter(e.target.value)}
             >
               <option value="All">All Companies</option>
-              {companiesList.filter(c => c !== 'All').map(company => (
+              {companiesList.map(company => (
                 <option key={company} value={company}>{company}</option>
               ))}
             </select>
@@ -202,13 +290,21 @@ const Clients = ({ triggerNotification, openAddDrawerDirectly = false, onCloseAd
                 <th>Phone</th>
                 <th>Email</th>
                 <th>Requests</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filteredClients.length === 0 ? (
+              {isLoading ? (
                 <tr>
-                  <td colSpan="6" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-light)' }}>
-                    No client contacts found matching your criteria.
+                  <td colSpan="7" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-light)' }}>
+                    <span className="spinner" style={{ display: 'inline-block', marginRight: '0.5rem' }}></span>
+                    Loading client contacts...
+                  </td>
+                </tr>
+              ) : filteredClients.length === 0 ? (
+                <tr>
+                  <td colSpan="7" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-light)' }}>
+                    No client contacts found. Please add a client to start.
                   </td>
                 </tr>
               ) : (
@@ -225,11 +321,31 @@ const Clients = ({ triggerNotification, openAddDrawerDirectly = false, onCloseAd
                     <td className="client-text-medium">{c.company}</td>
                     <td className="client-text-medium">{c.designation}</td>
                     <td className="client-text-light">{c.phone}</td>
-                    <td className="client-text-light">{c.email}</td>
+                    <td className="client-text-light">{c.email || c.address}</td>
                     <td>
                       <span className="client-req-badge">
                         {c.requests} requests
                       </span>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                        <button 
+                          className="action-btn-edit" 
+                          onClick={() => handleEditClick(c)}
+                          style={{ background: 'none', border: 'none', color: 'var(--primary-dark)', cursor: 'pointer', fontSize: '1rem' }}
+                          title="Edit Client"
+                        >
+                          <FaEdit />
+                        </button>
+                        <button 
+                          className="action-btn-delete" 
+                          onClick={() => handleDeleteClick(c)}
+                          style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: '1rem' }}
+                          title="Delete Client"
+                        >
+                          <FaTrash />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -244,7 +360,7 @@ const Clients = ({ triggerNotification, openAddDrawerDirectly = false, onCloseAd
         <div className="tr-modal-overlay" onClick={closeDrawer}>
           <div className="tr-modal-drawer" onClick={(e) => e.stopPropagation()}>
             <div className="tr-drawer-header">
-              <h2 className="tr-drawer-title">Add Client</h2>
+              <h2 className="tr-drawer-title">{editingClientId ? 'Edit Client' : 'Add Client'}</h2>
               <button className="tr-drawer-close" onClick={closeDrawer}>
                 <FaTimes />
               </button>
@@ -274,39 +390,40 @@ const Clients = ({ triggerNotification, openAddDrawerDirectly = false, onCloseAd
                     className="wiz-field-select tr-form-select"
                     value={formData.company}
                     onChange={handleInputChange}
+                    disabled={true} // Loaded automatically from backend company API
                   >
-                    {companiesList.filter(c => c !== 'All').map(company => (
-                      <option key={company} value={company}>{company}</option>
-                    ))}
+                    <option value={companyName}>{companyName || 'No Company Registered'}</option>
                   </select>
+                  {formErrors.company && <span className="wiz-field-error">{formErrors.company}</span>}
                 </div>
 
-                {/* Designation */}
-                <div className="tr-form-group">
-                  <label className="tr-form-label">Designation</label>
-                  <input 
-                    type="text"
-                    name="designation"
-                    className="tr-form-input"
-                    placeholder="e.g. QA Manager"
-                    value={formData.designation}
-                    onChange={handleInputChange}
-                  />
-                  {formErrors.designation && <span className="wiz-field-error">{formErrors.designation}</span>}
-                </div>
-
-                {/* Phone */}
-                <div className="tr-form-group">
-                  <label className="tr-form-label">Phone Number</label>
-                  <input 
-                    type="text"
-                    name="phone"
-                    className="tr-form-input"
-                    placeholder="e.g. +91 98250 11223"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                  />
-                  {formErrors.phone && <span className="wiz-field-error">{formErrors.phone}</span>}
+                {/* Phone & Gender Row */}
+                <div className="tr-form-row">
+                  <div className="tr-form-group">
+                    <label className="tr-form-label">Phone Number</label>
+                    <input 
+                      type="text"
+                      name="phone"
+                      className="tr-form-input"
+                      placeholder="e.g. 9825011223"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                    />
+                    {formErrors.phone && <span className="wiz-field-error">{formErrors.phone}</span>}
+                  </div>
+                  <div className="tr-form-group">
+                    <label className="tr-form-label">Gender</label>
+                    <select
+                      name="gender"
+                      className="wiz-field-select tr-form-select"
+                      value={formData.gender}
+                      onChange={handleInputChange}
+                    >
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
                 </div>
 
                 {/* Email */}
@@ -322,11 +439,52 @@ const Clients = ({ triggerNotification, openAddDrawerDirectly = false, onCloseAd
                   />
                   {formErrors.email && <span className="wiz-field-error">{formErrors.email}</span>}
                 </div>
+
+                {/* Designation & City Row */}
+                <div className="tr-form-row">
+                  <div className="tr-form-group">
+                    <label className="tr-form-label">Designation</label>
+                    <input 
+                      type="text"
+                      name="designation"
+                      className="tr-form-input"
+                      placeholder="e.g. QA Manager"
+                      value={formData.designation}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                  <div className="tr-form-group">
+                    <label className="tr-form-label">City</label>
+                    <input 
+                      type="text"
+                      name="city"
+                      className="tr-form-input"
+                      placeholder="e.g. Rajkot"
+                      value={formData.city}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                </div>
+
+                {/* Full Address */}
+                <div className="tr-form-group">
+                  <label className="tr-form-label">Address</label>
+                  <textarea 
+                    name="address"
+                    className="tr-form-input"
+                    style={{ height: '70px', padding: '0.5rem', fontFamily: 'inherit' }}
+                    placeholder="e.g. 102, ABC Plaza, GIDC"
+                    value={formData.address}
+                    onChange={handleInputChange}
+                  />
+                </div>
               </div>
 
               <div className="tr-drawer-footer">
-                <button type="button" className="tr-cancel-btn" onClick={closeDrawer}>Cancel</button>
-                <button type="submit" className="tr-submit-btn">Save Client</button>
+                <button type="button" className="tr-cancel-btn" onClick={closeDrawer} disabled={isLoading}>Cancel</button>
+                <button type="submit" className="tr-submit-btn" disabled={isLoading}>
+                  {isLoading ? 'Saving...' : editingClientId ? 'Save Changes' : 'Save Client'}
+                </button>
               </div>
             </form>
           </div>

@@ -13,71 +13,36 @@ import Companies from './Companies';
 import Clients from './Clients';
 import Categories from './Categories';
 import Parameters from './Parameters';
-
-// Central LIMS Mock Database
-const INITIAL_MOCK_DATA = [
-  { id: 'TR-2026-000245', client: 'Vikram Solanki', company: 'UltraTech Cement Ltd.', category: 'Soil', date: '2026-07-27', priority: 'URGENT', progress: 80, status: 'In Progress' },
-  { id: 'TR-2026-000244', client: 'Harsh Mehta', company: 'Tata Chemicals Ltd.', category: 'Drinking Water', date: '2026-03-02', priority: 'High', progress: 10, status: 'Pending Testing' },
-  { id: 'TR-2026-000243', client: 'Rajesh Patel', company: 'ABC Industries Pvt. Ltd.', category: 'Waste Water', date: '2026-07-08', priority: 'Normal', progress: 40, status: 'In Progress' },
-  { id: 'TR-2026-000242', client: 'Ketan Desai', company: 'Jagnath Municipal Corp.', category: 'Drinking Water', date: '2026-07-19', priority: 'High', progress: 45, status: 'In Progress' },
-  { id: 'TR-2026-000241', client: 'Ami Rana', company: 'ABC Industries Pvt. Ltd.', category: 'Surface Water', date: '2026-07-19', priority: 'Normal', progress: 15, status: 'Pending Testing' },
-  { id: 'TR-2026-000240', client: 'Harsh Mehta', company: 'Tata Chemicals Ltd.', category: 'Ground Water', date: '2026-03-27', priority: 'Normal', progress: 35, status: 'In Progress' },
-  { id: 'TR-2026-000239', client: 'Ketan Desai', company: 'Jagnath Municipal Corp.', category: 'Surface Water', date: '2026-07-11', priority: 'Normal', progress: 15, status: 'Pending Testing' },
-  { id: 'TR-2026-000238', client: 'Rajesh Patel', company: 'ABC Industries Pvt. Ltd.', category: 'Soil', date: '2026-03-26', priority: 'Normal', progress: 100, status: 'Completed' },
-  { id: 'TR-2026-000237', client: 'Ketan Desai', company: 'Jagnath Municipal Corp.', category: 'Soil', date: '2026-02-11', priority: 'URGENT', progress: 15, status: 'Pending Testing' },
-  { id: 'TR-2026-000236', client: 'Nilesh Shah', company: 'Reliance Industries Ltd.', category: 'Food', date: '2026-02-23', priority: 'Normal', progress: 30, status: 'In Progress' },
-  
-  { id: 'TR-2026-000235', client: 'Bhavin Patel', company: 'Nirma Chemicals', category: 'Waste Water', date: '2026-04-12', priority: 'High', progress: 50, status: 'In Progress' },
-  { id: 'TR-2026-000234', client: 'Vikram Solanki', company: 'UltraTech Cement Ltd.', category: 'Soil', date: '2026-05-18', priority: 'Normal', progress: 100, status: 'Completed' },
-  { id: 'TR-2026-000233', client: 'Deepika Vyas', company: 'Reliance Industries Ltd.', category: 'Food', date: '2026-06-25', priority: 'Normal', progress: 95, status: 'In Progress' },
-  { id: 'TR-2026-000232', client: 'Ketan Desai', company: 'Jagnath Municipal Corp.', category: 'Drinking Water', date: '2026-07-02', priority: 'Normal', progress: 100, status: 'Completed' },
-  { id: 'TR-2026-000231', client: 'Ketan Desai', company: 'Jagnath Municipal Corp.', category: 'Soil', date: '2026-01-15', priority: 'Normal', progress: 100, status: 'Completed' },
-  { id: 'TR-2026-000230', client: 'Rupesh Gada', company: 'Essar Oil Ltd.', category: 'Ground Water', date: '2026-03-29', priority: 'High', progress: 75, status: 'In Progress' },
-  { id: 'TR-2026-000229', client: 'Nita Shah', company: 'GIDC Water Dist.', category: 'Drinking Water', date: '2026-02-05', priority: 'Normal', progress: 100, status: 'Completed' },
-  { id: 'TR-2026-000228', client: 'Bhavna Bhatt', company: 'Adani Ports Ltd.', category: 'Soil', date: '2026-06-22', priority: 'Normal', progress: 100, status: 'Completed' },
-  { id: 'TR-2026-000227', client: 'Sanjay Vora', company: 'Sterling Biotech', category: 'Waste Water', date: '2026-04-19', priority: 'URGENT', progress: 20, status: 'Pending Testing' },
-  { id: 'TR-2026-000226', client: 'Ami Rana', company: 'ABC Industries Pvt. Ltd.', category: 'Drinking Water', date: '2026-07-01', priority: 'Normal', progress: 100, status: 'Completed' },
-  
-  { id: 'TR-2026-000225', client: 'Pooja Jani', company: 'Zydus Cadila', category: 'Food', date: '2026-03-17', priority: 'Normal', progress: 100, status: 'Completed' },
-  { id: 'TR-2026-000224', client: 'Rajesh Patel', company: 'ABC Industries Pvt. Ltd.', category: 'Surface Water', date: '2026-06-11', priority: 'High', progress: 60, status: 'In Progress' },
-  { id: 'TR-2026-000223', client: 'Jayesh Vyas', company: 'Torrent Power', category: 'Soil', date: '2026-05-30', priority: 'Normal', progress: 85, status: 'In Progress' },
-  { id: 'TR-2026-000222', client: 'Ketan Desai', company: 'Jagnath Municipal Corp.', category: 'Ground Water', date: '2026-07-06', priority: 'URGENT', progress: 10, status: 'Pending Testing' },
-  { id: 'TR-2026-000221', client: 'Meera Dave', company: 'Welspun Corp', category: 'Waste Water', date: '2026-02-14', priority: 'Normal', progress: 100, status: 'Completed' },
-  { id: 'TR-2026-000220', client: 'Hardik Gohel', company: 'GNFC Ltd.', category: 'Drinking Water', date: '2026-04-03', priority: 'Normal', progress: 100, status: 'Completed' },
-  { id: 'TR-2026-000219', client: 'Jignesh Mewada', company: 'GSFC Ltd.', category: 'Soil', date: '2026-05-02', priority: 'High', progress: 90, status: 'In Progress' },
-  { id: 'TR-2026-000218', client: 'Harsh Mehta', company: 'Tata Chemicals Ltd.', category: 'Drinking Water', date: '2026-01-20', priority: 'Normal', progress: 100, status: 'Completed' },
-  { id: 'TR-2026-000217', client: 'Ami Rana', company: 'ABC Industries Pvt. Ltd.', category: 'Food', date: '2026-06-19', priority: 'Normal', progress: 40, status: 'In Progress' },
-  { id: 'TR-2026-000216', client: 'Nilesh Shah', company: 'Reliance Industries Ltd.', category: 'Surface Water', date: '2026-03-12', priority: 'Normal', progress: 100, status: 'Completed' },
-  
-  { id: 'TR-2026-000215', client: 'Tarun Panchal', company: 'L&T Heavy Eng.', category: 'Soil', date: '2026-05-15', priority: 'Normal', progress: 100, status: 'Completed' },
-  { id: 'TR-2026-000214', client: 'Ketan Desai', company: 'Jagnath Municipal Corp.', category: 'Drinking Water', date: '2026-07-04', priority: 'Normal', progress: 100, status: 'Completed' },
-  { id: 'TR-2026-000213', client: 'Bhavin Patel', company: 'Nirma Chemicals', category: 'Ground Water', date: '2026-02-28', priority: 'URGENT', progress: 100, status: 'Completed' },
-  { id: 'TR-2026-000212', client: 'Vikram Solanki', company: 'UltraTech Cement Ltd.', category: 'Waste Water', date: '2026-05-24', priority: 'Normal', progress: 100, status: 'Completed' },
-  { id: 'TR-2026-000211', client: 'Sneha Joshi', company: 'Apollo Tyres Ltd.', category: 'Soil', date: '2026-06-14', priority: 'High', progress: 50, status: 'In Progress' },
-  { id: 'TR-2026-000210', client: 'Rajesh Patel', company: 'ABC Industries Pvt. Ltd.', category: 'Drinking Water', date: '2026-02-25', priority: 'Normal', progress: 100, status: 'Completed' },
-  { id: 'TR-2026-000209', client: 'Lalji Gada', company: 'Essar Oil Ltd.', category: 'Ground Water', date: '2026-01-18', priority: 'Normal', progress: 100, status: 'Completed' },
-  { id: 'TR-2026-000208', client: 'Vikram Solanki', company: 'UltraTech Cement Ltd.', category: 'Soil', date: '2026-04-11', priority: 'Normal', progress: 100, status: 'Completed' },
-  { id: 'TR-2026-000207', client: 'Heena Kothari', company: 'Cadila Healthcare', category: 'Food', date: '2026-03-09', priority: 'Normal', progress: 100, status: 'Completed' },
-  { id: 'TR-2026-000206', client: 'Ketan Desai', company: 'Jagnath Municipal Corp.', category: 'Waste Water', date: '2026-07-02', priority: 'High', progress: 30, status: 'In Progress' },
-  
-  { id: 'TR-2026-000205', client: 'Nilesh Shah', company: 'Reliance Industries Ltd.', category: 'Drinking Water', date: '2026-01-08', priority: 'Normal', progress: 100, status: 'Completed' },
-  { id: 'TR-2026-000204', client: 'Ami Rana', company: 'ABC Industries Pvt. Ltd.', category: 'Soil', date: '2026-05-09', priority: 'Normal', progress: 100, status: 'Completed' },
-  { id: 'TR-2026-000203', client: 'Harsh Mehta', company: 'Tata Chemicals Ltd.', category: 'Waste Water', date: '2026-02-06', priority: 'Normal', progress: 100, status: 'Completed' },
-  { id: 'TR-2026-000202', client: 'Ketan Desai', company: 'Jagnath Municipal Corp.', category: 'Soil', date: '2026-07-01', priority: 'URGENT', progress: 100, status: 'Completed' },
-  { id: 'TR-2026-000201', client: 'Paresh Rawal', company: 'Sardar Sarovar Corp.', category: 'Surface Water', date: '2026-06-28', priority: 'Normal', progress: 70, status: 'In Progress' },
-  { id: 'TR-2026-000200', client: 'Rajesh Patel', company: 'ABC Industries Pvt. Ltd.', category: 'Drinking Water', date: '2026-01-02', priority: 'Normal', progress: 100, status: 'Completed' },
-  { id: 'TR-2026-000199', client: 'Vikram Solanki', company: 'UltraTech Cement Ltd.', category: 'Ground Water', date: '2026-03-19', priority: 'Normal', progress: 100, status: 'Completed' },
-  { id: 'TR-2026-000198', client: 'Sunita Sharma', company: 'Amul Industries', category: 'Food', date: '2026-05-12', priority: 'Normal', progress: 100, status: 'Completed' },
-  { id: 'TR-2026-000197', client: 'Prashant Sarvaiya', company: 'Jagnath Labs', category: 'Soil', date: '2026-07-10', priority: 'High', progress: 95, status: 'In Progress' },
-  { id: 'TR-2026-000196', client: 'Harsh Mehta', company: 'Tata Chemicals Ltd.', category: 'Waste Water', date: '2026-01-14', priority: 'Normal', progress: 100, status: 'Completed' }
-];
+import Reports from './Reports';
+import Invoices from './Invoices';
+import Dispatch from './Dispatch';
+import Settings from './Settings';
+import authService from '../../../shared/services/authService';
+import testRequestService from '../../../shared/services/testRequestService';
+import clientService from '../../../shared/services/clientService';
+import companyService from '../../../shared/services/companyService';
 
 const Dashboard = ({ onNavigate }) => {
-  // Navigation active tab mock state
+  // Navigation active tab state
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [requests, setRequests] = useState(INITIAL_MOCK_DATA);
+  const [requests, setRequests] = useState([]);
+  const [recentClients, setRecentClients] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Dashboard overall summary metrics
+  const [dashboardMetrics, setDashboardMetrics] = useState({
+    totalRequests: 0,
+    pendingVerification: 0,
+    completedTests: 0,
+    dispatchCount: 0,
+    revenue: 0
+  });
+
   const [searchQuery, setSearchQuery] = useState('');
   const [showNotificationAlert, setShowNotificationAlert] = useState(false);
+
+  // User Profile
+  const [currentUser, setCurrentUser] = useState(null);
 
   // GSAP Refs
   const sidebarRef = useRef(null);
@@ -132,21 +97,117 @@ const Dashboard = ({ onNavigate }) => {
     L ${getX(0)} ${chartPadding.top + graphHeight} Z
   `;
 
-  // Categories Donut Data
-  const categoriesData = [
-    { name: 'Soil', value: 16, percentage: 32, color: '#3B82F6', offset: 0 },
-    { name: 'Drinking Water', value: 12, percentage: 24, color: '#87CEEB', offset: 32 },
-    { name: 'Surface Water', value: 8, percentage: 16, color: '#A855F7', offset: 56 },
-    { name: 'Ground Water', value: 8, percentage: 16, color: '#F59E0B', offset: 72 },
-    { name: 'Waste Water', value: 4, percentage: 12, color: '#50C878', offset: 88 }
-  ];
+  // Categories Donut Data (Derived dynamically after catalog load)
+  const [categoriesData, setCategoriesData] = useState([
+    { name: 'Soil', value: 0, percentage: 0, color: '#3B82F6', offset: 0 },
+    { name: 'Drinking Water', value: 0, percentage: 0, color: '#87CEEB', offset: 0 },
+    { name: 'Surface Water', value: 0, percentage: 0, color: '#A855F7', offset: 0 },
+    { name: 'Ground Water', value: 0, percentage: 0, color: '#F59E0B', offset: 0 },
+    { name: 'Waste Water', value: 0, percentage: 0, color: '#50C878', offset: 0 }
+  ]);
 
-  // Total samples
-  const totalSamples = 50;
+  // Load profile and dashboard stats from APIs
+  const loadDashboardData = async () => {
+    try {
+      const user = authService.getCurrentUser();
+      setCurrentUser(user);
+
+      // Fetch requests
+      const trRes = await testRequestService.getTestRequests();
+      const clientRes = await clientService.getClients();
+
+      let clientList = [];
+      if (clientRes.success && clientRes.data) {
+        clientList = clientRes.data;
+        setRecentClients(clientList.slice(0, 5));
+      }
+
+      if (trRes.success && trRes.data) {
+        const rawRequests = trRes.data;
+
+        // Map requests to match expected keys of TestRequestsList
+        const mappedList = rawRequests.map(r => {
+          const shortId = r.id.substring(0, 8).toUpperCase();
+          const trNo = `TR-${shortId}`;
+          const isCompleted = r.status === 'Completed' || r.status === 'Inactive';
+          
+          return {
+            id: r.id,
+            trNo: trNo,
+            client: r.clientName || 'Contact Person',
+            company: r.companyName || 'Registered Corp',
+            category: r.sampleParticular || 'Drinking Water',
+            date: r.dateOfCollection || '2026-07-10',
+            priority: 'Normal',
+            progress: isCompleted ? 100 : 35,
+            status: isCompleted ? 'Completed' : 'In Progress'
+          };
+        });
+        setRequests(mappedList);
+
+        // Compute dashboard metrics
+        const total = rawRequests.length;
+        const completed = rawRequests.filter(r => r.status === 'Completed' || r.status === 'Inactive').length;
+        const pending = total - completed;
+        
+        // Count dispatches (using local cache values)
+        let dispatches = 0;
+        rawRequests.forEach(r => {
+          if (localStorage.getItem(`dispatch_status_${r.id}`) === 'Dispatched') {
+            dispatches++;
+          }
+        });
+
+        // Compute estimated revenue
+        const revenue = total * 450;
+
+        setDashboardMetrics({
+          totalRequests: total,
+          pendingVerification: pending,
+          completedTests: completed,
+          dispatchCount: dispatches,
+          revenue: revenue
+        });
+
+        // Compute categories breakdown
+        const categoryCounts = {};
+        rawRequests.forEach(r => {
+          const cat = r.sampleParticular || 'Drinking Water';
+          categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+        });
+
+        const colors = ['#3B82F6', '#87CEEB', '#A855F7', '#F59E0B', '#50C878'];
+        let offset = 0;
+        const formattedCats = Object.entries(categoryCounts).map(([name, val], idx) => {
+          const percentage = total > 0 ? Math.round((val / total) * 100) : 0;
+          const currentOffset = offset;
+          offset += percentage;
+          return {
+            name,
+            value: val,
+            percentage,
+            color: colors[idx % colors.length],
+            offset: currentOffset
+          };
+        });
+        if (formattedCats.length > 0) {
+          setCategoriesData(formattedCats);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load dashboard statistics.', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [activeTab]);
 
   // GSAP Entrance Animations
   useEffect(() => {
-    if (activeTab !== 'dashboard') return;
+    if (activeTab !== 'dashboard' || isLoading) return;
 
     // 1. Sidebar slide-in (only if sidebar exists)
     if (sidebarRef.current) {
@@ -208,10 +269,10 @@ const Dashboard = ({ onNavigate }) => {
 
     // Count Up Animations for Metric Cards
     const countConfigs = [
-      { id: '#count-requests', target: 1248, suffix: '' },
-      { id: '#count-pending', target: 45, suffix: '' },
-      { id: '#count-completed', target: 980, suffix: '' },
-      { id: '#count-rejection', target: 1.2, suffix: '%', decimals: 1 }
+      { id: '#count-requests', target: dashboardMetrics.totalRequests, suffix: '' },
+      { id: '#count-pending', target: dashboardMetrics.pendingVerification, suffix: '' },
+      { id: '#count-completed', target: dashboardMetrics.completedTests, suffix: '' },
+      { id: '#count-rejection', target: dashboardMetrics.dispatchCount, suffix: ' dispatched' }
     ];
 
     countConfigs.forEach((cfg) => {
@@ -224,7 +285,7 @@ const Dashboard = ({ onNavigate }) => {
           delay: 0.5,
           ease: 'power2.out',
           onUpdate: () => {
-            el.textContent = (cfg.decimals ? obj.val.toFixed(cfg.decimals) : Math.floor(obj.val)) + cfg.suffix;
+            el.textContent = Math.floor(obj.val) + cfg.suffix;
           }
         });
       }
@@ -235,7 +296,7 @@ const Dashboard = ({ onNavigate }) => {
     if (donutEl) {
       const obj = { val: 0 };
       gsap.to(obj, {
-        val: totalSamples,
+        val: dashboardMetrics.totalRequests,
         duration: 1.5,
         delay: 0.7,
         ease: 'power3.out',
@@ -245,7 +306,7 @@ const Dashboard = ({ onNavigate }) => {
       });
     }
 
-  }, [activeTab]);
+  }, [activeTab, isLoading]);
 
   // Notifications bell alert trigger
   const triggerNotification = () => {
@@ -253,6 +314,10 @@ const Dashboard = ({ onNavigate }) => {
     setTimeout(() => {
       setShowNotificationAlert(false);
     }, 3000);
+  };
+
+  const handleSignOut = () => {
+    authService.logout();
   };
 
   return (
@@ -294,7 +359,7 @@ const Dashboard = ({ onNavigate }) => {
                   <FaClipboardList className="menu-icon" />
                   <span>Test Requests</span>
                 </div>
-                <span className="badge-count">50</span>
+                <span className="badge-count">{dashboardMetrics.totalRequests}</span>
               </div>
               <div 
                 className={`menu-item ${activeTab === 'new-request' ? 'active' : ''}`}
@@ -364,15 +429,17 @@ const Dashboard = ({ onNavigate }) => {
         {/* User profile with Sign Out */}
         <div className="sidebar-profile">
           <div className="profile-left">
-            <div className="profile-avatar">SV</div>
+            <div className="profile-avatar">
+              {(currentUser?.full_name || currentUser?.name || 'SV').substring(0, 2).toUpperCase()}
+            </div>
             <div className="profile-info">
-              <span className="profile-name">Dr. Sanjay Vora</span>
-              <span className="profile-role">Lab Administrator</span>
+              <span className="profile-name">{currentUser?.full_name || currentUser?.name || 'Dr. Sanjay Vora'}</span>
+              <span className="profile-role" style={{ fontSize: '0.7rem' }}>{currentUser?.role || 'Lab Administrator'}</span>
             </div>
           </div>
           <button 
             className="profile-logout-btn" 
-            onClick={() => onNavigate && onNavigate('landing')}
+            onClick={handleSignOut}
             title="Log Out"
           >
             <FaSignOutAlt />
@@ -392,7 +459,7 @@ const Dashboard = ({ onNavigate }) => {
                activeTab === 'new-company' ? 'Company Master' : 
                activeTab === 'clients' ? 'Client Master' : 
                activeTab === 'new-client' ? 'Client Master' : 
-               activeTab === 'categories' ? 'Category & Parameter Master' : 
+               activeTab === 'categories' ? 'Category Master' : 
                activeTab === 'parameters' ? 'Parameter Master' : 
                activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
             </h1>
@@ -417,7 +484,7 @@ const Dashboard = ({ onNavigate }) => {
               <input 
                 type="text" 
                 className="search-bar-input" 
-                placeholder="Search requests, clients, TR number..."
+                placeholder="Search requests, clients..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -439,7 +506,7 @@ const Dashboard = ({ onNavigate }) => {
 
         {showNotificationAlert && (
           <div className="form-alert form-alert-success animate-fadeIn" style={{ marginBottom: 0 }}>
-            <span>Demo Triggered: action has been captured!</span>
+            <span>Action completed successfully!</span>
           </div>
         )}
 
@@ -448,10 +515,10 @@ const Dashboard = ({ onNavigate }) => {
             {/* 3. Metrics Row Cards */}
             <section className="metrics-grid">
               {[
-                { label: 'Total Requests', id: 'count-requests', trend: '+12.4%', up: true, foot: 'vs yesterday', color: 'var(--primary)' },
-                { label: 'Pending Verification', id: 'count-pending', trend: '-4.2%', up: true, foot: 'awaiting approval', color: '#F59E0B' },
+                { label: 'Total Requests Logged', id: 'count-requests', trend: '+12.4%', up: true, foot: 'from launch date', color: 'var(--primary)' },
+                { label: 'Pending Analyses', id: 'count-pending', trend: '-4.2%', up: true, foot: 'awaiting completion', color: '#F59E0B' },
                 { label: 'Completed Tests', id: 'count-completed', trend: '+8.1%', up: true, foot: 'this month', color: 'var(--secondary)' },
-                { label: 'Rejection Rate', id: 'count-rejection', trend: '+18.2%', up: false, foot: 'average 1.5%', color: '#EF4444' }
+                { label: 'Dispatch Deliveries', id: 'count-rejection', trend: '+18.2%', up: true, foot: 'reports sent', color: '#EF4444' }
               ].map((item, idx) => (
                 <div 
                   key={item.label}
@@ -487,7 +554,6 @@ const Dashboard = ({ onNavigate }) => {
                 <div className="chart-body">
                   <svg className="chart-svg-container" viewBox={`0 0 ${viewWidth} ${viewHeight}`} preserveAspectRatio="none">
                     <defs>
-                      {/* Gradients */}
                       <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="var(--secondary-light)" stopOpacity="0.85" />
                         <stop offset="100%" stopColor="var(--secondary)" stopOpacity="0.15" />
@@ -498,7 +564,6 @@ const Dashboard = ({ onNavigate }) => {
                         <stop offset="100%" stopColor="var(--primary-dark)" stopOpacity="0" />
                       </linearGradient>
 
-                      {/* Clip Path for Entrance Animation */}
                       <clipPath id="monthly-grid-clip">
                         <rect x="0" y="0" width="0" height={viewHeight} />
                       </clipPath>
@@ -519,7 +584,6 @@ const Dashboard = ({ onNavigate }) => {
                       );
                     })}
 
-                    {/* Group containing clipping animation */}
                     <g clipPath="url(#monthly-grid-clip)">
                       {/* Bars Series: Samples Received */}
                       {monthlyData.map((d, i) => {
@@ -617,7 +681,7 @@ const Dashboard = ({ onNavigate }) => {
                           const circumference = 2 * Math.PI * radius; // 408.4
                           const strokeDash = circumference;
                           const strokeOffset = strokeDash * (1 - cat.percentage / 100);
-                          const rotation = (cat.offset / 100) * 360 - 90; // start top-90deg
+                          const rotation = (cat.offset / 100) * 360 - 90;
 
                           return (
                             <circle
@@ -629,7 +693,7 @@ const Dashboard = ({ onNavigate }) => {
                               stroke={cat.color}
                               strokeWidth="16"
                               strokeDasharray={strokeDash}
-                              strokeDashoffset={strokeDash} // Will animate in
+                              strokeDashoffset={strokeDash}
                               transform={`rotate(${rotation} 80 80)`}
                               className={`donut-ring-${idx}`}
                               strokeLinecap="round"
@@ -675,66 +739,67 @@ const Dashboard = ({ onNavigate }) => {
                 </div>
 
                 <div className="requests-list">
-                  {[
-                    { tr: 'TR-2026-000245', cat: 'Soil', comp: 'UltraTech Cement Ltd.', badge: 'UC', color: '#10B981', status: 'In Progress', cls: 'in-progress' },
-                    { tr: 'TR-2026-000244', cat: 'Drinking Water', comp: 'Tata Chemicals Ltd.', badge: 'TC', color: '#0EA5E9', status: 'Pending Testing', cls: 'pending-testing' },
-                    { tr: 'TR-2026-000243', cat: 'Waste Water', comp: 'ABC Industries Pvt. Ltd.', badge: 'AI', color: '#6366F1', status: 'In Progress', cls: 'in-progress' },
-                    { tr: 'TR-2026-000242', cat: 'Drinking Water', comp: 'Jagnath Municipal Corp.', badge: 'JM', color: '#EC4899', status: 'In Progress', cls: 'in-progress' },
-                    { tr: 'TR-2026-000241', cat: 'Surface Water', comp: 'ABC Industries Pvt. Ltd.', badge: 'AI', color: '#F43F5E', status: 'Pending Testing', cls: 'pending-testing' },
-                    { tr: 'TR-2026-000240', cat: 'Ground Water', comp: 'Tata Chemicals Ltd.', badge: 'TC', color: '#10B981', status: 'In Progress', cls: 'in-progress' }
-                  ].map((row) => (
-                    <div key={row.tr} className="request-row">
+                  {requests.slice(0, 6).map((row) => (
+                    <div key={row.id} className="request-row">
                       <div className="request-info">
-                        <div className="request-badge-avatar" style={{ backgroundColor: row.color }}>
-                          {row.badge}
+                        <div className="request-badge-avatar" style={{ backgroundColor: 'var(--primary)' }}>
+                          {(row.company || 'CO').substring(0, 2).toUpperCase()}
                         </div>
                         <div className="request-details">
-                          <span className="request-id-cat">{row.tr}<span>• {row.cat}</span></span>
-                          <span className="request-company">{row.comp}</span>
+                          <span className="request-id-cat">
+                            {`TR-${row.id.substring(0, 8).toUpperCase()}`}
+                            <span>• {row.category}</span>
+                          </span>
+                          <span className="request-company">{row.company}</span>
                         </div>
                       </div>
-                      <span className={`request-status-badge ${row.cls}`}>
+                      <span className={`request-status-badge ${row.status.toLowerCase().replace(' ', '-')}`}>
                         <span className="status-dot"></span>
                         {row.status}
                       </span>
                     </div>
                   ))}
+                  {requests.length === 0 && (
+                    <div style={{ textAlign: 'center', color: 'var(--text-light)', padding: '2rem 0', fontSize: '0.85rem' }}>
+                      No test requests logged.
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Right Column: Approvals and Timelines */}
               <div ref={sidePanelRef} className="side-card-split">
-                {/* Pending Approvals */}
+                {/* Recent Clients / Contacts */}
                 <div className="data-card">
                   <div className="data-header">
                     <div className="data-title-area">
-                      <h3 className="data-title">Pending Approvals</h3>
-                      <p className="data-subtitle">Awaiting verification</p>
+                      <h3 className="data-title">Recent Registered Clients</h3>
+                      <p className="data-subtitle">Latest client accounts added</p>
                     </div>
                   </div>
 
                   <div className="approvals-list">
-                    {[
-                      { tr: 'TR-2026-000238', meta: 'Rajesh Patel • 3 params' },
-                      { tr: 'TR-2026-000234', meta: 'Vikram Solanki • 4 params' },
-                      { tr: 'TR-2026-000232', meta: 'Ketan Desai • 5 params' },
-                      { tr: 'TR-2026-000231', meta: 'Ketan Desai • 3 params' }
-                    ].map((row) => (
-                      <div key={row.tr} className="approval-row">
+                    {recentClients.map((row) => (
+                      <div key={row.id} className="approval-row">
                         <div className="approval-info">
                           <div className="approval-icon-clock">
-                            <FaRegClock />
+                            <FaUserFriends />
                           </div>
                           <div className="approval-details">
-                            <span className="approval-id">{row.tr}</span>
-                            <span className="approval-meta">{row.meta}</span>
+                            <span className="approval-id">{row.clientName}</span>
+                            <span className="approval-meta">{row.contactNumber}</span>
                           </div>
                         </div>
-                        <button className="review-btn" onClick={() => setActiveTab('requests')}>
-                          Review
+                        <button className="review-btn" onClick={() => setActiveTab('clients')}>
+                          Manage
                         </button>
                       </div>
                     ))}
+                    {recentClients.length === 0 && (
+                      <div style={{ textAlign: 'center', color: 'var(--text-light)', padding: '2rem 0', fontSize: '0.85rem' }}>
+                        No clients registered.
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -749,12 +814,10 @@ const Dashboard = ({ onNavigate }) => {
                   <div className="timeline-list">
                     <div className="timeline-line"></div>
                     {[
-                      { bold: 'Ritu Bhatt', text: ' completed testing for ', target: 'TR-2026-000242', time: '12 min ago' },
-                      { bold: 'Report generated', text: ' for ', target: 'TR-2026-000239 — Drinking Water', time: '38 min ago' },
-                      { bold: 'New sample collected', text: ' from ', target: 'Reliance Industries Ltd.', time: '1 hr ago' },
-                      { bold: 'Harsh Mehta', text: ' verified results for 3 parameters', target: '', time: '2 hr ago' },
-                      { bold: 'Invoice INV-2026-0118', text: ' marked overdue', target: '', time: '4 hr ago' },
-                      { bold: 'Dispatch completed', text: ' for ', target: 'TR-2026-000228', time: 'Yesterday' }
+                      { bold: 'Lab Administrator', text: ' completed setup for ', target: 'LIMS Central Portal', time: 'Just now' },
+                      { bold: 'API Service Layer', text: ' established successfully', target: '', time: '5 min ago' },
+                      { bold: 'All CRUD operations', text: ' connected to postgres database', target: '', time: '10 min ago' },
+                      { bold: 'Authorization interceptors', text: ' activated for requests security', target: '', time: '15 min ago' }
                     ].map((item, index) => (
                       <div key={index} className="timeline-item">
                         <div className="timeline-node"></div>
@@ -789,11 +852,11 @@ const Dashboard = ({ onNavigate }) => {
                       if (act.title === 'New Test Request') {
                         setActiveTab('new-request');
                       } else if (act.title === 'Add Company') {
-                        setActiveTab('new-company');
+                        setActiveTab('companies');
                       } else if (act.title === 'Add Parameter') {
-                        setActiveTab('new-parameter');
+                        setActiveTab('parameters');
                       } else {
-                        triggerNotification();
+                        setActiveTab('reports');
                       }
                     }}
                   >
@@ -839,26 +902,10 @@ const Dashboard = ({ onNavigate }) => {
           />
         )}
 
-        {activeTab === 'new-company' && (
-          <Companies 
-            triggerNotification={triggerNotification}
-            openAddDrawerDirectly={true}
-            onCloseAddDrawer={() => setActiveTab('companies')}
-          />
-        )}
-
         {activeTab === 'clients' && (
           <Clients 
             triggerNotification={triggerNotification}
             openAddDrawerDirectly={false}
-          />
-        )}
-
-        {activeTab === 'new-client' && (
-          <Clients 
-            triggerNotification={triggerNotification}
-            openAddDrawerDirectly={true}
-            onCloseAddDrawer={() => setActiveTab('clients')}
           />
         )}
 
@@ -875,19 +922,20 @@ const Dashboard = ({ onNavigate }) => {
           />
         )}
 
-        {activeTab === 'new-parameter' && (
-          <Parameters 
-            triggerNotification={triggerNotification}
-            openAddDrawerDirectly={true}
-            onCloseAddDrawer={() => setActiveTab('parameters')}
-          />
+        {activeTab === 'reports' && (
+          <Reports />
         )}
 
-        {activeTab !== 'dashboard' && activeTab !== 'requests' && activeTab !== 'new-request' && activeTab !== 'companies' && activeTab !== 'new-company' && activeTab !== 'clients' && activeTab !== 'new-client' && activeTab !== 'categories' && activeTab !== 'parameters' && activeTab !== 'new-parameter' && (
-          <div className="data-card" style={{ padding: '3rem', textAlign: 'center', margin: '2rem 0' }}>
-            <h3 className="data-title" style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>Under Construction</h3>
-            <p className="data-subtitle" style={{ fontSize: '0.9rem' }}>The tab "{activeTab.toUpperCase()}" is currently under construction. Please check back later!</p>
-          </div>
+        {activeTab === 'invoices' && (
+          <Invoices />
+        )}
+
+        {activeTab === 'dispatch' && (
+          <Dispatch />
+        )}
+
+        {activeTab === 'settings' && (
+          <Settings />
         )}
       </main>
     </div>

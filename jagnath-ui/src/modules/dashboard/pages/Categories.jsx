@@ -1,76 +1,88 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
-  FaFlask, FaPlus, FaTimes, FaCheck, FaFolderOpen, FaTint, FaSeedling, FaAppleAlt 
+  FaFlask, FaPlus, FaTimes, FaCheck, FaFolderOpen, FaTint, FaSeedling, FaAppleAlt, FaTrash 
 } from 'react-icons/fa';
-
-// Master list of all available parameters in the laboratory catalog
-const ALL_PARAMETERS = [
-  'pH', 'TDS', 'Chloride', 'Fluoride', 'Total Hardness', 'Calcium', 'Sulphate', 
-  'Nitrate', 'Turbidity', 'Alkalinity', 'DO', 'BOD', 'COD', 'TSS', 'Oil & Grease', 
-  'Ammonical Nitrogen', 'Electrical Conductivity', 'Moisture', 'Protein', 
-  'Fat Content', 'Ash Content', 'Total Plate Count', 'Yeast & Mold', 'E.Coli', 
-  'Carbohydrates', 'Organic Carbon', 'Available Nitrogen', 'Available Phosphorus', 
-  'Available Potassium', 'Clay Content'
-];
-
-// Initial categories matching the mockup exactly
-const INITIAL_CATEGORIES_DATA = [
-  { 
-    id: 'cat1', 
-    name: 'Drinking Water', 
-    iconClass: 'drinking-water', 
-    icon: <FaTint />, 
-    parameters: ['pH', 'TDS', 'Chloride', 'Fluoride', 'Total Hardness', 'Calcium', 'Sulphate', 'Nitrate', 'Turbidity', 'Alkalinity'] 
-  },
-  { 
-    id: 'cat2', 
-    name: 'Ground Water', 
-    iconClass: 'ground-water', 
-    icon: <FaTint />, 
-    parameters: ['pH', 'TDS', 'Total Hardness', 'Nitrate', 'Sulphate', 'Fluoride', 'Chloride', 'Alkalinity', 'Calcium'] 
-  },
-  { 
-    id: 'cat3', 
-    name: 'Surface Water', 
-    iconClass: 'surface-water', 
-    icon: <FaTint />, 
-    parameters: ['pH', 'DO', 'BOD', 'COD', 'TSS', 'Turbidity', 'Chloride', 'Nitrate'] 
-  },
-  { 
-    id: 'cat4', 
-    name: 'Waste Water', 
-    iconClass: 'waste-water', 
-    icon: <FaTint />, 
-    parameters: ['pH', 'COD', 'BOD', 'TSS', 'Oil & Grease', 'Ammonical Nitrogen', 'Chloride', 'Sulphate', 'Nitrate'] 
-  },
-  { 
-    id: 'cat5', 
-    name: 'Food', 
-    iconClass: 'food', 
-    icon: <FaAppleAlt />, 
-    parameters: ['Moisture', 'Protein', 'Fat Content', 'Ash Content', 'Total Plate Count', 'Yeast & Mold', 'E.Coli'] 
-  },
-  { 
-    id: 'cat6', 
-    name: 'Soil', 
-    iconClass: 'soil', 
-    icon: <FaSeedling />, 
-    parameters: ['pH', 'Organic Carbon', 'Available Nitrogen', 'Available Phosphorus', 'Available Potassium', 'Electrical Conductivity'] 
-  }
-];
+import categoryService from '../../../shared/services/categoryService';
+import parameterService from '../../../shared/services/parameterService';
+import categoryParameterService from '../../../shared/services/categoryParameterService';
 
 const Categories = ({ triggerNotification }) => {
-  const [categories, setCategories] = useState(INITIAL_CATEGORIES_DATA);
+  const [categories, setCategories] = useState([]);
+  const [dbParameters, setDbParameters] = useState([]);
+  const [mappings, setMappings] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   
   // Create Category Drawer State
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newCatName, setNewCatName] = useState('');
-  const [newCatParams, setNewCatParams] = useState(new Set());
+  const [newCatParams, setNewCatParams] = useState(new Set()); // parameter IDs
   const [newCatError, setNewCatError] = useState('');
 
   // Edit Mapping Drawer State
   const [editingCategory, setEditingCategory] = useState(null);
-  const [tempParams, setTempParams] = useState(new Set());
+  const [tempParams, setTempParams] = useState(new Set()); // parameter IDs
+
+  // Load all categories, parameters, and mappings
+  const loadData = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const catRes = await categoryService.getCategories();
+      const paramRes = await parameterService.getParameters();
+      const mapRes = await categoryParameterService.getMappings();
+
+      const dbParams = paramRes.success && paramRes.data ? paramRes.data : [];
+      setDbParameters(dbParams);
+
+      const dbMaps = mapRes.success && mapRes.data ? mapRes.data : [];
+      setMappings(dbMaps);
+
+      if (catRes.success && catRes.data) {
+        const catList = catRes.data.map(cat => {
+          // Find mapped parameters for this category
+          const categoryMaps = dbMaps.filter(m => m.categoryId === cat.id);
+          const mappedParamNames = categoryMaps.map(m => {
+            const param = dbParams.find(p => p.id === m.parameterId);
+            return param ? param.name : m.parameterName;
+          }).filter(Boolean);
+
+          let icon = <FaFolderOpen />;
+          let iconClass = 'generic';
+          if (cat.name.toLowerCase().includes('water')) {
+            icon = <FaTint />;
+            iconClass = cat.name.toLowerCase().replace(/\s+/g, '-');
+          } else if (cat.name.toLowerCase().includes('food')) {
+            icon = <FaAppleAlt />;
+            iconClass = 'food';
+          } else if (cat.name.toLowerCase().includes('soil')) {
+            icon = <FaSeedling />;
+            iconClass = 'soil';
+          }
+
+          return {
+            id: cat.id,
+            name: cat.name,
+            description: cat.description || '',
+            iconClass: iconClass,
+            icon: icon,
+            parameters: mappedParamNames,
+            rawParameters: categoryMaps.map(m => m.parameterId) // store IDs for drawer checklist
+          };
+        });
+        setCategories(catList);
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Failed to retrieve categories and parameter mappings.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   // Count metrics
   const totalParametersMapped = useMemo(() => {
@@ -89,72 +101,129 @@ const Categories = ({ triggerNotification }) => {
     setIsCreateOpen(true);
   };
 
-  const handleToggleNewParam = (p) => {
+  const handleToggleNewParam = (paramId) => {
     const next = new Set(newCatParams);
-    if (next.has(p)) {
-      next.delete(p);
+    if (next.has(paramId)) {
+      next.delete(paramId);
     } else {
-      next.add(p);
+      next.add(paramId);
     }
     setNewCatParams(next);
   };
 
-  const handleCreateSubmit = (e) => {
+  const handleCreateSubmit = async (e) => {
     e.preventDefault();
     if (!newCatName.trim()) {
       setNewCatError('Category name is required');
       return;
     }
 
-    const newCat = {
-      id: `cat${categories.length + 1}`,
-      name: newCatName.trim(),
-      iconClass: 'generic',
-      icon: <FaFolderOpen />,
-      parameters: Array.from(newCatParams)
-    };
+    setIsLoading(true);
+    try {
+      const res = await categoryService.createCategory({
+        name: newCatName.trim(),
+        description: 'Standard Category'
+      });
 
-    setCategories([...categories, newCat]);
-    setIsCreateOpen(false);
-    if (triggerNotification) {
-      triggerNotification();
+      if (res.success && res.data) {
+        const categoryId = res.data.id;
+        // Create parameter mappings for checked parameters
+        const mapPromises = Array.from(newCatParams).map(paramId =>
+          categoryParameterService.createMapping(categoryId, paramId)
+        );
+        await Promise.all(mapPromises);
+      }
+
+      setIsCreateOpen(false);
+      if (triggerNotification) {
+        triggerNotification();
+      }
+      await loadData();
+    } catch (err) {
+      console.error(err);
+      setNewCatError(err.response?.data?.message || 'Failed to create category.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   // Edit mapping handlers
   const handleOpenEdit = (category) => {
     setEditingCategory(category);
-    setTempParams(new Set(category.parameters));
+    setTempParams(new Set(category.rawParameters));
   };
 
-  const handleToggleTempParam = (p) => {
+  const handleToggleTempParam = (paramId) => {
     const next = new Set(tempParams);
-    if (next.has(p)) {
-      next.delete(p);
+    if (next.has(paramId)) {
+      next.delete(paramId);
     } else {
-      next.add(p);
+      next.add(paramId);
     }
     setTempParams(next);
   };
 
-  const handleSaveMapping = (e) => {
+  const handleSaveMapping = async (e) => {
     e.preventDefault();
     if (!editingCategory) return;
 
-    const updated = categories.map(cat => {
-      if (cat.id === editingCategory.id) {
-        return {
-          ...cat,
-          parameters: Array.from(tempParams)
-        };
-      }
-      return cat;
-    });
+    setIsLoading(true);
+    try {
+      const categoryId = editingCategory.id;
 
-    setCategories(updated);
-    setEditingCategory(null);
-    if (triggerNotification) {
-      triggerNotification();
+      // 1. Identify which mappings to delete
+      const toDelete = mappings.filter(m => 
+        m.categoryId === categoryId && !tempParams.has(m.parameterId)
+      );
+
+      // 2. Identify which mappings to create
+      const existingParamIds = new Set(
+        mappings.filter(m => m.categoryId === categoryId).map(m => m.parameterId)
+      );
+      const toCreate = Array.from(tempParams).filter(paramId => !existingParamIds.has(paramId));
+
+      // Execute deletions
+      const deletePromises = toDelete.map(m => categoryParameterService.deleteMapping(m.id));
+      // Execute creations
+      const createPromises = toCreate.map(paramId => categoryParameterService.createMapping(categoryId, paramId));
+
+      await Promise.all([...deletePromises, ...createPromises]);
+
+      setEditingCategory(null);
+      if (triggerNotification) {
+        triggerNotification();
+      }
+      await loadData();
+    } catch (err) {
+      console.error(err);
+      setError('Failed to update parameter mappings.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteCategory = async (cat) => {
+    if (window.confirm(`Are you sure you want to delete category "${cat.name}"? This will delete all parameter mappings for this category.`)) {
+      setIsLoading(true);
+      try {
+        // Delete all associated mappings first
+        const categoryMaps = mappings.filter(m => m.categoryId === cat.id);
+        const mapDeletePromises = categoryMaps.map(m => categoryParameterService.deleteMapping(m.id));
+        await Promise.all(mapDeletePromises);
+
+        // Delete category itself
+        await categoryService.deleteCategory(cat.id);
+
+        if (triggerNotification) {
+          triggerNotification();
+        }
+        await loadData();
+      } catch (err) {
+        console.error(err);
+        setError('Failed to delete category.');
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -163,67 +232,89 @@ const Categories = ({ triggerNotification }) => {
       {/* Categories header summary */}
       <div className="cat-master-header">
         <span className="cat-header-left-text">
-          {categories.length} categories • {totalParametersMapped} parameters mapped
+          {isLoading ? 'Loading...' : `${categories.length} categories • ${totalParametersMapped} parameters mapped`}
         </span>
         <div className="cat-header-right-actions">
-          <button className="cat-manage-btn" onClick={() => triggerNotification && triggerNotification()}>
-            <FaFlask />
-            <span>Manage Parameters</span>
-          </button>
-          <button className="cat-create-btn" onClick={handleOpenCreate}>
+          <button className="cat-create-btn" onClick={handleOpenCreate} disabled={isLoading}>
             <FaPlus />
             <span>Create Category</span>
           </button>
         </div>
       </div>
 
+      {error && (
+        <div className="form-alert form-alert-error" style={{ margin: '1rem 0.25rem' }}>
+          <span>{error}</span>
+        </div>
+      )}
+
       {/* Grid of category cards */}
       <div className="cat-grid">
-        {categories.map(cat => {
-          const visibleLimit = 6;
-          const visibleParams = cat.parameters.slice(0, visibleLimit);
-          const hiddenCount = cat.parameters.length - visibleLimit;
+        {isLoading ? (
+          <div style={{ textAlign: 'center', gridColumn: '1/-1', padding: '3rem', color: 'var(--text-light)' }}>
+            <span className="spinner" style={{ display: 'inline-block', marginRight: '0.5rem' }}></span>
+            Loading categories and mappings...
+          </div>
+        ) : categories.length === 0 ? (
+          <div style={{ textAlign: 'center', gridColumn: '1/-1', padding: '3rem', color: 'var(--text-light)' }}>
+            No categories registered. Click "Create Category" to get started.
+          </div>
+        ) : (
+          categories.map(cat => {
+            const visibleLimit = 6;
+            const visibleParams = cat.parameters.slice(0, visibleLimit);
+            const hiddenCount = cat.parameters.length - visibleLimit;
 
-          return (
-            <div key={cat.id} className="cat-card">
-              <div className="cat-card-header">
-                <div className="cat-card-info">
-                  <span className="cat-card-title">{cat.name}</span>
-                  <span className="cat-count-sub">{cat.parameters.length} parameters mapped</span>
+            return (
+              <div key={cat.id} className="cat-card">
+                <div className="cat-card-header">
+                  <div className="cat-card-info">
+                    <span className="cat-card-title">{cat.name}</span>
+                    <span className="cat-count-sub">{cat.parameters.length} parameters mapped</span>
+                  </div>
+                  <div className="cat-header-badges-group" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <button 
+                      onClick={() => handleDeleteCategory(cat)}
+                      style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: '0.9rem', padding: '0.25rem' }}
+                      title="Delete Category"
+                    >
+                      <FaTrash />
+                    </button>
+                    <div className={`cat-icon-badge ${cat.iconClass}`}>
+                      {cat.icon}
+                    </div>
+                  </div>
                 </div>
-                <div className={`cat-icon-badge ${cat.iconClass}`}>
-                  {cat.icon}
+
+                {/* Mapped tags list preview */}
+                <div className="cat-tags-container">
+                  {visibleParams.map(p => (
+                    <span key={p} className="cat-tag">{p}</span>
+                  ))}
+                  {hiddenCount > 0 && (
+                    <span className="cat-tag-more">+{hiddenCount} more</span>
+                  )}
+                  {cat.parameters.length === 0 && (
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-light)', fontStyle: 'italic', padding: '0.5rem 0' }}>
+                      No parameters mapped yet.
+                    </span>
+                  )}
+                </div>
+
+                {/* Dashed mapping editor panel block */}
+                <div className="cat-edit-panel" onClick={() => handleOpenEdit(cat)}>
+                  <div className="cat-edit-graphic">
+                    <svg className="cat-edit-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 21h9" />
+                    </svg>
+                  </div>
+                  <span className="cat-edit-text">Edit Mapping</span>
                 </div>
               </div>
-
-              {/* Mapped tags list preview */}
-              <div className="cat-tags-container">
-                {visibleParams.map(p => (
-                  <span key={p} className="cat-tag">{p}</span>
-                ))}
-                {hiddenCount > 0 && (
-                  <span className="cat-tag-more">+{hiddenCount} more</span>
-                )}
-                {cat.parameters.length === 0 && (
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-light)', fontStyle: 'italic', padding: '0.5rem 0' }}>
-                    No parameters mapped yet.
-                  </span>
-                )}
-              </div>
-
-              {/* Dashed mapping editor panel block */}
-              <div className="cat-edit-panel" onClick={() => handleOpenEdit(cat)}>
-                <div className="cat-edit-graphic">
-                  <svg className="cat-edit-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 21h9" />
-                  </svg>
-                </div>
-                <span className="cat-edit-text">Edit Mapping</span>
-              </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
 
       {/* Drawer: Create Category */}
@@ -256,23 +347,29 @@ const Categories = ({ triggerNotification }) => {
 
                 <div className="tr-form-group" style={{ marginTop: '1rem' }}>
                   <label className="tr-form-label">Map Initial Parameters</label>
-                  <div className="cat-drawer-checklist">
-                    {ALL_PARAMETERS.map(p => {
-                      const isChecked = newCatParams.has(p);
-                      return (
-                        <div 
-                          key={p} 
-                          className={`cat-checklist-item ${isChecked ? 'checked' : ''}`}
-                          onClick={() => handleToggleNewParam(p)}
-                        >
-                          <div className="cat-checklist-box">
-                            <FaCheck />
+                  {dbParameters.length === 0 ? (
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-light)', fontStyle: 'italic', padding: '1rem 0' }}>
+                      No parameters available in catalog. Please create parameters first.
+                    </div>
+                  ) : (
+                    <div className="cat-drawer-checklist">
+                      {dbParameters.map(p => {
+                        const isChecked = newCatParams.has(p.id);
+                        return (
+                          <div 
+                            key={p.id} 
+                            className={`cat-checklist-item ${isChecked ? 'checked' : ''}`}
+                            onClick={() => handleToggleNewParam(p.id)}
+                          >
+                            <div className="cat-checklist-box">
+                              <FaCheck />
+                            </div>
+                            <span>{p.name}</span>
                           </div>
-                          <span>{p}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -310,23 +407,29 @@ const Categories = ({ triggerNotification }) => {
 
                 <div className="tr-form-group">
                   <label className="tr-form-label">{tempParams.size} Parameters Selected</label>
-                  <div className="cat-drawer-checklist">
-                    {ALL_PARAMETERS.map(p => {
-                      const isChecked = tempParams.has(p);
-                      return (
-                        <div 
-                          key={p} 
-                          className={`cat-checklist-item ${isChecked ? 'checked' : ''}`}
-                          onClick={() => handleToggleTempParam(p)}
-                        >
-                          <div className="cat-checklist-box">
-                            <FaCheck />
+                  {dbParameters.length === 0 ? (
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-light)', fontStyle: 'italic', padding: '1rem 0' }}>
+                      No parameters available in catalog.
+                    </div>
+                  ) : (
+                    <div className="cat-drawer-checklist">
+                      {dbParameters.map(p => {
+                        const isChecked = tempParams.has(p.id);
+                        return (
+                          <div 
+                            key={p.id} 
+                            className={`cat-checklist-item ${isChecked ? 'checked' : ''}`}
+                            onClick={() => handleToggleTempParam(p.id)}
+                          >
+                            <div className="cat-checklist-box">
+                              <FaCheck />
+                            </div>
+                            <span>{p.name}</span>
                           </div>
-                          <span>{p}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
 
