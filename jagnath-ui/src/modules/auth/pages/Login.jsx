@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { FaEnvelope, FaLock, FaEye, FaEyeSlash, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
 import landingVideo from '../../../assets/video/jagnath Landing page.mp4';
 import '../../../assets/styles/login.css';
+import { loginUser } from '../services/authService';
 
 const Login = ({ onLoginSuccess, onNavigate }) => {
   // Form fields state
@@ -39,7 +40,7 @@ const Login = ({ onLoginSuccess, onNavigate }) => {
   };
 
   // Submit Handler
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setAlert({ type: '', message: '' });
 
@@ -68,24 +69,31 @@ const Login = ({ onLoginSuccess, onNavigate }) => {
       return;
     }
 
-    // Trigger loading and mock API call
+    // Call the real login API
     setIsLoading(true);
 
-    setTimeout(() => {
-      // For demonstration, approve any valid input
+    try {
+      const response = await loginUser({ email, password });
+
       setIsLoading(false);
       setAlert({
         type: 'success',
-        message: 'Successfully authenticated. Access granted!'
+        message: response.messageToShow || 'Successfully authenticated. Access granted!',
       });
 
-      // Execute callback after a brief delay for visual feedback
+      // Navigate to dashboard after a brief delay for visual feedback
       setTimeout(() => {
         if (onLoginSuccess) {
-          onLoginSuccess({ email, rememberMe });
+          onLoginSuccess(response.data?.user || { email, rememberMe });
         }
       }, 1000);
-    }, 1500);
+    } catch (err) {
+      setIsLoading(false);
+      setAlert({
+        type: 'error',
+        message: err.messageToShow || err.message || 'Login failed. Please try again.',
+      });
+    }
   };
 
   return (
