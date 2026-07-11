@@ -1,91 +1,109 @@
-import React, { useState, useEffect } from 'react';
-import './assets/styles/index.css';
+import React from 'react';
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import LandingPage from './modules/landingPage/LandingPage';
 import Login from './modules/auth/pages/Login';
 import Dashboard from './modules/dashboard/pages/Dashboard';
-import { getStoredUser, logoutUser } from './modules/auth/services/authService';
+import CompanyMaster from './modules/companyMaster/pages/CompanyMaster';
+import DashboardLayout from './shared/layouts/DashboardLayout';
+import { getStoredUser } from './modules/auth/services/authService';
+import './assets/styles/index.css';
+
+// Protected Route Wrapper Component
+const ProtectedRoute = ({ children }) => {
+  const token = localStorage.getItem('accessToken');
+  const user = getStoredUser();
+  const isAuthenticated = !!(token && user);
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <DashboardLayout>{children}</DashboardLayout>;
+};
+
+// Redirect Route if already authenticated
+const PublicRoute = ({ children }) => {
+  const token = localStorage.getItem('accessToken');
+  const user = getStoredUser();
+  const isAuthenticated = !!(token && user);
+
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return children;
+};
+
+// Simple helper component for placeholder/under-construction sections
+const PlaceholderPage = ({ title }) => (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' }}>
+      <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, color: '#0f172a' }}>{title}</h2>
+      <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.875rem', color: '#64748b' }}>Under development / configurations</p>
+    </div>
+    <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', minHeight: '350px', padding: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <p style={{ color: '#64748b', fontSize: '0.9rem', textAlign: 'center', margin: 0 }}>
+        The <strong>{title}</strong> page view is currently under development.
+      </p>
+    </div>
+  </div>
+);
 
 function App() {
-  // Check if user has a valid session persisted in localStorage
-  const isAuthenticated = () => {
-    const token = localStorage.getItem('accessToken');
-    const user = getStoredUser();
-    return !!(token && user);
-  };
+  return (
+    <Router>
+      <Routes>
+        {/* Public Routes */}
+        <Route 
+          path="/" 
+          element={<LandingPage onNavigate={(page) => window.location.hash = `#/${page}`} />} 
+        />
+        <Route 
+          path="/login" 
+          element={
+            <PublicRoute>
+              <Login 
+                onLoginSuccess={() => window.location.hash = '#/dashboard'} 
+                onNavigate={(page) => window.location.hash = `#/${page}`} 
+              />
+            </PublicRoute>
+          } 
+        />
 
-  // Sync page state with browser URL hash, but respect auth state
-  const getPageFromHash = () => {
-    const hash = window.location.hash;
+        {/* Authenticated Dashboard Pages */}
+        <Route 
+          path="/dashboard" 
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/company" 
+          element={
+            <ProtectedRoute>
+              <CompanyMaster />
+            </ProtectedRoute>
+          } 
+        />
 
-    // If user is authenticated, allow dashboard; redirect login → dashboard
-    if (isAuthenticated()) {
-      if (hash === '#/login') return 'dashboard';
-      if (hash === '#/dashboard') return 'dashboard';
-    }
+        {/* Dynamic Placeholder pages for all LIMS routes in sidebar */}
+        <Route path="/clients" element={<ProtectedRoute><PlaceholderPage title="Clients Master" /></ProtectedRoute>} />
+        <Route path="/categories" element={<ProtectedRoute><PlaceholderPage title="Categories Master" /></ProtectedRoute>} />
+        <Route path="/parameters" element={<ProtectedRoute><PlaceholderPage title="Parameters Master" /></ProtectedRoute>} />
+        <Route path="/requests" element={<ProtectedRoute><PlaceholderPage title="Test Requests" /></ProtectedRoute>} />
+        <Route path="/new-request" element={<ProtectedRoute><PlaceholderPage title="New Request Intake" /></ProtectedRoute>} />
+        <Route path="/reports" element={<ProtectedRoute><PlaceholderPage title="Reports Directory" /></ProtectedRoute>} />
+        <Route path="/invoices" element={<ProtectedRoute><PlaceholderPage title="Invoices Directory" /></ProtectedRoute>} />
+        <Route path="/dispatch" element={<ProtectedRoute><PlaceholderPage title="Dispatch Directory" /></ProtectedRoute>} />
+        <Route path="/settings" element={<ProtectedRoute><PlaceholderPage title="Settings Directory" /></ProtectedRoute>} />
 
-    // If user is NOT authenticated but trying to access dashboard, redirect to login
-    if (!isAuthenticated() && hash === '#/dashboard') {
-      return 'login';
-    }
-
-    if (hash === '/login') return 'login';
-    if (hash === '/dashboard') return 'dashboard';
-    return 'landing';
-  };
-
-  const [currentPage, setCurrentPage] = useState(getPageFromHash());
-
-  useEffect(() => {
-    const handleHashChange = () => {
-      setCurrentPage(getPageFromHash());
-    };
-
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
-
-  // Sync the hash when page state changes
-  useEffect(() => {
-    const expectedHash =
-      currentPage === 'login' ? '#/login' :
-        currentPage === 'dashboard' ? '#/dashboard' :
-          '#/landing';
-
-    if (window.location.hash !== expectedHash) {
-      window.location.hash = expectedHash;
-    }
-  }, [currentPage]);
-
-  const navigateTo = (page) => {
-    if (page === 'login') {
-      window.location.hash = '#/login';
-    } else if (page === 'dashboard') {
-      window.location.hash = '#/dashboard';
-    } else {
-      window.location.hash = '#/landing';
-    }
-  };
-
-  const handleLoginSuccess = (userData) => {
-    // Tokens are already stored in localStorage by authService.loginUser()
-    console.log('Login success:', userData);
-    navigateTo('dashboard');
-  };
-
-  const handleLogout = () => {
-    logoutUser(); // Clear tokens and user from localStorage
-    navigateTo('landing');
-  };
-
-  if (currentPage === 'login') {
-    return <Login onLoginSuccess={handleLoginSuccess} onNavigate={navigateTo} />;
-  }
-
-  if (currentPage === 'dashboard') {
-    return <Dashboard onNavigate={handleLogout} />;
-  }
-
-  return <LandingPage onNavigate={navigateTo} />;
+        {/* Catch-all fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Router>
+  );
 }
 
 export default App;

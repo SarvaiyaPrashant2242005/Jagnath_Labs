@@ -82,6 +82,16 @@ export const apiService = {
     }),
 
   /**
+   * POST request with FormData (e.g. file uploads).
+   */
+  postForm: (url, formData) =>
+    request(url, {
+      method: "POST",
+      headers: buildHeaders(false),
+      body: formData,
+    }),
+
+  /**
    * PUT request with a JSON body.
    * @param {string} url
    * @param {object} body
@@ -90,6 +100,16 @@ export const apiService = {
     request(url, {
       method: "PUT",
       body: JSON.stringify(body),
+    }),
+
+  /**
+   * PUT request with FormData (e.g. file uploads).
+   */
+  putForm: (url, formData) =>
+    request(url, {
+      method: "PUT",
+      headers: buildHeaders(false),
+      body: formData,
     }),
 
   /**

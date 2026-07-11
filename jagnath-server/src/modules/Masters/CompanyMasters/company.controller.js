@@ -16,16 +16,7 @@ const create = async (req, res) => {
     try {
         const userId = req.user.user_id;
 
-        // Ensure user can only create one company
-        const existingNewCompany = await companyService.getCompanyByUserId(userId);
-        const existingOldCompanies = await companyService.getCompaniesByUser(userId);
-        if (existingNewCompany || (existingOldCompanies && existingOldCompanies.length > 0)) {
-            return res.status(400).json(errorResponse(
-                "BAD_REQUEST",
-                "User already has a company.",
-                "Every user can only create one company."
-            ));
-        }
+
 
         const body = req.body || {};
         // Determine validation schema based on input fields (support backward compatibility)
@@ -120,34 +111,39 @@ const update = async (req, res) => {
 const getMyCompanies = async (req, res) => {
     try {
         const userId = req.user.user_id;
+        const { Company } = require("../../../database"); // Import DB models if needed or query through sequelize
 
-        // Try getting via direct userId field
-        let company = await companyService.getCompanyByUserId(userId);
-
-        // Fallback to legacy UserCompanies mapping table
-        if (!company) {
-            const companies = await companyService.getCompaniesByUser(userId);
-            if (companies && companies.length > 0) {
-                company = companies[0];
-            }
+        // Fetch direct companies (created by user)
+        const directCompanies = await companyService.getCompaniesByUser ? await companyService.getCompaniesByUser(userId) : [];
+        const directByUserId = await companyService.getCompanyByUserId(userId);
+        
+        const companyMap = new Map();
+        if (directByUserId) {
+            companyMap.set(directByUserId.id, directByUserId);
         }
+        
+        // Retrieve other mapped companies
+        const mappedCompanies = await companyService.getCompaniesByUser(userId);
+        mappedCompanies.forEach(c => companyMap.set(c.id, c));
+        
+        const allCompanies = Array.from(companyMap.values());
 
-        if (!company) {
+        if (allCompanies.length === 0) {
             return res.status(404).json(errorResponse(
                 "NOT_FOUND",
-                "Company not found.",
-                "You do not have a company registered."
+                "No companies found.",
+                "You do not have any companies registered."
             ));
         }
 
         return res.status(200).json(successResponse(
-            "COMPANY_FETCHED",
-            "Company fetched successfully.",
-            "Company retrieved.",
-            company
+            "COMPANIES_FETCHED",
+            "Companies fetched successfully.",
+            "Companies retrieved.",
+            allCompanies
         ));
     } catch (err) {
-        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Failed to fetch company."));
+        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Failed to fetch companies."));
     }
 };
 
