@@ -303,7 +303,7 @@ const getTestRequestById = async (trId, companyId) => {
                 {
                     model: Company,
                     as: "company",
-                    attributes: ["companyName", "company_name"]
+                    attributes: ["company_name"]
                 },
                 {
                     model: Client,
@@ -330,7 +330,7 @@ const getTestRequestsByCompany = async (companyId) => {
                 {
                     model: Company,
                     as: "company",
-                    attributes: ["companyName", "company_name"]
+                    attributes: ["company_name"]
                 },
                 {
                     model: Client,

@@ -5,17 +5,44 @@
 const { createCategorySchema, updateCategorySchema } = require("./category.validators");
 const categoryService = require("./category.service");
 const companyService = require("../CompanyMasters/company.service");
+const Company = require("../CompanyMasters/company.model");
 const { successResponse, errorResponse } = require("../../../utils/response");
 
 /**
- * Helper to fetch user's company and ensure they have one
+ * Resolves the company ID based on body, query parameters or user default.
+ * Validates user ownership/membership.
  */
-const getUserCompany = async (userId) => {
-    const company = await companyService.getCompanyByUserId(userId);
-    if (!company) {
-        throw new Error("No company associated with this user.");
+const resolveCompanyId = async (body, query, userId) => {
+    const companyIdVal = body.companyId || body.company_id || query.companyId || query.company_id;
+    const companyNameVal = body.x || query.companyName;
+
+    if (companyIdVal) {
+        const isOwner = await companyService.checkOwnership(companyIdVal, userId);
+        if (!isOwner) {
+            throw new Error("UNAUTHORIZED_COMPANY");
+        }
+        return companyIdVal;
+    } else if (companyNameVal) {
+        const company = await Company.findOne({ where: { company_name: companyNameVal } });
+        if (!company) {
+            throw new Error("COMPANY_NOT_FOUND");
+        }
+        const isOwner = await companyService.checkOwnership(company.id, userId);
+        if (!isOwner) {
+            throw new Error("UNAUTHORIZED_COMPANY");
+        }
+        return company.id;
+    } else {
+        const company = await companyService.getCompanyByUserId(userId);
+        if (company) {
+            return company.id;
+        }
+        const companies = await companyService.getCompaniesByUser(userId);
+        if (companies && companies.length > 0) {
+            return companies[0].id;
+        }
+        throw new Error("NO_COMPANY_FOUND");
     }
-    return company;
 };
 
 /**
@@ -35,17 +62,24 @@ const create = async (req, res) => {
             ));
         }
 
-        // Automatically fetch companyId from user
-        let company;
+        let companyId;
         try {
-            company = await getUserCompany(userId);
+            companyId = await resolveCompanyId(body, req.query, userId);
         } catch (e) {
+            if (e.message === "UNAUTHORIZED_COMPANY") {
+                return res.status(403).json(errorResponse("FORBIDDEN", "Unauthorized", "Access Denied: You do not own this company."));
+            }
+            if (e.message === "COMPANY_NOT_FOUND") {
+                return res.status(404).json(errorResponse("NOT_FOUND", "Company not found.", "Company not found."));
+            }
             return res.status(404).json(errorResponse("NOT_FOUND", e.message, e.message));
         }
 
-        const categoryData = { 
-            ...value,
-            companyId: company.id
+        const categoryData = {
+            name: value.name,
+            description: value.description,
+            status: value.status || "Active",
+            companyId
         };
 
         const reqInfo = {
@@ -73,14 +107,25 @@ const getAll = async (req, res) => {
     try {
         const userId = req.user.user_id;
 
-        let company;
+        let companyId;
         try {
-            company = await getUserCompany(userId);
+            companyId = await resolveCompanyId({}, req.query, userId);
         } catch (e) {
-            return res.status(404).json(errorResponse("NOT_FOUND", e.message, e.message));
+            if (e.message === "UNAUTHORIZED_COMPANY") {
+                return res.status(403).json(errorResponse("FORBIDDEN", "Unauthorized access to this company's categories.", "Unauthorized"));
+            }
+            if (e.message === "COMPANY_NOT_FOUND" || e.message === "NO_COMPANY_FOUND") {
+                return res.status(200).json(successResponse(
+                    "CATEGORIES_FETCHED",
+                    "Categories fetched successfully.",
+                    "Categories fetched successfully.",
+                    []
+                ));
+            }
+            return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", e.message, e.message));
         }
 
-        const categories = await categoryService.getCategoriesByCompany(company.id);
+        const categories = await categoryService.getCategoriesByCompany(companyId);
 
         return res.status(200).json(successResponse(
             "CATEGORIES_FETCHED",
@@ -101,27 +146,32 @@ const getById = async (req, res) => {
         const { id } = req.params;
         const userId = req.user.user_id;
 
-        let company;
-        try {
-            company = await getUserCompany(userId);
-        } catch (e) {
-            return res.status(404).json(errorResponse("NOT_FOUND", e.message, e.message));
-        }
-
-        const category = await categoryService.getCategoryById(id, company.id);
+        const category = await Category.findByPk(id);
         if (!category) {
             return res.status(404).json(errorResponse(
                 "NOT_FOUND",
-                "Category not found or access denied.",
+                "Category not found.",
                 "Category not found."
             ));
         }
+
+        // Verify ownership
+        const isOwner = await companyService.checkOwnership(category.companyId, userId);
+        if (!isOwner) {
+            return res.status(403).json(errorResponse(
+                "FORBIDDEN",
+                "Unauthorized",
+                "Access Denied: You do not own the company associated with this category."
+            ));
+        }
+
+        const formatted = await categoryService.getCategoryById(id, category.companyId);
 
         return res.status(200).json(successResponse(
             "CATEGORY_FETCHED",
             "Category fetched successfully.",
             "Category fetched successfully.",
-            category
+            formatted
         ));
     } catch (err) {
         return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Failed to fetch category."));
@@ -146,19 +196,54 @@ const update = async (req, res) => {
             ));
         }
 
-        let company;
-        try {
-            company = await getUserCompany(userId);
-        } catch (e) {
-            return res.status(404).json(errorResponse("NOT_FOUND", e.message, e.message));
+        const category = await Category.findByPk(id);
+        if (!category) {
+            return res.status(404).json(errorResponse(
+                "NOT_FOUND",
+                "Category not found.",
+                "Category not found."
+            ));
         }
+
+        // Verify ownership of current company
+        const isOwner = await companyService.checkOwnership(category.companyId, userId);
+        if (!isOwner) {
+            return res.status(403).json(errorResponse(
+                "FORBIDDEN",
+                "Unauthorized",
+                "Access Denied: You do not own the company associated with this category."
+            ));
+        }
+
+        // Resolve target company
+        let targetCompanyId = category.companyId;
+        if (body.companyId || body.company_id || body.companyName) {
+            try {
+                targetCompanyId = await resolveCompanyId(body, {}, userId);
+            } catch (e) {
+                if (e.message === "UNAUTHORIZED_COMPANY") {
+                    return res.status(403).json(errorResponse("FORBIDDEN", "Unauthorized", "Access Denied: You do not own the target company."));
+                }
+                if (e.message === "COMPANY_NOT_FOUND") {
+                    return res.status(404).json(errorResponse("NOT_FOUND", "Target company not found.", "Target company not found."));
+                }
+                return res.status(404).json(errorResponse("NOT_FOUND", e.message, e.message));
+            }
+        }
+
+        const categoryData = {
+            name: value.name,
+            description: value.description,
+            status: value.status,
+            companyId: targetCompanyId
+        };
 
         const reqInfo = {
             ip: req.ip || req.connection.remoteAddress,
             userAgent: req.headers["user-agent"]
         };
 
-        const updatedCategory = await categoryService.updateCategory(id, value, userId, company.id, reqInfo);
+        const updatedCategory = await categoryService.updateCategory(id, categoryData, userId, category.companyId, reqInfo);
 
         return res.status(200).json(successResponse(
             "CATEGORY_UPDATED",
@@ -167,13 +252,6 @@ const update = async (req, res) => {
             updatedCategory
         ));
     } catch (err) {
-        if (err.message === "Category not found or access denied.") {
-            return res.status(404).json(errorResponse(
-                "NOT_FOUND",
-                err.message,
-                "Category not found."
-            ));
-        }
         return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Failed to update category."));
     }
 };
@@ -186,11 +264,23 @@ const remove = async (req, res) => {
         const { id } = req.params;
         const userId = req.user.user_id;
 
-        let company;
-        try {
-            company = await getUserCompany(userId);
-        } catch (e) {
-            return res.status(404).json(errorResponse("NOT_FOUND", e.message, e.message));
+        const category = await Category.findByPk(id);
+        if (!category) {
+            return res.status(404).json(errorResponse(
+                "NOT_FOUND",
+                "Category not found.",
+                "Category not found."
+            ));
+        }
+
+        // Verify ownership
+        const isOwner = await companyService.checkOwnership(category.companyId, userId);
+        if (!isOwner) {
+            return res.status(403).json(errorResponse(
+                "FORBIDDEN",
+                "Unauthorized",
+                "Access Denied: You do not own the company associated with this category."
+            ));
         }
 
         const reqInfo = {
@@ -198,7 +288,7 @@ const remove = async (req, res) => {
             userAgent: req.headers["user-agent"]
         };
 
-        await categoryService.deleteCategory(id, userId, company.id, reqInfo);
+        await categoryService.deleteCategory(id, userId, category.companyId, reqInfo);
 
         return res.status(200).json(successResponse(
             "CATEGORY_DELETED",
@@ -207,13 +297,6 @@ const remove = async (req, res) => {
             null
         ));
     } catch (err) {
-        if (err.message === "Category not found or access denied.") {
-            return res.status(404).json(errorResponse(
-                "NOT_FOUND",
-                err.message,
-                "Category not found."
-            ));
-        }
         return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Failed to delete category."));
     }
 };

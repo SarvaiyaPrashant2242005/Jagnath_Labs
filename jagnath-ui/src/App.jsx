@@ -5,9 +5,12 @@ import Login from './modules/auth/pages/Login';
 import Dashboard from './modules/dashboard/pages/Dashboard';
 import CompanyMaster from './modules/companyMaster/pages/CompanyMaster';
 import ClientMaster from './modules/clientMaster/pages/ClientMaster';
+import CategoryMaster from './modules/categoryMaster/pages/CategoryMaster';
+import ParameterMaster from './modules/parameterMaster/pages/ParameterMaster';
 import DashboardLayout from './shared/layouts/DashboardLayout';
 import { getStoredUser } from './modules/auth/services/authService';
 import './assets/styles/index.css';
+
 
 // Protected Route Wrapper Component
 const ProtectedRoute = ({ children }) => {
@@ -91,8 +94,8 @@ function App() {
 
         {/* Dynamic Placeholder pages for all LIMS routes in sidebar */}
         <Route path="/clients" element={<ProtectedRoute><ClientMaster /></ProtectedRoute>} />
-        <Route path="/categories" element={<ProtectedRoute><PlaceholderPage title="Categories Master" /></ProtectedRoute>} />
-        <Route path="/parameters" element={<ProtectedRoute><PlaceholderPage title="Parameters Master" /></ProtectedRoute>} />
+        <Route path="/categories" element={<ProtectedRoute><CategoryMaster /></ProtectedRoute>} />
+        <Route path="/parameters" element={<ProtectedRoute><ParameterMaster /></ProtectedRoute>} />
         <Route path="/requests" element={<ProtectedRoute><PlaceholderPage title="Test Requests" /></ProtectedRoute>} />
         <Route path="/new-request" element={<ProtectedRoute><PlaceholderPage title="New Request Intake" /></ProtectedRoute>} />
         <Route path="/reports" element={<ProtectedRoute><PlaceholderPage title="Reports Directory" /></ProtectedRoute>} />
