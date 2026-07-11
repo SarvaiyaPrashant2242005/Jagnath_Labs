@@ -52,6 +52,45 @@ import { MdBloodtype } from 'react-icons/md';
 import { GiMicroscope } from 'react-icons/gi';
 import { TbReportAnalytics } from 'react-icons/tb';
 import { FiActivity } from 'react-icons/fi';
+// Lucide Icons
+import {
+  Calendar,
+  TestTube,
+  Award,
+  FileText,
+  Download,
+  CheckCheck,
+  Home,
+  Heart,
+  HeartPulse,
+  UserCheck,
+  Facebook,
+  Twitter,
+  Linkedin,
+  Instagram,
+  Phone,
+  Mail,
+  MapPin,
+  ChevronDown,
+  Star,
+  X,
+  Check,
+  Monitor,
+  FileDown,
+  Truck,
+  User,
+  DollarSign,
+  Activity,
+  TrendingUp,
+  Building,
+  Shield,
+  Notebook,
+  Droplet,
+  Microscope,
+  BarChart3,
+  Quote,
+  Menu
+} from 'lucide-react';
 
 // Register GSAP ScrollTrigger
 gsap.registerPlugin(ScrollTrigger);
@@ -61,6 +100,7 @@ function LandingPage({ onNavigate }) {
   const [activeSlide, setActiveSlide] = useState(0);
   const [openFaq, setOpenFaq] = useState(null);
   const isAnimatingRef = useRef(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // GSAP Refs
   const heroHeadingRef = useRef(null);
@@ -322,7 +362,7 @@ function LandingPage({ onNavigate }) {
     {
       name: "Dr. Sarah Jenkins",
       role: "Chief Cardiologist, City Medical",
-      review: "Jaganath-Lab is our primary diagnostic partner. Their NABL-certified reports are highly accurate, and the digital delivery speed helps us manage patient emergencies effectively.",
+      review: "Jaganath Lab is our primary diagnostic partner. Their NABL-certified reports are highly accurate, and the digital delivery speed helps us manage patient emergencies effectively.",
       rating: 5,
       image: "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=150"
     },
@@ -401,7 +441,7 @@ function LandingPage({ onNavigate }) {
     },
     {
       q: "Are my reports verified by qualified experts?",
-      a: "Yes. Every diagnostic test at Jaganath-Lab is performed on modern automatic equipment, and all reports are reviewed and double-signed by certified pathologists."
+      a: "Yes. Every diagnostic test at Jaganath Lab is performed on modern automatic equipment, and all reports are reviewed and double-signed by certified pathologists."
     },
     {
       q: "How do I access my digital reports?",
@@ -424,6 +464,56 @@ function LandingPage({ onNavigate }) {
               Login
             </Button>
           </div>
+      <header className={`navbar-container ${isScrolled || isMobileMenuOpen ? 'scrolled' : ''}`}>
+        <div className="navbar-wrapper">
+          <a href="#home" className="nav-logo" id="logo-anchor">
+            <img src="/Images/Navbar_Logo.png" alt="Jaganath Lab" className="nav-logo-img" />
+          </a>
+          <ul className="nav-menu">
+            <li><a href="#home" className="nav-link">Home</a></li>
+            <li><a href="#services" className="nav-link">Services</a></li>
+            <li><a href="#why-us" className="nav-link">Why Us</a></li>
+            <li><a href="#process" className="nav-link">Process</a></li>
+            <li><a href="#testimonials" className="nav-link">Reviews</a></li>
+            <li><a href="#faqs" className="nav-link">FAQs</a></li>
+          </ul>
+          <div className="navbar-right">
+            <Button className="nav-portal-btn" variant="secondary" onClick={() => onNavigate && onNavigate('login')}>
+              Login Portal
+            </Button>
+            <button 
+              type="button" 
+              className="mobile-menu-toggle" 
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              aria-label={isMobileMenuOpen ? 'Close mobile menu' : 'Open mobile menu'}
+            >
+              {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Menu Drawer */}
+        <div className={`mobile-menu-drawer ${isMobileMenuOpen ? 'open' : ''}`}>
+          <ul className="mobile-nav-links">
+            <li><a href="#home" className="mobile-nav-link" onClick={() => setIsMobileMenuOpen(false)}>Home</a></li>
+            <li><a href="#services" className="mobile-nav-link" onClick={() => setIsMobileMenuOpen(false)}>Services</a></li>
+            <li><a href="#why-us" className="mobile-nav-link" onClick={() => setIsMobileMenuOpen(false)}>Why Us</a></li>
+            <li><a href="#process" className="mobile-nav-link" onClick={() => setIsMobileMenuOpen(false)}>Process</a></li>
+            <li><a href="#testimonials" className="mobile-nav-link" onClick={() => setIsMobileMenuOpen(false)}>Reviews</a></li>
+            <li><a href="#faqs" className="mobile-nav-link" onClick={() => setIsMobileMenuOpen(false)}>FAQs</a></li>
+            <li>
+              <Button 
+                variant="primary" 
+                style={{ width: '100%', marginTop: '10px' }} 
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  if (onNavigate) onNavigate('login');
+                }}
+              >
+                Login Portal
+              </Button>
+            </li>
+          </ul>
         </div>
       </header>
 
@@ -441,8 +531,8 @@ function LandingPage({ onNavigate }) {
           <div className="hero-grid">
             <div className="hero-content">
               <div ref={heroBadgeRef}>
-                <Badge className="hero-badge">
-                  Trusted Diagnostic Laboratory
+                <Badge className="hero-badge" icon={Shield}>
+                  Trusted NABL Accredited Diagnostics
                 </Badge>
               </div>
 
@@ -452,16 +542,63 @@ function LandingPage({ onNavigate }) {
               </h1>
 
               <p ref={heroDescRef} className="hero-desc">
-                Jaganath-Lab provides precise laboratory diagnostics, pathology services, comprehensive preventive health checkups, and rapid digital report delivery. Book your test online for home sample collection.
+                Jaganath Lab provides precise pathology diagnostics, comprehensive preventative health packages, and rapid digital report delivery. Book home collection in seconds.
               </p>
 
               <div ref={heroBtnsRef} className="hero-ctas">
                 <Button variant="primary" onClick={() => onNavigate('login')}>
+                <Button variant="primary" onClick={() => onNavigate && onNavigate('login')}>
                   Book a Test
                 </Button>
                 <Button variant="glass" onClick={() => document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' })}>
+                <Button variant="outline" onClick={() => {
+                  const el = document.getElementById('services');
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                }}>
                   View Health Packages
                 </Button>
+              </div>
+            </div>
+
+            {/* Right Column - Floating Glass Card Redesign */}
+            <div className="hero-illustration-pane">
+              <div className="floating-medical-card">
+                <div className="floating-glass-stat stat-left">
+                  <div className="icon-box-circle">
+                    <CheckCheck size={18} />
+                  </div>
+                  <div>
+                    <h4 style={{ fontSize: '0.85rem', fontWeight: 800 }}>NABL Certified</h4>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-light)', fontWeight: 600 }}>100% Accurate Reports</p>
+                  </div>
+                </div>
+
+                <div className="floating-glass-stat stat-right">
+                  <div className="icon-box-circle">
+                    <Activity size={18} />
+                  </div>
+                  <div>
+                    <h4 style={{ fontSize: '0.85rem', fontWeight: 800 }}>Live Tracking</h4>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-light)', fontWeight: 600 }}>Same Day Results</p>
+                  </div>
+                </div>
+
+                {/* Main Card Content */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', textAlign: 'left' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--primary)', boxShadow: '0 0 10px var(--primary)' }}></div>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary-dark)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Phlebotomist Nearby</span>
+                  </div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Doorstep Sample Collection</h3>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-light)', fontWeight: 500, lineHeight: 1.5 }}>
+                    Certified laboratory experts collecting blood, glucose, and specialized screening samples in maximum hygiene.
+                  </p>
+                  <div style={{ width: '100%', height: '1px', backgroundColor: 'var(--border-color)', margin: '4px 0' }}></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-light)' }}>Next slot availability:</span>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary-dark)' }}>Today, 02:00 PM</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -524,17 +661,16 @@ function LandingPage({ onNavigate }) {
         {/* Trust Section (Marquee) */}
         <section className="marquee-wrapper" aria-label="Trusted Partners">
           <div className="marquee-track" ref={partnerMarqueeRef}>
-            {/* Double elements for smooth endless horizontal loop */}
             {[1, 2].map((loop) => (
               <div key={loop} style={{ display: 'flex' }}>
-                <div className="partner-logo"><FaHospitalSymbol className="partner-icon" /> Apollo Hospital</div>
-                <div className="partner-logo"><FaShieldAlt className="partner-icon" /> Max Life Insurance</div>
-                <div className="partner-logo"><FaHospitalSymbol className="partner-icon" /> Fortis Healthcare</div>
-                <div className="partner-logo"><FaShieldAlt className="partner-icon" /> HDFC ERGO</div>
-                <div className="partner-logo"><FaHospitalSymbol className="partner-icon" /> Religare Health</div>
-                <div className="partner-logo"><FaShieldAlt className="partner-icon" /> ICICI Lombard</div>
-                <div className="partner-logo"><FaHospitalSymbol className="partner-icon" /> Care Clinics</div>
-                <div className="partner-logo"><FaShieldAlt className="partner-icon" /> Bajaj Allianz</div>
+                <div className="partner-logo"><Building className="partner-icon" /> Apollo Hospital</div>
+                <div className="partner-logo"><Shield className="partner-icon" /> Max Life Insurance</div>
+                <div className="partner-logo"><Building className="partner-icon" /> Fortis Healthcare</div>
+                <div className="partner-logo"><Shield className="partner-icon" /> HDFC ERGO</div>
+                <div className="partner-logo"><Building className="partner-icon" /> Religare Health</div>
+                <div className="partner-logo"><Shield className="partner-icon" /> ICICI Lombard</div>
+                <div className="partner-logo"><Building className="partner-icon" /> Care Clinics</div>
+                <div className="partner-logo"><Shield className="partner-icon" /> Bajaj Allianz</div>
               </div>
             ))}
           </div>
@@ -551,64 +687,62 @@ function LandingPage({ onNavigate }) {
 
           <div ref={servicesGridRef} className="services-grid">
             <Card className="service-card">
-              <div className="service-icon-wrapper"><MdBloodtype /></div>
+              <div className="service-icon-wrapper"><Droplet /></div>
               <h3 className="service-card-title">Blood Test</h3>
               <p className="service-card-desc">Complete blood counts, hemogram testing, and basic cellular analysis with NABL accuracy.</p>
+              <a href="#services" className="service-card-link">Know More</a>
             </Card>
 
             <Card className="service-card">
-              <div className="service-icon-wrapper"><GiMicroscope /></div>
+              <div className="service-icon-wrapper"><Microscope /></div>
               <h3 className="service-card-title">Pathology</h3>
               <p className="service-card-desc">Advanced microscopic slide analysis, tissue biopsies, and oncology panel investigations.</p>
+              <a href="#services" className="service-card-link">Know More</a>
             </Card>
 
             <Card className="service-card">
-              <div className="service-icon-wrapper"><FaNotesMedical /></div>
+              <div className="service-icon-wrapper"><Notebook /></div>
               <h3 className="service-card-title">Health Packages</h3>
               <p className="service-card-desc">Comprehensive preventative health profiles custom designed for every age group.</p>
+              <a href="#services" className="service-card-link">Know More</a>
             </Card>
 
             <Card className="service-card">
-              <div className="service-icon-wrapper"><FaHome /></div>
+              <div className="service-icon-wrapper"><Home /></div>
               <h3 className="service-card-title">Home Sample Collection</h3>
               <p className="service-card-desc">Hygienic and secure sample extraction at your doorstep by expert phlebotomists.</p>
+              <a href="#services" className="service-card-link">Know More</a>
             </Card>
 
             <Card className="service-card">
-              <div className="service-icon-wrapper"><FiActivity /></div>
+              <div className="service-icon-wrapper"><Activity /></div>
               <h3 className="service-card-title">Full Body Checkup</h3>
               <p className="service-card-desc">Exhaustive review of liver, kidney, thyroid, heart, and metabolic parameters.</p>
+              <a href="#services" className="service-card-link">Know More</a>
             </Card>
 
             <Card className="service-card">
-              <div className="service-icon-wrapper"><TbReportAnalytics /></div>
+              <div className="service-icon-wrapper"><BarChart3 /></div>
               <h3 className="service-card-title">Diabetes Screening</h3>
               <p className="service-card-desc">Comprehensive HbA1c tests, fasting glucose, and insulin resistance diagnostics.</p>
+              <a href="#services" className="service-card-link">Know More</a>
             </Card>
 
             <Card className="service-card">
-              <div className="service-icon-wrapper"><FaHeartbeat /></div>
+              <div className="service-icon-wrapper"><Heart /></div>
               <h3 className="service-card-title">Heart Health</h3>
               <p className="service-card-desc">Cardiac biomarkers, lipid counts, and specialized cardiovascular evaluations.</p>
+              <a href="#services" className="service-card-link">Know More</a>
             </Card>
 
             <Card className="service-card">
-              <div className="service-icon-wrapper"><FaVenus /></div>
+              <div className="service-icon-wrapper"><HeartPulse /></div>
               <h3 className="service-card-title">Women's Health</h3>
               <p className="service-card-desc">Dedicated panels examining hormone profiles, thyroid wellness, and bone density markers.</p>
+              <a href="#services" className="service-card-link">Know More</a>
             </Card>
 
-            <Card className="service-card">
-              <div className="service-icon-wrapper"><FaUserShield /></div>
-              <h3 className="service-card-title">Senior Citizen Package</h3>
-              <p className="service-card-desc">Eldercare wellness checkups detailing arthritis screening, liver panel, and vitamin levels.</p>
-            </Card>
 
-            <Card className="service-card">
-              <div className="service-icon-wrapper"><FaNotesMedical /></div>
-              <h3 className="service-card-title">Vitamin Profile</h3>
-              <p className="service-card-desc">Accurate quantification of Vitamin D, Vitamin B12, and vital serum elements.</p>
-            </Card>
           </div>
         </section>
 
@@ -617,35 +751,35 @@ function LandingPage({ onNavigate }) {
           <div className="section-header">
             <span className="section-subtitle">Diagnostic Excellence</span>
             <h2 className="section-title">
-              Why Choose <span className="highlight">Jaganath-Lab</span>
+              Why Choose <span className="highlight">Jaganath Lab</span>
             </h2>
           </div>
 
           <div className="comparison-grid">
             <div ref={compLeftRef} className="comparison-card">
               <div className="comparison-header">
-                <h3 className="comparison-title">Traditional Labs</h3>
+                <h3 className="comparison-title" style={{ color: '#EF4444' }}>Traditional Labs</h3>
                 <span className="comparison-subtitle">Conventional diagnostic centers</span>
               </div>
               <ul className="comparison-list">
                 <li className="comparison-item">
-                  <FaTimes className="comparison-icon cross" />
+                  <X className="comparison-icon cross" />
                   <span>Long waiting times in crowded registration areas.</span>
                 </li>
                 <li className="comparison-item">
-                  <FaTimes className="comparison-icon cross" />
+                  <X className="comparison-icon cross" />
                   <span>Manual report collection 24 to 48 hours after testing.</span>
                 </li>
                 <li className="comparison-item">
-                  <FaTimes className="comparison-icon cross" />
+                  <X className="comparison-icon cross" />
                   <span>Semi-automated equipment with higher human error rates.</span>
                 </li>
                 <li className="comparison-item">
-                  <FaTimes className="comparison-icon cross" />
+                  <X className="comparison-icon cross" />
                   <span>Inconvenient home sample collection timings.</span>
                 </li>
                 <li className="comparison-item">
-                  <FaTimes className="comparison-icon cross" />
+                  <X className="comparison-icon cross" />
                   <span>No digital archive to track historic health records.</span>
                 </li>
               </ul>
@@ -653,28 +787,28 @@ function LandingPage({ onNavigate }) {
 
             <div ref={compRightRef} className="comparison-card highlight-card">
               <div className="comparison-header">
-                <h3 className="comparison-title">Jaganath-Lab</h3>
+                <h3 className="comparison-title">Jaganath Lab</h3>
                 <span className="comparison-subtitle">Modern premium healthcare model</span>
               </div>
               <ul className="comparison-list">
                 <li className="comparison-item">
-                  <FaCheck className="comparison-icon check" />
+                  <Check className="comparison-icon check" />
                   <span>Fast 60-second online test slot booking.</span>
                 </li>
                 <li className="comparison-item">
-                  <FaCheck className="comparison-icon check" />
+                  <Check className="comparison-icon check" />
                   <span>NABL-certified reports via Email and WhatsApp in 6-12 hours.</span>
                 </li>
                 <li className="comparison-item">
-                  <FaCheck className="comparison-icon check" />
+                  <Check className="comparison-icon check" />
                   <span>100% automated diagnostic platforms for 99.8% precision.</span>
                 </li>
                 <li className="comparison-item">
-                  <FaCheck className="comparison-icon check" />
+                  <Check className="comparison-icon check" />
                   <span>Doorstep collection by expert pathologists at your preferred slot.</span>
                 </li>
                 <li className="comparison-item">
-                  <FaCheck className="comparison-icon check" />
+                  <Check className="comparison-icon check" />
                   <span>Interactive dashboard with historic parameter charts.</span>
                 </li>
               </ul>
@@ -706,6 +840,11 @@ function LandingPage({ onNavigate }) {
               >
                 <div className="timeline-node"><FaCalendarAlt /></div>
                 <span className="timeline-label">Book Test</span>
+                <div className="timeline-node"><Calendar /></div>
+                <div className="timeline-info">
+                  <h3 className="timeline-step-title">1. Book Test</h3>
+                  <p className="timeline-step-desc">Select tests and schedule home collection slot.</p>
+                </div>
               </div>
 
               <div 
@@ -714,6 +853,11 @@ function LandingPage({ onNavigate }) {
               >
                 <div className="timeline-node"><FaVial /></div>
                 <span className="timeline-label">Collection</span>
+                <div className="timeline-node"><TestTube /></div>
+                <div className="timeline-info">
+                  <h3 className="timeline-step-title">2. Collection</h3>
+                  <p className="timeline-step-desc">Phlebotomist extracts samples hygienically.</p>
+                </div>
               </div>
 
               <div 
@@ -722,6 +866,11 @@ function LandingPage({ onNavigate }) {
               >
                 <div className="timeline-node"><GiMicroscope /></div>
                 <span className="timeline-label">Analysis</span>
+                <div className="timeline-node"><Microscope /></div>
+                <div className="timeline-info">
+                  <h3 className="timeline-step-title">3. Analysis</h3>
+                  <p className="timeline-step-desc">Automated equipment screens the samples.</p>
+                </div>
               </div>
 
               <div 
@@ -730,6 +879,11 @@ function LandingPage({ onNavigate }) {
               >
                 <div className="timeline-node"><FaAward /></div>
                 <span className="timeline-label">Verification</span>
+                <div className="timeline-node"><Award /></div>
+                <div className="timeline-info">
+                  <h3 className="timeline-step-title">4. Verification</h3>
+                  <p className="timeline-step-desc">Pathologists crosscheck the analysis results.</p>
+                </div>
               </div>
 
               <div 
@@ -738,6 +892,11 @@ function LandingPage({ onNavigate }) {
               >
                 <div className="timeline-node"><FaFileMedical /></div>
                 <span className="timeline-label">Generation</span>
+                <div className="timeline-node"><FileText /></div>
+                <div className="timeline-info">
+                  <h3 className="timeline-step-title">5. Generation</h3>
+                  <p className="timeline-step-desc">Detailed PDF report is securely compiled.</p>
+                </div>
               </div>
 
               <div 
@@ -746,6 +905,11 @@ function LandingPage({ onNavigate }) {
               >
                 <div className="timeline-node"><FaCloudDownloadAlt /></div>
                 <span className="timeline-label">Delivery</span>
+                <div className="timeline-node"><Download /></div>
+                <div className="timeline-info">
+                  <h3 className="timeline-step-title">6. Delivery</h3>
+                  <p className="timeline-step-desc">Get your NABL reports on email & WhatsApp.</p>
+                </div>
               </div>
 
               <div 
@@ -754,6 +918,11 @@ function LandingPage({ onNavigate }) {
               >
                 <div className="timeline-node"><FaCheckDouble /></div>
                 <span className="timeline-label">Completed</span>
+                <div className="timeline-node"><CheckCheck /></div>
+                <div className="timeline-info">
+                  <h3 className="timeline-step-title">7. Completed</h3>
+                  <p className="timeline-step-desc">Consult specialists with your online reports.</p>
+                </div>
               </div>
             </div>
           </div>
@@ -770,49 +939,49 @@ function LandingPage({ onNavigate }) {
 
           <div ref={featuresGridRef} className="features-grid">
             <div className="feature-card">
-              <FaLaptopMedical className="feature-icon" />
+              <Monitor className="feature-icon" />
               <h3 className="feature-title">Online Booking</h3>
               <p className="feature-desc">Schedule any medical panel evaluation in less than a minute.</p>
             </div>
 
             <div className="feature-card">
-              <FaFileDownload className="feature-icon" />
+              <FileDown className="feature-icon" />
               <h3 className="feature-title">Digital Reports</h3>
               <p className="feature-desc">Receive highly legible, secure PDF results via WhatsApp and Email.</p>
             </div>
 
             <div className="feature-card">
-              <FaTruck className="feature-icon" />
+              <Truck className="feature-icon" />
               <h3 className="feature-title">Home Collection</h3>
               <p className="feature-desc">Certified expert phlebotomists visit your home or workplace.</p>
             </div>
 
             <div className="feature-card">
-              <FaUserMd className="feature-icon" />
+              <User className="feature-icon" />
               <h3 className="feature-title">Expert Pathologists</h3>
               <p className="feature-desc">Every diagnostic parameter is verified and signed by specialists.</p>
             </div>
 
             <div className="feature-card">
-              <FaAward className="feature-icon" />
+              <Award className="feature-icon" />
               <h3 className="feature-title">Certified Equipment</h3>
               <p className="feature-desc">Automated, NABL-compliant processing centers for full precision.</p>
             </div>
 
             <div className="feature-card">
-              <FaRegMoneyBillAlt className="feature-icon" />
+              <DollarSign className="feature-icon" />
               <h3 className="feature-title">Affordable Packages</h3>
               <p className="feature-desc">Save up to 50% on family wellness screenings.</p>
             </div>
 
             <div className="feature-card">
-              <FaRunning className="feature-icon" />
+              <Activity className="feature-icon" />
               <h3 className="feature-title">Fast Results</h3>
               <p className="feature-desc">Quick turnaround guarantees same-day report compilation.</p>
             </div>
 
             <div className="feature-card">
-              <FaChartLine className="feature-icon" />
+              <TrendingUp className="feature-icon" />
               <h3 className="feature-title">Health Dashboard</h3>
               <p className="feature-desc">Visualize historical health stats with our smart interface charts.</p>
             </div>
@@ -831,13 +1000,13 @@ function LandingPage({ onNavigate }) {
           <div className="testimonial-container">
             <div className="testimonial-card-wrapper" ref={testimonialSliderRef}>
               <div className="testimonial-slide-card">
-                <FaFileMedical className="testimonial-quote-icon" />
+                <Quote className="testimonial-quote-icon" />
                 <p className="testimonial-text">
                   "{testimonials[activeSlide].review}"
                 </p>
                 <div className="testimonial-stars" aria-label="5 stars rating">
                   {[...Array(testimonials[activeSlide].rating)].map((_, i) => (
-                    <FaStar key={i} />
+                    <Star key={i} fill="currentColor" />
                   ))}
                 </div>
                 <div className="testimonial-profile">
@@ -893,10 +1062,11 @@ function LandingPage({ onNavigate }) {
                 >
                   <span className="faq-question">{faq.q}</span>
                   <span className="faq-icon-wrapper">
-                    <FaChevronDown />
+                    <ChevronDown />
                   </span>
                 </button>
                 <div className="faq-content">
+                <div className="faq-content" style={{ maxHeight: openFaq === index ? '200px' : '0px' }}>
                   <p className="faq-answer">{faq.a}</p>
                 </div>
               </div>
@@ -905,12 +1075,12 @@ function LandingPage({ onNavigate }) {
         </section>
 
         {/* Final CTA Section */}
-        <section className="section-padding" id="cta-section">
+        <section className="section-padding" id="cta-section" style={{ padding: '120px 6%' }}>
           <div ref={ctaContainerRef} className="cta-gradient-card">
             <h2 className="section-title" style={{ color: 'var(--white)', marginBottom: '1rem' }}>
               Ready For Your Health Checkup?
             </h2>
-            <p className="hero-desc" style={{ margin: '0 auto 2rem', color: 'rgba(255, 255, 255, 0.9)' }}>
+            <p className="hero-desc" style={{ margin: '0 auto 2rem', color: 'rgba(255, 255, 255, 0.9)', textAlign: 'center' }}>
               Book your diagnostic laboratory tests and home sample collection in minutes.
             </p>
             <div className="hero-ctas" style={{ justifyContent: 'center' }}>
@@ -919,6 +1089,8 @@ function LandingPage({ onNavigate }) {
               </Button>
               <Button variant="glass" onClick={() => document.getElementById('footer-contact')?.scrollIntoView({ behavior: 'smooth' })}>
                 <FaPhoneAlt style={{ marginRight: '0.5rem' }} /> Contact Us
+              <Button variant="glass">
+                <Phone style={{ marginRight: '0.5rem' }} size={18} /> Contact Us
               </Button>
             </div>
           </div>
@@ -932,22 +1104,24 @@ function LandingPage({ onNavigate }) {
             <a href="#" className="footer-logo">
               <img src={logoImage} alt="Jaganath Lab" className="footer-logo-img" />
               Jaganath<span className="logo-text-highlight"> - Lab</span>
+            <a href="#home" className="footer-logo">
+              <img src="/Images/Navbar_Logo.png" alt="Jaganath Lab" className="footer-logo-img" />
             </a>
             <p className="footer-desc">
               Providing modern, premium diagnostic parameters, advanced biological screening, and precise reports compiled by expert pathologists.
             </p>
             <div className="footer-socials">
-              <a href="https://facebook.com" className="social-icon-link" aria-label="Facebook"><FaFacebookF /></a>
-              <a href="https://twitter.com" className="social-icon-link" aria-label="Twitter"><FaTwitter /></a>
-              <a href="https://linkedin.com" className="social-icon-link" aria-label="LinkedIn"><FaLinkedinIn /></a>
-              <a href="https://instagram.com" className="social-icon-link" aria-label="Instagram"><FaInstagram /></a>
+              <a href="https://facebook.com" className="social-icon-link" aria-label="Facebook"><Facebook /></a>
+              <a href="https://twitter.com" className="social-icon-link" aria-label="Twitter"><Twitter /></a>
+              <a href="https://linkedin.com" className="social-icon-link" aria-label="LinkedIn"><Linkedin /></a>
+              <a href="https://instagram.com" className="social-icon-link" aria-label="Instagram"><Instagram /></a>
             </div>
           </div>
 
           <div className="footer-col">
             <h3 className="footer-title">Quick Links</h3>
             <ul className="footer-links">
-              <li><a href="#" className="footer-link">Home</a></li>
+              <li><a href="#home" className="footer-link">Home</a></li>
               <li><a href="#services" className="footer-link">Services</a></li>
               <li><a href="#why-us" className="footer-link">Why Choose Us</a></li>
               <li><a href="#process" className="footer-link">Process</a></li>
@@ -970,15 +1144,15 @@ function LandingPage({ onNavigate }) {
             <h3 className="footer-title">Contact Info</h3>
             <ul className="footer-contact-list">
               <li className="footer-contact-item">
-                <FaMapMarkerAlt className="contact-icon" />
+                <MapPin className="contact-icon" />
                 <span>102 Diagnostic Plaza, Science City Road, Ahmedabad, India</span>
               </li>
               <li className="footer-contact-item">
-                <FaPhoneAlt className="contact-icon" />
+                <Phone className="contact-icon" />
                 <span>+91 79 4000 1234<br />+91 98765 43210</span>
               </li>
               <li className="footer-contact-item">
-                <FaEnvelope className="contact-icon" />
+                <Mail className="contact-icon" />
                 <span>support@jaganathlab.com<br />reports@jaganathlab.com</span>
               </li>
             </ul>
@@ -987,7 +1161,7 @@ function LandingPage({ onNavigate }) {
 
         <div className="footer-bottom">
           <p className="copyright-text">
-            &copy; {new Date().getFullYear()} Jaganath-Lab. All rights reserved.
+            &copy; {new Date().getFullYear()} Jaganath Lab. All rights reserved.
           </p>
           <div className="footer-bottom-links">
             <a href="#" className="footer-bottom-link">Privacy Policy</a>

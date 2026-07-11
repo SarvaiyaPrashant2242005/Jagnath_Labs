@@ -3,7 +3,8 @@ import {
   FaFlask, FaChartPie, FaClipboardList, FaPlus, FaBuilding, 
   FaUserFriends, FaTags, FaSlidersH, FaFileAlt, FaFileInvoiceDollar, 
   FaTruck, FaCog, FaSignOutAlt, FaSearch, FaBell, FaChevronRight, 
-  FaArrowUp, FaArrowDown, FaRegClock, FaCheck, FaBuilding as FaCompany 
+  FaArrowUp, FaArrowDown, FaRegClock, FaCheck, FaBuilding as FaCompany,
+  FaArrowLeft
 } from 'react-icons/fa';
 import { gsap } from 'gsap';
 import '../../../assets/styles/dashboard.css';
@@ -316,9 +317,301 @@ const Dashboard = ({ onNavigate }) => {
     }, 3000);
   };
 
+<<<<<<< HEAD
   const handleSignOut = () => {
     authService.logout();
   };
+=======
+  // 1. Companies Form
+  const renderCompaniesForm = () => (
+    <div className="lims-form-container">
+      <h2 className="lims-form-title">Register New Client Company</h2>
+      <form className="lims-form" onSubmit={(e) => { e.preventDefault(); triggerNotification(); }}>
+        <div className="lims-form-grid-2col">
+          <div className="lims-form-group">
+            <label className="lims-form-label">Company Name *</label>
+            <input type="text" placeholder="e.g. UltraTech Cement Ltd." className="lims-form-input" required />
+          </div>
+          <div className="lims-form-group">
+            <label className="lims-form-label">Registration / Tax ID *</label>
+            <input type="text" placeholder="e.g. GSTIN-24AAACU1234F" className="lims-form-input" required />
+          </div>
+        </div>
+
+        <div className="lims-form-grid-2col">
+          <div className="lims-form-group">
+            <label className="lims-form-label">Contact Person Name *</label>
+            <input type="text" placeholder="e.g. Rajesh Patel" className="lims-form-input" required />
+          </div>
+          <div className="lims-form-group">
+            <label className="lims-form-label">Industry Type *</label>
+            <select className="lims-form-select" required>
+              <option value="">Select industry type</option>
+              <option value="cement">Cement / Construction</option>
+              <option value="chemicals">Chemicals & Pesticides</option>
+              <option value="water">Municipal Water Supply</option>
+              <option value="pharmaceuticals">Pharmaceuticals</option>
+              <option value="diagnostics">Diagnostics & Medical</option>
+              <option value="food">Food & Beverages</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="lims-form-grid-2col">
+          <div className="lims-form-group">
+            <label className="lims-form-label">Contact Email *</label>
+            <input type="email" placeholder="e.g. contact@ultratech.com" className="lims-form-input" required />
+          </div>
+          <div className="lims-form-group">
+            <label className="lims-form-label">Contact Phone *</label>
+            <input type="tel" placeholder="e.g. +91 98765 43210" className="lims-form-input" required />
+          </div>
+        </div>
+
+        <div className="lims-form-group">
+          <label className="lims-form-label">Billing Address *</label>
+          <textarea placeholder="Enter complete business billing address..." className="lims-form-textarea" required></textarea>
+        </div>
+
+        <div className="lims-form-actions">
+          <button type="submit" className="lims-form-btn-submit">Register Company</button>
+          <button type="button" className="lims-form-btn-cancel" onClick={() => setActiveTab('dashboard')}>Cancel</button>
+        </div>
+      </form>
+    </div>
+  );
+
+  // 2. Clients Form
+  const renderClientsForm = () => (
+    <div className="lims-form-container">
+      <h2 className="lims-form-title">Add Client Representative</h2>
+      <form className="lims-form" onSubmit={(e) => { e.preventDefault(); triggerNotification(); }}>
+        <div className="lims-form-grid-2col">
+          <div className="lims-form-group">
+            <label className="lims-form-label">Full Name *</label>
+            <input type="text" placeholder="e.g. Aarav Shah" className="lims-form-input" required />
+          </div>
+          <div className="lims-form-group">
+            <label className="lims-form-label">Designation / Role *</label>
+            <input type="text" placeholder="e.g. Quality Assurance Lead" className="lims-form-input" required />
+          </div>
+        </div>
+
+        <div className="lims-form-grid-2col">
+          <div className="lims-form-group">
+            <label className="lims-form-label">Associated Company *</label>
+            <select className="lims-form-select" required>
+              <option value="">Select associated company</option>
+              <option value="1">UltraTech Cement Ltd.</option>
+              <option value="2">Tata Chemicals Ltd.</option>
+              <option value="3">ABC Industries Pvt. Ltd.</option>
+              <option value="4">Jagnath Municipal Corp.</option>
+            </select>
+          </div>
+          <div className="lims-form-group">
+            <label className="lims-form-label">Status *</label>
+            <select className="lims-form-select" required>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="lims-form-grid-2col">
+          <div className="lims-form-group">
+            <label className="lims-form-label">Email Address *</label>
+            <input type="email" placeholder="e.g. aarav.shah@company.com" className="lims-form-input" required />
+          </div>
+          <div className="lims-form-group">
+            <label className="lims-form-label">Phone Number *</label>
+            <input type="tel" placeholder="e.g. +91 91234 56789" className="lims-form-input" required />
+          </div>
+        </div>
+
+        <div className="lims-form-actions">
+          <button type="submit" className="lims-form-btn-submit">Add Client</button>
+          <button type="button" className="lims-form-btn-cancel" onClick={() => setActiveTab('dashboard')}>Cancel</button>
+        </div>
+      </form>
+    </div>
+  );
+
+  // 3. Categories Form
+  const renderCategoriesForm = () => (
+    <div className="lims-form-container">
+      <h2 className="lims-form-title">Create Test Category</h2>
+      <form className="lims-form" onSubmit={(e) => { e.preventDefault(); triggerNotification(); }}>
+        <div className="lims-form-grid-2col">
+          <div className="lims-form-group">
+            <label className="lims-form-label">Category Name *</label>
+            <input type="text" placeholder="e.g. Drinking Water" className="lims-form-input" required />
+          </div>
+          <div className="lims-form-group">
+            <label className="lims-form-label">Category Code *</label>
+            <input type="text" placeholder="e.g. CAT-DW" className="lims-form-input" required />
+          </div>
+        </div>
+
+        <div className="lims-form-grid-2col">
+          <div className="lims-form-group">
+            <label className="lims-form-label">Laboratory Department *</label>
+            <select className="lims-form-select" required>
+              <option value="">Select department</option>
+              <option value="microbiology">Microbiology Lab</option>
+              <option value="chemical">Chemical Analysis Lab</option>
+              <option value="heavy-metals">Heavy Metals Diagnostics</option>
+              <option value="organic">Organic Compounds</option>
+            </select>
+          </div>
+          <div className="lims-form-group">
+            <label className="lims-form-label">Status *</label>
+            <select className="lims-form-select" required>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="lims-form-group">
+          <label className="lims-form-label">Description / Scope *</label>
+          <textarea placeholder="Describe the testing parameters and methodologies covered under this category..." className="lims-form-textarea" required></textarea>
+        </div>
+
+        <div className="lims-form-actions">
+          <button type="submit" className="lims-form-btn-submit">Create Category</button>
+          <button type="button" className="lims-form-btn-cancel" onClick={() => setActiveTab('dashboard')}>Cancel</button>
+        </div>
+      </form>
+    </div>
+  );
+
+  // 4. Parameters Form
+  const renderParametersForm = () => (
+    <div className="lims-form-container">
+      <h2 className="lims-form-title">Configure Testing Parameter</h2>
+      <form className="lims-form" onSubmit={(e) => { e.preventDefault(); triggerNotification(); }}>
+        <div className="lims-form-grid-2col">
+          <div className="lims-form-group">
+            <label className="lims-form-label">Parameter Name *</label>
+            <input type="text" placeholder="e.g. pH Value" className="lims-form-input" required />
+          </div>
+          <div className="lims-form-group">
+            <label className="lims-form-label">Parameter Code / Symbol *</label>
+            <input type="text" placeholder="e.g. PAR-PH" className="lims-form-input" required />
+          </div>
+        </div>
+
+        <div className="lims-form-grid-2col">
+          <div className="lims-form-group">
+            <label className="lims-form-label">Unit of Measure (UOM) *</label>
+            <input type="text" placeholder="e.g. mg/L, ppm, pH Unit" className="lims-form-input" required />
+          </div>
+          <div className="lims-form-group">
+            <label className="lims-form-label">Test Category *</label>
+            <select className="lims-form-select" required>
+              <option value="">Select test category</option>
+              <option value="soil">Soil</option>
+              <option value="drinking-water">Drinking Water</option>
+              <option value="waste-water">Waste Water</option>
+              <option value="surface-water">Surface Water</option>
+              <option value="ground-water">Ground Water</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="lims-form-grid-2col">
+          <div className="lims-form-group">
+            <label className="lims-form-label">Permissible Limit (Min) *</label>
+            <input type="number" step="any" placeholder="e.g. 6.5" className="lims-form-input" required />
+          </div>
+          <div className="lims-form-group">
+            <label className="lims-form-label">Permissible Limit (Max) *</label>
+            <input type="number" step="any" placeholder="e.g. 8.5" className="lims-form-input" required />
+          </div>
+        </div>
+
+        <div className="lims-form-group">
+          <label className="lims-form-label">Reference Testing Standard *</label>
+          <input type="text" placeholder="e.g. IS 3025 (Part 11) : 1983" className="lims-form-input" required />
+        </div>
+
+        <div className="lims-form-actions">
+          <button type="submit" className="lims-form-btn-submit">Add Parameter</button>
+          <button type="button" className="lims-form-btn-cancel" onClick={() => setActiveTab('dashboard')}>Cancel</button>
+        </div>
+      </form>
+    </div>
+  );
+
+  // 5. New Test Request Form
+  const renderNewRequestForm = () => (
+    <div className="lims-form-container">
+      <h2 className="lims-form-title">Create New Laboratory Test Request</h2>
+      <form className="lims-form" onSubmit={(e) => { e.preventDefault(); triggerNotification(); }}>
+        <div className="lims-form-grid-2col">
+          <div className="lims-form-group">
+            <label className="lims-form-label">Select Company *</label>
+            <select className="lims-form-select" required>
+              <option value="">Select client company</option>
+              <option value="ultratech">UltraTech Cement Ltd.</option>
+              <option value="tata">Tata Chemicals Ltd.</option>
+              <option value="abc">ABC Industries Pvt. Ltd.</option>
+            </select>
+          </div>
+          <div className="lims-form-group">
+            <label className="lims-form-label">Client Representative *</label>
+            <select className="lims-form-select" required>
+              <option value="">Select contact representative</option>
+              <option value="rajesh">Rajesh Patel</option>
+              <option value="aarav">Aarav Shah</option>
+              <option value="vikram">Vikram Solanki</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="lims-form-grid-2col">
+          <div className="lims-form-group">
+            <label className="lims-form-label">Sample Category *</label>
+            <select className="lims-form-select" required>
+              <option value="">Select test category</option>
+              <option value="soil">Soil</option>
+              <option value="drinking-water">Drinking Water</option>
+              <option value="waste-water">Waste Water</option>
+              <option value="surface-water">Surface Water</option>
+              <option value="ground-water">Ground Water</option>
+            </select>
+          </div>
+          <div className="lims-form-group">
+            <label className="lims-form-label">Collection Date *</label>
+            <input type="date" className="lims-form-input" required defaultValue={new Date().toISOString().split('T')[0]} />
+          </div>
+        </div>
+
+        <div className="lims-form-group">
+          <label className="lims-form-label">Parameters checklist (Select all applicable) *</label>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', padding: '16px', background: 'var(--bg-soft)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+            {['pH Value', 'Turbidity', 'TDS (Total Dissolved Solids)', 'Fluoride Count', 'Chloride Count', 'Nitrate Level', 'Sulphate Level', 'Hardness (CaCO3)', 'Coliform Bacteria'].map((p) => (
+              <label key={p} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-dark)', cursor: 'pointer' }}>
+                <input type="checkbox" style={{ accentColor: 'var(--primary)' }} />
+                <span>{p}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="lims-form-group">
+          <label className="lims-form-label">Additional Instructions / Sample Condition</label>
+          <textarea placeholder="e.g. Sample collected in sterile 1L container, refrigerated at 4°C during transport..." className="lims-form-textarea"></textarea>
+        </div>
+
+        <div className="lims-form-actions">
+          <button type="submit" className="lims-form-btn-submit">Submit Request</button>
+          <button type="button" className="lims-form-btn-cancel" onClick={() => setActiveTab('dashboard')}>Cancel</button>
+        </div>
+      </form>
+    </div>
+  );
+>>>>>>> origin/Jenil's_Dev
 
   return (
     <div className="dashboard-container">
@@ -453,6 +746,7 @@ const Dashboard = ({ onNavigate }) => {
         <header ref={headerRef} className="dashboard-header">
           <div className="header-title-area">
             <h1 className="dashboard-heading">
+<<<<<<< HEAD
               {activeTab === 'requests' ? 'Test Requests' : 
                activeTab === 'new-request' ? 'Test Requests' : 
                activeTab === 'companies' ? 'Company Master' : 
@@ -474,10 +768,37 @@ const Dashboard = ({ onNavigate }) => {
                activeTab === 'categories' ? 'Masters / Categories' : 
                activeTab === 'parameters' ? 'Masters / Parameters' : 
                `Manage ${activeTab}`}
+=======
+              {activeTab === 'dashboard' && 'Dashboard'}
+              {activeTab === 'new-request' && 'New Request'}
+              {activeTab === 'companies' && 'Companies Master'}
+              {activeTab === 'clients' && 'Clients Master'}
+              {activeTab === 'categories' && 'Categories Master'}
+              {activeTab === 'parameters' && 'Parameters Master'}
+              {activeTab === 'requests' && 'Test Requests'}
+              {activeTab === 'reports' && 'Reports'}
+              {activeTab === 'invoices' && 'Invoices'}
+              {activeTab === 'dispatch' && 'Dispatch'}
+              {activeTab === 'settings' && 'Settings'}
+            </h1>
+            <p className="dashboard-subheading">
+              {activeTab === 'dashboard' && 'Overview of lab operations'}
+              {activeTab === 'new-request' && 'Start a new test intake request'}
+              {activeTab === 'companies' && 'Register and manage client companies'}
+              {activeTab === 'clients' && 'Manage client contacts and representatives'}
+              {activeTab === 'categories' && 'Manage diagnostic and testing categories'}
+              {activeTab === 'parameters' && 'Configure chemical and physical analysis parameters'}
+              {activeTab === 'requests' && 'Overview of test intake workflows'}
+              {activeTab === 'reports' && 'Generate and manage pathology reports'}
+              {activeTab === 'invoices' && 'Manage billing records and invoices'}
+              {activeTab === 'dispatch' && 'Track physical and digital report dispatch'}
+              {activeTab === 'settings' && 'Configure laboratory system preferences'}
+>>>>>>> origin/Jenil's_Dev
             </p>
           </div>
 
           <div className="header-actions">
+<<<<<<< HEAD
             {/* Search Bar */}
             <div className="search-bar-wrapper">
               <FaSearch className="search-bar-icon" />
@@ -489,18 +810,48 @@ const Dashboard = ({ onNavigate }) => {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
+=======
+            {activeTab === 'dashboard' ? (
+              <>
+                {/* Search Bar */}
+                <div className="search-bar-wrapper">
+                  <FaSearch className="search-bar-icon" />
+                  <input 
+                    type="text" 
+                    className="search-bar-input" 
+                    placeholder="Search requests, clients, TR number..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+>>>>>>> origin/Jenil's_Dev
 
-            {/* Notification bell */}
-            <button className="notification-bell-btn" onClick={triggerNotification}>
-              <FaBell />
-              <span className="bell-badge"></span>
-            </button>
+                {/* Notification bell */}
+                <button className="notification-bell-btn" onClick={triggerNotification}>
+                  <FaBell />
+                  <span className="bell-badge"></span>
+                </button>
 
+<<<<<<< HEAD
             {/* CTA action */}
             <button className="header-btn" onClick={() => setActiveTab('new-request')}>
               <FaPlus />
               <span>New Request</span>
             </button>
+=======
+                {/* CTA action */}
+                <button className="header-btn" onClick={() => setActiveTab('new-request')}>
+                  <FaPlus />
+                  <span>New Request</span>
+                </button>
+              </>
+            ) : (
+              <button className="header-btn btn-secondary" onClick={() => setActiveTab('dashboard')} style={{ backgroundColor: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-light)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FaArrowLeft />
+                <span>Back to Dashboard</span>
+              </button>
+            )}
+>>>>>>> origin/Jenil's_Dev
           </div>
         </header>
 
@@ -510,15 +861,26 @@ const Dashboard = ({ onNavigate }) => {
           </div>
         )}
 
+<<<<<<< HEAD
         {activeTab === 'dashboard' && (
+=======
+        {activeTab === 'dashboard' ? (
+>>>>>>> origin/Jenil's_Dev
           <>
             {/* 3. Metrics Row Cards */}
             <section className="metrics-grid">
               {[
+<<<<<<< HEAD
                 { label: 'Total Requests Logged', id: 'count-requests', trend: '+12.4%', up: true, foot: 'from launch date', color: 'var(--primary)' },
                 { label: 'Pending Analyses', id: 'count-pending', trend: '-4.2%', up: true, foot: 'awaiting completion', color: '#F59E0B' },
                 { label: 'Completed Tests', id: 'count-completed', trend: '+8.1%', up: true, foot: 'this month', color: 'var(--secondary)' },
                 { label: 'Dispatch Deliveries', id: 'count-rejection', trend: '+18.2%', up: true, foot: 'reports sent', color: '#EF4444' }
+=======
+                { label: 'Total Requests', id: 'count-requests', trend: '+12.4%', up: true, foot: 'vs yesterday', color: 'var(--primary)' },
+                { label: 'Pending Verification', id: 'count-pending', trend: '-4.2%', up: true, foot: 'awaiting approval', color: '#F59E0B' },
+                { label: 'Completed Tests', id: 'count-completed', trend: '+8.1%', up: true, foot: 'this month', color: 'var(--secondary)' },
+                { label: 'Rejection Rate', id: 'count-rejection', trend: '+18.2%', up: false, foot: 'average 1.5%', color: '#EF4444' }
+>>>>>>> origin/Jenil's_Dev
               ].map((item, idx) => (
                 <div 
                   key={item.label}
@@ -554,6 +916,10 @@ const Dashboard = ({ onNavigate }) => {
                 <div className="chart-body">
                   <svg className="chart-svg-container" viewBox={`0 0 ${viewWidth} ${viewHeight}`} preserveAspectRatio="none">
                     <defs>
+<<<<<<< HEAD
+=======
+                      {/* Gradients */}
+>>>>>>> origin/Jenil's_Dev
                       <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="var(--secondary-light)" stopOpacity="0.85" />
                         <stop offset="100%" stopColor="var(--secondary)" stopOpacity="0.15" />
@@ -564,6 +930,10 @@ const Dashboard = ({ onNavigate }) => {
                         <stop offset="100%" stopColor="var(--primary-dark)" stopOpacity="0" />
                       </linearGradient>
 
+<<<<<<< HEAD
+=======
+                      {/* Clip Path for Entrance Animation */}
+>>>>>>> origin/Jenil's_Dev
                       <clipPath id="monthly-grid-clip">
                         <rect x="0" y="0" width="0" height={viewHeight} />
                       </clipPath>
@@ -584,6 +954,10 @@ const Dashboard = ({ onNavigate }) => {
                       );
                     })}
 
+<<<<<<< HEAD
+=======
+                    {/* Group containing clipping animation */}
+>>>>>>> origin/Jenil's_Dev
                     <g clipPath="url(#monthly-grid-clip)">
                       {/* Bars Series: Samples Received */}
                       {monthlyData.map((d, i) => {
@@ -678,9 +1052,14 @@ const Dashboard = ({ onNavigate }) => {
                         />
                         {categoriesData.map((cat, idx) => {
                           const radius = 65;
+<<<<<<< HEAD
                           const circumference = 2 * Math.PI * radius; // 408.4
                           const strokeDash = circumference;
                           const strokeOffset = strokeDash * (1 - cat.percentage / 100);
+=======
+                          const circumference = 2 * Math.PI * radius;
+                          const strokeDash = circumference;
+>>>>>>> origin/Jenil's_Dev
                           const rotation = (cat.offset / 100) * 360 - 90;
 
                           return (
@@ -739,6 +1118,7 @@ const Dashboard = ({ onNavigate }) => {
                 </div>
 
                 <div className="requests-list">
+<<<<<<< HEAD
                   {requests.slice(0, 6).map((row) => (
                     <div key={row.id} className="request-row">
                       <div className="request-info">
@@ -754,6 +1134,27 @@ const Dashboard = ({ onNavigate }) => {
                         </div>
                       </div>
                       <span className={`request-status-badge ${row.status.toLowerCase().replace(' ', '-')}`}>
+=======
+                  {[
+                    { tr: 'TR-2026-000245', cat: 'Soil', comp: 'UltraTech Cement Ltd.', badge: 'UC', color: '#10B981', status: 'In Progress', cls: 'in-progress' },
+                    { tr: 'TR-2026-000244', cat: 'Drinking Water', comp: 'Tata Chemicals Ltd.', badge: 'TC', color: '#0EA5E9', status: 'Pending Testing', cls: 'pending-testing' },
+                    { tr: 'TR-2026-000243', cat: 'Waste Water', comp: 'ABC Industries Pvt. Ltd.', badge: 'AI', color: '#6366F1', status: 'In Progress', cls: 'in-progress' },
+                    { tr: 'TR-2026-000242', cat: 'Drinking Water', comp: 'Jagnath Municipal Corp.', badge: 'JM', color: '#EC4899', status: 'In Progress', cls: 'in-progress' },
+                    { tr: 'TR-2026-000241', cat: 'Surface Water', comp: 'ABC Industries Pvt. Ltd.', badge: 'AI', color: '#F43F5E', status: 'Pending Testing', cls: 'pending-testing' },
+                    { tr: 'TR-2026-000240', cat: 'Ground Water', comp: 'Tata Chemicals Ltd.', badge: 'TC', color: '#10B981', status: 'In Progress', cls: 'in-progress' }
+                  ].map((row) => (
+                    <div key={row.tr} className="request-row">
+                      <div className="request-info">
+                        <div className="request-badge-avatar" style={{ backgroundColor: row.color }}>
+                          {row.badge}
+                        </div>
+                        <div className="request-details">
+                          <span className="request-id-cat">{row.tr}<span>• {row.cat}</span></span>
+                          <span className="request-company">{row.comp}</span>
+                        </div>
+                      </div>
+                      <span className={`request-status-badge ${row.cls}`}>
+>>>>>>> origin/Jenil's_Dev
                         <span className="status-dot"></span>
                         {row.status}
                       </span>
@@ -769,16 +1170,26 @@ const Dashboard = ({ onNavigate }) => {
 
               {/* Right Column: Approvals and Timelines */}
               <div ref={sidePanelRef} className="side-card-split">
+<<<<<<< HEAD
                 {/* Recent Clients / Contacts */}
                 <div className="data-card">
                   <div className="data-header">
                     <div className="data-title-area">
                       <h3 className="data-title">Recent Registered Clients</h3>
                       <p className="data-subtitle">Latest client accounts added</p>
+=======
+                {/* Pending Approvals */}
+                <div className="data-card">
+                  <div className="data-header">
+                    <div className="data-title-area">
+                      <h3 className="data-title">Pending Approvals</h3>
+                      <p className="data-subtitle">Awaiting verification</p>
+>>>>>>> origin/Jenil's_Dev
                     </div>
                   </div>
 
                   <div className="approvals-list">
+<<<<<<< HEAD
                     {recentClients.map((row) => (
                       <div key={row.id} className="approval-row">
                         <div className="approval-info">
@@ -800,6 +1211,29 @@ const Dashboard = ({ onNavigate }) => {
                         No clients registered.
                       </div>
                     )}
+=======
+                    {[
+                      { tr: 'TR-2026-000238', meta: 'Rajesh Patel • 3 params' },
+                      { tr: 'TR-2026-000234', meta: 'Vikram Solanki • 4 params' },
+                      { tr: 'TR-2026-000232', meta: 'Ketan Desai • 5 params' },
+                      { tr: 'TR-2026-000231', meta: 'Ketan Desai • 3 params' }
+                    ].map((row) => (
+                      <div key={row.tr} className="approval-row">
+                        <div className="approval-info">
+                          <div className="approval-icon-clock">
+                            <FaRegClock />
+                          </div>
+                          <div className="approval-details">
+                            <span className="approval-id">{row.tr}</span>
+                            <span className="approval-meta">{row.meta}</span>
+                          </div>
+                        </div>
+                        <button className="review-btn" onClick={triggerNotification}>
+                          Review
+                        </button>
+                      </div>
+                    ))}
+>>>>>>> origin/Jenil's_Dev
                   </div>
                 </div>
 
@@ -814,10 +1248,19 @@ const Dashboard = ({ onNavigate }) => {
                   <div className="timeline-list">
                     <div className="timeline-line"></div>
                     {[
+<<<<<<< HEAD
                       { bold: 'Lab Administrator', text: ' completed setup for ', target: 'LIMS Central Portal', time: 'Just now' },
                       { bold: 'API Service Layer', text: ' established successfully', target: '', time: '5 min ago' },
                       { bold: 'All CRUD operations', text: ' connected to postgres database', target: '', time: '10 min ago' },
                       { bold: 'Authorization interceptors', text: ' activated for requests security', target: '', time: '15 min ago' }
+=======
+                      { bold: 'Ritu Bhatt', text: ' completed testing for ', target: 'TR-2026-000242', time: '12 min ago' },
+                      { bold: 'Report generated', text: ' for ', target: 'TR-2026-000239 — Drinking Water', time: '38 min ago' },
+                      { bold: 'New sample collected', text: ' from ', target: 'Reliance Industries Ltd.', time: '1 hr ago' },
+                      { bold: 'Harsh Mehta', text: ' verified results for 3 parameters', target: '', time: '2 hr ago' },
+                      { bold: 'Invoice INV-2026-0118', text: ' marked overdue', target: '', time: '4 hr ago' },
+                      { bold: 'Dispatch completed', text: ' for ', target: 'TR-2026-000228', time: 'Yesterday' }
+>>>>>>> origin/Jenil's_Dev
                     ].map((item, index) => (
                       <div key={index} className="timeline-item">
                         <div className="timeline-node"></div>
@@ -840,15 +1283,23 @@ const Dashboard = ({ onNavigate }) => {
               </div>
               <div className="quick-actions-grid">
                 {[
+<<<<<<< HEAD
                   { title: 'New Test Request', sub: 'Start intake wizard', icon: <FaPlus />, bg: 'rgba(80, 200, 120, 0.1)', color: 'var(--secondary-dark)' },
                   { title: 'Add Company', sub: 'Register new client org', icon: <FaCompany />, bg: 'rgba(135, 206, 235, 0.18)', color: 'var(--primary-dark)' },
                   { title: 'Add Parameter', sub: 'Extend test catalog', icon: <FaFlask />, bg: 'rgba(168, 85, 247, 0.1)', color: '#A855F7' },
                   { title: 'Generate Report', sub: 'Pick a completed request', icon: <FaFileAlt />, bg: 'rgba(16, 185, 129, 0.1)', color: '#10B981' }
+=======
+                  { title: 'New Test Request', sub: 'Start intake wizard', icon: <FaPlus />, bg: 'rgba(80, 200, 120, 0.1)', color: 'var(--secondary-dark)', action: 'new-request' },
+                  { title: 'Add Company', sub: 'Register new client org', icon: <FaCompany />, bg: 'rgba(135, 206, 235, 0.18)', color: 'var(--primary-dark)', action: 'companies' },
+                  { title: 'Add Parameter', sub: 'Extend test catalog', icon: <FaFlask />, bg: 'rgba(168, 85, 247, 0.1)', color: '#A855F7', action: 'parameters' },
+                  { title: 'Generate Report', sub: 'Pick a completed request', icon: <FaFileAlt />, bg: 'rgba(16, 185, 129, 0.1)', color: '#10B981', action: 'reports' }
+>>>>>>> origin/Jenil's_Dev
                 ].map((act) => (
                   <div 
                     key={act.title} 
                     className="quick-action-card"
                     onClick={() => {
+<<<<<<< HEAD
                       if (act.title === 'New Test Request') {
                         setActiveTab('new-request');
                       } else if (act.title === 'Add Company') {
@@ -857,6 +1308,12 @@ const Dashboard = ({ onNavigate }) => {
                         setActiveTab('parameters');
                       } else {
                         setActiveTab('reports');
+=======
+                      if (act.action === 'reports') {
+                        triggerNotification();
+                      } else {
+                        setActiveTab(act.action);
+>>>>>>> origin/Jenil's_Dev
                       }
                     }}
                   >
@@ -872,6 +1329,7 @@ const Dashboard = ({ onNavigate }) => {
               </div>
             </section>
           </>
+<<<<<<< HEAD
         )}
 
         {activeTab === 'requests' && (
@@ -936,6 +1394,23 @@ const Dashboard = ({ onNavigate }) => {
 
         {activeTab === 'settings' && (
           <Settings />
+=======
+        ) : (
+          <>
+            {activeTab === 'companies' && renderCompaniesForm()}
+            {activeTab === 'clients' && renderClientsForm()}
+            {activeTab === 'categories' && renderCategoriesForm()}
+            {activeTab === 'parameters' && renderParametersForm()}
+            {activeTab === 'new-request' && renderNewRequestForm()}
+            {['requests', 'reports', 'invoices', 'dispatch', 'settings'].includes(activeTab) && (
+              <div className="lims-form-container" style={{ textAlign: 'center', padding: '60px 40px' }}>
+                <h3 style={{ fontSize: '1.5rem', marginBottom: '1rem', color: 'var(--text-dark)' }}>Under Construction</h3>
+                <p style={{ color: 'var(--text-light)', marginBottom: '2rem' }}>The {activeTab} view design will be configured shortly in the master workflow module.</p>
+                <button className="lims-form-btn-submit" onClick={() => setActiveTab('dashboard')}>Back to Dashboard</button>
+              </div>
+            )}
+          </>
+>>>>>>> origin/Jenil's_Dev
         )}
       </main>
     </div>

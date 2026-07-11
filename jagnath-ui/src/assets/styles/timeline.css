@@ -5,20 +5,16 @@
    ============================================= */
 
 .timeline-section {
-  padding: 7.5rem 4%;
-  background: var(--white);
+  padding: 120px 6%;
+  background: var(--bg-light);
   overflow-x: hidden;
 }
 
-/* Section description below heading */
-.section-desc {
-  font-family: var(--font-body);
-  font-size: 1.05rem;
-  color: var(--text-light);
-  text-align: center;
-  max-width: 37.5rem;
-  margin: 0.75rem auto 0;
-  line-height: 1.6;
+.timeline-outer-container {
+  max-width: 1400px;
+  margin: 60px auto 0;
+  position: relative;
+  padding: 20px 0;
 }
 
 /* Outer wrapper */
@@ -32,12 +28,13 @@
 /* ---- Connecting horizontal line ---- */
 .timeline-line {
   position: absolute;
-  top: 2.75rem;
-  left: calc(1.5rem + 2.75rem);
-  right: calc(1.5rem + 2.75rem);
-  height: 0.125rem;
-  background: rgba(135, 206, 235, 0.35);
+  top: 60px;
+  left: 5%;
+  width: 90%;
+  height: 4px;
+  background: var(--border-color);
   z-index: 1;
+  border-radius: var(--radius-full);
 }
 
 .timeline-progress-bar {
@@ -45,9 +42,11 @@
   top: 0;
   left: 0;
   height: 100%;
-  background: var(--secondary);
+  background: linear-gradient(to right, var(--primary), var(--primary-dark));
   width: 0%;
+  /* Dynamic animation via GSAP */
   transition: width 0.1s ease;
+  border-radius: var(--radius-full);
 }
 
 /* ---- Steps row ---- */
@@ -70,24 +69,33 @@
 
 /* ---- Circular node (FreightFlow style) ---- */
 .timeline-node {
-  width: 5.5rem;
-  height: 5.5rem;
+  width: 80px;
+  height: 80px;
   border-radius: 50%;
   background: var(--white);
-  border: 0.15rem solid rgba(135, 206, 235, 0.45);
+  border: 4px solid var(--border-color);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.6rem;
-  color: var(--primary-dark);
-  transition: all 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+  font-size: 1.5rem;
+  color: var(--text-light);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
   position: relative;
   z-index: 3;
 }
 
 .timeline-node::after {
-  display: none;
+  content: '';
+  position: absolute;
+  width: calc(100% + 12px);
+  height: calc(100% + 12px);
+  border-radius: 50%;
+  border: 2px dashed var(--primary);
+  opacity: 0;
+  transform: scale(0.9);
+  transition: all 0.5s ease;
 }
 
 /* Hover effect */
@@ -100,37 +108,52 @@
 
 /* Active state */
 .timeline-step.active .timeline-node {
-  border-color: var(--secondary);
-  color: var(--secondary-dark);
-  box-shadow: 0 0 0 0.5rem rgba(80, 200, 120, 0.1);
+  border-color: var(--primary);
+  color: var(--primary-dark);
+  box-shadow: var(--shadow-glow);
 }
 
 /* Completed state */
 .timeline-step.completed .timeline-node {
-  background: var(--white);
-  border-color: var(--secondary);
-  color: var(--secondary-dark);
-  box-shadow: 0 0 0 0.5rem rgba(80, 200, 120, 0.1);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  border-color: rgba(34, 197, 94, 0.2);
+  color: var(--white);
+  box-shadow: var(--shadow-glow);
 }
 
 .timeline-step.completed .timeline-node::after {
-  display: none;
+  opacity: 1;
+  transform: scale(1);
+  border-color: var(--primary-dark);
 }
 
-/* ---- Step label (below circle) ---- */
-.timeline-label {
-  display: block;
-  margin-top: 1.25rem;
+/* Tooltip/Label Content */
+.timeline-info {
+  margin-top: 20px;
+  opacity: 0.7;
+  transition: all 0.3s ease;
+}
+
+.timeline-step.active .timeline-info,
+.timeline-step.completed .timeline-info {
+  opacity: 1;
+}
+
+.timeline-step-title {
   font-family: var(--font-heading);
   font-size: 0.95rem;
   font-weight: 700;
   color: var(--text-dark);
-  letter-spacing: 0.01em;
-  transition: color 0.3s ease;
+  margin-bottom: 6px;
+  letter-spacing: -0.01em;
 }
 
-.timeline-step:hover .timeline-label {
-  color: var(--secondary-dark);
+.timeline-step-desc {
+  font-size: 0.82rem;
+  color: var(--text-light);
+  line-height: 1.5;
+  padding: 0 4px;
+  font-weight: 500;
 }
 
 .timeline-step.active .timeline-label,
@@ -150,12 +173,10 @@
   }
 
   .timeline-line {
-    top: 2.75rem;
-    bottom: 2.75rem;
-    left: 2.75rem;
-    right: auto;
-    width: 0.125rem;
-    height: auto;
+    top: 5%;
+    left: 45px;
+    width: 4px;
+    height: 90%;
   }
 
   .timeline-progress-bar {
@@ -166,7 +187,8 @@
   .timeline-steps {
     flex-direction: column;
     align-items: flex-start;
-    gap: 2rem;
+    gap: 40px;
+    padding-left: 20px;
   }
 
   .timeline-step {
@@ -174,13 +196,13 @@
     align-items: center;
     text-align: left;
     width: 100%;
-    gap: 1.5rem;
+    gap: 24px;
   }
 
   .timeline-node {
-    width: 4rem;
-    height: 4rem;
-    min-width: 4rem;
+    width: 60px;
+    height: 60px;
+    min-width: 60px;
     font-size: 1.25rem;
   }
 

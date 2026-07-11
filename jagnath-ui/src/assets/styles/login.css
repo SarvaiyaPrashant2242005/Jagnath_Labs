@@ -57,14 +57,33 @@
   color: var(--white);
 }
 
+/* Logo container styling */
 .login-logo {
-  font-family: var(--font-heading);
-  font-size: 1.85rem;
-  font-weight: 800;
-  letter-spacing: -0.025em;
-  color: var(--white);
   user-select: none;
   animation: fadeInDown 0.8s ease-out;
+}
+
+.login-logo-img {
+  height: 3.2rem;
+  width: auto;
+  object-fit: contain;
+  background: var(--white);
+  padding: 8px 18px;
+  border-radius: var(--radius-sm);
+  display: inline-block;
+  box-shadow: var(--shadow-sm);
+}
+
+.mobile-logo-wrapper {
+  display: none;
+}
+
+.mobile-logo-img {
+  height: 2.8rem;
+  width: auto;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto;
 }
 
 .login-heading-area {
@@ -302,7 +321,7 @@
 .login-submit-btn {
   width: 100%;
   padding: 0.875rem;
-  background: linear-gradient(135deg, var(--secondary) 0%, var(--secondary-dark) 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
   color: var(--white);
   border: none;
   border-radius: var(--radius-sm);
@@ -321,7 +340,7 @@
 .login-submit-btn:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 6px 20px -2px rgba(80, 200, 120, 0.45);
-  background: linear-gradient(135deg, var(--secondary-dark) 0%, var(--secondary) 100%);
+  background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
 }
 
 .login-submit-btn:active:not(:disabled) {
@@ -456,19 +475,9 @@
 
   .mobile-logo-wrapper {
     display: block;
-    font-family: var(--font-heading);
-    font-size: 1.85rem;
-    font-weight: 800;
-    color: var(--secondary-dark);
     margin-bottom: 1.5rem;
     cursor: pointer;
     text-align: center;
-    letter-spacing: -0.025em;
-    transition: color 0.3s ease;
-  }
-
-  .mobile-logo-wrapper:hover {
-    color: var(--secondary);
   }
 
   .login-title {

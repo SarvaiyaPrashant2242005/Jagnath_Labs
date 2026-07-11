@@ -128,7 +128,7 @@ const Login = ({ onLoginSuccess, onNavigate }) => {
             style={{ cursor: 'pointer' }}
             title="Go to landing page"
           >
-            Jagnath Lab
+            <img src="/Images/Navbar_Logo.png" alt="Jaganath Lab" className="login-logo-img" />
           </div>
 
           <div className="login-heading-area">
@@ -150,9 +150,10 @@ const Login = ({ onLoginSuccess, onNavigate }) => {
           <div
             className="mobile-logo-wrapper"
             onClick={() => onNavigate && onNavigate('landing')}
+            style={{ cursor: 'pointer' }}
             title="Go to landing page"
           >
-            Jaganath Lab
+            <img src="/Images/Navbar_Logo.png" alt="Jaganath Lab" className="mobile-logo-img" />
           </div>
           <div className="login-header-group">
             <h2 className="login-title">Welcome Back</h2>
