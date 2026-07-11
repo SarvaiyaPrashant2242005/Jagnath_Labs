@@ -262,7 +262,7 @@ const getClientById = async (clientId) => {
             include: [{
                 model: Company,
                 as: "company",
-                attributes: ["companyName", "company_name"]
+                attributes: ["company_name"]
             }],
             attributes: { exclude: ["deleted_at"] }
         });
@@ -282,7 +282,7 @@ const getClientsByCompany = async (companyId) => {
             include: [{
                 model: Company,
                 as: "company",
-                attributes: ["companyName", "company_name"]
+                attributes: ["company_name"]
             }],
             attributes: { exclude: ["deleted_at"] }
         });

@@ -30,10 +30,7 @@ const create = async (req, res) => {
         const companyNameVal = value.companyName;
         const company = await Company.findOne({
             where: {
-                [Op.or]: [
-                    { companyName: companyNameVal },
-                    { company_name: companyNameVal }
-                ]
+                company_name: companyNameVal
             }
         });
 
@@ -121,10 +118,7 @@ const update = async (req, res) => {
         if (value.companyName !== undefined) {
             const company = await Company.findOne({
                 where: {
-                    [Op.or]: [
-                        { companyName: value.companyName },
-                        { company_name: value.companyName }
-                    ]
+                    company_name: value.companyName
                 }
             });
 
@@ -213,26 +207,43 @@ const getById = async (req, res) => {
 const getAll = async (req, res) => {
     try {
         const userId = req.user.user_id;
+        const requestedCompanyId = req.query.companyId || req.query.company_id;
 
-        // Find user's company
-        let company = await companyService.getCompanyByUserId(userId);
-        if (!company) {
-            const companies = await companyService.getCompaniesByUser(userId);
-            if (companies && companies.length > 0) {
-                company = companies[0];
+        let companyIdToUse;
+
+        if (requestedCompanyId) {
+            // Verify ownership of the requested company
+            const isOwner = await companyService.checkOwnership(requestedCompanyId, userId);
+            if (!isOwner) {
+                return res.status(403).json(errorResponse(
+                    "FORBIDDEN",
+                    "Unauthorized access to this company's clients.",
+                    "Unauthorized"
+                ));
             }
+            companyIdToUse = requestedCompanyId;
+        } else {
+            // Find default user's company
+            let company = await companyService.getCompanyByUserId(userId);
+            if (!company) {
+                const companies = await companyService.getCompaniesByUser(userId);
+                if (companies && companies.length > 0) {
+                    company = companies[0];
+                }
+            }
+
+            if (!company) {
+                return res.status(200).json(successResponse(
+                    "CLIENTS_FETCHED",
+                    "Clients fetched successfully.",
+                    "Clients retrieved.",
+                    []
+                ));
+            }
+            companyIdToUse = company.id;
         }
 
-        if (!company) {
-            return res.status(200).json(successResponse(
-                "CLIENTS_FETCHED",
-                "Clients fetched successfully.",
-                "Clients retrieved.",
-                []
-            ));
-        }
-
-        const clients = await clientService.getClientsByCompany(company.id);
+        const clients = await clientService.getClientsByCompany(companyIdToUse);
 
         return res.status(200).json(successResponse(
             "CLIENTS_FETCHED",

@@ -304,7 +304,7 @@ const getTransactionById = async (trpId) => {
                     include: [{
                         model: Company,
                         as: "company",
-                        attributes: ["companyName", "company_name"]
+                        attributes: ["company_name"]
                     }]
                 },
                 {
@@ -335,7 +335,7 @@ const getAllTransactions = async (companyId) => {
                     include: [{
                         model: Company,
                         as: "company",
-                        attributes: ["companyName", "company_name"]
+                        attributes: ["company_name"]
                     }]
                 },
                 {
@@ -367,7 +367,7 @@ const getParametersByTestRequest = async (testRequestId, companyId) => {
                     include: [{
                         model: Company,
                         as: "company",
-                        attributes: ["companyName", "company_name"]
+                        attributes: ["company_name"]
                     }]
                 },
                 {

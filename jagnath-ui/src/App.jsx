@@ -4,6 +4,7 @@ import LandingPage from './modules/landingPage/LandingPage';
 import Login from './modules/auth/pages/Login';
 import Dashboard from './modules/dashboard/pages/Dashboard';
 import CompanyMaster from './modules/companyMaster/pages/CompanyMaster';
+import ClientMaster from './modules/clientMaster/pages/ClientMaster';
 import DashboardLayout from './shared/layouts/DashboardLayout';
 import { getStoredUser } from './modules/auth/services/authService';
 import './assets/styles/index.css';
@@ -89,7 +90,7 @@ function App() {
         />
 
         {/* Dynamic Placeholder pages for all LIMS routes in sidebar */}
-        <Route path="/clients" element={<ProtectedRoute><PlaceholderPage title="Clients Master" /></ProtectedRoute>} />
+        <Route path="/clients" element={<ProtectedRoute><ClientMaster /></ProtectedRoute>} />
         <Route path="/categories" element={<ProtectedRoute><PlaceholderPage title="Categories Master" /></ProtectedRoute>} />
         <Route path="/parameters" element={<ProtectedRoute><PlaceholderPage title="Parameters Master" /></ProtectedRoute>} />
         <Route path="/requests" element={<ProtectedRoute><PlaceholderPage title="Test Requests" /></ProtectedRoute>} />

@@ -297,7 +297,7 @@ const getMappingById = async (mappingId, companyId) => {
                 {
                     model: Company,
                     as: "company",
-                    attributes: ["companyName", "company_name"]
+                    attributes: ["company_name"]
                 },
                 {
                     model: Category,
@@ -328,7 +328,7 @@ const getAllMappings = async (companyId) => {
                 {
                     model: Company,
                     as: "company",
-                    attributes: ["companyName", "company_name"]
+                    attributes: ["company_name"]
                 },
                 {
                     model: Category,
@@ -361,7 +361,7 @@ const getParametersByCategoryId = async (categoryId, companyId) => {
                 include: [{
                     model: Company,
                     as: "company",
-                    attributes: ["companyName", "company_name"]
+                    attributes: ["company_name"]
                 }]
             }]
         });

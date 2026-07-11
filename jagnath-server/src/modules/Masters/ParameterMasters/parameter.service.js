@@ -256,7 +256,7 @@ const getParameterById = async (parameterId, companyId) => {
             include: [{
                 model: Company,
                 as: "company",
-                attributes: ["companyName", "company_name"]
+                attributes: ["company_name"]
             }],
             attributes: { exclude: ["deleted_at"] }
         });
@@ -276,7 +276,7 @@ const getParametersByCompany = async (companyId) => {
             include: [{
                 model: Company,
                 as: "company",
-                attributes: ["companyName", "company_name"]
+                attributes: ["company_name"]
             }],
             attributes: { exclude: ["deleted_at"] }
         });
