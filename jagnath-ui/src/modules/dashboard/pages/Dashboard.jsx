@@ -1,177 +1,54 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { 
-  FaFlask, FaChartPie, FaClipboardList, FaPlus, FaBuilding, 
-  FaUserFriends, FaTags, FaSlidersH, FaFileAlt, FaFileInvoiceDollar, 
-  FaTruck, FaCog, FaSignOutAlt, FaSearch, FaBell, FaChevronRight, 
-  FaArrowUp, FaArrowDown, FaRegClock, FaCheck, FaBuilding as FaCompany,
-  FaArrowLeft
-} from 'react-icons/fa';
+import { FaBars, FaSignOutAlt, FaBuilding, FaChevronDown, FaArrowLeft } from 'react-icons/fa';
 import { gsap } from 'gsap';
+import Sidebar from '../../../shared/layouts/Sidebar';
+import { logoutUser } from '../../auth/services/authService';
 import '../../../assets/styles/dashboard.css';
 
 const Dashboard = ({ onNavigate }) => {
-  // Navigation active tab mock state
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showNotificationAlert, setShowNotificationAlert] = useState(false);
 
   // GSAP Refs
   const sidebarRef = useRef(null);
-  const headerRef = useRef(null);
-  const metricsRef = useRef([]);
-  const monthlyChartRef = useRef(null);
-  const donutChartRef = useRef(null);
-  const requestsRef = useRef(null);
-  const sidePanelRef = useRef(null);
-  const quickActionsRef = useRef(null);
+  const contentRef = useRef(null);
 
-  // Chart data and references for animation
-  const gridLineCount = 5;
-  const monthlyData = [
-    { month: 'Jan', received: 110, completed: 85 },
-    { month: 'Feb', received: 130, completed: 90 },
-    { month: 'Mar', received: 120, completed: 95 },
-    { month: 'Apr', received: 150, completed: 110 },
-    { month: 'May', received: 140, completed: 105 },
-    { month: 'Jun', received: 180, completed: 130 },
-    { month: 'Jul', received: 170, completed: 140 },
-    { month: 'Aug', received: 210, completed: 160 },
-    { month: 'Sep', received: 200, completed: 155 },
-    { month: 'Oct', received: 230, completed: 175 },
-    { month: 'Nov', received: 220, completed: 185 },
-    { month: 'Dec', received: 250, completed: 210 }
-  ];
+  // Default Selected Company from image 2
+  const defaultCompany = 'SHREE GANESH INDUSTRIES';
 
-  // SVG Chart Viewbox Dimensions
-  const viewWidth = 600;
-  const viewHeight = 220;
-  const chartPadding = { top: 20, right: 30, bottom: 30, left: 40 };
-  const graphWidth = viewWidth - chartPadding.left - chartPadding.right;
-  const graphHeight = viewHeight - chartPadding.top - chartPadding.bottom;
+  // Toggle Sidebar Collapse
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
+  };
 
-  // Max value for charting scales
-  const maxValue = 300;
-
-  // Calculate SVG Coordinates helper
-  const getX = (index) => chartPadding.left + (index * (graphWidth / (monthlyData.length - 1)));
-  const getY = (val) => chartPadding.top + graphHeight - (val * (graphHeight / maxValue));
-
-  // Generate SVG Line Path
-  const linePathData = monthlyData
-    .map((d, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getY(d.completed)}`)
-    .join(' ');
-
-  // Generate SVG Area Path under Line
-  const areaPathData = `
-    ${linePathData} 
-    L ${getX(monthlyData.length - 1)} ${chartPadding.top + graphHeight} 
-    L ${getX(0)} ${chartPadding.top + graphHeight} Z
-  `;
-
-  // Categories Donut Data
-  const categoriesData = [
-    { name: 'Soil', value: 16, percentage: 32, color: '#3B82F6', offset: 0 },
-    { name: 'Drinking Water', value: 12, percentage: 24, color: '#87CEEB', offset: 32 },
-    { name: 'Surface Water', value: 8, percentage: 16, color: '#A855F7', offset: 56 },
-    { name: 'Ground Water', value: 8, percentage: 16, color: '#F59E0B', offset: 72 },
-    { name: 'Waste Water', value: 4, percentage: 12, color: '#50C878', offset: 88 }
-  ];
-
-  // Total samples
-  const totalSamples = 50;
+  // Logout Handler
+  const handleLogoutClick = () => {
+    logoutUser(); // Clear localStorage tokens and user data
+    if (onNavigate) {
+      onNavigate('landing');
+    }
+  };
 
   // GSAP Entrance Animations
   useEffect(() => {
-    // 1. Sidebar slide-in
-    gsap.fromTo(sidebarRef.current, 
-      { x: -260, opacity: 0 },
-      { x: 0, opacity: 1, duration: 0.8, ease: 'power3.out' }
-    );
-
-    // 2. Header fade-in
-    gsap.fromTo(headerRef.current,
-      { y: -20, opacity: 0 },
-      { y: 0, opacity: 1, duration: 0.6, delay: 0.2, ease: 'power3.out' }
-    );
-
-    // 3. Stagger metric card slides
-    gsap.fromTo(metricsRef.current,
-      { y: 30, opacity: 0 },
-      { y: 0, opacity: 1, duration: 0.6, stagger: 0.1, delay: 0.3, ease: 'power3.out' }
-    );
-
-    // 4. Stagger chart section loads
-    gsap.fromTo([monthlyChartRef.current, donutChartRef.current],
-      { y: 30, opacity: 0 },
-      { y: 0, opacity: 1, duration: 0.7, stagger: 0.15, delay: 0.5, ease: 'power3.out' }
-    );
-
-    // 5. Stagger double-column logs and quick actions
-    gsap.fromTo([requestsRef.current, sidePanelRef.current, quickActionsRef.current],
-      { y: 35, opacity: 0 },
-      { y: 0, opacity: 1, duration: 0.8, stagger: 0.15, delay: 0.7, ease: 'power3.out' }
-    );
-
-    // 6. SVG Chart drawing animations via clipPaths
-    gsap.fromTo('#monthly-grid-clip rect',
-      { width: 0 },
-      { width: viewWidth, duration: 1.2, delay: 0.8, ease: 'power2.inOut' }
-    );
-
-    // Donut stroke animations
-    categoriesData.forEach((_, index) => {
-      const ring = document.querySelector(`.donut-ring-${index}`);
-      if (ring) {
-        const strokeLength = parseFloat(ring.getAttribute('stroke-dasharray'));
-        gsap.fromTo(ring,
-          { strokeDashoffset: strokeLength },
-          { strokeDashoffset: strokeLength * (1 - categoriesData[index].percentage / 100), duration: 1.2, delay: 0.9, ease: 'power3.out' }
-        );
-      }
-    });
-
-    // Count Up Animations for Metric Cards
-    const countConfigs = [
-      { id: '#count-requests', target: 1248, suffix: '' },
-      { id: '#count-pending', target: 45, suffix: '' },
-      { id: '#count-completed', target: 980, suffix: '' },
-      { id: '#count-rejection', target: 1.2, suffix: '%', decimals: 1 }
-    ];
-
-    countConfigs.forEach((cfg) => {
-      const el = document.querySelector(cfg.id);
-      if (el) {
-        const obj = { val: 0 };
-        gsap.to(obj, {
-          val: cfg.target,
-          duration: 1.5,
-          delay: 0.5,
-          ease: 'power2.out',
-          onUpdate: () => {
-            el.textContent = (cfg.decimals ? obj.val.toFixed(cfg.decimals) : Math.floor(obj.val)) + cfg.suffix;
-          }
-        });
-      }
-    });
-
-    // Donut Sample count up
-    const donutEl = document.querySelector('#donut-samples-counter');
-    if (donutEl) {
-      const obj = { val: 0 };
-      gsap.to(obj, {
-        val: totalSamples,
-        duration: 1.5,
-        delay: 0.7,
-        ease: 'power3.out',
-        onUpdate: () => {
-          donutEl.textContent = Math.floor(obj.val);
-        }
-      });
+    if (isSidebarOpen && sidebarRef.current) {
+      gsap.fromTo(sidebarRef.current,
+        { x: -260, opacity: 0 },
+        { x: 0, opacity: 1, duration: 0.5, ease: 'power2.out' }
+      );
     }
+  }, [isSidebarOpen]);
 
-  }, []);
+  useEffect(() => {
+    if (contentRef.current) {
+      gsap.fromTo(contentRef.current,
+        { y: 15, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.5, ease: 'power2.out' }
+      );
+    }
+  }, [activeTab]);
 
-  // Notifications bell alert trigger
   const triggerNotification = () => {
     setShowNotificationAlert(true);
     setTimeout(() => {
@@ -179,875 +56,210 @@ const Dashboard = ({ onNavigate }) => {
     }, 3000);
   };
 
-  // 1. Companies Form
-  const renderCompaniesForm = () => (
-    <div className="lims-form-container">
-      <h2 className="lims-form-title">Register New Client Company</h2>
-      <form className="lims-form" onSubmit={(e) => { e.preventDefault(); triggerNotification(); }}>
-        <div className="lims-form-grid-2col">
-          <div className="lims-form-group">
-            <label className="lims-form-label">Company Name *</label>
-            <input type="text" placeholder="e.g. UltraTech Cement Ltd." className="lims-form-input" required />
-          </div>
-          <div className="lims-form-group">
-            <label className="lims-form-label">Registration / Tax ID *</label>
-            <input type="text" placeholder="e.g. GSTIN-24AAACU1234F" className="lims-form-input" required />
-          </div>
-        </div>
+  // Page titles and subtitles based on active tab
+  const pageMeta = {
+    dashboard: { title: 'Dashboard', subtitle: 'Overview of lab operations' },
+    requests: { title: 'Test Requests', subtitle: 'Overview of test intake workflows' },
+    'new-request': { title: 'New Request', subtitle: 'Start a new test intake request' },
+    companies: { title: 'Companies Master', subtitle: 'Register and manage client companies' },
+    clients: { title: 'Clients Master', subtitle: 'Manage client contacts and representatives' },
+    categories: { title: 'Categories Master', subtitle: 'Manage diagnostic and testing categories' },
+    parameters: { title: 'Parameters Master', subtitle: 'Configure chemical and physical analysis parameters' },
+    reports: { title: 'Reports', subtitle: 'Generate and manage pathology reports' },
+    invoices: { title: 'Invoices', subtitle: 'Manage billing records and invoices' },
+    dispatch: { title: 'Dispatch', subtitle: 'Track physical and digital report dispatch' },
+    settings: { title: 'Settings', subtitle: 'Configure laboratory system preferences' },
+  };
 
-        <div className="lims-form-grid-2col">
-          <div className="lims-form-group">
-            <label className="lims-form-label">Contact Person Name *</label>
-            <input type="text" placeholder="e.g. Rajesh Patel" className="lims-form-input" required />
-          </div>
-          <div className="lims-form-group">
-            <label className="lims-form-label">Industry Type *</label>
-            <select className="lims-form-select" required>
-              <option value="">Select industry type</option>
-              <option value="cement">Cement / Construction</option>
-              <option value="chemicals">Chemicals & Pesticides</option>
-              <option value="water">Municipal Water Supply</option>
-              <option value="pharmaceuticals">Pharmaceuticals</option>
-              <option value="diagnostics">Diagnostics & Medical</option>
-              <option value="food">Food & Beverages</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="lims-form-grid-2col">
-          <div className="lims-form-group">
-            <label className="lims-form-label">Contact Email *</label>
-            <input type="email" placeholder="e.g. contact@ultratech.com" className="lims-form-input" required />
-          </div>
-          <div className="lims-form-group">
-            <label className="lims-form-label">Contact Phone *</label>
-            <input type="tel" placeholder="e.g. +91 98765 43210" className="lims-form-input" required />
-          </div>
-        </div>
-
-        <div className="lims-form-group">
-          <label className="lims-form-label">Billing Address *</label>
-          <textarea placeholder="Enter complete business billing address..." className="lims-form-textarea" required></textarea>
-        </div>
-
-        <div className="lims-form-actions">
-          <button type="submit" className="lims-form-btn-submit">Register Company</button>
-          <button type="button" className="lims-form-btn-cancel" onClick={() => setActiveTab('dashboard')}>Cancel</button>
-        </div>
-      </form>
-    </div>
-  );
-
-  // 2. Clients Form
-  const renderClientsForm = () => (
-    <div className="lims-form-container">
-      <h2 className="lims-form-title">Add Client Representative</h2>
-      <form className="lims-form" onSubmit={(e) => { e.preventDefault(); triggerNotification(); }}>
-        <div className="lims-form-grid-2col">
-          <div className="lims-form-group">
-            <label className="lims-form-label">Full Name *</label>
-            <input type="text" placeholder="e.g. Aarav Shah" className="lims-form-input" required />
-          </div>
-          <div className="lims-form-group">
-            <label className="lims-form-label">Designation / Role *</label>
-            <input type="text" placeholder="e.g. Quality Assurance Lead" className="lims-form-input" required />
-          </div>
-        </div>
-
-        <div className="lims-form-grid-2col">
-          <div className="lims-form-group">
-            <label className="lims-form-label">Associated Company *</label>
-            <select className="lims-form-select" required>
-              <option value="">Select associated company</option>
-              <option value="1">UltraTech Cement Ltd.</option>
-              <option value="2">Tata Chemicals Ltd.</option>
-              <option value="3">ABC Industries Pvt. Ltd.</option>
-              <option value="4">Jagnath Municipal Corp.</option>
-            </select>
-          </div>
-          <div className="lims-form-group">
-            <label className="lims-form-label">Status *</label>
-            <select className="lims-form-select" required>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="lims-form-grid-2col">
-          <div className="lims-form-group">
-            <label className="lims-form-label">Email Address *</label>
-            <input type="email" placeholder="e.g. aarav.shah@company.com" className="lims-form-input" required />
-          </div>
-          <div className="lims-form-group">
-            <label className="lims-form-label">Phone Number *</label>
-            <input type="tel" placeholder="e.g. +91 91234 56789" className="lims-form-input" required />
-          </div>
-        </div>
-
-        <div className="lims-form-actions">
-          <button type="submit" className="lims-form-btn-submit">Add Client</button>
-          <button type="button" className="lims-form-btn-cancel" onClick={() => setActiveTab('dashboard')}>Cancel</button>
-        </div>
-      </form>
-    </div>
-  );
-
-  // 3. Categories Form
-  const renderCategoriesForm = () => (
-    <div className="lims-form-container">
-      <h2 className="lims-form-title">Create Test Category</h2>
-      <form className="lims-form" onSubmit={(e) => { e.preventDefault(); triggerNotification(); }}>
-        <div className="lims-form-grid-2col">
-          <div className="lims-form-group">
-            <label className="lims-form-label">Category Name *</label>
-            <input type="text" placeholder="e.g. Drinking Water" className="lims-form-input" required />
-          </div>
-          <div className="lims-form-group">
-            <label className="lims-form-label">Category Code *</label>
-            <input type="text" placeholder="e.g. CAT-DW" className="lims-form-input" required />
-          </div>
-        </div>
-
-        <div className="lims-form-grid-2col">
-          <div className="lims-form-group">
-            <label className="lims-form-label">Laboratory Department *</label>
-            <select className="lims-form-select" required>
-              <option value="">Select department</option>
-              <option value="microbiology">Microbiology Lab</option>
-              <option value="chemical">Chemical Analysis Lab</option>
-              <option value="heavy-metals">Heavy Metals Diagnostics</option>
-              <option value="organic">Organic Compounds</option>
-            </select>
-          </div>
-          <div className="lims-form-group">
-            <label className="lims-form-label">Status *</label>
-            <select className="lims-form-select" required>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="lims-form-group">
-          <label className="lims-form-label">Description / Scope *</label>
-          <textarea placeholder="Describe the testing parameters and methodologies covered under this category..." className="lims-form-textarea" required></textarea>
-        </div>
-
-        <div className="lims-form-actions">
-          <button type="submit" className="lims-form-btn-submit">Create Category</button>
-          <button type="button" className="lims-form-btn-cancel" onClick={() => setActiveTab('dashboard')}>Cancel</button>
-        </div>
-      </form>
-    </div>
-  );
-
-  // 4. Parameters Form
-  const renderParametersForm = () => (
-    <div className="lims-form-container">
-      <h2 className="lims-form-title">Configure Testing Parameter</h2>
-      <form className="lims-form" onSubmit={(e) => { e.preventDefault(); triggerNotification(); }}>
-        <div className="lims-form-grid-2col">
-          <div className="lims-form-group">
-            <label className="lims-form-label">Parameter Name *</label>
-            <input type="text" placeholder="e.g. pH Value" className="lims-form-input" required />
-          </div>
-          <div className="lims-form-group">
-            <label className="lims-form-label">Parameter Code / Symbol *</label>
-            <input type="text" placeholder="e.g. PAR-PH" className="lims-form-input" required />
-          </div>
-        </div>
-
-        <div className="lims-form-grid-2col">
-          <div className="lims-form-group">
-            <label className="lims-form-label">Unit of Measure (UOM) *</label>
-            <input type="text" placeholder="e.g. mg/L, ppm, pH Unit" className="lims-form-input" required />
-          </div>
-          <div className="lims-form-group">
-            <label className="lims-form-label">Test Category *</label>
-            <select className="lims-form-select" required>
-              <option value="">Select test category</option>
-              <option value="soil">Soil</option>
-              <option value="drinking-water">Drinking Water</option>
-              <option value="waste-water">Waste Water</option>
-              <option value="surface-water">Surface Water</option>
-              <option value="ground-water">Ground Water</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="lims-form-grid-2col">
-          <div className="lims-form-group">
-            <label className="lims-form-label">Permissible Limit (Min) *</label>
-            <input type="number" step="any" placeholder="e.g. 6.5" className="lims-form-input" required />
-          </div>
-          <div className="lims-form-group">
-            <label className="lims-form-label">Permissible Limit (Max) *</label>
-            <input type="number" step="any" placeholder="e.g. 8.5" className="lims-form-input" required />
-          </div>
-        </div>
-
-        <div className="lims-form-group">
-          <label className="lims-form-label">Reference Testing Standard *</label>
-          <input type="text" placeholder="e.g. IS 3025 (Part 11) : 1983" className="lims-form-input" required />
-        </div>
-
-        <div className="lims-form-actions">
-          <button type="submit" className="lims-form-btn-submit">Add Parameter</button>
-          <button type="button" className="lims-form-btn-cancel" onClick={() => setActiveTab('dashboard')}>Cancel</button>
-        </div>
-      </form>
-    </div>
-  );
-
-  // 5. New Test Request Form
-  const renderNewRequestForm = () => (
-    <div className="lims-form-container">
-      <h2 className="lims-form-title">Create New Laboratory Test Request</h2>
-      <form className="lims-form" onSubmit={(e) => { e.preventDefault(); triggerNotification(); }}>
-        <div className="lims-form-grid-2col">
-          <div className="lims-form-group">
-            <label className="lims-form-label">Select Company *</label>
-            <select className="lims-form-select" required>
-              <option value="">Select client company</option>
-              <option value="ultratech">UltraTech Cement Ltd.</option>
-              <option value="tata">Tata Chemicals Ltd.</option>
-              <option value="abc">ABC Industries Pvt. Ltd.</option>
-            </select>
-          </div>
-          <div className="lims-form-group">
-            <label className="lims-form-label">Client Representative *</label>
-            <select className="lims-form-select" required>
-              <option value="">Select contact representative</option>
-              <option value="rajesh">Rajesh Patel</option>
-              <option value="aarav">Aarav Shah</option>
-              <option value="vikram">Vikram Solanki</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="lims-form-grid-2col">
-          <div className="lims-form-group">
-            <label className="lims-form-label">Sample Category *</label>
-            <select className="lims-form-select" required>
-              <option value="">Select test category</option>
-              <option value="soil">Soil</option>
-              <option value="drinking-water">Drinking Water</option>
-              <option value="waste-water">Waste Water</option>
-              <option value="surface-water">Surface Water</option>
-              <option value="ground-water">Ground Water</option>
-            </select>
-          </div>
-          <div className="lims-form-group">
-            <label className="lims-form-label">Collection Date *</label>
-            <input type="date" className="lims-form-input" required defaultValue={new Date().toISOString().split('T')[0]} />
-          </div>
-        </div>
-
-        <div className="lims-form-group">
-          <label className="lims-form-label">Parameters checklist (Select all applicable) *</label>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', padding: '16px', background: 'var(--bg-soft)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
-            {['pH Value', 'Turbidity', 'TDS (Total Dissolved Solids)', 'Fluoride Count', 'Chloride Count', 'Nitrate Level', 'Sulphate Level', 'Hardness (CaCO3)', 'Coliform Bacteria'].map((p) => (
-              <label key={p} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-dark)', cursor: 'pointer' }}>
-                <input type="checkbox" style={{ accentColor: 'var(--primary)' }} />
-                <span>{p}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <div className="lims-form-group">
-          <label className="lims-form-label">Additional Instructions / Sample Condition</label>
-          <textarea placeholder="e.g. Sample collected in sterile 1L container, refrigerated at 4°C during transport..." className="lims-form-textarea"></textarea>
-        </div>
-
-        <div className="lims-form-actions">
-          <button type="submit" className="lims-form-btn-submit">Submit Request</button>
-          <button type="button" className="lims-form-btn-cancel" onClick={() => setActiveTab('dashboard')}>Cancel</button>
-        </div>
-      </form>
-    </div>
-  );
+  const { title, subtitle } = pageMeta[activeTab] || pageMeta.dashboard;
 
   return (
-    <div className="dashboard-container">
-      {/* 1. Sidebar Menu Component */}
-      <aside ref={sidebarRef} className="dashboard-sidebar">
-        <div className="sidebar-nav-container">
-          <div className="sidebar-brand">
-            <div className="brand-icon-wrapper">
-              <FaFlask />
-            </div>
-            <div className="brand-text">
-              <span className="brand-title">Jagnath Lab</span>
-              <span className="brand-subtitle">TECHNOLOGIES - LIMS</span>
-            </div>
+    <div className="dashboard-container" style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden' }}>
+      
+      {/* Styles Injection for Header & Accordion Sidebar Layout */}
+      <style>{`
+        .app-top-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          height: 64px;
+          background-color: #ffffff;
+          border-bottom: 1px solid #e2e8f0;
+          padding: 0 1.5rem;
+          flex-shrink: 0;
+          width: 100%;
+        }
+        .header-left-group {
+          display: flex;
+          align-items: center;
+        }
+        .sidebar-toggle-trigger {
+          background: none;
+          border: none;
+          color: #475569;
+          font-size: 1.25rem;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0.5rem;
+          border-radius: 6px;
+          transition: background-color 0.2s;
+        }
+        .sidebar-toggle-trigger:hover {
+          background-color: #f1f5f9;
+        }
+        .header-right-group {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+        }
+        .header-company-dropdown {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          background-color: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
+          padding: 0.5rem 1rem;
+          color: #0f172a;
+          font-weight: 700;
+          font-size: 0.85rem;
+          cursor: pointer;
+          transition: background-color 0.2s;
+        }
+        .header-company-dropdown:hover {
+          background-color: #f1f5f9;
+        }
+        .header-company-icon {
+          color: #22c55e;
+          font-size: 0.95rem;
+        }
+        .header-logout-button {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          background-color: #ffffff;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
+          padding: 0.5rem 1rem;
+          color: #ef4444;
+          font-weight: 600;
+          font-size: 0.85rem;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .header-logout-button:hover {
+          background-color: #fef2f2;
+          border-color: #fca5a5;
+        }
+        .dashboard-main-area {
+          flex-grow: 1;
+          display: flex;
+          flex-direction: column;
+          height: 100vh;
+          overflow: hidden;
+          background-color: #f8fafc;
+        }
+        .dashboard-content-scroll {
+          flex-grow: 1;
+          overflow-y: auto;
+          padding: 2rem;
+          display: flex;
+          flex-direction: column;
+          gap: 1.5rem;
+        }
+      `}</style>
+
+      {/* Accordion Sidebar (Full Height on Left) */}
+      <Sidebar
+        sidebarRef={sidebarRef}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        onNewRequest={() => {
+          triggerNotification();
+          setActiveTab('new-request');
+        }}
+        isOpen={isSidebarOpen}
+      />
+
+      {/* Main Content Area on Right */}
+      <div className="dashboard-main-area">
+        {/* Top Header Bar */}
+        <header className="app-top-header">
+          <div className="header-left-group">
+            {/* Hamburger Sidebar Trigger */}
+            <button className="sidebar-toggle-trigger" onClick={toggleSidebar} title="Toggle Sidebar">
+              <FaBars />
+            </button>
           </div>
 
-          <nav className="sidebar-menu">
-            <div className="menu-group">
-              <div className="menu-label">Overview</div>
-              <div 
-                className={`menu-item ${activeTab === 'dashboard' ? 'active' : ''}`}
-                onClick={() => setActiveTab('dashboard')}
-              >
-                <div className="menu-item-left">
-                  <FaChartPie className="menu-icon" />
-                  <span>Dashboard</span>
-                </div>
-              </div>
+          <div className="header-right-group">
+            {/* Default Selected Company Dropdown */}
+            <div className="header-company-dropdown">
+              <FaBuilding className="header-company-icon" />
+              <span>{defaultCompany}</span>
+              <FaChevronDown style={{ fontSize: '0.75rem', color: '#64748b' }} />
             </div>
 
-            <div className="menu-group">
-              <div className="menu-label">Workflow</div>
-              <div 
-                className={`menu-item ${activeTab === 'requests' ? 'active' : ''}`}
-                onClick={() => setActiveTab('requests')}
-              >
-                <div className="menu-item-left">
-                  <FaClipboardList className="menu-icon" />
-                  <span>Test Requests</span>
-                </div>
-                <span className="badge-count">50</span>
-              </div>
-              <div 
-                className={`menu-item ${activeTab === 'new-request' ? 'active' : ''}`}
-                onClick={() => {
-                  triggerNotification();
-                  setActiveTab('new-request');
+            {/* Logout Button */}
+            <button className="header-logout-button" onClick={handleLogoutClick} title="Logout Session">
+              <FaSignOutAlt />
+              <span>Logout</span>
+            </button>
+          </div>
+        </header>
+
+        {/* Scrollable Page Content Area */}
+        <div className="dashboard-content-scroll">
+          
+          {/* Title Block */}
+          <div className="header-title-area" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h2 className="dashboard-heading" style={{ margin: 0, fontSize: '1.65rem' }}>{title}</h2>
+              <p className="dashboard-subheading" style={{ margin: '0.25rem 0 0 0', fontSize: '0.875rem' }}>{subtitle}</p>
+            </div>
+
+            {activeTab !== 'dashboard' && (
+              <button
+                className="header-btn btn-secondary"
+                onClick={() => setActiveTab('dashboard')}
+                style={{
+                  backgroundColor: 'transparent',
+                  border: '1px solid var(--border-color)',
+                  color: 'var(--text-light)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '0.85rem',
+                  fontWeight: 600
                 }}
               >
-                <div className="menu-item-left">
-                  <FaPlus className="menu-icon" />
-                  <span>New Request</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="menu-group">
-              <div className="menu-label">Masters</div>
-              {['Companies', 'Clients', 'Categories', 'Parameters'].map((name) => {
-                const tabKey = name.toLowerCase();
-                const iconMap = {
-                  companies: <FaBuilding className="menu-icon" />,
-                  clients: <FaUserFriends className="menu-icon" />,
-                  categories: <FaTags className="menu-icon" />,
-                  parameters: <FaSlidersH className="menu-icon" />
-                };
-                return (
-                  <div 
-                    key={name}
-                    className={`menu-item ${activeTab === tabKey ? 'active' : ''}`}
-                    onClick={() => setActiveTab(tabKey)}
-                  >
-                    <div className="menu-item-left">
-                      {iconMap[tabKey]}
-                      <span>{name}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="menu-group">
-              <div className="menu-label">Reports</div>
-              {['Reports', 'Invoices', 'Dispatch', 'Settings'].map((name) => {
-                const tabKey = name.toLowerCase();
-                const iconMap = {
-                  reports: <FaFileAlt className="menu-icon" />,
-                  invoices: <FaFileInvoiceDollar className="menu-icon" />,
-                  dispatch: <FaTruck className="menu-icon" />,
-                  settings: <FaCog className="menu-icon" />
-                };
-                return (
-                  <div 
-                    key={name}
-                    className={`menu-item ${activeTab === tabKey ? 'active' : ''}`}
-                    onClick={() => setActiveTab(tabKey)}
-                  >
-                    <div className="menu-item-left">
-                      {iconMap[tabKey]}
-                      <span>{name}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </nav>
-        </div>
-
-        {/* User profile with Sign Out */}
-        <div className="sidebar-profile">
-          <div className="profile-left">
-            <div className="profile-avatar">SV</div>
-            <div className="profile-info">
-              <span className="profile-name">Dr. Sanjay Vora</span>
-              <span className="profile-role">Lab Administrator</span>
-            </div>
-          </div>
-          <button 
-            className="profile-logout-btn" 
-            onClick={() => onNavigate && onNavigate('landing')}
-            title="Log Out"
-          >
-            <FaSignOutAlt />
-          </button>
-        </div>
-      </aside>
-
-      {/* 2. Main Dashboard Panel */}
-      <main className="dashboard-main">
-        {/* Header */}
-        <header ref={headerRef} className="dashboard-header">
-          <div className="header-title-area">
-            <h1 className="dashboard-heading">
-              {activeTab === 'dashboard' && 'Dashboard'}
-              {activeTab === 'new-request' && 'New Request'}
-              {activeTab === 'companies' && 'Companies Master'}
-              {activeTab === 'clients' && 'Clients Master'}
-              {activeTab === 'categories' && 'Categories Master'}
-              {activeTab === 'parameters' && 'Parameters Master'}
-              {activeTab === 'requests' && 'Test Requests'}
-              {activeTab === 'reports' && 'Reports'}
-              {activeTab === 'invoices' && 'Invoices'}
-              {activeTab === 'dispatch' && 'Dispatch'}
-              {activeTab === 'settings' && 'Settings'}
-            </h1>
-            <p className="dashboard-subheading">
-              {activeTab === 'dashboard' && 'Overview of lab operations'}
-              {activeTab === 'new-request' && 'Start a new test intake request'}
-              {activeTab === 'companies' && 'Register and manage client companies'}
-              {activeTab === 'clients' && 'Manage client contacts and representatives'}
-              {activeTab === 'categories' && 'Manage diagnostic and testing categories'}
-              {activeTab === 'parameters' && 'Configure chemical and physical analysis parameters'}
-              {activeTab === 'requests' && 'Overview of test intake workflows'}
-              {activeTab === 'reports' && 'Generate and manage pathology reports'}
-              {activeTab === 'invoices' && 'Manage billing records and invoices'}
-              {activeTab === 'dispatch' && 'Track physical and digital report dispatch'}
-              {activeTab === 'settings' && 'Configure laboratory system preferences'}
-            </p>
-          </div>
-
-          <div className="header-actions">
-            {activeTab === 'dashboard' ? (
-              <>
-                {/* Search Bar */}
-                <div className="search-bar-wrapper">
-                  <FaSearch className="search-bar-icon" />
-                  <input 
-                    type="text" 
-                    className="search-bar-input" 
-                    placeholder="Search requests, clients, TR number..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                </div>
-
-                {/* Notification bell */}
-                <button className="notification-bell-btn" onClick={triggerNotification}>
-                  <FaBell />
-                  <span className="bell-badge"></span>
-                </button>
-
-                {/* CTA action */}
-                <button className="header-btn" onClick={() => setActiveTab('new-request')}>
-                  <FaPlus />
-                  <span>New Request</span>
-                </button>
-              </>
-            ) : (
-              <button className="header-btn btn-secondary" onClick={() => setActiveTab('dashboard')} style={{ backgroundColor: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-light)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <FaArrowLeft />
                 <span>Back to Dashboard</span>
               </button>
             )}
           </div>
-        </header>
 
-        {showNotificationAlert && (
-          <div className="form-alert form-alert-success animate-fadeIn" style={{ marginBottom: 0 }}>
-            <span>Demo Triggered: action has been captured!</span>
+          {showNotificationAlert && (
+            <div className="form-alert form-alert-success animate-fadeIn" style={{ marginBottom: 0 }}>
+              <span>Action triggered successfully!</span>
+            </div>
+          )}
+
+          {/* Inner Route Component Area */}
+          <div ref={contentRef} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', minHeight: '350px', padding: '1.5rem' }}>
+            <p style={{ color: '#64748b', fontSize: '0.9rem', textAlign: 'center', marginTop: '100px' }}>
+              Content for <strong>{title}</strong> page will render here.
+            </p>
           </div>
-        )}
 
-        {activeTab === 'dashboard' ? (
-          <>
-            {/* 3. Metrics Row Cards */}
-            <section className="metrics-grid">
-              {[
-                { label: 'Total Requests', id: 'count-requests', trend: '+12.4%', up: true, foot: 'vs yesterday', color: 'var(--primary)' },
-                { label: 'Pending Verification', id: 'count-pending', trend: '-4.2%', up: true, foot: 'awaiting approval', color: '#F59E0B' },
-                { label: 'Completed Tests', id: 'count-completed', trend: '+8.1%', up: true, foot: 'this month', color: 'var(--secondary)' },
-                { label: 'Rejection Rate', id: 'count-rejection', trend: '+18.2%', up: false, foot: 'average 1.5%', color: '#EF4444' }
-              ].map((item, idx) => (
-                <div 
-                  key={item.label}
-                  ref={(el) => (metricsRef.current[idx] = el)}
-                  className="metric-card"
-                >
-                  <div className="metric-card-header">
-                    <span className="metric-label">{item.label}</span>
-                    <span className={`metric-trend ${item.up ? 'up' : 'down'}`}>
-                      {item.up ? <FaArrowUp /> : <FaArrowDown />}
-                      {item.trend}
-                    </span>
-                  </div>
-                  <span className="metric-val" id={item.id}>0</span>
-                  <span className="metric-footer">{item.foot}</span>
-                  <div className="metric-card-accent" style={{ backgroundColor: item.color }}></div>
-                </div>
-              ))}
-            </section>
+        </div>
+      </div>
 
-            {/* 4. Charts Section */}
-            <section className="charts-grid">
-              {/* Monthly Trend Chart */}
-              <div ref={monthlyChartRef} className="chart-card">
-                <div className="chart-header">
-                  <div className="chart-title-group">
-                    <h3 className="chart-title">Monthly Sample Trend</h3>
-                    <p className="chart-subtitle">Samples received vs. tests completed</p>
-                  </div>
-                  <span className="chart-filter-pill">2026 YTD</span>
-                </div>
-
-                <div className="chart-body">
-                  <svg className="chart-svg-container" viewBox={`0 0 ${viewWidth} ${viewHeight}`} preserveAspectRatio="none">
-                    <defs>
-                      {/* Gradients */}
-                      <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="var(--secondary-light)" stopOpacity="0.85" />
-                        <stop offset="100%" stopColor="var(--secondary)" stopOpacity="0.15" />
-                      </linearGradient>
-                      
-                      <linearGradient id="lineGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.4" />
-                        <stop offset="100%" stopColor="var(--primary-dark)" stopOpacity="0" />
-                      </linearGradient>
-
-                      {/* Clip Path for Entrance Animation */}
-                      <clipPath id="monthly-grid-clip">
-                        <rect x="0" y="0" width="0" height={viewHeight} />
-                      </clipPath>
-                    </defs>
-
-                    {/* Horizontal Grid lines */}
-                    {Array.from({ length: gridLineCount }).map((_, i) => {
-                      const yVal = chartPadding.top + (i * (graphHeight / (gridLineCount - 1)));
-                      return (
-                        <line 
-                          key={i} 
-                          x1={chartPadding.left} 
-                          y1={yVal} 
-                          x2={viewWidth - chartPadding.right} 
-                          y2={yVal} 
-                          className="chart-grid-line"
-                        />
-                      );
-                    })}
-
-                    {/* Group containing clipping animation */}
-                    <g clipPath="url(#monthly-grid-clip)">
-                      {/* Bars Series: Samples Received */}
-                      {monthlyData.map((d, i) => {
-                        const barWidth = 14;
-                        const xCoord = getX(i) - (barWidth / 2);
-                        const yCoord = getY(d.received);
-                        const barHeight = chartPadding.top + graphHeight - yCoord;
-                        return (
-                          <rect
-                            key={i}
-                            x={xCoord}
-                            y={yCoord}
-                            width={barWidth}
-                            height={barHeight}
-                            rx="3"
-                            fill="url(#barGradient)"
-                            className="chart-bar-rect"
-                          />
-                        );
-                      })}
-
-                      {/* Gradient Area under line */}
-                      <path d={areaPathData} fill="url(#lineGrad)" />
-
-                      {/* Line Series: Tests Completed */}
-                      <path d={linePathData} className="chart-trend-line" />
-
-                      {/* Dots on line intersections */}
-                      {monthlyData.map((d, i) => (
-                        <circle
-                          key={i}
-                          cx={getX(i)}
-                          cy={getY(d.completed)}
-                          r="4"
-                          className="chart-line-point"
-                          title={`${d.month}: ${d.completed} completed`}
-                        />
-                      ))}
-                    </g>
-
-                    {/* X Axis Labels */}
-                    {monthlyData.map((d, i) => (
-                      <text
-                        key={i}
-                        x={getX(i)}
-                        y={viewHeight - 8}
-                        textAnchor="middle"
-                        fill="var(--text-light)"
-                        fontSize="9px"
-                        fontWeight="600"
-                        fontFamily="var(--font-body)"
-                      >
-                        {d.month}
-                      </text>
-                    ))}
-                  </svg>
-                </div>
-
-                <div className="chart-legend">
-                  <div className="legend-item">
-                    <span className="legend-dot" style={{ backgroundColor: 'var(--secondary-light)' }}></span>
-                    <span>Samples received</span>
-                  </div>
-                  <div className="legend-item">
-                    <span className="legend-dot" style={{ backgroundColor: 'var(--primary-dark)' }}></span>
-                    <span>Tests completed</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Top Categories Chart */}
-              <div ref={donutChartRef} className="chart-card">
-                <div className="chart-header">
-                  <div className="chart-title-group">
-                    <h3 className="chart-title">Top Categories</h3>
-                    <p className="chart-subtitle">By request volume</p>
-                  </div>
-                </div>
-
-                <div className="chart-body">
-                  <div className="donut-chart-wrapper">
-                    {/* SVG Donut */}
-                    <div className="donut-svg-wrapper">
-                      <svg width="100%" height="100%" viewBox="0 0 160 160">
-                        <circle 
-                          cx="80" 
-                          cy="80" 
-                          r="65" 
-                          fill="none" 
-                          stroke="#E2E8F0" 
-                          strokeWidth="15" 
-                        />
-                        {categoriesData.map((cat, idx) => {
-                          const radius = 65;
-                          const circumference = 2 * Math.PI * radius;
-                          const strokeDash = circumference;
-                          const rotation = (cat.offset / 100) * 360 - 90;
-
-                          return (
-                            <circle
-                              key={cat.name}
-                              cx="80"
-                              cy="80"
-                              r={radius}
-                              fill="none"
-                              stroke={cat.color}
-                              strokeWidth="16"
-                              strokeDasharray={strokeDash}
-                              strokeDashoffset={strokeDash}
-                              transform={`rotate(${rotation} 80 80)`}
-                              className={`donut-ring-${idx}`}
-                              strokeLinecap="round"
-                            />
-                          );
-                        })}
-                      </svg>
-                      <div className="donut-text-center">
-                        <span className="donut-val" id="donut-samples-counter">0</span>
-                        <span className="donut-label">samples</span>
-                      </div>
-                    </div>
-
-                    {/* Donut Legend Lists */}
-                    <div className="donut-legend-list">
-                      {categoriesData.map((cat) => (
-                        <div key={cat.name} className="donut-legend-item">
-                          <div className="donut-legend-left">
-                            <span className="legend-dot" style={{ backgroundColor: cat.color }}></span>
-                            <span>{cat.name}</span>
-                          </div>
-                          <span className="donut-legend-val">{cat.value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* 5. Logs Grid Column Layout */}
-            <section className="data-grid-section">
-              {/* Left Column: Recent Intake activity */}
-              <div ref={requestsRef} className="data-card">
-                <div className="data-header">
-                  <div className="data-title-area">
-                    <h3 className="data-title">Recent Test Requests</h3>
-                    <p className="data-subtitle">Latest intake activity</p>
-                  </div>
-                  <a href="#requests" className="data-header-link" onClick={(e) => { e.preventDefault(); setActiveTab('requests'); }}>
-                    View all <FaChevronRight style={{ fontSize: '0.7rem' }} />
-                  </a>
-                </div>
-
-                <div className="requests-list">
-                  {[
-                    { tr: 'TR-2026-000245', cat: 'Soil', comp: 'UltraTech Cement Ltd.', badge: 'UC', color: '#10B981', status: 'In Progress', cls: 'in-progress' },
-                    { tr: 'TR-2026-000244', cat: 'Drinking Water', comp: 'Tata Chemicals Ltd.', badge: 'TC', color: '#0EA5E9', status: 'Pending Testing', cls: 'pending-testing' },
-                    { tr: 'TR-2026-000243', cat: 'Waste Water', comp: 'ABC Industries Pvt. Ltd.', badge: 'AI', color: '#6366F1', status: 'In Progress', cls: 'in-progress' },
-                    { tr: 'TR-2026-000242', cat: 'Drinking Water', comp: 'Jagnath Municipal Corp.', badge: 'JM', color: '#EC4899', status: 'In Progress', cls: 'in-progress' },
-                    { tr: 'TR-2026-000241', cat: 'Surface Water', comp: 'ABC Industries Pvt. Ltd.', badge: 'AI', color: '#F43F5E', status: 'Pending Testing', cls: 'pending-testing' },
-                    { tr: 'TR-2026-000240', cat: 'Ground Water', comp: 'Tata Chemicals Ltd.', badge: 'TC', color: '#10B981', status: 'In Progress', cls: 'in-progress' }
-                  ].map((row) => (
-                    <div key={row.tr} className="request-row">
-                      <div className="request-info">
-                        <div className="request-badge-avatar" style={{ backgroundColor: row.color }}>
-                          {row.badge}
-                        </div>
-                        <div className="request-details">
-                          <span className="request-id-cat">{row.tr}<span>• {row.cat}</span></span>
-                          <span className="request-company">{row.comp}</span>
-                        </div>
-                      </div>
-                      <span className={`request-status-badge ${row.cls}`}>
-                        <span className="status-dot"></span>
-                        {row.status}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Right Column: Approvals and Timelines */}
-              <div ref={sidePanelRef} className="side-card-split">
-                {/* Pending Approvals */}
-                <div className="data-card">
-                  <div className="data-header">
-                    <div className="data-title-area">
-                      <h3 className="data-title">Pending Approvals</h3>
-                      <p className="data-subtitle">Awaiting verification</p>
-                    </div>
-                  </div>
-
-                  <div className="approvals-list">
-                    {[
-                      { tr: 'TR-2026-000238', meta: 'Rajesh Patel • 3 params' },
-                      { tr: 'TR-2026-000234', meta: 'Vikram Solanki • 4 params' },
-                      { tr: 'TR-2026-000232', meta: 'Ketan Desai • 5 params' },
-                      { tr: 'TR-2026-000231', meta: 'Ketan Desai • 3 params' }
-                    ].map((row) => (
-                      <div key={row.tr} className="approval-row">
-                        <div className="approval-info">
-                          <div className="approval-icon-clock">
-                            <FaRegClock />
-                          </div>
-                          <div className="approval-details">
-                            <span className="approval-id">{row.tr}</span>
-                            <span className="approval-meta">{row.meta}</span>
-                          </div>
-                        </div>
-                        <button className="review-btn" onClick={triggerNotification}>
-                          Review
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Activity Timeline */}
-                <div className="data-card">
-                  <div className="data-header">
-                    <div className="data-title-area">
-                      <h3 className="data-title">Activity Timeline</h3>
-                    </div>
-                  </div>
-
-                  <div className="timeline-list">
-                    <div className="timeline-line"></div>
-                    {[
-                      { bold: 'Ritu Bhatt', text: ' completed testing for ', target: 'TR-2026-000242', time: '12 min ago' },
-                      { bold: 'Report generated', text: ' for ', target: 'TR-2026-000239 — Drinking Water', time: '38 min ago' },
-                      { bold: 'New sample collected', text: ' from ', target: 'Reliance Industries Ltd.', time: '1 hr ago' },
-                      { bold: 'Harsh Mehta', text: ' verified results for 3 parameters', target: '', time: '2 hr ago' },
-                      { bold: 'Invoice INV-2026-0118', text: ' marked overdue', target: '', time: '4 hr ago' },
-                      { bold: 'Dispatch completed', text: ' for ', target: 'TR-2026-000228', time: 'Yesterday' }
-                    ].map((item, index) => (
-                      <div key={index} className="timeline-item">
-                        <div className="timeline-node"></div>
-                        <span className="timeline-desc">
-                          <strong>{item.bold}</strong>{item.text}{item.target && <strong>{item.target}</strong>}
-                        </span>
-                        <span className="timeline-time">{item.time}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* 6. Quick Actions Area */}
-            <section ref={quickActionsRef}>
-              <div className="data-title-area" style={{ marginBottom: '1.25rem' }}>
-                <h3 className="data-title">Quick Actions</h3>
-                <p className="data-subtitle">Jump straight into common workflows</p>
-              </div>
-              <div className="quick-actions-grid">
-                {[
-                  { title: 'New Test Request', sub: 'Start intake wizard', icon: <FaPlus />, bg: 'rgba(80, 200, 120, 0.1)', color: 'var(--secondary-dark)', action: 'new-request' },
-                  { title: 'Add Company', sub: 'Register new client org', icon: <FaCompany />, bg: 'rgba(135, 206, 235, 0.18)', color: 'var(--primary-dark)', action: 'companies' },
-                  { title: 'Add Parameter', sub: 'Extend test catalog', icon: <FaFlask />, bg: 'rgba(168, 85, 247, 0.1)', color: '#A855F7', action: 'parameters' },
-                  { title: 'Generate Report', sub: 'Pick a completed request', icon: <FaFileAlt />, bg: 'rgba(16, 185, 129, 0.1)', color: '#10B981', action: 'reports' }
-                ].map((act) => (
-                  <div 
-                    key={act.title} 
-                    className="quick-action-card"
-                    onClick={() => {
-                      if (act.action === 'reports') {
-                        triggerNotification();
-                      } else {
-                        setActiveTab(act.action);
-                      }
-                    }}
-                  >
-                    <div className="action-icon-wrapper" style={{ backgroundColor: act.bg, color: act.color }}>
-                      {act.icon}
-                    </div>
-                    <div className="action-details">
-                      <span className="action-title">{act.title}</span>
-                      <span className="action-subtitle">{act.sub}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          </>
-        ) : (
-          <>
-            {activeTab === 'companies' && renderCompaniesForm()}
-            {activeTab === 'clients' && renderClientsForm()}
-            {activeTab === 'categories' && renderCategoriesForm()}
-            {activeTab === 'parameters' && renderParametersForm()}
-            {activeTab === 'new-request' && renderNewRequestForm()}
-            {['requests', 'reports', 'invoices', 'dispatch', 'settings'].includes(activeTab) && (
-              <div className="lims-form-container" style={{ textAlign: 'center', padding: '60px 40px' }}>
-                <h3 style={{ fontSize: '1.5rem', marginBottom: '1rem', color: 'var(--text-dark)' }}>Under Construction</h3>
-                <p style={{ color: 'var(--text-light)', marginBottom: '2rem' }}>The {activeTab} view design will be configured shortly in the master workflow module.</p>
-                <button className="lims-form-btn-submit" onClick={() => setActiveTab('dashboard')}>Back to Dashboard</button>
-              </div>
-            )}
-          </>
-        )}
-      </main>
     </div>
   );
 };
