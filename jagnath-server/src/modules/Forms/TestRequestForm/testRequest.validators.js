@@ -5,13 +5,13 @@
 const Joi = require("joi");
 
 const createTestRequestSchema = Joi.object({
-    companyName: Joi.string().required().messages({
-        "any.required": "Company Name is required.",
-        "string.empty": "Company Name must not be empty."
+    companyId: Joi.string().required().messages({
+        "any.required": "Company ID is required.",
+        "string.empty": "Company ID must not be empty."
     }),
-    clientName: Joi.string().required().messages({
-        "any.required": "Client Name is required.",
-        "string.empty": "Client Name must not be empty."
+    clientId: Joi.string().required().messages({
+        "any.required": "Client ID is required.",
+        "string.empty": "Client ID must not be empty."
     }),
     address: Joi.string().optional().allow("", null),
     email: Joi.string().optional().allow("", null),
@@ -46,11 +46,11 @@ const createTestRequestSchema = Joi.object({
 });
 
 const updateTestRequestSchema = Joi.object({
-    companyName: Joi.string().optional().messages({
-        "string.empty": "Company Name must not be empty."
+    companyId: Joi.string().optional().messages({
+        "string.empty": "Company ID must not be empty."
     }),
-    clientName: Joi.string().optional().messages({
-        "string.empty": "Client Name must not be empty."
+    clientId: Joi.string().optional().messages({
+        "string.empty": "Client ID must not be empty."
     }),
     address: Joi.string().optional().allow("", null),
     email: Joi.string().optional().allow("", null),

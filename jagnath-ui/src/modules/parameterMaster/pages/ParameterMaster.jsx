@@ -46,6 +46,7 @@ const ParameterMaster = () => {
   });
   const [formErrors, setFormErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const [viewMode, setViewMode] = useState('table'); // 'table' or 'cards'
 
   // Trigger Toast helper
   const triggerToast = (message, type = 'success') => {
@@ -289,11 +290,10 @@ const ParameterMaster = () => {
   // CSV Export
   const handleDownloadCSV = () => {
     if (parameters.length === 0) return;
-    const headers = ['Parameter Name', 'Category', 'Company', 'Description', 'Status'];
+    const headers = ['Parameter Name', 'Category', 'Description', 'Status'];
     const rows = parameters.map(p => [
       p.parameterName,
       p.categoryName || 'Unassigned',
-      p.companyName || 'N/A',
       p.description || 'None',
       p.status
     ]);
@@ -313,11 +313,10 @@ const ParameterMaster = () => {
   // Excel Export
   const handleDownloadExcel = () => {
     if (parameters.length === 0) return;
-    const headers = ['Parameter Name', 'Category', 'Company', 'Description', 'Status'];
+    const headers = ['Parameter Name', 'Category', 'Description', 'Status'];
     const rows = parameters.map(p => [
       p.parameterName,
       p.categoryName || 'Unassigned',
-      p.companyName || 'N/A',
       p.description || 'None',
       p.status
     ]);
@@ -348,11 +347,10 @@ const ParameterMaster = () => {
   // Copy to Clipboard
   const handleCopy = () => {
     if (parameters.length === 0) return;
-    const headers = ['Parameter Name', 'Category', 'Company', 'Description', 'Status'];
+    const headers = ['Parameter Name', 'Category', 'Description', 'Status'];
     const rows = parameters.map(p => [
       p.parameterName,
       p.categoryName || 'Unassigned',
-      p.companyName || 'N/A',
       p.description || 'None',
       p.status
     ]);
@@ -366,12 +364,11 @@ const ParameterMaster = () => {
   const handlePrintPDF = () => {
     if (parameters.length === 0) return;
     const printWindow = window.open('', '_blank');
-    const headers = ['Parameter Name', 'Category', 'Company', 'Description', 'Status'];
+    const headers = ['Parameter Name', 'Category', 'Description', 'Status'];
     const rows = parameters.map(p => `
       <tr>
         <td>${p.parameterName}</td>
         <td>${p.categoryName || 'Unassigned'}</td>
-        <td>${p.companyName || 'N/A'}</td>
         <td>${p.description || 'None'}</td>
         <td>${p.status}</td>
       </tr>
@@ -652,15 +649,29 @@ const ParameterMaster = () => {
         </div>
       )}
 
-      {/* Main Table view */}
-      <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+      {/* Main view container */}
+      <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
         
         {/* Filters Row */}
         <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.25rem', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>
             Total Parameters: {totalItems}
           </div>
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: '6px', padding: '0.25rem' }}>
+              <button 
+                onClick={() => setViewMode('table')}
+                style={{ padding: '0.35rem 0.75rem', border: 'none', borderRadius: '4px', cursor: 'pointer', background: viewMode === 'table' ? '#ffffff' : 'transparent', color: viewMode === 'table' ? '#0f172a' : '#64748b', fontWeight: 600, boxShadow: viewMode === 'table' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition: 'all 0.2s' }}
+              >
+                Table
+              </button>
+              <button 
+                onClick={() => setViewMode('cards')}
+                style={{ padding: '0.35rem 0.75rem', border: 'none', borderRadius: '4px', cursor: 'pointer', background: viewMode === 'cards' ? '#ffffff' : 'transparent', color: viewMode === 'cards' ? '#0f172a' : '#64748b', fontWeight: 600, boxShadow: viewMode === 'cards' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition: 'all 0.2s' }}
+              >
+                Cards
+              </button>
+            </div>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -680,7 +691,8 @@ const ParameterMaster = () => {
           </div>
         </div>
 
-        {/* Data Grid Table */}
+        {/* Data Grid Table or Cards */}
+        {viewMode === 'table' ? (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
             <thead>
@@ -689,21 +701,19 @@ const ParameterMaster = () => {
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>PARAMETER NAME</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CATEGORY</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>COMPANY</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>DESCRIPTION</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATUS</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                     Loading parameters...
                   </td>
                 </tr>
               ) : parameters.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                     No parameters found.
                   </td>
                 </tr>
@@ -733,13 +743,14 @@ const ParameterMaster = () => {
                       </button>
                     </td>
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
-                    <td style={{ padding: '0.75rem 1rem', fontWeight: 600, color: '#0f172a' }}>{p.parameterName}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>
+                      <div style={{ fontWeight: 600 }}>{p.parameterName}</div>
+                      <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.25rem', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {p.description || <em style={{ color: '#94a3b8' }}>No description</em>}
+                      </div>
+                    </td>
                     <td style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 500 }}>
                       {p.categoryName || <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '0.85rem' }}>Unassigned</span>}
-                    </td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#475569' }}>{p.companyName || 'N/A'}</td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#64748b', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {p.description || <em style={{ color: '#94a3b8' }}>No description</em>}
                     </td>
                     <td style={{ padding: '0.75rem 1rem' }}>
                       <span 
@@ -765,7 +776,39 @@ const ParameterMaster = () => {
               )}
             </tbody>
           </table>
-        </div>
+        </div>) : (
+          <div style={{ minHeight: '300px' }}>
+            {loading ? (
+              <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>Loading parameters...</div>
+            ) : parameters.length === 0 ? (
+              <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>No parameters found.</div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '1.5rem', alignItems: 'start' }}>
+                {Object.entries(
+                  parameters.reduce((acc, param) => {
+                    const cat = param.categoryName || 'Unassigned';
+                    if (!acc[cat]) acc[cat] = [];
+                    acc[cat].push(param);
+                    return acc;
+                  }, {})
+                ).map(([catName, params]) => (
+                  <div key={catName} style={{ marginBottom: '2rem', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '1.25rem', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                    <h4 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1e293b', marginBottom: '1rem', paddingBottom: '0.5rem', borderBottom: '2px solid #e2e8f0' }}>
+                      {catName} <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: 500, marginLeft: '0.5rem' }}>({params.length})</span>
+                    </h4>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      {params.map((p, idx) => (
+                        <div key={p.id} style={{ display: 'flex', alignItems: 'center', padding: '0.75rem 0', borderBottom: idx !== params.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                          <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.95rem' }}>{p.parameterName}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         
         {/* Pagination Controls */}
         <Pagination 

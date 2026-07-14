@@ -306,6 +306,13 @@ const TestRequestList = () => {
                         <FaEdit size={12} />
                       </button>
                       <button 
+                        onClick={(e) => { e.stopPropagation(); window.open(`#/test-requests/print/${r.id}`, '_blank'); }}
+                        style={{ background: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
+                        title="Print / PDF Preview"
+                      >
+                        <FaFilePdf size={12} />
+                      </button>
+                      <button 
                         onClick={(e) => { e.stopPropagation(); handleDelete(r.id); }}
                         style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                         title="Delete"

@@ -275,10 +275,9 @@ const ClientMaster = () => {
   // CSV Export logic
   const handleDownloadCSV = () => {
     if (clients.length === 0) return;
-    const headers = ['Client Name', 'Company Name', 'Email', 'Contact Number', 'Address', 'City', 'State', 'Status'];
+    const headers = ['Client Name', 'Email', 'Contact Number', 'Address', 'City', 'State', 'Status'];
     const rows = clients.map(c => [
       c.clientName,
-      c.companyName || (c.company ? (c.company.companyName || c.company.company_name) : 'N/A'),
       c.email || 'N/A',
       c.contactNumber,
       c.address,
@@ -302,10 +301,9 @@ const ClientMaster = () => {
   // Excel Export logic
   const handleDownloadExcel = () => {
     if (clients.length === 0) return;
-    const headers = ['Client Name', 'Company Name', 'Email', 'Contact Number', 'Address', 'City', 'State', 'Status'];
+    const headers = ['Client Name', 'Email', 'Contact Number', 'Address', 'City', 'State', 'Status'];
     const rows = clients.map(c => [
       c.clientName,
-      c.companyName || (c.company ? (c.company.companyName || c.company.company_name) : 'N/A'),
       c.email || 'N/A',
       c.contactNumber,
       c.address,
@@ -739,7 +737,6 @@ const ClientMaster = () => {
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ACTIONS</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CLIENT NAME</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>COMPANY</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>EMAIL</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CONTACT</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CITY</th>
@@ -786,7 +783,6 @@ const ClientMaster = () => {
                     </td>
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{client.clientName}</td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.companyName || (client.company ? (client.company.companyName || client.company.company_name) : 'N/A')}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.email || 'N/A'}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.contactNumber}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.city}</td>

@@ -99,7 +99,10 @@ const DashboardLayout = ({ children }) => {
 
   // Sidebar navigation handler
   const handleTabChange = (tabKey) => {
-    const route = tabKey === 'companies' ? '/company' : `/${tabKey}`;
+    let route = `/${tabKey}`;
+    if (tabKey === 'companies') route = '/company';
+    if (tabKey === 'requests') route = '/test-requests';
+    
     navigate(route);
   };
 

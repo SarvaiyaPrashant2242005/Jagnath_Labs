@@ -262,13 +262,11 @@ const CategoryMaster = () => {
     }
   };
 
-  // CSV Export logic
   const handleDownloadCSV = () => {
     if (categories.length === 0) return;
-    const headers = ['Category Name', 'Company Name', 'Description', 'Status'];
+    const headers = ['Category Name', 'Description', 'Status'];
     const rows = categories.map(c => [
       c.name,
-      c.companyName || 'N/A',
       c.description || 'None',
       c.status
     ]);
@@ -285,13 +283,11 @@ const CategoryMaster = () => {
     setShowDownloadDropdown(false);
   };
 
-  // Excel Export logic
   const handleDownloadExcel = () => {
     if (categories.length === 0) return;
-    const headers = ['Category Name', 'Company Name', 'Description', 'Status'];
+    const headers = ['Category Name', 'Description', 'Status'];
     const rows = categories.map(c => [
       c.name,
-      c.companyName || 'N/A',
       c.description || 'None',
       c.status
     ]);
@@ -319,13 +315,11 @@ const CategoryMaster = () => {
     setShowDownloadDropdown(false);
   };
 
-  // Copy to Clipboard logic
   const handleCopy = () => {
     if (categories.length === 0) return;
-    const headers = ['Category Name', 'Company Name', 'Description', 'Status'];
+    const headers = ['Category Name', 'Description', 'Status'];
     const rows = categories.map(c => [
       c.name,
-      c.companyName || 'N/A',
       c.description || 'None',
       c.status
     ]);
@@ -335,14 +329,12 @@ const CategoryMaster = () => {
     setShowDownloadDropdown(false);
   };
 
-  // PDF Print logic
   const handlePrintPDF = () => {
     if (categories.length === 0) return;
     const printWindow = window.open('', '_blank');
     const rows = categories.map(c => `
       <tr>
         <td>${c.name}</td>
-        <td>${c.companyName || 'N/A'}</td>
         <td>${c.description || 'None'}</td>
         <td>${c.status}</td>
       </tr>
@@ -363,7 +355,7 @@ const CategoryMaster = () => {
           <h2>Categories Report</h2>
           <table>
             <thead>
-              <tr><th>Category Name</th><th>Company Name</th><th>Description</th><th>Status</th></tr>
+              <tr><th>Category Name</th><th>Description</th><th>Status</th></tr>
             </thead>
             <tbody>
               ${rows}
@@ -643,21 +635,19 @@ const CategoryMaster = () => {
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ACTIONS</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CATEGORY NAME</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>COMPANY</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>DESCRIPTION</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATUS</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan={4} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                     Loading categories...
                   </td>
                 </tr>
               ) : categories.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan={4} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                     No categories found.
                   </td>
                 </tr>
@@ -687,11 +677,12 @@ const CategoryMaster = () => {
                       </button>
                     </td>
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
-                    <td style={{ padding: '0.75rem 1rem', fontWeight: 600, color: '#0f172a' }}>{category.name}</td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#64748b', maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {category.description || <em style={{ color: '#94a3b8' }}>No description</em>}
+                    <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>
+                      <div style={{ fontWeight: 600 }}>{category.name}</div>
+                      <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.25rem', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {category.description || <em style={{ color: '#94a3b8' }}>No description</em>}
+                      </div>
                     </td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#475569' }}>{category.companyName || 'N/A'}</td>
                     <td style={{ padding: '0.75rem 1rem' }}>
                       <span 
                         onClick={(e) => handleToggleStatus(category, e)}

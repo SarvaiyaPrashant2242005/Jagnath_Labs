@@ -10,6 +10,7 @@ import ParameterMaster from './modules/parameterMaster/pages/ParameterMaster';
 import DashboardLayout from './shared/layouts/DashboardLayout';
 import TestRequestForm from './modules/testRequest/pages/TestRequestForm';
 import TestRequestList from './modules/testRequest/pages/TestRequestList';
+import TestRequestPrint from './modules/testRequest/pages/TestRequestPrint';
 import { getStoredUser } from './modules/auth/services/authService';
 import './assets/styles/index.css';
 
@@ -25,6 +26,19 @@ const ProtectedRoute = ({ children }) => {
   }
 
   return <DashboardLayout>{children}</DashboardLayout>;
+};
+
+// Protected Print Route (No Dashboard Layout)
+const ProtectedPrintRoute = ({ children }) => {
+  const token = localStorage.getItem('accessToken');
+  const user = getStoredUser();
+  const isAuthenticated = !!(token && user);
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
 };
 
 // Redirect Route if already authenticated
@@ -98,9 +112,12 @@ function App() {
         <Route path="/clients" element={<ProtectedRoute><ClientMaster /></ProtectedRoute>} />
         <Route path="/categories" element={<ProtectedRoute><CategoryMaster /></ProtectedRoute>} />
         <Route path="/parameters" element={<ProtectedRoute><ParameterMaster /></ProtectedRoute>} />
-        <Route path="/requests" element={<ProtectedRoute><TestRequestList /></ProtectedRoute>} />
-        <Route path="/new-request" element={<ProtectedRoute><TestRequestForm /></ProtectedRoute>} />
-        <Route path="/requests/edit/:id" element={<ProtectedRoute><TestRequestForm /></ProtectedRoute>} />
+        <Route path="/test-requests" element={<ProtectedRoute><TestRequestList /></ProtectedRoute>} />
+        <Route path="/test-requests/add" element={<ProtectedRoute><TestRequestForm /></ProtectedRoute>} />
+        <Route path="/test-requests/edit/:id" element={<ProtectedRoute><TestRequestForm /></ProtectedRoute>} />
+        
+        {/* Print Route without DashboardLayout */}
+        <Route path="/test-requests/print/:id" element={<ProtectedPrintRoute><TestRequestPrint /></ProtectedPrintRoute>} />
         <Route path="/reports" element={<ProtectedRoute><PlaceholderPage title="Reports Directory" /></ProtectedRoute>} />
         <Route path="/invoices" element={<ProtectedRoute><PlaceholderPage title="Invoices Directory" /></ProtectedRoute>} />
         <Route path="/dispatch" element={<ProtectedRoute><PlaceholderPage title="Dispatch Directory" /></ProtectedRoute>} />

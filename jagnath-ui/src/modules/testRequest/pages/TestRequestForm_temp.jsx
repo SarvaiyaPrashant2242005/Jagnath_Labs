@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiService } from '../../../shared/services/apiService';
 import {
@@ -154,6 +154,11 @@ const TestRequestForm = () => {
       triggerToast('Failed to load initial data', 'error');
     } finally {
       setLoading(false);
+      if (window.location.hash.includes('print=true')) {
+        setTimeout(() => {
+          window.print();
+        }, 500);
+      }
     }
   };
 
@@ -249,7 +254,7 @@ const TestRequestForm = () => {
       }
 
       triggerToast('Test Request saved successfully!', 'success');
-      return savedTrId;
+      return true;
     } catch (err) {
       triggerToast(err.messageToShow || 'Failed to save test request.', 'error');
       return false;
@@ -259,9 +264,11 @@ const TestRequestForm = () => {
   };
 
   const handleSaveAndPrint = async () => {
-    const savedId = await handleSave();
-    if (savedId) {
-      window.open(`#/test-requests/print/${savedId}`, '_blank');
+    const success = await handleSave();
+    if (success) {
+      setTimeout(() => {
+        window.print();
+      }, 500);
     }
   };
 
@@ -301,7 +308,7 @@ const TestRequestForm = () => {
       {/* Title & Top Action bar */}
       <div className="hide-on-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <button onClick={() => navigate('/test-requests')} style={{ background: 'transparent', border: '1px solid #cbd5e1', padding: '0.5rem', borderRadius: '8px', cursor: 'pointer', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <button onClick={() => navigate('/requests')} style={{ background: 'transparent', border: '1px solid #cbd5e1', padding: '0.5rem', borderRadius: '8px', cursor: 'pointer', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <FaArrowLeft />
           </button>
           <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
@@ -492,7 +499,7 @@ const TestRequestForm = () => {
                           <td style={{ padding: '1rem', textAlign: 'center' }}>
                             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                               <div style={{ width: '22px', height: '22px', borderRadius: '6px', border: isChecked ? 'none' : '2px solid #cbd5e1', background: isChecked ? '#22c55e' : 'transparent', display: 'flex', justifyContent: 'center', alignItems: 'center', transition: 'all 0.2s' }}>
-                                {isChecked && <span style={{ color: 'white', fontSize: '14px', fontWeight: 'bold' }}>✓</span>}
+                                {isChecked && <span style={{ color: 'white', fontSize: '14px', fontWeight: 'bold' }}>âœ“</span>}
                               </div>
                             </div>
                           </td>
@@ -524,8 +531,4 @@ const TestRequestForm = () => {
         </div>
 
       </div>
-    </div>
-  );
-};
 
-export default TestRequestForm;
