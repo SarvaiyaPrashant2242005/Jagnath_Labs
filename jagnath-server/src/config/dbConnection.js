@@ -26,6 +26,10 @@ const connectDB = async () => {
         // 2. Sync all models with the database (alter: true updates tables without dropping them)
         await sequelize.sync({ alter: true });
         console.log('📂 Database & tables synced!');
+
+        // 3. Seed default data if needed
+        const { seedDefaultUser } = require("../database/seeders");
+        await seedDefaultUser();
     } catch (error) {
         console.error("❌ Database Connection Failed");
         console.error(error.message);
