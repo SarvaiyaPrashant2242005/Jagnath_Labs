@@ -237,7 +237,7 @@ const Sidebar = ({ activeTab, onTabChange, onNewRequest, sidebarRef, isOpen = tr
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <FaClipboardList size={14} />
-                  <span>Test Request Form</span>
+                  <span>Test Requests</span>
                 </div>
                 {/* <span className="badge-count" style={{ transform: 'scale(0.85)', margin: 0 }}>50</span> */}
               </div>

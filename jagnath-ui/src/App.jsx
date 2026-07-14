@@ -8,6 +8,8 @@ import ClientMaster from './modules/clientMaster/pages/ClientMaster';
 import CategoryMaster from './modules/categoryMaster/pages/CategoryMaster';
 import ParameterMaster from './modules/parameterMaster/pages/ParameterMaster';
 import DashboardLayout from './shared/layouts/DashboardLayout';
+import TestRequestForm from './modules/testRequest/pages/TestRequestForm';
+import TestRequestList from './modules/testRequest/pages/TestRequestList';
 import { getStoredUser } from './modules/auth/services/authService';
 import './assets/styles/index.css';
 
@@ -96,8 +98,9 @@ function App() {
         <Route path="/clients" element={<ProtectedRoute><ClientMaster /></ProtectedRoute>} />
         <Route path="/categories" element={<ProtectedRoute><CategoryMaster /></ProtectedRoute>} />
         <Route path="/parameters" element={<ProtectedRoute><ParameterMaster /></ProtectedRoute>} />
-        <Route path="/requests" element={<ProtectedRoute><PlaceholderPage title="Test Requests" /></ProtectedRoute>} />
-        <Route path="/new-request" element={<ProtectedRoute><PlaceholderPage title="New Request Intake" /></ProtectedRoute>} />
+        <Route path="/requests" element={<ProtectedRoute><TestRequestList /></ProtectedRoute>} />
+        <Route path="/new-request" element={<ProtectedRoute><TestRequestForm /></ProtectedRoute>} />
+        <Route path="/requests/edit/:id" element={<ProtectedRoute><TestRequestForm /></ProtectedRoute>} />
         <Route path="/reports" element={<ProtectedRoute><PlaceholderPage title="Reports Directory" /></ProtectedRoute>} />
         <Route path="/invoices" element={<ProtectedRoute><PlaceholderPage title="Invoices Directory" /></ProtectedRoute>} />
         <Route path="/dispatch" element={<ProtectedRoute><PlaceholderPage title="Dispatch Directory" /></ProtectedRoute>} />

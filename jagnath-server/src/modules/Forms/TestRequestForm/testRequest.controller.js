@@ -42,12 +42,7 @@ const create = async (req, res) => {
         // Find the Company using companyName
         const companyNameVal = value.companyName;
         const company = await Company.findOne({
-            where: {
-                [Op.or]: [
-                    { companyName: companyNameVal },
-                    { company_name: companyNameVal }
-                ]
-            }
+            where: { company_name: companyNameVal }
         });
 
         if (!company) {
@@ -220,12 +215,7 @@ const update = async (req, res) => {
         // If companyName is updated
         if (value.companyName) {
             const comp = await Company.findOne({
-                where: {
-                    [Op.or]: [
-                        { companyName: value.companyName },
-                        { company_name: value.companyName }
-                    ]
-                }
+                where: { company_name: value.companyName }
             });
             if (!comp) {
                 return res.status(404).json(errorResponse("NOT_FOUND", "Company not found.", "Company not found."));
