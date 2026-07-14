@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { apiService } from '../../../shared/services/apiService';
 import {
   CLIENT_ENDPOINTS,
@@ -9,10 +9,11 @@ import {
   TEST_REQUEST_PARAMETER_ENDPOINTS,
   COMPANY_ENDPOINTS
 } from '../../../shared/services/apiEndpoints';
-import { FaPrint, FaSave } from 'react-icons/fa';
+import { FaPrint, FaSave, FaArrowLeft, FaCheck, FaExclamationCircle } from 'react-icons/fa';
 
 const TestRequestForm = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const isEditing = !!id;
 
   // State for dropdown options
@@ -52,8 +53,16 @@ const TestRequestForm = () => {
   });
 
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const printRef = useRef();
+
+  const triggerToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast({ show: false, message: '', type: 'success' });
+    }, 2500);
+  };
 
   useEffect(() => {
     fetchInitialData();
@@ -78,7 +87,6 @@ const TestRequestForm = () => {
         if (trRes?.data) {
           const tr = trRes.data;
           
-          // Try to map companyName to companyId and clientName to clientId
           const cList = Array.isArray(compRes?.data) ? compRes.data : [compRes?.data];
           const clList = Array.isArray(clientRes?.data) ? clientRes.data : [clientRes?.data];
           
@@ -132,6 +140,14 @@ const TestRequestForm = () => {
             console.error("Error fetching request parameters", e);
           }
         }
+      } else {
+        // Pre-select company if only one exists
+        if (compRes?.data) {
+          const compArray = Array.isArray(compRes.data) ? compRes.data : [compRes.data];
+          if (compArray.length === 1) {
+            setFormData(prev => ({ ...prev, companyId: compArray[0].id }));
+          }
+        }
       }
     } catch (err) {
       console.error(err);
@@ -149,171 +165,338 @@ const TestRequestForm = () => {
       } else {
         setParameters([]);
       }
-    } catch (err) {
-      console.error(err);
+    } catch (e) {
       setParameters([]);
     }
   };
 
-  const triggerToast = (message, type = 'success') => {
-    setToast({ show: true, message, type });
-    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
-  };
-
   const handleChange = (e) => {
     const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
     
-    // Auto-fill logic for Client Selection
-    if (name === 'clientId') {
+    if (name === 'sampleParticular' && value) {
+      fetchParametersForCategory(value);
+      // Reset checks when category changes
+      setCheckedParameters({});
+    }
+
+    if (name === 'clientId' && value) {
+      // Auto-fill client details
       const selectedClient = clients.find(c => c.id === value);
       if (selectedClient) {
-        setFormData(prev => ({
-          ...prev,
-          clientId: value,
-          address: selectedClient.address || '',
-          contactNumber: selectedClient.contactNumber || ''
+        setFormData(prev => ({ 
+          ...prev, 
+          email: selectedClient.email || '', 
+          contactNumber: selectedClient.contactNumber || prev.contactNumber 
         }));
-        return;
       }
     }
-
-    // Fetch parameters when Category changes
-    if (name === 'sampleParticular') {
-      fetchParametersForCategory(value);
-    }
-
-    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleParameterCheck = (parameterId) => {
+  const handleParameterCheck = (paramId) => {
     setCheckedParameters(prev => ({
       ...prev,
-      [parameterId]: !prev[parameterId]
+      [paramId]: !prev[paramId]
     }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!formData.companyId || !formData.clientId) {
-      triggerToast('Company and Client are required', 'error');
-      return;
+  const validateForm = () => {
+    if (!formData.companyId) {
+      triggerToast('Please select a Company.', 'error');
+      return false;
     }
+    if (!formData.clientId) {
+      triggerToast('Please select a Client.', 'error');
+      return false;
+    }
+    return true;
+  };
+
+  const handleSave = async () => {
+    if (!validateForm()) return false;
+    setSubmitting(true);
     
     try {
-      setLoading(true);
-      const selectedCompany = companies.find(c => c.id === formData.companyId);
-      const selectedClient = clients.find(c => c.id === formData.clientId);
-
-      // Main Request Creation
-      const reqPayload = { 
-        companyName: selectedCompany ? (selectedCompany.companyName || selectedCompany.company_name) : '',
-        clientName: selectedClient ? selectedClient.clientName : '',
-        address: formData.address,
-        email: formData.email,
-        locationOfSample: formData.locationOfSample,
-        contactPerson: formData.contactPerson,
-        contactNumber: formData.contactNumber,
-        dateOfCollection: formData.dateOfCollection,
-        dateOfReceipt: formData.dateOfReceipt,
-        sampleCollectedBy: formData.sampleCollectedBy,
-        sampleQuantity: formData.sampleQuantity,
-        fieldDataSheet: formData.fieldDataSheet,
-        packingDetails: formData.packingDetails,
-        sampleIdNumber: formData.sampleIdNumber,
-        reportNumber: formData.reportNumber,
-        sampleParticular: formData.sampleParticular,
-        equipmentAvailability: formData.equipmentAvailability,
-        referenceStandardAvailability: formData.referenceStandardAvailability,
-        sampleAdequacy: formData.sampleAdequacy,
-        testMethodAvailability: formData.testMethodAvailability,
-        reportIssueDays: formData.tentativeDays, 
-        reviewedBy: formData.sampleTestingFacilityReviewedBy, 
-        remarks: formData.remarks
-      };
-
-      let res;
+      // 1. Save Test Request
+      const payload = { ...formData, reportIssueDays: formData.tentativeDays, reviewedBy: formData.sampleTestingFacilityReviewedBy };
+      delete payload.tentativeDays;
+      delete payload.sampleTestingFacilityReviewedBy;
+      
+      let savedTrId = id;
       if (isEditing) {
-        res = await apiService.put(TEST_REQUEST_ENDPOINTS.UPDATE(id), reqPayload);
-        triggerToast('Test Request Updated Successfully', 'success');
+        await apiService.put(TEST_REQUEST_ENDPOINTS.UPDATE(id), payload);
       } else {
-        res = await apiService.post(TEST_REQUEST_ENDPOINTS.CREATE, reqPayload);
-        triggerToast('Test Request Created Successfully', 'success');
+        const res = await apiService.post(TEST_REQUEST_ENDPOINTS.CREATE, payload);
+        savedTrId = res?.data?.id || res?.data?.data?.id; // depending on response format
       }
+
+      if (!savedTrId) {
+        triggerToast('Failed to retrieve saved request ID.', 'error');
+        setSubmitting(false);
+        return false;
+      }
+
+      // 2. Save Parameters Checklist
+      const currentParamIds = Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]);
       
-      // Save parameters
-      const trId = isEditing ? id : (res?.data?.id || res?.data?.data?.id || res?.data?.data?.TestRequest?.id);
-      
-      if (trId) {
-        const selectedParamIds = Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]);
-        
-        for (const pId of selectedParamIds) {
-          const trpId = checkedParameters[`_id_${pId}`];
-          if (!trpId) {
-            // Create new parameter mapping
-            await apiService.post(TEST_REQUEST_PARAMETER_ENDPOINTS.CREATE, { 
-              testRequestId: trId, 
-              parameterId: pId, 
-              status: 'Pending' 
-            }).catch(console.error);
-          }
-        }
-        
-        if (isEditing) {
-          const unselectedIds = Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && !checkedParameters[k]);
-          for (const pId of unselectedIds) {
-            const trpId = checkedParameters[`_id_${pId}`];
-            if (trpId) {
-              // Delete parameter mapping
-              await apiService.delete(TEST_REQUEST_PARAMETER_ENDPOINTS.DELETE(trpId)).catch(console.error);
-            }
-          }
+      for (const pId of currentParamIds) {
+        if (!checkedParameters[`_id_${pId}`]) {
+          await apiService.post(TEST_REQUEST_PARAMETER_ENDPOINTS.CREATE, {
+            testRequestId: savedTrId,
+            parameterId: pId
+          });
         }
       }
-      
-      // Open PDF print view (using standard window.print for the specific container)
-      setTimeout(() => {
-        handlePrint();
-      }, 500);
+
+      triggerToast('Test Request saved successfully!', 'success');
+      return true;
     } catch (err) {
-      triggerToast(err?.messageToShow || 'Failed to create Test Request', 'error');
+      triggerToast(err.messageToShow || 'Failed to save test request.', 'error');
+      return false;
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handleSaveAndPrint = async () => {
+    const success = await handleSave();
+    if (success) {
+      setTimeout(() => {
+        window.print();
+      }, 500);
+    }
   };
 
-  return (
-    <div style={{ padding: '1.5rem', maxWidth: '1000px', margin: '0 auto', backgroundColor: '#fff', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1e293b', margin: 0 }}>New Test Request Form</h2>
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-           <button onClick={handlePrint} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1', borderRadius: '8px', cursor: 'pointer', fontWeight: 500 }}>
-             <FaPrint /> Print Form
-           </button>
-           <button onClick={handleSubmit} disabled={loading} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '8px', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: 500, opacity: loading ? 0.7 : 1 }}>
-             <FaSave /> {loading ? 'Saving...' : 'Save Request'}
-           </button>
-        </div>
-      </div>
+  if (loading) return <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>Loading Form Data...</div>;
 
+  // Selected entities for display in print format
+  const selCompany = companies.find(c => c.id === formData.companyId) || {};
+  const selClient = clients.find(c => c.id === formData.clientId) || {};
+  const selCategory = categories.find(c => c.id === formData.sampleParticular) || {};
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', position: 'relative' }}>
+      
       {toast.show && (
-        <div style={{ marginBottom: '1rem', padding: '1rem', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 500, backgroundColor: toast.type === 'error' ? '#fef2f2' : '#f0fdf4', color: toast.type === 'error' ? '#dc2626' : '#16a34a', border: `1px solid ${toast.type === 'error' ? '#fecaca' : '#bbf7d0'}` }}>
-          {toast.message}
+        <div style={{
+          position: 'fixed',
+          top: '24px',
+          right: '24px',
+          backgroundColor: toast.type === 'success' ? '#10b981' : '#ef4444',
+          color: '#ffffff',
+          padding: '0.75rem 1.5rem',
+          borderRadius: '8px',
+          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          fontWeight: 600,
+          fontSize: '0.9rem',
+          transition: 'all 0.3s ease-in-out',
+        }}>
+          {toast.type === 'success' ? <FaCheck /> : <FaExclamationCircle />}
+          <span>{toast.message}</span>
         </div>
       )}
 
-      {/* Printable Area starts here */}
-      <div ref={printRef} className="print-container form-wrapper">
+      {/* Title & Top Action bar */}
+      <div className="hide-on-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <button onClick={() => navigate('/requests')} style={{ background: 'transparent', border: '1px solid #cbd5e1', padding: '0.5rem', borderRadius: '8px', cursor: 'pointer', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <FaArrowLeft />
+          </button>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+            {isEditing ? 'Edit Test Request' : 'New Test Request'}
+          </h2>
+        </div>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button 
+            onClick={handleSave} 
+            disabled={submitting}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1.25rem', fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer' }}
+          >
+            <FaSave />
+            <span>{submitting ? 'Saving...' : 'Save'}</span>
+          </button>
+          <button 
+            onClick={handleSaveAndPrint} 
+            disabled={submitting}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1.25rem', fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer' }}
+          >
+            <FaPrint />
+            <span>Save & Generate PDF</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Premium UI (Screen Only) */}
+      <div className="premium-ui-form hide-on-print" style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+        
+        <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#1e293b', marginBottom: '1.5rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem' }}>General Information</h3>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Company *</label>
+            <select name="companyId" value={formData.companyId} onChange={handleChange} className="premium-input">
+              <option value="">Select Company</option>
+              {companies.map(c => <option key={c.id} value={c.id}>{c.companyName || c.company_name}</option>)}
+            </select>
+          </div>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Customer / Client *</label>
+            <select name="clientId" value={formData.clientId} onChange={handleChange} className="premium-input">
+              <option value="">Select Client</option>
+              {clients.map(c => <option key={c.id} value={c.id}>{c.clientName}</option>)}
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', gridColumn: '1 / -1' }}>
+            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Address for Communication</label>
+            <textarea name="address" value={formData.address} onChange={handleChange} className="premium-input" rows={2}></textarea>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Email ID</label>
+            <input type="email" name="email" value={formData.email} onChange={handleChange} className="premium-input" />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Location of Sample</label>
+            <input type="text" name="locationOfSample" value={formData.locationOfSample} onChange={handleChange} className="premium-input" />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Contact Person</label>
+            <input type="text" name="contactPerson" value={formData.contactPerson} onChange={handleChange} className="premium-input" />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Contact Number</label>
+            <input type="text" name="contactNumber" value={formData.contactNumber} onChange={handleChange} className="premium-input" />
+          </div>
+        </div>
+
+        <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#1e293b', marginBottom: '1.5rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem' }}>Sample Details</h3>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Date of Collection</label>
+            <input type="date" name="dateOfCollection" value={formData.dateOfCollection} onChange={handleChange} className="premium-input" />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Date of Receipt</label>
+            <input type="date" name="dateOfReceipt" value={formData.dateOfReceipt} onChange={handleChange} className="premium-input" />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Sample Collected By</label>
+            <input type="text" name="sampleCollectedBy" value={formData.sampleCollectedBy} onChange={handleChange} className="premium-input" />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Sample Quantity</label>
+            <input type="text" name="sampleQuantity" value={formData.sampleQuantity} onChange={handleChange} className="premium-input" />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Field Data Sheet</label>
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', height: '100%' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', color: '#1e293b' }}>
+                <input type="radio" name="fieldDataSheet" value="Available" checked={formData.fieldDataSheet === 'Available'} onChange={handleChange} />
+                Available
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', color: '#1e293b' }}>
+                <input type="radio" name="fieldDataSheet" value="Not Available" checked={formData.fieldDataSheet === 'Not Available'} onChange={handleChange} />
+                Not Available
+              </label>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Packing details</label>
+            <input type="text" name="packingDetails" value={formData.packingDetails} onChange={handleChange} className="premium-input" />
+          </div>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Sample ID No.</label>
+            <input type="text" name="sampleIdNumber" value={formData.sampleIdNumber} onChange={handleChange} className="premium-input" />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Report No.</label>
+            <input type="text" name="reportNumber" value={formData.reportNumber} onChange={handleChange} className="premium-input" />
+          </div>
+        </div>
+
+        <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#1e293b', marginBottom: '1.5rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem' }}>Testing Parameters</h3>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.5rem', maxWidth: '400px' }}>
+          <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Sample Particular (Category Master)</label>
+          <select name="sampleParticular" value={formData.sampleParticular} onChange={handleChange} className="premium-input">
+            <option value="">Select Category</option>
+            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+
+        {parameters.length > 0 && (
+          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
+            <div style={{ padding: '1rem', borderBottom: '1px solid #e2e8f0', background: '#f1f5f9', fontWeight: 600, color: '#0f172a' }}>
+              Select Test Parameters to be Analyzed
+            </div>
+            <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                <thead style={{ position: 'sticky', top: 0, background: '#ffffff', zIndex: 1, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                  <tr>
+                    <th style={{ padding: '0.75rem 1rem', textAlign: 'center', width: '60px', color: '#64748b' }}>Select</th>
+                    <th style={{ padding: '0.75rem 1rem', textAlign: 'left', color: '#64748b' }}>Parameter</th>
+                    <th style={{ padding: '0.75rem 1rem', textAlign: 'left', color: '#64748b' }}>Test Method</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {parameters.map(param => (
+                    <tr key={param.id} onClick={() => handleParameterCheck(param.id)} style={{ borderTop: '1px solid #e2e8f0', cursor: 'pointer', transition: 'background-color 0.15s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                      <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
+                        <input type="checkbox" checked={!!checkedParameters[param.id]} onChange={() => {}} onClick={(e) => e.stopPropagation()} style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#22c55e' }} />
+                      </td>
+                      <td style={{ padding: '0.75rem 1rem', color: '#1e293b', fontWeight: 500 }}>{param.parameterName}</td>
+                      <td style={{ padding: '0.75rem 1rem', color: '#475569' }}>{param.testMethod || 'N/A'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Authorized Signatory Signature (Placeholder)</label>
+                <div style={{ border: '2px dashed #cbd5e1', borderRadius: '8px', padding: '1.5rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
+                    Click to Upload Signature Image (Coming soon)
+                </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Company Logo (Placeholder)</label>
+                <div style={{ border: '2px dashed #cbd5e1', borderRadius: '8px', padding: '1.5rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
+                    Click to Upload Company Logo (Coming soon)
+                </div>
+            </div>
+        </div>
+
+      </div>
+
+      {/* Printable Area (Paper Format) - Hidden on Screen */}
+      <div ref={printRef} className="print-container hide-on-screen form-wrapper">
         
         {/* Header matching the paper form */}
         <div className="form-header-row">
           <div className="header-col header-col-logo">
              <div className="logo-placeholder">
                 <div className="logo-circle">LOGO</div>
-                <h1 className="brand-name">JAGNATH</h1>
+                <h1 className="brand-name">{selCompany.companyName || selCompany.company_name || 'JAGNATH'}</h1>
                 <p className="brand-sub">Lab Technologies</p>
              </div>
           </div>
@@ -339,14 +522,8 @@ const TestRequestForm = () => {
            <div className="grid-row full-width">
               <div className="grid-label w-quarter">Name of Company/<br/>Customer :</div>
               <div className="grid-val w-three-quarter" style={{ display: 'flex', gap: '1rem' }}>
-                 <select name="companyId" value={formData.companyId} onChange={handleChange} className="form-input flex-1">
-                    <option value="">Select Company</option>
-                    {companies.map(c => <option key={c.id} value={c.id}>{c.companyName || c.company_name}</option>)}
-                 </select>
-                 <select name="clientId" value={formData.clientId} onChange={handleChange} className="form-input flex-1">
-                    <option value="">Select Customer (Client)</option>
-                    {clients.map(c => <option key={c.id} value={c.id}>{c.clientName}</option>)}
-                 </select>
+                 <div className="print-val flex-1">{selCompany.companyName || selCompany.company_name || ''}</div>
+                 <div className="print-val flex-1">{selClient.clientName || ''}</div>
               </div>
            </div>
 
@@ -354,7 +531,7 @@ const TestRequestForm = () => {
            <div className="grid-row full-width">
               <div className="grid-label w-quarter">Address for<br/>Communication :</div>
               <div className="grid-val w-three-quarter">
-                 <textarea name="address" value={formData.address} onChange={handleChange} className="form-input w-full min-h-50"></textarea>
+                 <div className="print-val w-full min-h-50">{formData.address}</div>
               </div>
            </div>
 
@@ -362,11 +539,11 @@ const TestRequestForm = () => {
            <div className="grid-row split-row">
               <div className="split-col border-r">
                 <div className="grid-label w-half">Email ID :</div>
-                <div className="grid-val w-half"><input type="email" name="email" value={formData.email} onChange={handleChange} className="form-input w-full"/></div>
+                <div className="grid-val w-half"><div className="print-val w-full">{formData.email}</div></div>
               </div>
               <div className="split-col">
                 <div className="grid-label w-half">Location of Sample :</div>
-                <div className="grid-val w-half"><input type="text" name="locationOfSample" value={formData.locationOfSample} onChange={handleChange} className="form-input w-full"/></div>
+                <div className="grid-val w-half"><div className="print-val w-full">{formData.locationOfSample}</div></div>
               </div>
            </div>
 
@@ -374,11 +551,11 @@ const TestRequestForm = () => {
            <div className="grid-row split-row">
               <div className="split-col border-r">
                 <div className="grid-label w-half">Contact Person :</div>
-                <div className="grid-val w-half"><input type="text" name="contactPerson" value={formData.contactPerson} onChange={handleChange} className="form-input w-full"/></div>
+                <div className="grid-val w-half"><div className="print-val w-full">{formData.contactPerson}</div></div>
               </div>
               <div className="split-col">
                 <div className="grid-label w-half">Contact No. :</div>
-                <div className="grid-val w-half"><input type="text" name="contactNumber" value={formData.contactNumber} onChange={handleChange} className="form-input w-full"/></div>
+                <div className="grid-val w-half"><div className="print-val w-full">{formData.contactNumber}</div></div>
               </div>
            </div>
 
@@ -386,11 +563,11 @@ const TestRequestForm = () => {
            <div className="grid-row split-row">
               <div className="split-col border-r">
                 <div className="grid-label w-half">Date of Collection :</div>
-                <div className="grid-val w-half"><input type="date" name="dateOfCollection" value={formData.dateOfCollection} onChange={handleChange} className="form-input w-full"/></div>
+                <div className="grid-val w-half"><div className="print-val w-full">{formData.dateOfCollection}</div></div>
               </div>
               <div className="split-col">
                 <div className="grid-label w-half">Date of Receipt :</div>
-                <div className="grid-val w-half"><input type="date" name="dateOfReceipt" value={formData.dateOfReceipt} onChange={handleChange} className="form-input w-full"/></div>
+                <div className="grid-val w-half"><div className="print-val w-full">{formData.dateOfReceipt}</div></div>
               </div>
            </div>
 
@@ -398,11 +575,11 @@ const TestRequestForm = () => {
            <div className="grid-row split-row">
               <div className="split-col border-r">
                 <div className="grid-label w-half">Sample Collected By :</div>
-                <div className="grid-val w-half"><input type="text" name="sampleCollectedBy" value={formData.sampleCollectedBy} onChange={handleChange} className="form-input w-full"/></div>
+                <div className="grid-val w-half"><div className="print-val w-full">{formData.sampleCollectedBy}</div></div>
               </div>
               <div className="split-col">
                 <div className="grid-label w-half">Sample Quantity :</div>
-                <div className="grid-val w-half"><input type="text" name="sampleQuantity" value={formData.sampleQuantity} onChange={handleChange} className="form-input w-full"/></div>
+                <div className="grid-val w-half"><div className="print-val w-full">{formData.sampleQuantity}</div></div>
               </div>
            </div>
 
@@ -410,14 +587,11 @@ const TestRequestForm = () => {
            <div className="grid-row split-row">
               <div className="split-col border-r">
                 <div className="grid-label w-half">Field Data Sheet :</div>
-                <div className="grid-val w-half" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                   <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem' }}><input type="radio" name="fieldDataSheet" value="Available" checked={formData.fieldDataSheet === 'Available'} onChange={handleChange} /> Available</label>
-                   <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem' }}><input type="radio" name="fieldDataSheet" value="Not Available" checked={formData.fieldDataSheet === 'Not Available'} onChange={handleChange} /> N/A</label>
-                </div>
+                <div className="grid-val w-half"><div className="print-val w-full">{formData.fieldDataSheet}</div></div>
               </div>
               <div className="split-col">
                 <div className="grid-label w-half">Packing details :</div>
-                <div className="grid-val w-half"><input type="text" name="packingDetails" value={formData.packingDetails} onChange={handleChange} className="form-input w-full"/></div>
+                <div className="grid-val w-half"><div className="print-val w-full">{formData.packingDetails}</div></div>
               </div>
            </div>
 
@@ -425,11 +599,11 @@ const TestRequestForm = () => {
            <div className="grid-row split-row border-b-none">
               <div className="split-col border-r">
                 <div className="grid-label w-half">Sample ID No. :</div>
-                <div className="grid-val w-half"><input type="text" name="sampleIdNumber" value={formData.sampleIdNumber} onChange={handleChange} className="form-input w-full"/></div>
+                <div className="grid-val w-half"><div className="print-val w-full">{formData.sampleIdNumber}</div></div>
               </div>
               <div className="split-col">
                 <div className="grid-label w-half">Report No. :</div>
-                <div className="grid-val w-half"><input type="text" name="reportNumber" value={formData.reportNumber} onChange={handleChange} className="form-input w-full"/></div>
+                <div className="grid-val w-half"><div className="print-val w-full">{formData.reportNumber}</div></div>
               </div>
            </div>
         </div>
@@ -439,10 +613,7 @@ const TestRequestForm = () => {
            <div className="grid-row full-width border-b-none">
               <div className="grid-label w-quarter">Sample Particular :</div>
               <div className="grid-val w-three-quarter">
-                 <select name="sampleParticular" value={formData.sampleParticular} onChange={handleChange} className="form-input" style={{ width: '100%', maxWidth: '400px' }}>
-                    <option value="">Select Category Master</option>
-                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                 </select>
+                 <div className="print-val w-full">{selCategory.name || ''}</div>
               </div>
            </div>
         </div>
@@ -465,11 +636,11 @@ const TestRequestForm = () => {
                        const pName = param.parameterName || 'Unknown Parameter';
                        const pMethod = param.testMethod || 'N/A';
                        return (
-                          <tr key={param.id} onClick={() => handleParameterCheck(param.id)} style={{ cursor: 'pointer' }}>
+                          <tr key={param.id}>
                              <td style={{ textAlign: 'center' }}>{index + 1}</td>
                              <td>{pName}</td>
-                             <td style={{ textAlign: 'center' }}>
-                                <input type="checkbox" checked={!!checkedParameters[param.id]} onChange={() => {}} style={{ cursor: 'pointer' }} onClick={(e) => e.stopPropagation()} />
+                             <td style={{ textAlign: 'center', fontSize: '1.2rem', fontWeight: 'bold' }}>
+                                {checkedParameters[param.id] ? '√' : ''}
                              </td>
                              <td>{pMethod}</td>
                           </tr>
@@ -484,6 +655,23 @@ const TestRequestForm = () => {
       
       {/* Print styles block to ensure it looks exactly like the form on print and display */}
       <style>{`
+        .premium-input {
+          border: 1px solid #cbd5e1;
+          border-radius: 6px;
+          padding: 0.5rem 0.75rem;
+          font-family: inherit;
+          font-size: 0.9rem;
+          color: #1e293b;
+          background-color: #f8fafc;
+          transition: all 0.2s;
+        }
+        .premium-input:focus {
+          outline: none;
+          border-color: #3b82f6;
+          background-color: #ffffff;
+          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
         .form-wrapper {
           border: 2px solid #1e293b;
           background: #fff;
@@ -615,25 +803,17 @@ const TestRequestForm = () => {
           display: flex;
           align-items: center;
         }
+        .print-val {
+          font-weight: 500;
+          color: #000;
+        }
         .w-half { width: 50%; }
         .w-quarter { width: 25%; }
         .w-three-quarter { width: 75%; }
         .full-width { width: 100%; }
         .flex-1 { flex: 1; }
         .w-full { width: 100%; box-sizing: border-box; }
-        .min-h-50 { min-height: 50px; resize: vertical; }
-        
-        .form-input {
-          border: 1px solid #cbd5e1;
-          border-radius: 4px;
-          padding: 0.25rem 0.5rem;
-          font-family: inherit;
-          font-size: 0.8rem;
-        }
-        .form-input:focus {
-          outline: 1px solid #3b82f6;
-          border-color: #3b82f6;
-        }
+        .min-h-50 { min-height: 50px; }
         
         .mt-4 { margin-top: 1rem; }
         
@@ -663,15 +843,16 @@ const TestRequestForm = () => {
           background-color: #f1f5f9;
           font-weight: bold;
         }
-        .param-table tr:hover td {
-          background-color: #f8fafc;
+        
+        @media screen {
+          .hide-on-screen { display: none !important; }
         }
 
         @media print {
           body * { visibility: hidden; }
+          .hide-on-print { display: none !important; }
           .print-container, .print-container * { visibility: visible; }
           .print-container { position: absolute; left: 0; top: 0; width: 100%; border: none !important; }
-          .form-input { border: none !important; appearance: none !important; font-weight: 500; color: #000; padding: 0 !important; background: transparent !important; }
           .grid-label, .param-table th { background-color: transparent !important; }
           .parameter-checklist { page-break-before: always; }
         }

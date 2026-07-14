@@ -6,6 +6,7 @@ const Client = require("./client.model");
 const Company = require("../CompanyMasters/company.model");
 const Users = require("../../Auth/Users/users.model");
 const sequelize = require("../../../config/database");
+const { Op } = require("sequelize");
 const path = require("path");
 const { writeLogToFile } = require("../../../services/loggerService");
 
@@ -272,12 +273,9 @@ const getClientById = async (clientId) => {
     }
 };
 
-/**
- * Get all clients under a company.
- */
-const getClientsByCompany = async (companyId) => {
+const getClientsByCompany = async (companyId, options = {}) => {
     try {
-        const clients = await Client.findAll({
+        let queryOptions = {
             where: { companyId },
             include: [{
                 model: Company,
@@ -285,7 +283,34 @@ const getClientsByCompany = async (companyId) => {
                 attributes: ["company_name"]
             }],
             attributes: { exclude: ["deleted_at"] }
-        });
+        };
+
+        if (options.limit && options.page) {
+            queryOptions.limit = parseInt(options.limit);
+            queryOptions.offset = (parseInt(options.page) - 1) * queryOptions.limit;
+            
+            if (options.search) {
+                queryOptions.where = {
+                    ...queryOptions.where,
+                    [Op.or]: [
+                        { clientName: { [Op.iLike]: `%${options.search}%` } },
+                        { email: { [Op.iLike]: `%${options.search}%` } }
+                    ]
+                };
+            }
+            
+            if (options.status && options.status !== 'ALL') {
+                queryOptions.where.status = options.status;
+            }
+
+            const result = await Client.findAndCountAll(queryOptions);
+            return {
+                ...result,
+                rows: result.rows.map(client => formatClient(client))
+            };
+        }
+
+        const clients = await Client.findAll(queryOptions);
         return clients.map(client => formatClient(client));
     } catch (error) {
         throw error;

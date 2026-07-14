@@ -22,6 +22,10 @@ const createClientSchema = Joi.object({
     city: Joi.string().required().messages({
         "any.required": "City is required."
     }),
+    state: Joi.string().allow("", null).optional(),
+    email: Joi.string().email().allow("", null).optional().messages({
+        "string.email": "Email must be a valid email format."
+    }),
     gender: Joi.string().valid("Male", "Female", "Other").required().messages({
         "any.only": "Gender must be Male, Female, or Other.",
         "any.required": "Gender is required."
@@ -39,6 +43,10 @@ const updateClientSchema = Joi.object({
     }),
     address: Joi.string().optional(),
     city: Joi.string().optional(),
+    state: Joi.string().allow("", null).optional(),
+    email: Joi.string().email().allow("", null).optional().messages({
+        "string.email": "Email must be a valid email format."
+    }),
     gender: Joi.string().valid("Male", "Female", "Other").optional().messages({
         "any.only": "Gender must be Male, Female, or Other."
     }),

@@ -7,6 +7,7 @@ const Company = require("../../Masters/CompanyMasters/company.model");
 const Client = require("../../Masters/ClientMasters/client.model");
 const Users = require("../../Auth/Users/users.model");
 const sequelize = require("../../../config/database");
+const { Op } = require("sequelize");
 const path = require("path");
 const { writeLogToFile } = require("../../../services/loggerService");
 
@@ -322,9 +323,9 @@ const getTestRequestById = async (trId, companyId) => {
 /**
  * Get all TestRequests under a company.
  */
-const getTestRequestsByCompany = async (companyId) => {
+const getTestRequestsByCompany = async (companyId, options = {}) => {
     try {
-        const trs = await TestRequest.findAll({
+        let queryOptions = {
             where: { companyId },
             include: [
                 {
@@ -339,7 +340,34 @@ const getTestRequestsByCompany = async (companyId) => {
                 }
             ],
             attributes: { exclude: ["deleted_at"] }
-        });
+        };
+
+        if (options.limit && options.page) {
+            queryOptions.limit = parseInt(options.limit);
+            queryOptions.offset = (parseInt(options.page) - 1) * queryOptions.limit;
+
+            if (options.search) {
+                queryOptions.where = {
+                    ...queryOptions.where,
+                    [Op.or]: [
+                        { sampleIdNumber: { [Op.iLike]: `%${options.search}%` } },
+                        { reportNumber: { [Op.iLike]: `%${options.search}%` } }
+                    ]
+                };
+            }
+
+            if (options.status && options.status !== 'ALL') {
+                queryOptions.where.status = options.status;
+            }
+
+            const result = await TestRequest.findAndCountAll(queryOptions);
+            return {
+                ...result,
+                rows: result.rows.map(tr => formatTestRequest(tr))
+            };
+        }
+
+        const trs = await TestRequest.findAll(queryOptions);
         return trs.map(tr => formatTestRequest(tr));
     } catch (error) {
         throw error;

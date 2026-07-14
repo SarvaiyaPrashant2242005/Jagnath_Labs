@@ -1,17 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  FaBuilding, FaPlus, FaDownload, FaEdit, FaTrash, FaCheck, 
+  FaUserFriends, FaPlus, FaDownload, FaEdit, FaTrash, FaCheck, 
   FaExclamationCircle, FaFileExcel, FaCopy, FaFileCsv, 
-  FaFilePdf, FaPrint, FaChevronDown, FaUser 
+  FaFilePdf, FaPrint, FaChevronDown 
 } from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
 import { CLIENT_ENDPOINTS, COMPANY_ENDPOINTS } from '../../../shared/services/apiEndpoints';
+import Pagination from '../../../shared/components/Pagination';
 
 const ClientMaster = () => {
-  // Client & Company states
+  // Client state
   const [clients, setClients] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(false);
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
   
   // Toast notifications state
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
@@ -36,6 +43,8 @@ const ClientMaster = () => {
     gender: 'Male',
     address: '',
     city: '',
+    state: '',
+    email: '',
     status: 'Active'
   });
   const [formErrors, setFormErrors] = useState({});
@@ -80,23 +89,50 @@ const ClientMaster = () => {
     setLoading(true);
     try {
       const activeCompId = localStorage.getItem('selectedCompanyId') || '';
-      const url = activeCompId ? `${CLIENT_ENDPOINTS.GET_ALL}?companyId=${activeCompId}` : CLIENT_ENDPOINTS.GET_ALL;
+      const params = new URLSearchParams({
+        page: currentPage,
+        limit: pageSize,
+        search: searchQuery,
+        status: statusFilter
+      });
+      if (activeCompId) {
+        params.append('companyId', activeCompId);
+      }
+      
+      const url = `${CLIENT_ENDPOINTS.GET_ALL}?${params.toString()}`;
       const response = await apiService.get(url);
       if (response && response.data) {
-        setClients(Array.isArray(response.data) ? response.data : [response.data]);
+        if (response.data.rows !== undefined) {
+           setClients(response.data.rows);
+           setTotalItems(response.data.total);
+           setTotalPages(response.data.totalPages);
+        } else {
+           const clientList = Array.isArray(response.data) ? response.data : [response.data];
+           setClients(clientList);
+           setTotalItems(clientList.length);
+           setTotalPages(1);
+        }
       } else {
         setClients([]);
+        setTotalItems(0);
+        setTotalPages(0);
       }
     } catch (err) {
       if (err.status !== 404 && err.errorCode !== 'NOT_FOUND') {
         triggerToast(err.messageToShow || err.message || 'Failed to fetch clients.', 'error');
       } else {
         setClients([]);
+        setTotalItems(0);
+        setTotalPages(0);
       }
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchClients();
+  }, [currentPage, pageSize, searchQuery, statusFilter]);
 
   useEffect(() => {
     const initializeData = async () => {
@@ -159,6 +195,8 @@ const ClientMaster = () => {
       gender: 'Male',
       address: '',
       city: '',
+      state: '',
+      email: '',
       status: 'Active'
     });
     setFormErrors({});
@@ -175,6 +213,8 @@ const ClientMaster = () => {
       gender: client.gender || 'Male',
       address: client.address || '',
       city: client.city || '',
+      state: client.state || '',
+      email: client.email || '',
       status: client.status || 'Active'
     });
     setFormErrors({});
@@ -235,14 +275,15 @@ const ClientMaster = () => {
   // CSV Export logic
   const handleDownloadCSV = () => {
     if (clients.length === 0) return;
-    const headers = ['Client Name', 'Company Name', 'Gender', 'Phone', 'Address', 'City', 'Status'];
-    const rows = filteredClients.map(c => [
+    const headers = ['Client Name', 'Company Name', 'Email', 'Contact Number', 'Address', 'City', 'State', 'Status'];
+    const rows = clients.map(c => [
       c.clientName,
       c.companyName || (c.company ? (c.company.companyName || c.company.company_name) : 'N/A'),
-      c.gender,
+      c.email || 'N/A',
       c.contactNumber,
       c.address,
       c.city,
+      c.state || 'N/A',
       c.status
     ]);
 
@@ -261,14 +302,15 @@ const ClientMaster = () => {
   // Excel Export logic
   const handleDownloadExcel = () => {
     if (clients.length === 0) return;
-    const headers = ['Client Name', 'Company Name', 'Gender', 'Phone', 'Address', 'City', 'Status'];
-    const rows = filteredClients.map(c => [
+    const headers = ['Client Name', 'Company Name', 'Email', 'Contact Number', 'Address', 'City', 'State', 'Status'];
+    const rows = clients.map(c => [
       c.clientName,
       c.companyName || (c.company ? (c.company.companyName || c.company.company_name) : 'N/A'),
-      c.gender,
+      c.email || 'N/A',
       c.contactNumber,
       c.address,
       c.city,
+      c.state || 'N/A',
       c.status
     ]);
     
@@ -295,11 +337,11 @@ const ClientMaster = () => {
     setShowDownloadDropdown(false);
   };
 
-  // Clipboard copy
+  // Copy to Clipboard logic
   const handleCopy = () => {
     if (clients.length === 0) return;
-    const headers = ['Client Name', 'Company Name', 'Gender', 'Phone', 'Address', 'City', 'Status'];
-    const rows = filteredClients.map(c => [
+    const headers = ['Client Code', 'Client Name', 'Company Name', 'Email', 'Contact Number', 'Address', 'City', 'State', 'Status'];
+    const rows = clients.map(c => [
       c.clientName,
       c.companyName || (c.company ? (c.company.companyName || c.company.company_name) : 'N/A'),
       c.gender,
@@ -314,12 +356,11 @@ const ClientMaster = () => {
     setShowDownloadDropdown(false);
   };
 
-  // PDF Export
+  // PDF Print logic
   const handlePrintPDF = () => {
     if (clients.length === 0) return;
     const printWindow = window.open('', '_blank');
-    const headers = ['Client Name', 'Company Name', 'Gender', 'Phone', 'Address', 'City', 'Status'];
-    const rows = filteredClients.map(c => `
+    const rowsHtml = clients.map(c => `
       <tr>
         <td>${c.clientName}</td>
         <td>${c.companyName || (c.company ? (c.company.companyName || c.company.company_name) : 'N/A')}</td>
@@ -346,10 +387,10 @@ const ClientMaster = () => {
           <h2>Clients Report</h2>
           <table>
             <thead>
-              <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
+              <tr><th>Client Name</th><th>Company</th><th>Gender</th><th>Phone</th><th>Address</th><th>City</th><th>Status</th></tr>
             </thead>
             <tbody>
-              ${rows}
+              ${rowsHtml}
             </tbody>
           </table>
           <script>
@@ -370,20 +411,6 @@ const ClientMaster = () => {
     window.print();
     setShowDownloadDropdown(false);
   };
-
-  // Filter list locally for premium responsive feel
-  const filteredClients = clients.filter(c => {
-    const cName = (c.clientName || '').toLowerCase();
-    const phone = (c.contactNumber || '').toLowerCase();
-    const comp = (c.companyName || (c.company ? (c.company.companyName || c.company.company_name) : '') || '').toLowerCase();
-    
-    const matchesSearch = cName.includes(searchQuery.toLowerCase()) || 
-                          phone.includes(searchQuery.toLowerCase()) ||
-                          comp.includes(searchQuery.toLowerCase());
-                          
-    const matchesStatus = statusFilter === 'ALL' || c.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -415,7 +442,7 @@ const ClientMaster = () => {
       {/* Title & Top Action bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' }}>
         <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
-          <FaUser style={{ color: '#22c55e' }} />
+          <FaUserFriends style={{ color: '#22c55e' }} />
           <span>Clients Master</span>
         </h2>
         <div style={{ display: 'flex', gap: '0.75rem', position: 'relative' }} ref={dropdownRef}>
@@ -515,7 +542,6 @@ const ClientMaster = () => {
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
               
-              {/* Client Name */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>
                   Client Name <span style={{ color: '#ef4444' }}>*</span>
@@ -531,9 +557,6 @@ const ClientMaster = () => {
                 {formErrors.clientName && <span style={{ fontSize: '0.75rem', color: '#ef4444' }}>{formErrors.clientName}</span>}
               </div>
 
-
-
-              {/* Contact Number */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>
                   Contact Number <span style={{ color: '#ef4444' }}>*</span>
@@ -551,10 +574,8 @@ const ClientMaster = () => {
 
             </div>
 
-            {/* Address, City, Gender & Status Side by Side */}
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '1.25rem', marginTop: '0.5rem', alignItems: 'end' }}>
-              {/* Address */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem', marginTop: '0.5rem', alignItems: 'end' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', gridColumn: '1 / -1' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>
                   Address <span style={{ color: '#ef4444' }}>*</span>
                 </label>
@@ -563,13 +584,26 @@ const ClientMaster = () => {
                   value={formData.address}
                   onChange={handleInputChange}
                   placeholder="Enter Address"
-                  rows={1}
-                  style={{ padding: '0.625rem', border: `1px solid ${formErrors.address ? '#ef4444' : '#cbd5e1'}`, borderRadius: '6px', outline: 'none', resize: 'none', height: '42px', fontFamily: 'inherit' }}
+                  rows={2}
+                  style={{ padding: '0.625rem', border: `1px solid ${formErrors.address ? '#ef4444' : '#cbd5e1'}`, borderRadius: '6px', outline: 'none', resize: 'vertical', minHeight: '60px', fontFamily: 'inherit' }}
                 />
                 {formErrors.address && <span style={{ fontSize: '0.75rem', color: '#ef4444' }}>{formErrors.address}</span>}
               </div>
 
-              {/* City */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>
+                  Email ID
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  placeholder="Enter Email"
+                  style={{ padding: '0.625rem', border: `1px solid ${formErrors.email ? '#ef4444' : '#cbd5e1'}`, borderRadius: '6px', outline: 'none', height: '42px' }}
+                />
+              </div>
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>
                   City <span style={{ color: '#ef4444' }}>*</span>
@@ -585,7 +619,20 @@ const ClientMaster = () => {
                 {formErrors.city && <span style={{ fontSize: '0.75rem', color: '#ef4444' }}>{formErrors.city}</span>}
               </div>
 
-              {/* Gender */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>
+                  State
+                </label>
+                <input
+                  type="text"
+                  name="state"
+                  value={formData.state}
+                  onChange={handleInputChange}
+                  placeholder="Enter State"
+                  style={{ padding: '0.625rem', border: `1px solid ${formErrors.state ? '#ef4444' : '#cbd5e1'}`, borderRadius: '6px', outline: 'none', height: '42px' }}
+                />
+              </div>
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Gender <span style={{ color: '#ef4444' }}>*</span></label>
                 <select
@@ -600,7 +647,6 @@ const ClientMaster = () => {
                 </select>
               </div>
 
-              {/* Status Toggle Switch */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Status</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', height: '42px' }}>
@@ -637,7 +683,6 @@ const ClientMaster = () => {
               </div>
             </div>
 
-            {/* Form Actions */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
               <button
                 type="button"
@@ -664,7 +709,7 @@ const ClientMaster = () => {
         {/* Table Filters */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
           <div style={{ fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>
-            Total Clients: {filteredClients.length}
+            Total Clients: {totalItems}
           </div>
           <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             <select
@@ -678,15 +723,15 @@ const ClientMaster = () => {
             </select>
             <input
               type="text"
-              placeholder="Search Name or Phone..."
+              placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ padding: '0.5rem 1rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', width: '220px' }}
+              style={{ padding: '0.5rem 1rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', width: '200px' }}
             />
           </div>
         </div>
 
-        {/* Clients Table */}
+        {/* Client Table */}
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
             <thead>
@@ -694,29 +739,29 @@ const ClientMaster = () => {
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ACTIONS</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CLIENT NAME</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>COMPANY NAME</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>GENDER</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>PHONE</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ADDRESS</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>COMPANY</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>EMAIL</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CONTACT</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CITY</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATE</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATUS</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={9} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan={10} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                     Loading clients...
                   </td>
                 </tr>
-              ) : filteredClients.length === 0 ? (
+              ) : clients.length === 0 ? (
                 <tr>
-                  <td colSpan={9} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan={10} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                     No clients found.
                   </td>
                 </tr>
               ) : (
-                filteredClients.map((client, index) => (
+                clients.map((client, index) => (
                   <tr 
                     key={client.id} 
                     onClick={() => handleOpenEdit(client)}
@@ -739,15 +784,13 @@ const ClientMaster = () => {
                         <FaTrash size={12} />
                       </button>
                     </td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{index + 1}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{client.clientName}</td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>
-                      {client.companyName || (client.company ? (client.company.companyName || client.company.company_name) : 'N/A')}
-                    </td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.gender}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.companyName || (client.company ? (client.company.companyName || client.company.company_name) : 'N/A')}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.email || 'N/A'}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.contactNumber}</td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.address}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.city}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.state || 'N/A'}</td>
                     <td style={{ padding: '0.75rem 1rem' }}>
                       <span style={{ 
                         display: 'inline-block',
@@ -767,7 +810,19 @@ const ClientMaster = () => {
             </tbody>
           </table>
         </div>
-
+        
+        {/* Pagination Controls */}
+        <Pagination 
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setCurrentPage(1);
+          }}
+        />
       </div>
 
     </div>

@@ -7,11 +7,18 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../../../shared/services/apiService';
 import { TEST_REQUEST_ENDPOINTS } from '../../../shared/services/apiEndpoints';
+import Pagination from '../../../shared/components/Pagination';
 
 const TestRequestList = () => {
   const navigate = useNavigate();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
   
   // Toast notifications state
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
@@ -48,15 +55,39 @@ const TestRequestList = () => {
     setLoading(true);
     try {
       const activeCompId = localStorage.getItem('selectedCompanyId') || '';
-      const url = activeCompId ? `${TEST_REQUEST_ENDPOINTS.GET_ALL}?companyId=${activeCompId}` : TEST_REQUEST_ENDPOINTS.GET_ALL;
+      const params = new URLSearchParams({
+        page: currentPage,
+        limit: pageSize,
+        search: searchQuery,
+        status: statusFilter
+      });
+      if (activeCompId) {
+        params.append('companyId', activeCompId);
+      }
+      
+      const url = `${TEST_REQUEST_ENDPOINTS.GET_ALL}?${params.toString()}`;
       const response = await apiService.get(url);
       if (response && response.data) {
-        setRequests(Array.isArray(response.data) ? response.data : [response.data]);
+        if (response.data.rows !== undefined) {
+           setRequests(response.data.rows);
+           setTotalItems(response.data.total);
+           setTotalPages(response.data.totalPages);
+        } else {
+           const trList = Array.isArray(response.data) ? response.data : [response.data];
+           setRequests(trList);
+           setTotalItems(trList.length);
+           setTotalPages(1);
+        }
       } else {
         setRequests([]);
+        setTotalItems(0);
+        setTotalPages(0);
       }
     } catch (err) {
       triggerToast('Failed to load Test Requests', 'error');
+      setRequests([]);
+      setTotalItems(0);
+      setTotalPages(0);
     } finally {
       setLoading(false);
     }
@@ -64,7 +95,7 @@ const TestRequestList = () => {
 
   useEffect(() => {
     fetchRequests();
-  }, []);
+  }, [currentPage, pageSize, searchQuery, statusFilter]);
 
   // Soft delete parameter (if API is available, assuming remove exists)
   const handleDelete = async (id) => {
@@ -85,19 +116,7 @@ const TestRequestList = () => {
   const handlePrintPDF = () => { /* Add logic */ setShowDownloadDropdown(false); };
   const handlePrint = () => { window.print(); setShowDownloadDropdown(false); };
 
-  // Filter list locally
-  const filteredRequests = requests.filter(r => {
-    const rName = (r.reportNumber || '').toLowerCase();
-    const cName = (r.clientName || '').toLowerCase();
-    const compName = (r.companyName || '').toLowerCase();
-    
-    const matchesSearch = rName.includes(searchQuery.toLowerCase()) || 
-                          cName.includes(searchQuery.toLowerCase()) ||
-                          compName.includes(searchQuery.toLowerCase());
-                           
-    const matchesStatus = statusFilter === 'ALL' || r.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -218,10 +237,10 @@ const TestRequestList = () => {
       {/* Filter and Table view matching CompanyMaster */}
       <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
         
-        {/* Table Filters */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+        {/* Filters Row */}
+        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.25rem', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>
-            Total Test Requests: {filteredRequests.length}
+            Total Requests: {totalItems}
           </div>
           <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             <select
@@ -233,17 +252,17 @@ const TestRequestList = () => {
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
             </select>
-            <input
-              type="text"
-              placeholder="Search..."
+            <input 
+              type="text" 
+              placeholder="Search reports..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ padding: '0.5rem 1rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', width: '200px' }}
+              style={{ padding: '0.5rem 1rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', width: '220px' }}
             />
           </div>
         </div>
 
-        {/* Data Table */}
+        {/* Data Grid Table */}
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
             <thead>
@@ -253,25 +272,24 @@ const TestRequestList = () => {
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>REPORT NO</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CLIENT</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>COMPANY</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>DATE</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATUS</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                     Loading requests...
                   </td>
                 </tr>
-              ) : filteredRequests.length === 0 ? (
+              ) : requests.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                     No test requests found.
                   </td>
                 </tr>
               ) : (
-                filteredRequests.map((r, index) => (
+                requests.map((r, index) => (
                   <tr 
                     key={r.id} 
                     onClick={() => window.location.hash = `#/requests/edit/${r.id}`}
@@ -295,20 +313,13 @@ const TestRequestList = () => {
                         <FaTrash size={12} />
                       </button>
                     </td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#3b82f6' }}>
-                      {index + 1}
-                    </td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#1e293b', fontWeight: 500 }}>
-                      {r.reportNumber || 'N/A'}
-                    </td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
+                    <td style={{ padding: '0.75rem 1rem', fontWeight: 600, color: '#0f172a' }}>{r.reportNumber || 'N/A'}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#1e293b' }}>
                       {r.clientName || 'N/A'}
                     </td>
                     <td style={{ padding: '0.75rem 1rem', color: '#475569' }}>
                       {r.companyName || 'N/A'}
-                    </td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#475569' }}>
-                      {r.dateOfCollection || 'N/A'}
                     </td>
                     <td style={{ padding: '0.75rem 1rem' }}>
                       <span style={{ 
@@ -330,6 +341,19 @@ const TestRequestList = () => {
             </tbody>
           </table>
         </div>
+        
+        {/* Pagination Controls */}
+        <Pagination 
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setCurrentPage(1);
+          }}
+        />
       </div>
     </div>
   );

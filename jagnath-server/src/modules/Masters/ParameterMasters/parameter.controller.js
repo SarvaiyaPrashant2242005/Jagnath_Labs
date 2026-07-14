@@ -121,19 +121,36 @@ const getAll = async (req, res) => {
                     "PARAMETERS_FETCHED",
                     "Parameters fetched successfully.",
                     "Parameters fetched successfully.",
-                    []
+                    req.query.limit ? { rows: [], total: 0, page: parseInt(req.query.page), totalPages: 0 } : []
                 ));
             }
             return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", e.message, e.message));
         }
 
-        const params = await parameterService.getParametersByCompany(companyId);
+        const options = {
+            page: req.query.page,
+            limit: req.query.limit,
+            search: req.query.search,
+            status: req.query.status
+        };
+
+        const result = await parameterService.getParametersByCompany(companyId, options);
+
+        let responseData = result;
+        if (options.limit && result.rows) {
+            responseData = {
+                rows: result.rows,
+                total: result.count,
+                page: parseInt(options.page),
+                totalPages: Math.ceil(result.count / parseInt(options.limit))
+            };
+        }
 
         return res.status(200).json(successResponse(
             "PARAMETERS_FETCHED",
             "Parameters fetched successfully.",
             "Parameters fetched successfully.",
-            params
+            responseData
         ));
     } catch (err) {
         return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Failed to fetch parameters."));

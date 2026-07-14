@@ -6,6 +6,7 @@ const Category = require("./category.model");
 const Company = require("../CompanyMasters/company.model");
 const Users = require("../../Auth/Users/users.model");
 const sequelize = require("../../../config/database");
+const { Op } = require("sequelize");
 const path = require("path");
 const { writeLogToFile } = require("../../../services/loggerService");
 
@@ -269,9 +270,9 @@ const getCategoryById = async (categoryId, companyId) => {
 /**
  * Get all categories under a company.
  */
-const getCategoriesByCompany = async (companyId) => {
+const getCategoriesByCompany = async (companyId, options = {}) => {
     try {
-        const categories = await Category.findAll({
+        let queryOptions = {
             where: { companyId },
             include: [{
                 model: Company,
@@ -279,7 +280,31 @@ const getCategoriesByCompany = async (companyId) => {
                 attributes: ["company_name"]
             }],
             attributes: { exclude: ["deleted_at"] }
-        });
+        };
+
+        if (options.limit && options.page) {
+            queryOptions.limit = parseInt(options.limit);
+            queryOptions.offset = (parseInt(options.page) - 1) * queryOptions.limit;
+
+            if (options.search) {
+                queryOptions.where = {
+                    ...queryOptions.where,
+                    name: { [Op.iLike]: `%${options.search}%` }
+                };
+            }
+
+            if (options.status && options.status !== 'ALL') {
+                queryOptions.where.status = options.status;
+            }
+
+            const result = await Category.findAndCountAll(queryOptions);
+            return {
+                ...result,
+                rows: result.rows.map(cat => formatCategory(cat))
+            };
+        }
+
+        const categories = await Category.findAll(queryOptions);
         return categories.map(cat => formatCategory(cat));
     } catch (error) {
         throw error;

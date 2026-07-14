@@ -6,6 +6,7 @@ const Company = require("./company.model");
 const UserCompanies = require("./user_companies.model");
 const Users = require("../../Auth/Users/users.model");
 const sequelize = require("../../../config/database");
+const { Op } = require("sequelize");
 const { v4: uuidv4 } = require("uuid");
 const path = require("path");
 const { writeLogToFile } = require("../../../services/loggerService");
@@ -295,21 +296,46 @@ Status      : SUCCESS
     }
 };
 
-const getCompaniesByUser = async (userId) => {
+const getCompaniesByUser = async (userId, options = {}) => {
     // Find all mapping records for the user
     const mappings = await UserCompanies.findAll({
         where: { user_id: userId }
     });
 
-    if (!mappings.length) return [];
+    if (!mappings.length) {
+        return options.limit ? { rows: [], count: 0 } : [];
+    }
 
     const companyIds = mappings.map(m => m.company_id);
 
-    // Fetch actual companies
-    const companies = await Company.findAll({
+    let queryOptions = {
         where: { id: companyIds }
-    });
+    };
 
+    if (options.limit && options.page) {
+        queryOptions.limit = parseInt(options.limit);
+        queryOptions.offset = (parseInt(options.page) - 1) * queryOptions.limit;
+        
+        // Optional searching
+        if (options.search) {
+            queryOptions.where = {
+                ...queryOptions.where,
+                [Op.or]: [
+                    { company_name: { [Op.iLike]: `%${options.search}%` } },
+                    { company_email: { [Op.iLike]: `%${options.search}%` } }
+                ]
+            };
+        }
+        
+        if (options.status && options.status !== 'ALL') {
+            queryOptions.where.status = options.status;
+        }
+
+        return await Company.findAndCountAll(queryOptions);
+    }
+
+    // Fetch actual companies without pagination
+    const companies = await Company.findAll(queryOptions);
     return companies;
 };
 

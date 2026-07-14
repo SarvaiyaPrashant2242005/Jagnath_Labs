@@ -8,6 +8,7 @@ const Category = require("../CategoryMasters/category.model");
 const CategoryParameter = require("../CategoryParameterMasters/categoryParameter.model");
 const Users = require("../../Auth/Users/users.model");
 const sequelize = require("../../../config/database");
+const { Op } = require("sequelize");
 const path = require("path");
 const { writeLogToFile } = require("../../../services/loggerService");
 
@@ -225,7 +226,7 @@ Performed By: ${performedBy}
 
 Company     : ${companyName}
 
-Parameter   : ${updatedParameter.parameterName}
+Parameter   : ${updatedParameter.parameterName}w
 
 Parameter ID: ${parameterId}
 ${changesBlock}
@@ -329,9 +330,9 @@ const getParameterById = async (parameterId, companyId) => {
 /**
  * Get all parameters under a company.
  */
-const getParametersByCompany = async (companyId) => {
+const getParametersByCompany = async (companyId, options = {}) => {
     try {
-        const params = await Parameter.findAll({
+        let queryOptions = {
             where: { companyId },
             include: [
                 {
@@ -349,8 +350,33 @@ const getParametersByCompany = async (companyId) => {
                     }]
                 }
             ],
-            attributes: { exclude: ["deleted_at"] }
-        });
+            attributes: { exclude: ["deleted_at"] },
+            distinct: true
+        };
+
+        if (options.limit && options.page) {
+            queryOptions.limit = parseInt(options.limit);
+            queryOptions.offset = (parseInt(options.page) - 1) * queryOptions.limit;
+
+            if (options.search) {
+                queryOptions.where = {
+                    ...queryOptions.where,
+                    parameterName: { [Op.iLike]: `%${options.search}%` }
+                };
+            }
+
+            if (options.status && options.status !== 'ALL') {
+                queryOptions.where.status = options.status;
+            }
+
+            const result = await Parameter.findAndCountAll(queryOptions);
+            return {
+                ...result,
+                rows: result.rows.map(param => formatParameter(param))
+            };
+        }
+
+        const params = await Parameter.findAll(queryOptions);
         return params.map(param => formatParameter(param));
     } catch (error) {
         throw error;

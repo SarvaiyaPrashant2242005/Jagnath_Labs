@@ -36,6 +36,14 @@ const Client = sequelize.define("Client", {
         type: DataTypes.STRING,
         allowNull: false,
     },
+    state: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
+    email: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
     gender: {
         type: DataTypes.STRING,
         allowNull: false,

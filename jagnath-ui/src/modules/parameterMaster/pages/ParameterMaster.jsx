@@ -6,6 +6,7 @@ import {
 } from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
 import { PARAMETER_ENDPOINTS, COMPANY_ENDPOINTS, CATEGORY_ENDPOINTS } from '../../../shared/services/apiEndpoints';
+import Pagination from '../../../shared/components/Pagination';
 
 const ParameterMaster = () => {
   // Parameter, Company & Category states
@@ -13,6 +14,12 @@ const ParameterMaster = () => {
   const [companies, setCompanies] = useState([]);
   const [categoriesList, setCategoriesList] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
   
   // Toast notifications state
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
@@ -95,23 +102,50 @@ const ParameterMaster = () => {
     setLoading(true);
     try {
       const activeCompId = localStorage.getItem('selectedCompanyId') || '';
-      const url = activeCompId ? `${PARAMETER_ENDPOINTS.GET_ALL}?companyId=${activeCompId}` : PARAMETER_ENDPOINTS.GET_ALL;
+      const params = new URLSearchParams({
+        page: currentPage,
+        limit: pageSize,
+        search: searchQuery,
+        status: statusFilter
+      });
+      if (activeCompId) {
+        params.append('companyId', activeCompId);
+      }
+      
+      const url = `${PARAMETER_ENDPOINTS.GET_ALL}?${params.toString()}`;
       const response = await apiService.get(url);
       if (response && response.data) {
-        setParameters(Array.isArray(response.data) ? response.data : [response.data]);
+        if (response.data.rows !== undefined) {
+           setParameters(response.data.rows);
+           setTotalItems(response.data.total);
+           setTotalPages(response.data.totalPages);
+        } else {
+           const paramList = Array.isArray(response.data) ? response.data : [response.data];
+           setParameters(paramList);
+           setTotalItems(paramList.length);
+           setTotalPages(1);
+        }
       } else {
         setParameters([]);
+        setTotalItems(0);
+        setTotalPages(0);
       }
     } catch (err) {
       if (err.status !== 404 && err.errorCode !== 'NOT_FOUND') {
         triggerToast(err.messageToShow || err.message || 'Failed to fetch parameters.', 'error');
       } else {
         setParameters([]);
+        setTotalItems(0);
+        setTotalPages(0);
       }
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchParameters();
+  }, [currentPage, pageSize, searchQuery, statusFilter]);
 
   useEffect(() => {
     const initializeData = async () => {
@@ -255,12 +289,12 @@ const ParameterMaster = () => {
   // CSV Export
   const handleDownloadCSV = () => {
     if (parameters.length === 0) return;
-    const headers = ['Parameter Name', 'Category', 'Description', 'Company Name', 'Status'];
-    const rows = filteredParameters.map(p => [
+    const headers = ['Parameter Name', 'Category', 'Company', 'Description', 'Status'];
+    const rows = parameters.map(p => [
       p.parameterName,
       p.categoryName || 'Unassigned',
-      p.description || 'None',
       p.companyName || 'N/A',
+      p.description || 'None',
       p.status
     ]);
 
@@ -279,12 +313,12 @@ const ParameterMaster = () => {
   // Excel Export
   const handleDownloadExcel = () => {
     if (parameters.length === 0) return;
-    const headers = ['Parameter Name', 'Category', 'Description', 'Company Name', 'Status'];
-    const rows = filteredParameters.map(p => [
+    const headers = ['Parameter Name', 'Category', 'Company', 'Description', 'Status'];
+    const rows = parameters.map(p => [
       p.parameterName,
       p.categoryName || 'Unassigned',
-      p.description || 'None',
       p.companyName || 'N/A',
+      p.description || 'None',
       p.status
     ]);
     
@@ -311,15 +345,15 @@ const ParameterMaster = () => {
     setShowDownloadDropdown(false);
   };
 
-  // Clipboard copy
+  // Copy to Clipboard
   const handleCopy = () => {
     if (parameters.length === 0) return;
-    const headers = ['Parameter Name', 'Category', 'Description', 'Company Name', 'Status'];
-    const rows = filteredParameters.map(p => [
+    const headers = ['Parameter Name', 'Category', 'Company', 'Description', 'Status'];
+    const rows = parameters.map(p => [
       p.parameterName,
       p.categoryName || 'Unassigned',
-      p.description || 'None',
       p.companyName || 'N/A',
+      p.description || 'None',
       p.status
     ]);
     const text = [headers.join('\t'), ...rows.map(r => r.join('\t'))].join('\n');
@@ -332,13 +366,13 @@ const ParameterMaster = () => {
   const handlePrintPDF = () => {
     if (parameters.length === 0) return;
     const printWindow = window.open('', '_blank');
-    const headers = ['Parameter Name', 'Category', 'Description', 'Company Name', 'Status'];
-    const rows = filteredParameters.map(p => `
+    const headers = ['Parameter Name', 'Category', 'Company', 'Description', 'Status'];
+    const rows = parameters.map(p => `
       <tr>
         <td>${p.parameterName}</td>
         <td>${p.categoryName || 'Unassigned'}</td>
-        <td>${p.description || 'None'}</td>
         <td>${p.companyName || 'N/A'}</td>
+        <td>${p.description || 'None'}</td>
         <td>${p.status}</td>
       </tr>
     `).join('');
@@ -382,22 +416,6 @@ const ParameterMaster = () => {
     window.print();
     setShowDownloadDropdown(false);
   };
-
-  // Filter list locally
-  const filteredParameters = parameters.filter(p => {
-    const pName = (p.parameterName || '').toLowerCase();
-    const desc = (p.description || '').toLowerCase();
-    const comp = (p.companyName || '').toLowerCase();
-    const catName = (p.categoryName || '').toLowerCase();
-    
-    const matchesSearch = pName.includes(searchQuery.toLowerCase()) || 
-                          desc.includes(searchQuery.toLowerCase()) ||
-                          comp.includes(searchQuery.toLowerCase()) ||
-                          catName.includes(searchQuery.toLowerCase());
-                           
-    const matchesStatus = statusFilter === 'ALL' || p.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -640,7 +658,7 @@ const ParameterMaster = () => {
         {/* Filters Row */}
         <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.25rem', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>
-            Total Parameters: {filteredParameters.length}
+            Total Parameters: {totalItems}
           </div>
           <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             <select
@@ -671,8 +689,8 @@ const ParameterMaster = () => {
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>PARAMETER NAME</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CATEGORY</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>COMPANY</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>DESCRIPTION</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>COMPANY NAME</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATUS</th>
               </tr>
             </thead>
@@ -683,14 +701,14 @@ const ParameterMaster = () => {
                     Loading parameters...
                   </td>
                 </tr>
-              ) : filteredParameters.length === 0 ? (
+              ) : parameters.length === 0 ? (
                 <tr>
                   <td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                     No parameters found.
                   </td>
                 </tr>
               ) : (
-                filteredParameters.map((p, index) => (
+                parameters.map((p, index) => (
                   <tr 
                     key={p.id} 
                     onClick={() => handleOpenEdit(p)}
@@ -714,15 +732,15 @@ const ParameterMaster = () => {
                         <FaTrash size={12} />
                       </button>
                     </td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{index + 1}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
                     <td style={{ padding: '0.75rem 1rem', fontWeight: 600, color: '#0f172a' }}>{p.parameterName}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 500 }}>
                       {p.categoryName || <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '0.85rem' }}>Unassigned</span>}
                     </td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#475569' }}>{p.companyName || 'N/A'}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#64748b', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {p.description || <em style={{ color: '#94a3b8' }}>No description</em>}
                     </td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#475569' }}>{p.companyName || 'N/A'}</td>
                     <td style={{ padding: '0.75rem 1rem' }}>
                       <span 
                         onClick={(e) => handleToggleStatus(p, e)}
@@ -748,6 +766,19 @@ const ParameterMaster = () => {
             </tbody>
           </table>
         </div>
+        
+        {/* Pagination Controls */}
+        <Pagination 
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setCurrentPage(1);
+          }}
+        />
       </div>
 
     </div>

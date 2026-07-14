@@ -237,19 +237,36 @@ const getAll = async (req, res) => {
                     "CLIENTS_FETCHED",
                     "Clients fetched successfully.",
                     "Clients retrieved.",
-                    []
+                    req.query.limit ? { rows: [], total: 0, page: parseInt(req.query.page), totalPages: 0 } : []
                 ));
             }
             companyIdToUse = company.id;
         }
 
-        const clients = await clientService.getClientsByCompany(companyIdToUse);
+        const options = {
+            page: req.query.page,
+            limit: req.query.limit,
+            search: req.query.search,
+            status: req.query.status
+        };
+
+        const result = await clientService.getClientsByCompany(companyIdToUse, options);
+
+        let responseData = result;
+        if (options.limit && result.rows) {
+            responseData = {
+                rows: result.rows,
+                total: result.count,
+                page: parseInt(options.page),
+                totalPages: Math.ceil(result.count / parseInt(options.limit))
+            };
+        }
 
         return res.status(200).json(successResponse(
             "CLIENTS_FETCHED",
             "Clients fetched successfully.",
             "Clients retrieved.",
-            clients
+            responseData
         ));
     } catch (err) {
         return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Failed to fetch clients."));
