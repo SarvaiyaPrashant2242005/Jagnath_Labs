@@ -783,7 +783,7 @@ const ParameterMaster = () => {
             ) : parameters.length === 0 ? (
               <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>No parameters found.</div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '1.5rem', alignItems: 'start' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem', alignItems: 'start' }}>
                 {Object.entries(
                   parameters.reduce((acc, param) => {
                     const cat = param.categoryName || 'Unassigned';
@@ -792,14 +792,14 @@ const ParameterMaster = () => {
                     return acc;
                   }, {})
                 ).map(([catName, params]) => (
-                  <div key={catName} style={{ marginBottom: '2rem', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '1.25rem', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                    <h4 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1e293b', marginBottom: '1rem', paddingBottom: '0.5rem', borderBottom: '2px solid #e2e8f0' }}>
-                      {catName} <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: 500, marginLeft: '0.5rem' }}>({params.length})</span>
+                  <div key={catName} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '1rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                    <h4 style={{ fontSize: '1rem', fontWeight: 700, color: '#1e293b', margin: '0 0 0.75rem 0', paddingBottom: '0.5rem', borderBottom: '1px solid #e2e8f0' }}>
+                      {catName} <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500, marginLeft: '0.25rem' }}>({params.length})</span>
                     </h4>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       {params.map((p, idx) => (
-                        <div key={p.id} style={{ display: 'flex', alignItems: 'center', padding: '0.75rem 0', borderBottom: idx !== params.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
-                          <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.95rem' }}>{p.parameterName}</div>
+                        <div key={p.id} style={{ display: 'flex', alignItems: 'center', padding: '0.35rem 0', borderBottom: idx !== params.length - 1 ? '1px dashed #e2e8f0' : 'none' }}>
+                          <div style={{ fontWeight: 500, color: '#334155', fontSize: '0.85rem' }}>{p.parameterName}</div>
                         </div>
                       ))}
                     </div>
