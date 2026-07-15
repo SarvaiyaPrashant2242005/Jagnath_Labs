@@ -20,7 +20,7 @@ const TestRequestPrint = () => {
   const [selClient, setSelClient] = useState({});
   const [selCategory, setSelCategory] = useState({});
   const [formData, setFormData] = useState({});
-  
+
   const [parameters, setParameters] = useState([]);
   const [checkedParameters, setCheckedParameters] = useState({});
 
@@ -54,7 +54,7 @@ const TestRequestPrint = () => {
       const cList = Array.isArray(compRes?.data) ? compRes.data : [compRes?.data];
       const clList = Array.isArray(clientRes?.data) ? clientRes.data : [clientRes?.data];
       const catList = Array.isArray(catRes?.data) ? catRes.data : [catRes?.data];
-      
+
       const matchingComp = cList.find(c => (c.companyName || c.company_name) === tr.companyName) || {};
       const matchingClient = clList.find(c => c.clientName === tr.clientName) || {};
       const matchingCat = catList.find(c => c.id === tr.sampleParticular) || {};
@@ -106,7 +106,7 @@ const TestRequestPrint = () => {
     <div className="print-container">
       {/* ======================= PAGE 1 ======================= */}
       <div className="print-page">
-        
+
         {/* Header Table */}
         <table className="print-header-table">
           <tbody>
@@ -114,12 +114,12 @@ const TestRequestPrint = () => {
               <td className="header-logo-cell">
                 <div className="logo-placeholder">
                   <div className="logo-circle">
-                    <img src="/logo.png" alt="Logo" style={{width: '40px', height: '40px', objectFit: 'contain'}} onError={(e) => e.target.style.display='none'} />
+                    <img src="/logo.png" alt="Logo" style={{ width: '40px', height: '40px', objectFit: 'contain' }} onError={(e) => e.target.style.display = 'none'} />
                   </div>
                   <div>
                     <h1 className="brand-name">{selCompany.companyName || selCompany.company_name || 'JAGNATH'}</h1>
                     <p className="brand-sub">Lab Technologies</p>
-                    <p style={{fontSize: '0.5rem', margin: 0, color: '#666'}}>Nurturing the Nature for Human Race</p>
+                    <p style={{ fontSize: '0.5rem', margin: 0, color: '#666' }}>Nurturing the Nature for Human Race</p>
                   </div>
                 </div>
               </td>
@@ -133,7 +133,7 @@ const TestRequestPrint = () => {
                     <tr><td>Amendment Date</td><td>--</td></tr>
                     <tr><td>Issue No.</td><td>01</td></tr>
                     <tr><td>Issue Date</td><td>01/09/2018</td></tr>
-                    <tr><td style={{borderBottom: 'none'}}>Format No.</td><td style={{borderBottom: 'none'}}>7.1 F-01</td></tr>
+                    <tr><td style={{ borderBottom: 'none' }}>Format No.</td><td style={{ borderBottom: 'none' }}>7.1 F-01</td></tr>
                   </tbody>
                 </table>
               </td>
@@ -148,24 +148,24 @@ const TestRequestPrint = () => {
         {/* Main Form Table */}
         <table className="print-main-table">
           <colgroup>
-            <col style={{width: '18%'}} />
-            <col style={{width: '2%'}} />
-            <col style={{width: '15%'}} />
-            <col style={{width: '22%'}} />
-            <col style={{width: '2%'}} />
-            <col style={{width: '11%'}} />
-            <col style={{width: '16%'}} />
-            <col style={{width: '2%'}} />
-            <col style={{width: '12%'}} />
+            <col style={{ width: '18%' }} />
+            <col style={{ width: '2%' }} />
+            <col style={{ width: '15%' }} />
+            <col style={{ width: '22%' }} />
+            <col style={{ width: '2%' }} />
+            <col style={{ width: '11%' }} />
+            <col style={{ width: '16%' }} />
+            <col style={{ width: '2%' }} />
+            <col style={{ width: '12%' }} />
           </colgroup>
           <tbody>
             <tr>
-              <td className="label-col">Name of Company/<br/>Customer</td><td className="colon-col">:</td>
+              <td className="label-col">Name of Company/<br />Customer</td><td className="colon-col">:</td>
               <td colSpan={7} className="val-col">{selCompany.companyName || selCompany.company_name || ''} {selClient.clientName ? `- ${selClient.clientName}` : ''}</td>
             </tr>
             <tr>
-              <td className="label-col">Address for<br/>Communication</td><td className="colon-col">:</td>
-              <td colSpan={7} className="val-col" style={{minHeight: '40px'}}>{formData.address}</td>
+              <td className="label-col">Address for<br />Communication</td><td className="colon-col">:</td>
+              <td colSpan={7} className="val-col" style={{ minHeight: '40px' }}>{formData.address}</td>
             </tr>
             <tr>
               <td className="label-col">Email ID</td><td className="colon-col">:</td>
@@ -180,9 +180,9 @@ const TestRequestPrint = () => {
               <td className="val-col">{formData.contactNumber}</td>
             </tr>
             <tr>
-              <td className="label-col">Date of Collection of<br/>Sample</td><td className="colon-col">:</td>
+              <td className="label-col">Date of Collection of<br />Sample</td><td className="colon-col">:</td>
               <td colSpan={4} className="val-col">{formData.dateOfCollection}</td>
-              <td className="label-col">Date of Receipt of<br/>Sample</td><td className="colon-col">:</td>
+              <td className="label-col">Date of Receipt of<br />Sample</td><td className="colon-col">:</td>
               <td className="val-col">{formData.dateOfReceipt}</td>
             </tr>
             <tr>
@@ -203,87 +203,87 @@ const TestRequestPrint = () => {
               <td className="label-col">Report No.</td><td className="colon-col">:</td>
               <td className="val-col">{formData.reportNumber}</td>
             </tr>
-            
+
             <tr>
               <td className="label-col">Sample Particular</td><td className="colon-col">:</td>
               <td colSpan={7} className="val-col">{selCategory.name || 'Ground Water/Surface Water/Drinking Water Waste Water'}</td>
             </tr>
 
             <tr>
-              <td className="label-col">Availability of<br/>Equipments</td><td className="colon-col">:</td>
+              <td className="label-col">Availability of<br />Equipments</td><td className="colon-col">:</td>
               <td className="val-col">{formData.equipmentAvailability}</td>
-              <td className="label-col">Availability of<br/>reference standards</td><td className="colon-col">:</td>
+              <td className="label-col">Availability of<br />reference standards</td><td className="colon-col">:</td>
               <td className="val-col">{formData.referenceStandardAvailability}</td>
-              <td className="label-col">Adequacy of sample<br/>quantity</td><td className="colon-col">:</td>
+              <td className="label-col">Adequacy of sample<br />quantity</td><td className="colon-col">:</td>
               <td className="val-col">{formData.sampleAdequacy || 'Adequate/Not Adequate'}</td>
             </tr>
 
             <tr>
-              <td className="label-col">Availability of<br/>Test method</td><td className="colon-col">:</td>
+              <td className="label-col">Availability of<br />Test method</td><td className="colon-col">:</td>
               <td className="val-col">{formData.testMethodAvailability}</td>
-              <td className="label-col">Availability of<br/>Trained person</td><td className="colon-col">:</td>
+              <td className="label-col">Availability of<br />Trained person</td><td className="colon-col">:</td>
               <td className="val-col"></td>
-              <td className="label-col">Tentative Days of<br/>Issuing the Report</td><td className="colon-col">:</td>
+              <td className="label-col">Tentative Days of<br />Issuing the Report</td><td className="colon-col">:</td>
               <td className="val-col">{formData.reportIssueDays || '15-20 Days'}</td>
             </tr>
 
             <tr>
-              <td className="label-col" style={{verticalAlign: 'top'}}>Sample testing facility<br/>reviewed by</td><td className="colon-col" style={{verticalAlign: 'top'}}>:</td>
-              <td colSpan={7} className="val-col" style={{verticalAlign: 'top'}}>{formData.reviewedBy || 'Quality Manager /Technical Manager'}</td>
+              <td className="label-col" style={{ verticalAlign: 'top' }}>Sample testing facility<br />reviewed by</td><td className="colon-col" style={{ verticalAlign: 'top' }}>:</td>
+              <td colSpan={7} className="val-col" style={{ verticalAlign: 'top' }}>{formData.reviewedBy || 'Quality Manager /Technical Manager'}</td>
             </tr>
-            
+
             <tr>
-              <td className="label-col" style={{verticalAlign: 'top', height: '40px'}}>Signature of Customer<br/>Representative</td><td className="colon-col" style={{verticalAlign: 'top'}}>:</td>
+              <td className="label-col" style={{ verticalAlign: 'top', height: '40px' }}>Signature of Customer<br />Representative</td><td className="colon-col" style={{ verticalAlign: 'top' }}>:</td>
               <td colSpan={4} className="val-col"></td>
-              <td className="label-col" style={{verticalAlign: 'top'}}>Signature of Sample<br/>Received By</td><td className="colon-col" style={{verticalAlign: 'top'}}>:</td>
+              <td className="label-col" style={{ verticalAlign: 'top' }}>Signature of Sample<br />Received By</td><td className="colon-col" style={{ verticalAlign: 'top' }}>:</td>
               <td className="val-col"></td>
             </tr>
 
             <tr>
-              <td className="label-col" style={{verticalAlign: 'top', height: '40px'}}>Name & Designation of<br/>Customer</td><td className="colon-col" style={{verticalAlign: 'top'}}>:</td>
+              <td className="label-col" style={{ verticalAlign: 'top', height: '40px' }}>Name & Designation of<br />Customer</td><td className="colon-col" style={{ verticalAlign: 'top' }}>:</td>
               <td colSpan={4} className="val-col"></td>
-              <td className="label-col" style={{verticalAlign: 'top'}}>Name & Designation of<br/>Sample Received</td><td className="colon-col" style={{verticalAlign: 'top'}}>:</td>
+              <td className="label-col" style={{ verticalAlign: 'top' }}>Name & Designation of<br />Sample Received</td><td className="colon-col" style={{ verticalAlign: 'top' }}>:</td>
               <td className="val-col"></td>
             </tr>
 
             <tr>
-              <td className="label-col" style={{verticalAlign: 'top'}}>Test Protocol / method<br/>to be adopted</td><td className="colon-col" style={{verticalAlign: 'top'}}>:</td>
+              <td className="label-col" style={{ verticalAlign: 'top' }}>Test Protocol / method<br />to be adopted</td><td className="colon-col" style={{ verticalAlign: 'top' }}>:</td>
               <td colSpan={7} className="val-col">
-                Ground Water/Surface Water/Drinking Water: APHA 23rd Edition 2017<br/>
+                Ground Water/Surface Water/Drinking Water: APHA 23rd Edition 2017<br />
                 Waste Water: APHA 23rd Edition 2017
               </td>
             </tr>
-            
+
             <tr>
-              <td className="label-col" style={{verticalAlign: 'top'}}>Remarks</td><td className="colon-col" style={{verticalAlign: 'top'}}>:</td>
-              <td colSpan={7} className="val-col" style={{lineHeight: '1.4', padding: '0.5rem'}}>
-                <ol style={{margin: 0, paddingLeft: '1.2rem'}}>
+              <td className="label-col" style={{ verticalAlign: 'top' }}>Remarks</td><td className="colon-col" style={{ verticalAlign: 'top' }}>:</td>
+              <td colSpan={7} className="val-col" style={{ lineHeight: '1.4', padding: '0.5rem' }}>
+                <ol style={{ margin: 0, paddingLeft: '1.2rem' }}>
                   <li>Please mention specific tests to be applied</li>
                   <li>All the test procedures are followed as per National & International Standards.</li>
                   <li>In case of sampling conducted by JLT, sampling plan is followed as per National & International Standards.</li>
                   <li>If due to any unavoidable or unforeseen condition, the testing will be sub contracted only to competent agencies that comply with ISO/IEC 17025:2017(NABL) requirements</li>
                 </ol>
-                {formData.remarks && <div style={{marginTop: '0.5rem'}}><strong>Additional:</strong> {formData.remarks}</div>}
+                {formData.remarks && <div style={{ marginTop: '0.5rem' }}><strong>Additional:</strong> {formData.remarks}</div>}
               </td>
             </tr>
           </tbody>
         </table>
 
         {/* Footer Page 1 */}
-        <table className="print-footer-table" style={{marginTop: 'auto'}}>
+        <table className="print-footer-table" style={{ marginTop: 'auto' }}>
           <tbody>
             <tr>
-              <td style={{width: '33.33%', borderRight: '1px solid #000'}}>Doc No: JLT/ 7.1 F-01</td>
-              <td style={{width: '33.33%', borderRight: '1px solid #000', borderTop: '1px solid #fff'}}></td>
-              <td style={{width: '33.33%', textAlign: 'right'}}>Page 1 of 2</td>
+              <td style={{ width: '33.33%', borderRight: '1px solid #000' }}>Doc No: JLT/ 7.1 F-01</td>
+              <td style={{ width: '33.33%', borderRight: '1px solid #000', borderTop: '1px solid #fff' }}></td>
+              <td style={{ width: '33.33%', textAlign: 'right' }}>Page 1 of 2</td>
             </tr>
             <tr>
-              <td style={{borderRight: '1px solid #000'}}>Format No. 7.1 F-01</td>
+              <td style={{ borderRight: '1px solid #000' }}>Format No. 7.1 F-01</td>
               <td colSpan={2}>Format: Test Request Form (Water & Waste Water)</td>
             </tr>
             <tr>
-              <td style={{borderRight: '1px solid #000'}}>Prepared By: TM</td>
-              <td style={{borderRight: '1px solid #000'}}>Approved By: QM</td>
+              <td style={{ borderRight: '1px solid #000' }}>Prepared By: TM</td>
+              <td style={{ borderRight: '1px solid #000' }}>Approved By: QM</td>
               <td>Issue By/Reviewed By: TM</td>
             </tr>
           </tbody>
@@ -292,7 +292,7 @@ const TestRequestPrint = () => {
 
       {/* ======================= PAGE 2 ======================= */}
       <div className="print-page">
-        
+
         {/* Header Table (Repeated) */}
         <table className="print-header-table">
           <tbody>
@@ -300,12 +300,12 @@ const TestRequestPrint = () => {
               <td className="header-logo-cell">
                 <div className="logo-placeholder">
                   <div className="logo-circle">
-                    <img src="/logo.png" alt="Logo" style={{width: '40px', height: '40px', objectFit: 'contain'}} onError={(e) => e.target.style.display='none'} />
+                    <img src="/logo.png" alt="Logo" style={{ width: '40px', height: '40px', objectFit: 'contain' }} onError={(e) => e.target.style.display = 'none'} />
                   </div>
                   <div>
                     <h1 className="brand-name">{selCompany.companyName || selCompany.company_name || 'JAGNATH'}</h1>
                     <p className="brand-sub">Lab Technologies</p>
-                    <p style={{fontSize: '0.5rem', margin: 0, color: '#666'}}>Nurturing the Nature for Human Race</p>
+                    <p style={{ fontSize: '0.5rem', margin: 0, color: '#666' }}>Nurturing the Nature for Human Race</p>
                   </div>
                 </div>
               </td>
@@ -319,7 +319,7 @@ const TestRequestPrint = () => {
                     <tr><td>Amendment Date</td><td>--</td></tr>
                     <tr><td>Issue No.</td><td>01</td></tr>
                     <tr><td>Issue Date</td><td>01/09/2018</td></tr>
-                    <tr><td style={{borderBottom: 'none'}}>Format No.</td><td style={{borderBottom: 'none'}}>7.1 F-01</td></tr>
+                    <tr><td style={{ borderBottom: 'none' }}>Format No.</td><td style={{ borderBottom: 'none' }}>7.1 F-01</td></tr>
                   </tbody>
                 </table>
               </td>
@@ -327,60 +327,60 @@ const TestRequestPrint = () => {
           </tbody>
         </table>
 
-        <div style={{fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '0.2rem'}}>
-          Test Parameter to Be Analyzed: - <span style={{display: 'inline-block', width: '100%', textAlign: 'center'}}>{selCategory.name || 'Water & Waste Water'}</span>
+        <div style={{ fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '0.2rem' }}>
+          Test Parameter to Be Analyzed: - <span style={{ display: 'inline-block', width: '100%', textAlign: 'center' }}>{selCategory.name || 'Water & Waste Water'}</span>
         </div>
 
         <table className="print-param-table">
           <thead>
             <tr>
-              <th style={{width: '8%'}}>Sr. No.</th>
-              <th style={{width: '42%'}}>Test Parameters</th>
-              <th style={{width: '10%'}}>Tick √</th>
-              <th style={{width: '40%'}}>Test Method</th>
+              <th style={{ width: '8%' }}>Sr. No.</th>
+              <th style={{ width: '42%' }}>Test Parameters</th>
+              <th style={{ width: '10%' }}>Tick √</th>
+              <th style={{ width: '40%' }}>Test Method</th>
             </tr>
           </thead>
           <tbody>
-            {Array.from({ length: 40 }).map((_, i) => {
+            {Array.from({ length: 25 }).map((_, i) => {
               const param = parameters[i];
               return (
                 <tr key={i}>
-                  <td style={{textAlign: 'center'}}>{i + 1}.</td>
-                  <td style={{textAlign: 'center'}}>{param ? param.parameterName : ''}</td>
-                  <td style={{textAlign: 'center', fontWeight: 'bold'}}>{param && checkedParameters[param.id] ? '√' : ''}</td>
-                  <td style={{textAlign: 'center'}}>{param ? param.testMethod : ''}</td>
+                  <td style={{ textAlign: 'center' }}>{i + 1}.</td>
+                  <td style={{ textAlign: 'center' }}>{param ? param.parameterName : ''}</td>
+                  <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{param && checkedParameters[param.id] ? '√' : ''}</td>
+                  <td style={{ textAlign: 'center' }}>{param ? param.testMethod : ''}</td>
                 </tr>
               );
             })}
           </tbody>
         </table>
 
-        <div style={{textAlign: 'right', marginTop: '1.5rem', fontWeight: 'bold', fontSize: '0.9rem', paddingRight: '2rem'}}>
-          Approved By<br/>
+        <div style={{ textAlign: 'right', marginTop: '1.5rem', fontWeight: 'bold', fontSize: '0.9rem', paddingRight: '2rem' }}>
+          Approved By<br />
           Technical Manager
         </div>
 
         {/* Footer Page 2 */}
-        <table className="print-footer-table" style={{marginTop: 'auto'}}>
+        <table className="print-footer-table" style={{ marginTop: 'auto' }}>
           <tbody>
             <tr>
-              <td style={{width: '33.33%', borderRight: '1px solid #000'}}>Doc No: JLT/ 7.1 F-01</td>
-              <td style={{width: '33.33%', borderRight: '1px solid #000', borderTop: '1px solid #fff'}}></td>
-              <td style={{width: '33.33%', textAlign: 'right'}}>Page 2 of 2</td>
+              <td style={{ width: '33.33%', borderRight: '1px solid #000' }}>Doc No: JLT/ 7.1 F-01</td>
+              <td style={{ width: '33.33%', borderRight: '1px solid #000', borderTop: '1px solid #fff' }}></td>
+              <td style={{ width: '33.33%', textAlign: 'right' }}>Page 2 of 2</td>
             </tr>
             <tr>
-              <td style={{borderRight: '1px solid #000'}}>Format No. 7.1 F-01</td>
+              <td style={{ borderRight: '1px solid #000' }}>Format No. 7.1 F-01</td>
               <td colSpan={2}>Format: Test Request Form (Water & Waste Water)</td>
             </tr>
             <tr>
-              <td style={{borderRight: '1px solid #000'}}>Prepared By: TM</td>
-              <td style={{borderRight: '1px solid #000'}}>Approved By: QM</td>
+              <td style={{ borderRight: '1px solid #000' }}>Prepared By: TM</td>
+              <td style={{ borderRight: '1px solid #000' }}>Approved By: QM</td>
               <td>Issue By/Reviewed By: TM</td>
             </tr>
           </tbody>
         </table>
       </div>
-      
+
       {/* Print styles */}
       <style>{`
         body { margin: 0; padding: 0; background: #fff; }
@@ -399,9 +399,6 @@ const TestRequestPrint = () => {
           padding: 10mm;
           margin: 0 auto;
           box-sizing: border-box;
-          display: flex;
-          flex-direction: column;
-          position: relative;
         }
 
         /* Header Styles */
@@ -554,17 +551,23 @@ const TestRequestPrint = () => {
         @media print {
           @page {
             size: A4;
-            margin: 10mm;
+            margin: 0;
           }
-          body { background: transparent; }
+          body, html { 
+            margin: 0;
+            padding: 0;
+            background: transparent; 
+          }
           .print-page { 
-            width: 100%; 
-            height: 270mm; /* Reduced slightly to prevent footer spill-over */
-            padding: 0; 
+            width: 210mm; 
+            height: 296mm; 
+            padding: 10mm; 
             margin: 0; 
             box-sizing: border-box;
             page-break-after: always;
-            page-break-inside: avoid;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
           }
           .print-page:last-child {
             page-break-after: auto;
