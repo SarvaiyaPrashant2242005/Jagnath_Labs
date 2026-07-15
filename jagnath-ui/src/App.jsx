@@ -11,6 +11,7 @@ import DashboardLayout from './shared/layouts/DashboardLayout';
 import TestRequestForm from './modules/testRequest/pages/TestRequestForm';
 import TestRequestList from './modules/testRequest/pages/TestRequestList';
 import TestRequestPrint from './modules/testRequest/pages/TestRequestPrint';
+import Profile from './modules/profile/pages/Profile';
 import { getStoredUser } from './modules/auth/services/authService';
 import './assets/styles/index.css';
 
@@ -122,6 +123,7 @@ function App() {
         <Route path="/invoices" element={<ProtectedRoute><PlaceholderPage title="Invoices Directory" /></ProtectedRoute>} />
         <Route path="/dispatch" element={<ProtectedRoute><PlaceholderPage title="Dispatch Directory" /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><PlaceholderPage title="Settings Directory" /></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 
         {/* Catch-all fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
