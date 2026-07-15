@@ -40,6 +40,7 @@ const ParameterMaster = () => {
   const [formData, setFormData] = useState({
     parameterName: '',
     description: '',
+    testMethod: '',
     status: 'Active',
     companyName: '',
     categoryId: ''
@@ -191,6 +192,7 @@ const ParameterMaster = () => {
     setFormData({
       parameterName: '',
       description: '',
+      testMethod: '',
       status: 'Active',
       companyName: defaultCompanyName,
       categoryId: ''
@@ -205,6 +207,7 @@ const ParameterMaster = () => {
     setFormData({
       parameterName: param.parameterName || '',
       description: param.description || '',
+      testMethod: param.testMethod || '',
       status: param.status || 'Active',
       companyName: param.companyName || (param.company ? (param.company.companyName || param.company.company_name) : ''),
       categoryId: param.categoryId || ''
@@ -233,6 +236,7 @@ const ParameterMaster = () => {
     const payload = {
       parameterName: formData.parameterName,
       description: formData.description,
+      testMethod: formData.testMethod,
       status: formData.status,
       companyName: activeCompanyName || formData.companyName,
       categoryId: formData.categoryId || null
@@ -263,6 +267,7 @@ const ParameterMaster = () => {
       const payload = {
         parameterName: param.parameterName,
         description: param.description,
+        testMethod: param.testMethod,
         status: newStatus,
         companyName: param.companyName,
         categoryId: param.categoryId
@@ -290,10 +295,11 @@ const ParameterMaster = () => {
   // CSV Export
   const handleDownloadCSV = () => {
     if (parameters.length === 0) return;
-    const headers = ['Parameter Name', 'Category', 'Description', 'Status'];
+    const headers = ['Parameter Name', 'Category', 'Test Method', 'Description', 'Status'];
     const rows = parameters.map(p => [
       p.parameterName,
       p.categoryName || 'Unassigned',
+      p.testMethod || 'N/A',
       p.description || 'None',
       p.status
     ]);
@@ -313,10 +319,11 @@ const ParameterMaster = () => {
   // Excel Export
   const handleDownloadExcel = () => {
     if (parameters.length === 0) return;
-    const headers = ['Parameter Name', 'Category', 'Description', 'Status'];
+    const headers = ['Parameter Name', 'Category', 'Test Method', 'Description', 'Status'];
     const rows = parameters.map(p => [
       p.parameterName,
       p.categoryName || 'Unassigned',
+      p.testMethod || 'N/A',
       p.description || 'None',
       p.status
     ]);
@@ -347,10 +354,11 @@ const ParameterMaster = () => {
   // Copy to Clipboard
   const handleCopy = () => {
     if (parameters.length === 0) return;
-    const headers = ['Parameter Name', 'Category', 'Description', 'Status'];
+    const headers = ['Parameter Name', 'Category', 'Test Method', 'Description', 'Status'];
     const rows = parameters.map(p => [
       p.parameterName,
       p.categoryName || 'Unassigned',
+      p.testMethod || 'N/A',
       p.description || 'None',
       p.status
     ]);
@@ -364,11 +372,12 @@ const ParameterMaster = () => {
   const handlePrintPDF = () => {
     if (parameters.length === 0) return;
     const printWindow = window.open('', '_blank');
-    const headers = ['Parameter Name', 'Category', 'Description', 'Status'];
+    const headers = ['Parameter Name', 'Category', 'Test Method', 'Description', 'Status'];
     const rows = parameters.map(p => `
       <tr>
         <td>${p.parameterName}</td>
         <td>${p.categoryName || 'Unassigned'}</td>
+        <td>${p.testMethod || 'N/A'}</td>
         <td>${p.description || 'None'}</td>
         <td>${p.status}</td>
       </tr>
@@ -589,6 +598,19 @@ const ParameterMaster = () => {
                 />
               </div>
 
+              {/* Test Method */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: 'span 2' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Test Method</label>
+                <input 
+                  type="text"
+                  name="testMethod"
+                  value={formData.testMethod}
+                  onChange={handleInputChange}
+                  placeholder="e.g. APHA, 23rd Edition 2017/4500-H-B"
+                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', fontFamily: 'inherit' }}
+                />
+              </div>
+
               {/* Status sliding toggle switch */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Status</label>
@@ -701,6 +723,7 @@ const ParameterMaster = () => {
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>PARAMETER NAME</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CATEGORY</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>TEST METHOD</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATUS</th>
               </tr>
             </thead>
@@ -752,6 +775,9 @@ const ParameterMaster = () => {
                     <td style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 500 }}>
                       {p.categoryName || <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '0.85rem' }}>Unassigned</span>}
                     </td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#475569', fontSize: '0.85rem' }}>
+                      {p.testMethod || <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>N/A</span>}
+                    </td>
                     <td style={{ padding: '0.75rem 1rem' }}>
                       <span 
                         onClick={(e) => handleToggleStatus(p, e)}
@@ -799,7 +825,10 @@ const ParameterMaster = () => {
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       {params.map((p, idx) => (
                         <div key={p.id} style={{ display: 'flex', alignItems: 'center', padding: '0.35rem 0', borderBottom: idx !== params.length - 1 ? '1px dashed #e2e8f0' : 'none' }}>
-                          <div style={{ fontWeight: 500, color: '#334155', fontSize: '0.85rem' }}>{p.parameterName}</div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 500, color: '#334155', fontSize: '0.85rem' }}>{p.parameterName}</div>
+                            {p.testMethod && <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.15rem' }}>Method: {p.testMethod}</div>}
+                          </div>
                         </div>
                       ))}
                     </div>

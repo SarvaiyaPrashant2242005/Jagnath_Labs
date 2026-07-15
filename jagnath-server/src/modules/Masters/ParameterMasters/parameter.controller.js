@@ -79,6 +79,7 @@ const create = async (req, res) => {
         const parameterData = { 
             parameterName: value.parameterName,
             description: value.description,
+            testMethod: value.testMethod,
             status: value.status || "Active",
             companyId,
             categoryId: value.categoryId
@@ -253,6 +254,7 @@ const update = async (req, res) => {
         const parameterData = {
             parameterName: value.parameterName,
             description: value.description,
+            testMethod: value.testMethod,
             status: value.status,
             companyId: targetCompanyId,
             categoryId: value.categoryId
