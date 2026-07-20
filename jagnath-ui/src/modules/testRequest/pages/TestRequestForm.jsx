@@ -85,7 +85,10 @@ const TestRequestForm = () => {
 
       const cList = Array.isArray(compRes?.data) ? compRes.data : [compRes?.data];
       if (compRes?.data) setCompanies(cList);
-      if (catRes?.data) setCategories(Array.isArray(catRes.data) ? catRes.data : [catRes.data]);
+      if (catRes?.data) {
+        const catList = Array.isArray(catRes.data) ? catRes.data : [catRes.data];
+        setCategories(catList.filter(cat => cat.status === 'Active'));
+      }
 
       let tr = null;
       let targetCompanyId = '';
@@ -117,7 +120,9 @@ const TestRequestForm = () => {
           : CLIENT_ENDPOINTS.GET_ALL
       );
       const clList = Array.isArray(clientRes?.data) ? clientRes.data : [clientRes?.data];
-      if (clientRes?.data) setClients(clList);
+      if (clientRes?.data) {
+        setClients(clList.filter(client => client.status === 'Active'));
+      }
 
       // 4. If editing, pre-fill form fields
       if (isEditing && tr) {
@@ -192,7 +197,8 @@ const TestRequestForm = () => {
     try {
       const res = await apiService.get(CATEGORY_PARAMETER_ENDPOINTS.GET_BY_CATEGORY(categoryId));
       if (res?.data) {
-        setParameters(Array.isArray(res.data) ? res.data : [res.data]);
+        const paramList = Array.isArray(res.data) ? res.data : [res.data];
+        setParameters(paramList.filter(param => param.status === 'Active'));
       } else {
         setParameters([]);
       }

@@ -6,6 +6,7 @@ const { createCategorySchema, updateCategorySchema } = require("./category.valid
 const categoryService = require("./category.service");
 const companyService = require("../CompanyMasters/company.service");
 const Company = require("../CompanyMasters/company.model");
+const Category = require("./category.model");
 const { successResponse, errorResponse } = require("../../../utils/response");
 
 /**

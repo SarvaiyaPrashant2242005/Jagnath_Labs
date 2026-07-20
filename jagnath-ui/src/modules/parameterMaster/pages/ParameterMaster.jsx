@@ -90,7 +90,8 @@ const ParameterMaster = () => {
       const url = activeCompId ? `${CATEGORY_ENDPOINTS.GET_ALL}?companyId=${activeCompId}` : CATEGORY_ENDPOINTS.GET_ALL;
       const response = await apiService.get(url);
       if (response && response.data) {
-        setCategoriesList(Array.isArray(response.data) ? response.data : [response.data]);
+        const categories = Array.isArray(response.data) ? response.data : [response.data];
+        setCategoriesList(categories.filter(cat => cat.status === 'Active'));
       } else {
         setCategoriesList([]);
       }
@@ -168,6 +169,9 @@ const ParameterMaster = () => {
   // Form validation
   const validateForm = () => {
     const errors = {};
+    if (!formData.categoryId) {
+      errors.categoryId = 'Category is required.';
+    }
     if (!formData.parameterName.trim()) {
       errors.parameterName = 'Parameter Name is required.';
     }
@@ -553,6 +557,25 @@ const ParameterMaster = () => {
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
               
+              {/* Category Dropdown */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Category *</label>
+                <select
+                  name="categoryId"
+                  value={formData.categoryId}
+                  onChange={handleInputChange}
+                  style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.categoryId ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', cursor: 'pointer', outline: 'none', backgroundColor: '#ffffff' }}
+                >
+                  <option value="">Select Category</option>
+                  {categoriesList.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </select>
+                {formErrors.categoryId && (
+                  <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 500 }}>{formErrors.categoryId}</span>
+                )}
+              </div>
+
               {/* Parameter Name */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Parameter Name *</label>
@@ -567,22 +590,6 @@ const ParameterMaster = () => {
                 {formErrors.parameterName && (
                   <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 500 }}>{formErrors.parameterName}</span>
                 )}
-              </div>
-
-              {/* Category Dropdown */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Category</label>
-                <select
-                  name="categoryId"
-                  value={formData.categoryId}
-                  onChange={handleInputChange}
-                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', cursor: 'pointer', outline: 'none', backgroundColor: '#ffffff' }}
-                >
-                  <option value="">Unassigned / Select Category</option>
-                  {categoriesList.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
-                </select>
               </div>
 
               {/* Description */}
