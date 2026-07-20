@@ -54,7 +54,8 @@ const TestRequestForm = () => {
     sampleReceiverName: '',
     testProtocol: 'Ground Water/Surface Water/Drinking Water: APHA 23rd Edition 2017\nWaste Water: APHA 23rd Edition 2017',
     remarks: '',
-    formTitle: 'WATER & WASTE WATER'
+    formTitle: 'WATER & WASTE WATER',
+    formType: 'Regular'
   });
 
   const [loading, setLoading] = useState(false);
@@ -164,7 +165,8 @@ const TestRequestForm = () => {
           sampleReceiverName: tr.sampleReceiverName || '',
           remarks: tr.remarks || '',
           testProtocol: tr.testProtocol || 'Ground Water/Surface Water/Drinking Water: APHA 23rd Edition 2017\nWaste Water: APHA 23rd Edition 2017',
-          formTitle: (tr.formTitle || 'WATER & WASTE WATER').replace(/^TEST REQUEST FORM FOR /i, '')
+          formTitle: (tr.formTitle || 'WATER & WASTE WATER').replace(/^TEST REQUEST FORM FOR /i, ''),
+          formType: tr.formType || 'Regular'
         });
 
         if (tr.sampleParticular) {
@@ -418,6 +420,34 @@ const TestRequestForm = () => {
                   <option value="">Select Client</option>
                   {clients.map(c => <option key={c.id} value={c.id}>{c.clientName}</option>)}
                 </select>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Form Type <span style={{color: '#ef4444'}}>*</span></label>
+                <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', background: '#f8fafc', padding: '0.75rem 1rem', border: '1px solid #e2e8f0', borderRadius: '8px', height: '42px', boxSizing: 'border-box' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500, color: '#1e293b' }}>
+                    <input 
+                      type="radio" 
+                      name="formType" 
+                      value="Regular" 
+                      checked={formData.formType === 'Regular'} 
+                      onChange={handleChange} 
+                      style={{ width: '1.1rem', height: '1.1rem', accentColor: '#3b82f6' }} 
+                    />
+                    Regular
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500, color: '#1e293b' }}>
+                    <input 
+                      type="radio" 
+                      name="formType" 
+                      value="NABL" 
+                      checked={formData.formType === 'NABL'} 
+                      onChange={handleChange} 
+                      style={{ width: '1.1rem', height: '1.1rem', accentColor: '#3b82f6' }} 
+                    />
+                    NABL
+                  </label>
+                </div>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', gridColumn: '1 / -1' }}>
@@ -698,16 +728,8 @@ const TestRequestForm = () => {
               <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', marginBottom: '8px' }}>
                 <tbody>
                   <tr>
-                    <td style={{ width: '45%', border: '1px solid #000000', padding: '4px', verticalAlign: 'middle' }}>
-                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                        <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#22c55e', color: '#ffffff', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '10px' }}>
-                          J
-                        </div>
-                        <div>
-                          <div style={{ fontWeight: 'bold', fontSize: '9px', textTransform: 'uppercase' }}>{selCompany.companyName || selCompany.company_name || 'JAGNATH'}</div>
-                          <div style={{ fontSize: '6px', color: '#666' }}>Lab Technologies</div>
-                        </div>
-                      </div>
+                    <td style={{ width: '45%', border: '1px solid #000000', padding: '4px', verticalAlign: 'middle', textAlign: 'center' }}>
+                      <img src="/Images/Navbar_Logo.png" alt="Logo" style={{ height: '50px', objectFit: 'contain', display: 'block', margin: '0 auto' }} />
                     </td>
                     <td style={{ width: '25%', border: '1px solid #000000', padding: '4px', textAlign: 'center', fontWeight: 'bold', fontSize: '10px' }}>
                       FORMATS
@@ -786,10 +808,12 @@ const TestRequestForm = () => {
                   <tr style={{ borderBottom: '1px solid #000000' }}>
                     <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Field Data Sheet</td>
                     <td style={{ padding: '3px 4px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span>{formData.fieldDataSheet}</span>
-                        <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Packing details</span>
-                        <span style={{ paddingLeft: '6px' }}>{formData.packingDetails || 'N/A'}</span>
+                        <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px' }}>Packing details</span>
+                        <span>{formData.packingDetails || 'N/A'}</span>
+                        <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Form Type</span>
+                        <span style={{ paddingLeft: '6px' }}>{formData.formType || 'Regular'}</span>
                       </div>
                     </td>
                   </tr>

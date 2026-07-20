@@ -111,17 +111,8 @@ const TestRequestPrint = () => {
         <table className="print-header-table">
           <tbody>
             <tr>
-              <td className="header-logo-cell">
-                <div className="logo-placeholder">
-                  <div className="logo-circle">
-                    <img src="/logo.png" alt="Logo" style={{ width: '40px', height: '40px', objectFit: 'contain' }} onError={(e) => e.target.style.display = 'none'} />
-                  </div>
-                  <div>
-                    <h1 className="brand-name">{selCompany.companyName || selCompany.company_name || 'JAGNATH'}</h1>
-                    <p className="brand-sub">Lab Technologies</p>
-                    <p style={{ fontSize: '0.5rem', margin: 0, color: '#666' }}>Nurturing the Nature for Human Race</p>
-                  </div>
-                </div>
+              <td className="header-logo-cell" style={{ textAlign: 'center', padding: '4px' }}>
+                <img src="/Images/Navbar_Logo.png" alt="Logo" style={{ height: '65px', objectFit: 'contain', display: 'block', margin: '0 auto' }} />
               </td>
               <td className="header-title-cell">
                 <h2>FORMATS</h2>
@@ -193,7 +184,9 @@ const TestRequestPrint = () => {
             </tr>
             <tr>
               <td className="label-col">Field Data Sheet</td><td className="colon-col">:</td>
-              <td colSpan={4} className="val-col">{formData.fieldDataSheet}</td>
+              <td className="val-col">{formData.fieldDataSheet}</td>
+              <td className="label-col">Form Type</td><td className="colon-col">:</td>
+              <td className="val-col">{formData.formType || 'Regular'}</td>
               <td className="label-col">Packing details</td><td className="colon-col">:</td>
               <td className="val-col">{formData.packingDetails}</td>
             </tr>
@@ -296,17 +289,8 @@ const TestRequestPrint = () => {
         <table className="print-header-table">
           <tbody>
             <tr>
-              <td className="header-logo-cell">
-                <div className="logo-placeholder">
-                  <div className="logo-circle">
-                    <img src="/logo.png" alt="Logo" style={{ width: '40px', height: '40px', objectFit: 'contain' }} onError={(e) => e.target.style.display = 'none'} />
-                  </div>
-                  <div>
-                    <h1 className="brand-name">{selCompany.companyName || selCompany.company_name || 'JAGNATH'}</h1>
-                    <p className="brand-sub">Lab Technologies</p>
-                    <p style={{ fontSize: '0.5rem', margin: 0, color: '#666' }}>Nurturing the Nature for Human Race</p>
-                  </div>
-                </div>
+              <td className="header-logo-cell" style={{ textAlign: 'center', padding: '4px' }}>
+                <img src="/Images/Navbar_Logo.png" alt="Logo" style={{ height: '65px', objectFit: 'contain', display: 'block', margin: '0 auto' }} />
               </td>
               <td className="header-title-cell">
                 <h2>FORMATS</h2>
