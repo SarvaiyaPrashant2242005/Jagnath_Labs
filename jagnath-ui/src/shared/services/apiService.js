@@ -1,7 +1,7 @@
 /**
  * @file apiService.js
  * @description Lightweight HTTP client built on top of the native fetch API.
- * Automatically attaches the JWT access token from localStorage and provides
+ * Automatically attaches the JWT access token from sessionStorage and provides
  * standardised JSON request/response helpers for GET, POST, PUT, DELETE.
  */
 
@@ -11,7 +11,7 @@
  * Retrieve the stored access token.
  * @returns {string|null}
  */
-const getAccessToken = () => localStorage.getItem("accessToken");
+const getAccessToken = () => sessionStorage.getItem("accessToken");
 
 /**
  * Build default request headers.
@@ -73,7 +73,7 @@ const request = async (url, options = {}) => {
 
     // Handle Token Expiry
     if (response.status === 401 || response.status === 403) {
-      const refreshToken = localStorage.getItem("refreshToken");
+      const refreshToken = sessionStorage.getItem("refreshToken");
 
       // Prevent infinite loops for the refresh endpoint itself
       if (url === AUTH_ENDPOINTS.REFRESH_TOKEN || !refreshToken) {
@@ -105,9 +105,9 @@ const request = async (url, options = {}) => {
           .then(refreshData => {
             if (refreshData?.success && refreshData?.data?.accessToken) {
               const newAccessToken = refreshData.data.accessToken;
-              localStorage.setItem("accessToken", newAccessToken);
+              sessionStorage.setItem("accessToken", newAccessToken);
               if (refreshData.data.refreshToken) {
-                 localStorage.setItem("refreshToken", refreshData.data.refreshToken);
+                 sessionStorage.setItem("refreshToken", refreshData.data.refreshToken);
               }
               processQueue(null, newAccessToken);
               
@@ -116,18 +116,18 @@ const request = async (url, options = {}) => {
               }
               resolve(request(url, options));
             } else {
-              localStorage.removeItem("accessToken");
-              localStorage.removeItem("refreshToken");
-              localStorage.removeItem("user");
+              sessionStorage.removeItem("accessToken");
+              sessionStorage.removeItem("refreshToken");
+              sessionStorage.removeItem("user");
               window.location.href = "/login";
               processQueue(error, null);
               reject(error);
             }
           })
           .catch(err => {
-            localStorage.removeItem("accessToken");
-            localStorage.removeItem("refreshToken");
-            localStorage.removeItem("user");
+            sessionStorage.removeItem("accessToken");
+            sessionStorage.removeItem("refreshToken");
+            sessionStorage.removeItem("user");
             window.location.href = "/login";
             processQueue(err, null);
             reject(err);

@@ -18,7 +18,7 @@ import './assets/styles/index.css';
 
 // Protected Route Wrapper Component
 const ProtectedRoute = ({ children }) => {
-  const token = localStorage.getItem('accessToken');
+  const token = sessionStorage.getItem('accessToken');
   const user = getStoredUser();
   const isAuthenticated = !!(token && user);
 
@@ -31,7 +31,7 @@ const ProtectedRoute = ({ children }) => {
 
 // Protected Print Route (No Dashboard Layout)
 const ProtectedPrintRoute = ({ children }) => {
-  const token = localStorage.getItem('accessToken');
+  const token = sessionStorage.getItem('accessToken');
   const user = getStoredUser();
   const isAuthenticated = !!(token && user);
 
@@ -44,7 +44,7 @@ const ProtectedPrintRoute = ({ children }) => {
 
 // Redirect Route if already authenticated
 const PublicRoute = ({ children }) => {
-  const token = localStorage.getItem('accessToken');
+  const token = sessionStorage.getItem('accessToken');
   const user = getStoredUser();
   const isAuthenticated = !!(token && user);
 

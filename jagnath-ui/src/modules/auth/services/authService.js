@@ -9,7 +9,7 @@ import { AUTH_ENDPOINTS } from "../../../shared/services/apiEndpoints";
 
 /**
  * Call the server login endpoint.
- * On success, persists accessToken and refreshToken to localStorage.
+ * On success, persists accessToken and refreshToken to sessionStorage.
  *
  * @param {{ email: string, password: string }} credentials
  * @returns {Promise<object>} Parsed success response body from the server
@@ -20,25 +20,25 @@ export const loginUser = async (credentials) => {
 
   // Persist tokens returned by the server
   if (data?.data?.accessToken) {
-    localStorage.setItem("accessToken", data.data.accessToken);
+    sessionStorage.setItem("accessToken", data.data.accessToken);
   }
   if (data?.data?.refreshToken) {
-    localStorage.setItem("refreshToken", data.data.refreshToken);
+    sessionStorage.setItem("refreshToken", data.data.refreshToken);
   }
   if (data?.data?.user) {
-    localStorage.setItem("user", JSON.stringify(data.data.user));
+    sessionStorage.setItem("user", JSON.stringify(data.data.user));
   }
 
   return data;
 };
 
 /**
- * Clear all auth-related data from localStorage.
+ * Clear all auth-related data from sessionStorage.
  */
 export const logoutUser = () => {
-  localStorage.removeItem("accessToken");
-  localStorage.removeItem("refreshToken");
-  localStorage.removeItem("user");
+  sessionStorage.removeItem("accessToken");
+  sessionStorage.removeItem("refreshToken");
+  sessionStorage.removeItem("user");
 };
 
 /**
@@ -47,7 +47,7 @@ export const logoutUser = () => {
  */
 export const getStoredUser = () => {
   try {
-    const raw = localStorage.getItem("user");
+    const raw = sessionStorage.getItem("user");
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
