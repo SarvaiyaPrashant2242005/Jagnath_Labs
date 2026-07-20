@@ -20,6 +20,7 @@ const DashboardLayout = ({ children }) => {
     const path = pathname.replace('/', '');
     if (!path) return 'dashboard';
     if (path === 'company') return 'companies';
+    if (path.startsWith('test-requests')) return 'requests';
     return path;
   };
 
@@ -218,7 +219,7 @@ const DashboardLayout = ({ children }) => {
       <Sidebar
         activeTab={activeTab}
         onTabChange={handleTabChange}
-        onNewRequest={() => navigate('/new-request')}
+        onNewRequest={() => navigate('/test-requests/add')}
         isOpen={isSidebarOpen}
       />
 

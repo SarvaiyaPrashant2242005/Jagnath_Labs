@@ -80,8 +80,6 @@ const formatTestRequest = (tr) => {
     }
     delete trObj.company;
     delete trObj.client;
-    delete trObj.companyId;
-    delete trObj.clientId;
     return trObj;
 };
 

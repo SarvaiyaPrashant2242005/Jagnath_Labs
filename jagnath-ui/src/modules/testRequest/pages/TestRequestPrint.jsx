@@ -55,8 +55,8 @@ const TestRequestPrint = () => {
       const clList = Array.isArray(clientRes?.data) ? clientRes.data : [clientRes?.data];
       const catList = Array.isArray(catRes?.data) ? catRes.data : [catRes?.data];
 
-      const matchingComp = cList.find(c => (c.companyName || c.company_name) === tr.companyName) || {};
-      const matchingClient = clList.find(c => c.clientName === tr.clientName) || {};
+      const matchingComp = cList.find(c => c.id === tr.companyId || (c.companyName || c.company_name) === tr.companyName) || {};
+      const matchingClient = clList.find(c => c.id === tr.clientId || c.clientName === tr.clientName) || {};
       const matchingCat = catList.find(c => c.id === tr.sampleParticular) || {};
 
       setSelCompany(matchingComp);
@@ -222,7 +222,7 @@ const TestRequestPrint = () => {
               <td className="label-col">Availability of<br />Test method</td><td className="colon-col">:</td>
               <td className="val-col">{formData.testMethodAvailability}</td>
               <td className="label-col">Availability of<br />Trained person</td><td className="colon-col">:</td>
-              <td className="val-col"></td>
+              <td className="val-col">{formData.trainedPersonAvailability}</td>
               <td className="label-col">Tentative Days of<br />Issuing the Report</td><td className="colon-col">:</td>
               <td className="val-col">{formData.reportIssueDays || '15-20 Days'}</td>
             </tr>
@@ -241,16 +241,15 @@ const TestRequestPrint = () => {
 
             <tr>
               <td className="label-col" style={{ verticalAlign: 'top', height: '40px' }}>Name & Designation of<br />Customer</td><td className="colon-col" style={{ verticalAlign: 'top' }}>:</td>
-              <td colSpan={4} className="val-col"></td>
+              <td colSpan={4} className="val-col">{formData.customerRepresentativeName}</td>
               <td className="label-col" style={{ verticalAlign: 'top' }}>Name & Designation of<br />Sample Received</td><td className="colon-col" style={{ verticalAlign: 'top' }}>:</td>
-              <td className="val-col"></td>
+              <td className="val-col">{formData.sampleReceiverName}</td>
             </tr>
 
             <tr>
               <td className="label-col" style={{ verticalAlign: 'top' }}>Test Protocol / method<br />to be adopted</td><td className="colon-col" style={{ verticalAlign: 'top' }}>:</td>
-              <td colSpan={7} className="val-col">
-                Ground Water/Surface Water/Drinking Water: APHA 23rd Edition 2017<br />
-                Waste Water: APHA 23rd Edition 2017
+              <td colSpan={7} className="val-col" style={{ whiteSpace: 'pre-wrap' }}>
+                {formData.testProtocol || 'Ground Water/Surface Water/Drinking Water: APHA 23rd Edition 2017\nWaste Water: APHA 23rd Edition 2017'}
               </td>
             </tr>
 

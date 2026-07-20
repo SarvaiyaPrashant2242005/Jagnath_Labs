@@ -39,11 +39,9 @@ const create = async (req, res) => {
             ));
         }
 
-        // Find the Company using companyName
-        const companyNameVal = value.companyName;
-        const company = await Company.findOne({
-            where: { company_name: companyNameVal }
-        });
+        // Find the Company using companyId
+        const companyIdVal = value.companyId;
+        const company = await Company.findByPk(companyIdVal);
 
         if (!company) {
             return res.status(404).json(errorResponse(
@@ -63,10 +61,10 @@ const create = async (req, res) => {
             ));
         }
 
-        // Find the Client using clientName and companyId
+        // Find the Client using clientId and companyId
         const client = await Client.findOne({
             where: {
-                clientName: value.clientName,
+                id: value.clientId,
                 companyId: company.id
             }
         });
@@ -234,11 +232,9 @@ const update = async (req, res) => {
         let resolvedCompanyId = existingTR.companyId;
         let resolvedClientId = existingTR.clientId;
 
-        // If companyName is updated
-        if (value.companyName) {
-            const comp = await Company.findOne({
-                where: { company_name: value.companyName }
-            });
+        // If companyId is updated
+        if (value.companyId) {
+            const comp = await Company.findByPk(value.companyId);
             if (!comp) {
                 return res.status(404).json(errorResponse("NOT_FOUND", "Company not found.", "Company not found."));
             }
@@ -249,18 +245,14 @@ const update = async (req, res) => {
             resolvedCompanyId = comp.id;
         }
 
-        // If clientName is updated (or companyName is updated)
-        if (value.clientName || value.companyName) {
-            let clientNameVal = value.clientName;
-            if (!clientNameVal) {
-                const currentClient = await Client.findByPk(existingTR.clientId);
-                clientNameVal = currentClient ? currentClient.clientName : null;
-            }
+        // If clientId is updated (or companyId is updated)
+        if (value.clientId || value.companyId) {
+            let clientIdVal = value.clientId || existingTR.clientId;
 
-            if (clientNameVal) {
+            if (clientIdVal) {
                 const client = await Client.findOne({
                     where: {
-                        clientName: clientNameVal,
+                        id: clientIdVal,
                         companyId: resolvedCompanyId
                     }
                 });
