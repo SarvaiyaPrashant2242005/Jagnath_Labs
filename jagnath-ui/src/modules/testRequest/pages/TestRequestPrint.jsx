@@ -142,7 +142,7 @@ const TestRequestPrint = () => {
         </table>
 
         <div className="form-title-bar">
-          <h3>TEST REQUEST FORM FOR WATER & WASTE WATER</h3>
+          <h3>TEST REQUEST FORM FOR {(formData.formTitle || 'WATER & WASTE WATER').replace(/^TEST REQUEST FORM FOR /i, '')}</h3>
         </div>
 
         {/* Main Form Table */}

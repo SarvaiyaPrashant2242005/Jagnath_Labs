@@ -136,6 +136,11 @@ const TestRequest = sequelize.define("TestRequest", {
         type: DataTypes.TEXT,
         allowNull: true,
     },
+    formTitle: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        defaultValue: "WATER & WASTE WATER"
+    },
     status: {
         type: DataTypes.ENUM("Active", "Inactive"),
         defaultValue: "Active",

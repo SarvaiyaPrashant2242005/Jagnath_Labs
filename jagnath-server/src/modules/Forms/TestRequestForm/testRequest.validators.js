@@ -40,6 +40,7 @@ const createTestRequestSchema = Joi.object({
     sampleReceiverName: Joi.string().optional().allow("", null),
     testProtocol: Joi.string().optional().allow("", null),
     remarks: Joi.string().optional().allow("", null),
+    formTitle: Joi.string().optional().allow("", null),
     status: Joi.string().valid("Active", "Inactive").optional().allow("", null).messages({
         "any.only": "Status must be Active or Inactive."
     })
@@ -79,6 +80,7 @@ const updateTestRequestSchema = Joi.object({
     sampleReceiverName: Joi.string().optional().allow("", null),
     testProtocol: Joi.string().optional().allow("", null),
     remarks: Joi.string().optional().allow("", null),
+    formTitle: Joi.string().optional().allow("", null),
     status: Joi.string().valid("Active", "Inactive").optional().allow("", null).messages({
         "any.only": "Status must be Active or Inactive."
     })

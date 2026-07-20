@@ -53,7 +53,8 @@ const TestRequestForm = () => {
     customerRepresentativeName: '',
     sampleReceiverName: '',
     testProtocol: 'Ground Water/Surface Water/Drinking Water: APHA 23rd Edition 2017\nWaste Water: APHA 23rd Edition 2017',
-    remarks: ''
+    remarks: '',
+    formTitle: 'WATER & WASTE WATER'
   });
 
   const [loading, setLoading] = useState(false);
@@ -71,6 +72,12 @@ const TestRequestForm = () => {
 
   useEffect(() => {
     fetchInitialData();
+
+    const handleCompanyChange = () => {
+      fetchInitialData();
+    };
+    window.addEventListener('companyChanged', handleCompanyChange);
+    return () => window.removeEventListener('companyChanged', handleCompanyChange);
   }, []);
 
   const fetchInitialData = async () => {
@@ -155,8 +162,9 @@ const TestRequestForm = () => {
           sampleTestingFacilityReviewedBy: tr.reviewedBy || 'Quality Manager /Technical Manager',
           customerRepresentativeName: tr.customerRepresentativeName || '',
           sampleReceiverName: tr.sampleReceiverName || '',
+          remarks: tr.remarks || '',
           testProtocol: tr.testProtocol || 'Ground Water/Surface Water/Drinking Water: APHA 23rd Edition 2017\nWaste Water: APHA 23rd Edition 2017',
-          remarks: tr.remarks || ''
+          formTitle: (tr.formTitle || 'WATER & WASTE WATER').replace(/^TEST REQUEST FORM FOR /i, '')
         });
 
         if (tr.sampleParticular) {
@@ -386,14 +394,24 @@ const TestRequestForm = () => {
             </div>
             
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.75rem' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Company <span style={{color: '#ef4444'}}>*</span></label>
-                <select name="companyId" value={formData.companyId} onChange={handleChange} className="premium-input">
-                  <option value="">Select Company</option>
-                  {companies.map(c => <option key={c.id} value={c.id}>{c.companyName || c.company_name}</option>)}
-                </select>
-              </div>
               
+              {/* Document Title Input */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', gridColumn: '1 / -1' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Document Title Postfix <span style={{color: '#ef4444'}}>*</span></label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#475569', whiteSpace: 'nowrap' }}>TEST REQUEST FORM FOR </span>
+                  <input 
+                    type="text" 
+                    name="formTitle" 
+                    value={formData.formTitle} 
+                    onChange={handleChange} 
+                    className="premium-input" 
+                    placeholder="e.g. WATER & WASTE WATER" 
+                    style={{ flex: 1 }}
+                  />
+                </div>
+              </div>
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                 <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Customer / Client <span style={{color: '#ef4444'}}>*</span></label>
                 <select name="clientId" value={formData.clientId} onChange={handleChange} className="premium-input">
@@ -711,7 +729,7 @@ const TestRequestForm = () => {
 
               {/* Document Title */}
               <div style={{ border: '1px solid #000000', borderTop: 'none', background: '#f8fafc', padding: '3px', textAlign: 'center', fontWeight: 'bold', fontSize: '8px', marginBottom: '8px' }}>
-                TEST REQUEST FORM FOR WATER & WASTE WATER
+                TEST REQUEST FORM FOR {formData.formTitle || 'WATER & WASTE WATER'}
               </div>
 
               {/* Form Fields Table */}
