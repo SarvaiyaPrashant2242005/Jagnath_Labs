@@ -1,5 +1,5 @@
 .faq-section {
-  padding: 120px 6%;
+  padding: clamp(60px, 8vw, 120px) 6%;
   background: var(--bg-light);
   position: relative;
 }
@@ -34,7 +34,7 @@
 
 .faq-header {
   width: 100%;
-  padding: 24px 30px;
+  padding: clamp(18px, 3vw, 24px) clamp(16px, 3vw, 30px);
   background: transparent;
   border: none;
   display: flex;
@@ -42,16 +42,18 @@
   align-items: center;
   text-align: left;
   cursor: pointer;
-  gap: 20px;
+  gap: 16px;
+  min-height: 48px;
 }
 
 .faq-question {
   font-family: var(--font-heading);
-  font-size: 1.125rem;
+  font-size: clamp(0.95rem, 1.3vw, 1.125rem);
   font-weight: 700;
   color: var(--text-dark);
   transition: color 0.3s ease;
   letter-spacing: -0.01em;
+  line-height: 1.4;
 }
 
 .faq-item.active .faq-question {
@@ -66,10 +68,11 @@
   justify-content: center;
   transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   background: var(--accent-glow-soft);
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  min-width: 40px;
+  min-width: 36px;
+  flex-shrink: 0;
 }
 
 .faq-item.active .faq-icon-wrapper {
@@ -83,39 +86,23 @@
   max-height: 0;
   overflow: hidden;
   transition: max-height 0.4s cubic-bezier(0.16, 1, 0.3, 1), padding 0.4s ease;
-  padding: 0 30px;
+  padding: 0 clamp(16px, 3vw, 30px);
 }
 
 .faq-item.active .faq-content {
-  /* Set max-height dynamically in JS or allow safe default styling */
-  padding: 0 30px 24px;
+  padding: 0 clamp(16px, 3vw, 30px) clamp(16px, 2.5vw, 24px);
 }
 
 .faq-answer {
   font-family: var(--font-body);
-  font-size: 0.98rem;
+  font-size: clamp(0.88rem, 1vw, 0.98rem);
   color: var(--text-light);
-  line-height: 1.6;
+  line-height: 1.65;
   font-weight: 500;
 }
 
 @media (max-width: 576px) {
-  .faq-header {
-    padding: 20px;
-  }
-  
-  .faq-question {
-    font-size: 1rem;
-  }
-  
-  .faq-icon-wrapper {
-    width: 32px;
-    height: 32px;
-    min-width: 32px;
-    font-size: 0.95rem;
-  }
-  
-  .faq-item.active .faq-content {
-    padding: 0 20px 20px;
+  .faq-section {
+    padding: 50px 4%;
   }
 }
