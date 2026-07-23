@@ -1,3 +1,17 @@
+<<<<<<< HEAD
+/* Jaganath-Lab Import CSS Modules */
+@import './theme.css';
+@import './navbar.css';
+@import './hero.css';
+@import './counter.css';
+@import './services.css';
+@import './timeline.css';
+@import './testimonial.css';
+@import './faq.css';
+@import './footer.css';
+@import './animation.css';
+@import './responsive.css';
+=======
 /* Jaganath-Lab Import CSS Modules */
 @import './theme.css';
 @import './navbar.css';
@@ -63,3 +77,4 @@ textarea.premium-input {
   color: #94a3b8;
 }
 
+>>>>>>> 90d9f1faae69d02acfd8a6b6a13e6a008c073ddf
