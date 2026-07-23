@@ -452,22 +452,11 @@ function LandingPage({ onNavigate }) {
   return (
     <>
       {/* Navbar Section */}
-      <header className={`navbar-container ${isScrolled ? 'scrolled' : ''}`}>
-        <div className="navbar-wrapper">
-          <a href="#" className="nav-logo" id="logo-anchor">
-            <img src={logoImage} alt="Jaganath Lab" className="nav-logo-img" />
-            Jaganath<span className="logo-text-highlight"> - Lab</span>
-          </a>
-
-          <div className="nav-actions">
-            <Button variant="secondary" onClick={() => onNavigate('login')} className="nav-login-btn">
-              Login
-            </Button>
-          </div>
       <header className={`navbar-container ${isScrolled || isMobileMenuOpen ? 'scrolled' : ''}`}>
         <div className="navbar-wrapper">
           <a href="#home" className="nav-logo" id="logo-anchor">
-            <img src="/Images/Navbar_Logo.png" alt="Jaganath Lab" className="nav-logo-img" />
+            <img src={logoImage} alt="Jaganath Lab" className="nav-logo-img" />
+            Jaganath<span className="logo-text-highlight"> - Lab</span>
           </a>
           <ul className="nav-menu">
             <li><a href="#home" className="nav-link">Home</a></li>
@@ -546,11 +535,9 @@ function LandingPage({ onNavigate }) {
               </p>
 
               <div ref={heroBtnsRef} className="hero-ctas">
-                <Button variant="primary" onClick={() => onNavigate('login')}>
                 <Button variant="primary" onClick={() => onNavigate && onNavigate('login')}>
                   Book a Test
                 </Button>
-                <Button variant="glass" onClick={() => document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' })}>
                 <Button variant="outline" onClick={() => {
                   const el = document.getElementById('services');
                   if (el) el.scrollIntoView({ behavior: 'smooth' });
@@ -1065,7 +1052,6 @@ function LandingPage({ onNavigate }) {
                     <ChevronDown />
                   </span>
                 </button>
-                <div className="faq-content">
                 <div className="faq-content" style={{ maxHeight: openFaq === index ? '200px' : '0px' }}>
                   <p className="faq-answer">{faq.a}</p>
                 </div>
@@ -1087,9 +1073,10 @@ function LandingPage({ onNavigate }) {
               <Button variant="secondary" onClick={() => onNavigate('login')}>
                 Book Appointment
               </Button>
-              <Button variant="glass" onClick={() => document.getElementById('footer-contact')?.scrollIntoView({ behavior: 'smooth' })}>
-                <FaPhoneAlt style={{ marginRight: '0.5rem' }} /> Contact Us
-              <Button variant="glass">
+              <Button variant="glass" onClick={() => {
+                const el = document.getElementById('footer-contact');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }}>
                 <Phone style={{ marginRight: '0.5rem' }} size={18} /> Contact Us
               </Button>
             </div>
@@ -1101,11 +1088,9 @@ function LandingPage({ onNavigate }) {
       <footer className="footer-section" id="footer-contact">
         <div className="footer-container">
           <div className="footer-col">
-            <a href="#" className="footer-logo">
+            <a href="#home" className="footer-logo">
               <img src={logoImage} alt="Jaganath Lab" className="footer-logo-img" />
               Jaganath<span className="logo-text-highlight"> - Lab</span>
-            <a href="#home" className="footer-logo">
-              <img src="/Images/Navbar_Logo.png" alt="Jaganath Lab" className="footer-logo-img" />
             </a>
             <p className="footer-desc">
               Providing modern, premium diagnostic parameters, advanced biological screening, and precise reports compiled by expert pathologists.

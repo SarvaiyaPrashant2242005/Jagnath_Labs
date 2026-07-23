@@ -174,3 +174,11 @@
     padding: 30px 20px;
   }
 }
+
+/* Global Responsive Table Container */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 1rem;
+}
