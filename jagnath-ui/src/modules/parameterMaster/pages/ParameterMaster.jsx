@@ -455,12 +455,12 @@ const ParameterMaster = () => {
       )}
 
       {/* Title & Top Action bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' }}>
+      <div className="master-top-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' }}>
         <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
           <FaSlidersH style={{ color: '#22c55e' }} />
           <span>Parameters Master</span>
         </h2>
-        <div style={{ display: 'flex', gap: '0.75rem', position: 'relative' }} ref={dropdownRef}>
+        <div className="master-top-bar-actions" style={{ display: 'flex', gap: '0.75rem', position: 'relative' }} ref={dropdownRef}>
           {!isFormOpen && (
             <button 
               onClick={handleOpenCreate} 
@@ -722,94 +722,140 @@ const ParameterMaster = () => {
 
         {/* Data Grid Table or Cards */}
         {viewMode === 'table' ? (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
-            <thead>
-              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ACTIONS</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>PARAMETER NAME</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CATEGORY</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>TEST METHOD</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATUS</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-                    Loading parameters...
-                  </td>
+        <>
+          {/* Desktop Table View */}
+          <div className="show-on-desktop master-table-responsive" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+              <thead>
+                <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                  <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ACTIONS</th>
+                  <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
+                  <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>PARAMETER NAME</th>
+                  <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CATEGORY</th>
+                  <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>TEST METHOD</th>
+                  <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATUS</th>
                 </tr>
-              ) : parameters.length === 0 ? (
-                <tr>
-                  <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-                    No parameters found.
-                  </td>
-                </tr>
-              ) : (
-                parameters.map((p, index) => (
-                  <tr 
-                    key={p.id} 
-                    onClick={() => handleOpenEdit(p)}
-                    style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background-color 0.15s' }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                  >
-                    <td style={{ padding: '0.75rem 1rem', display: 'flex', gap: '0.5rem' }}>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); handleOpenEdit(p); }} 
-                        style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
-                        title="Edit"
-                      >
-                        <FaEdit size={12} />
-                      </button>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }} 
-                        style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
-                        title="Delete"
-                      >
-                        <FaTrash size={12} />
-                      </button>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                      Loading parameters...
                     </td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>
-                      <div style={{ fontWeight: 600 }}>{p.parameterName}</div>
-                      <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.25rem', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {p.description || <em style={{ color: '#94a3b8' }}>No description</em>}
-                      </div>
+                  </tr>
+                ) : parameters.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                      No parameters found.
                     </td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 500 }}>
-                      {p.categoryName || <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '0.85rem' }}>Unassigned</span>}
-                    </td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#475569', fontSize: '0.85rem' }}>
-                      {p.testMethod || <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>N/A</span>}
-                    </td>
-                    <td style={{ padding: '0.75rem 1rem' }}>
-                      <span 
-                        onClick={(e) => handleToggleStatus(p, e)}
-                        title="Click to toggle status inline"
-                        style={{
+                  </tr>
+                ) : (
+                  parameters.map((param, index) => (
+                    <tr 
+                      key={param.id} 
+                      onClick={() => handleOpenEdit(param)}
+                      style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background-color 0.15s' }}
+                      className="company-table-row"
+                    >
+                      <td style={{ padding: '0.75rem 1rem', display: 'flex', gap: '0.5rem' }}>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleOpenEdit(param); }}
+                          style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
+                          title="Edit"
+                        >
+                          <FaEdit size={12} />
+                        </button>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleDelete(param.id); }}
+                          style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
+                          title="Delete"
+                        >
+                          <FaTrash size={12} />
+                        </button>
+                      </td>
+                      <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
+                      <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{param.parameterName}</td>
+                      <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.categoryName || (param.category ? param.category.categoryName : 'Unassigned')}</td>
+                      <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.testMethod || 'N/A'}</td>
+                      <td style={{ padding: '0.75rem 1rem' }}>
+                        <span style={{ 
                           display: 'inline-block',
                           padding: '0.125rem 0.5rem',
                           fontSize: '0.75rem',
                           fontWeight: 600,
                           borderRadius: '12px',
-                          backgroundColor: p.status === 'Active' ? '#dcfce7' : '#fee2e2',
-                          color: p.status === 'Active' ? '#15803d' : '#991b1b',
-                          cursor: 'pointer',
-                          userSelect: 'none'
-                        }}
-                      >
-                        {p.status}
+                          backgroundColor: param.status === 'Active' ? '#dcfce7' : '#fee2e2',
+                          color: param.status === 'Active' ? '#15803d' : '#991b1b'
+                        }}>
+                          {param.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile Cards View */}
+          <div className="show-on-mobile">
+            {loading ? (
+              <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                Loading parameters...
+              </div>
+            ) : parameters.length === 0 ? (
+              <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                No parameters found.
+              </div>
+            ) : (
+              <div className="master-card-grid">
+                {parameters.map((param, index) => (
+                  <div key={param.id} className="master-record-card" onClick={() => handleOpenEdit(param)}>
+                    <div className="master-record-card-header">
+                      <div>
+                        <div className="master-record-title">{param.parameterName}</div>
+                        <div className="master-record-subtitle">#{ (currentPage - 1) * pageSize + index + 1 } • {param.categoryName || (param.category ? param.category.categoryName : 'Unassigned')}</div>
+                      </div>
+                      <span style={{ 
+                        padding: '0.2rem 0.6rem',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        borderRadius: '12px',
+                        backgroundColor: param.status === 'Active' ? '#dcfce7' : '#fee2e2',
+                        color: param.status === 'Active' ? '#15803d' : '#991b1b'
+                      }}>
+                        {param.status}
                       </span>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>) : (
+                    </div>
+
+                    <div className="master-record-details">
+                      <div className="master-record-detail-item" style={{ gridColumn: '1 / -1' }}>
+                        <span className="master-record-label">Test Method</span>
+                        <span className="master-record-value">{param.testMethod || 'N/A'}</span>
+                      </div>
+                    </div>
+
+                    <div className="master-record-actions">
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handleOpenEdit(param); }}
+                        style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                      >
+                        <FaEdit size={12} /> Edit
+                      </button>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handleDelete(param.id); }}
+                        style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                      >
+                        <FaTrash size={12} /> Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+        ) : (
           <div style={{ minHeight: '300px' }}>
             {loading ? (
               <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>Loading parameters...</div>

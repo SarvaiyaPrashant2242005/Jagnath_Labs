@@ -438,12 +438,12 @@ const ClientMaster = () => {
       )}
 
       {/* Title & Top Action bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' }}>
+      <div className="master-top-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' }}>
         <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
           <FaUserFriends style={{ color: '#22c55e' }} />
           <span>Clients Master</span>
         </h2>
-        <div style={{ display: 'flex', gap: '0.75rem', position: 'relative' }} ref={dropdownRef}>
+        <div className="master-top-bar-actions" style={{ display: 'flex', gap: '0.75rem', position: 'relative' }} ref={dropdownRef}>
           {!isFormOpen && (
             <button 
               onClick={handleOpenCreate} 
@@ -705,11 +705,11 @@ const ClientMaster = () => {
       <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
         
         {/* Table Filters */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <div className="master-table-filters" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
           <div style={{ fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>
             Total Clients: {totalItems}
           </div>
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <div className="master-filter-inputs" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -729,8 +729,8 @@ const ClientMaster = () => {
           </div>
         </div>
 
-        {/* Client Table */}
-        <div style={{ overflowX: 'auto' }}>
+        {/* Desktop Table View */}
+        <div className="show-on-desktop master-table-responsive" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
@@ -805,6 +805,76 @@ const ClientMaster = () => {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Cards View */}
+        <div className="show-on-mobile">
+          {loading ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+              Loading clients...
+            </div>
+          ) : clients.length === 0 ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+              No clients found.
+            </div>
+          ) : (
+            <div className="master-card-grid">
+              {clients.map((client, index) => (
+                <div key={client.id} className="master-record-card" onClick={() => handleOpenEdit(client)}>
+                  <div className="master-record-card-header">
+                    <div>
+                      <div className="master-record-title">{client.clientName}</div>
+                      <div className="master-record-subtitle">#{ (currentPage - 1) * pageSize + index + 1 } • {client.companyName || 'N/A'}</div>
+                    </div>
+                    <span style={{ 
+                      padding: '0.2rem 0.6rem',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      borderRadius: '12px',
+                      backgroundColor: client.status === 'Active' ? '#dcfce7' : '#fee2e2',
+                      color: client.status === 'Active' ? '#15803d' : '#991b1b'
+                    }}>
+                      {client.status}
+                    </span>
+                  </div>
+
+                  <div className="master-record-details">
+                    <div className="master-record-detail-item">
+                      <span className="master-record-label">Contact</span>
+                      <span className="master-record-value">{client.contactNumber || 'N/A'}</span>
+                    </div>
+                    <div className="master-record-detail-item">
+                      <span className="master-record-label">Email</span>
+                      <span className="master-record-value">{client.email || 'N/A'}</span>
+                    </div>
+                    <div className="master-record-detail-item">
+                      <span className="master-record-label">City</span>
+                      <span className="master-record-value">{client.city || 'N/A'}</span>
+                    </div>
+                    <div className="master-record-detail-item">
+                      <span className="master-record-label">State</span>
+                      <span className="master-record-value">{client.state || 'N/A'}</span>
+                    </div>
+                  </div>
+
+                  <div className="master-record-actions">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleOpenEdit(client); }}
+                      style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                    >
+                      <FaEdit size={12} /> Edit
+                    </button>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleDelete(client.id); }}
+                      style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                    >
+                      <FaTrash size={12} /> Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         
         {/* Pagination Controls */}

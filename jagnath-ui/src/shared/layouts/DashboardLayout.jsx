@@ -8,8 +8,7 @@ import { COMPANY_ENDPOINTS } from '../services/apiEndpoints';
 
 /**
  * @component DashboardLayout
- * @description Shared layout container for all authenticated dashboard routes.
- * Renders the full-height Sidebar on the left and the dynamic Header bar on the right.
+ * @description Shared layout container for all authenticated dashboard routes with responsive mobile drawer support.
  */
 const DashboardLayout = ({ children }) => {
   const navigate = useNavigate();
@@ -25,7 +24,9 @@ const DashboardLayout = ({ children }) => {
   };
 
   const activeTab = getActiveTabFromPath(location.pathname);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  
+  // Responsive sidebar open state: closed by default on mobile/tablets
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => window.innerWidth > 991);
   
   // Selected company and list of all user companies
   const [selectedCompany, setSelectedCompany] = useState('SHREE GANESH INDUSTRIES');
@@ -34,6 +35,17 @@ const DashboardLayout = ({ children }) => {
   // Dropdown visibility
   const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
   const companyDropdownRef = useRef(null);
+
+  // Auto-manage sidebar drawer state on window resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth <= 991) {
+        setIsSidebarOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Load all user companies on init
   const loadCompanies = async () => {
@@ -44,7 +56,6 @@ const DashboardLayout = ({ children }) => {
         setCompaniesList(companyList);
         
         if (companyList.length > 0) {
-          // Check if there is a saved selection in localStorage
           const savedSelectedId = localStorage.getItem('selectedCompanyId');
           const found = companyList.find(c => c.id === savedSelectedId);
           if (found) {
@@ -61,7 +72,6 @@ const DashboardLayout = ({ children }) => {
         setSelectedCompany('No Company Registered');
       }
     } catch (err) {
-      // Silent fallback
       setCompaniesList([]);
       setSelectedCompany('No Company Registered');
     }
@@ -128,11 +138,14 @@ const DashboardLayout = ({ children }) => {
           padding: 0 1.5rem;
           flex-shrink: 0;
           width: 100%;
+          box-sizing: border-box;
         }
+
         .header-left-group {
           display: flex;
           align-items: center;
         }
+
         .sidebar-toggle-trigger {
           background: none;
           border: none;
@@ -143,17 +156,22 @@ const DashboardLayout = ({ children }) => {
           align-items: center;
           justify-content: center;
           padding: 0.5rem;
-          border-radius: 6px;
+          min-width: 44px;
+          min-height: 44px;
+          border-radius: 8px;
           transition: background-color 0.2s;
         }
+
         .sidebar-toggle-trigger:hover {
           background-color: #f1f5f9;
         }
+
         .header-right-group {
           display: flex;
           align-items: center;
-          gap: 1rem;
+          gap: 0.75rem;
         }
+
         .header-company-dropdown {
           display: flex;
           align-items: center;
@@ -161,20 +179,32 @@ const DashboardLayout = ({ children }) => {
           background-color: #f8fafc;
           border: 1px solid #e2e8f0;
           border-radius: 8px;
-          padding: 0.5rem 1rem;
+          padding: 0.5rem 0.85rem;
           color: #0f172a;
           font-weight: 700;
           font-size: 0.85rem;
           cursor: pointer;
           transition: background-color 0.2s;
+          max-width: 220px;
         }
+
         .header-company-dropdown:hover {
           background-color: #f1f5f9;
         }
+
         .header-company-icon {
           color: #22c55e;
           font-size: 0.95rem;
+          flex-shrink: 0;
         }
+
+        .header-company-text {
+          max-width: 130px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
         .header-logout-button {
           display: flex;
           align-items: center;
@@ -182,21 +212,41 @@ const DashboardLayout = ({ children }) => {
           background-color: #ffffff;
           border: 1px solid #e2e8f0;
           border-radius: 8px;
-          padding: 0.5rem 1rem;
+          padding: 0.5rem 0.85rem;
           color: #ef4444;
           font-weight: 600;
           font-size: 0.85rem;
           cursor: pointer;
           transition: all 0.2s;
+          min-height: 38px;
         }
+
         .header-logout-button:hover {
           background-color: #fef2f2;
           border-color: #fca5a5;
         }
+
+        .header-profile-button {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          background-color: #ffffff;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
+          padding: 0.5rem 0.85rem;
+          color: #3b82f6;
+          font-weight: 600;
+          font-size: 0.85rem;
+          cursor: pointer;
+          transition: all 0.2s;
+          min-height: 38px;
+        }
+
         .header-profile-button:hover {
           background-color: #eff6ff;
           border-color: #bfdbfe;
         }
+
         .dashboard-main-area {
           flex-grow: 1;
           display: flex;
@@ -204,14 +254,61 @@ const DashboardLayout = ({ children }) => {
           height: 100vh;
           overflow: hidden;
           background-color: #f8fafc;
+          width: 100%;
         }
+
         .dashboard-content-scroll {
           flex-grow: 1;
           overflow-y: auto;
-          padding: 2rem;
+          padding: 1.5rem;
           display: flex;
           flex-direction: column;
           gap: 1.5rem;
+          box-sizing: border-box;
+        }
+
+        @media (max-width: 768px) {
+          .app-top-header {
+            padding: 0 0.85rem;
+          }
+
+          .dashboard-content-scroll {
+            padding: 1rem;
+            gap: 1.25rem;
+          }
+        }
+
+        @media (max-width: 576px) {
+          .app-top-header {
+            padding: 0 0.5rem;
+          }
+
+          .header-right-group {
+            gap: 0.35rem;
+          }
+
+          .header-company-dropdown {
+            padding: 0.4rem 0.6rem;
+            font-size: 0.78rem;
+          }
+
+          .header-company-text {
+            max-width: 85px;
+          }
+
+          .header-btn-text {
+            display: none;
+          }
+
+          .header-profile-button,
+          .header-logout-button {
+            padding: 0.4rem 0.6rem;
+          }
+
+          .dashboard-content-scroll {
+            padding: 0.75rem;
+            gap: 1rem;
+          }
         }
       `}</style>
 
@@ -221,6 +318,7 @@ const DashboardLayout = ({ children }) => {
         onTabChange={handleTabChange}
         onNewRequest={() => navigate('/test-requests/add')}
         isOpen={isSidebarOpen}
+        onCloseMobile={() => setIsSidebarOpen(false)}
       />
 
       {/* Main Content Area on Right */}
@@ -228,7 +326,12 @@ const DashboardLayout = ({ children }) => {
         {/* Top Header Bar */}
         <header className="app-top-header">
           <div className="header-left-group">
-            <button className="sidebar-toggle-trigger" onClick={() => setIsSidebarOpen(!isSidebarOpen)} title="Toggle Sidebar">
+            <button
+              className="sidebar-toggle-trigger"
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              title="Toggle Sidebar"
+              aria-label="Toggle Sidebar Navigation"
+            >
               <FaBars />
             </button>
           </div>
@@ -238,8 +341,8 @@ const DashboardLayout = ({ children }) => {
             <div className="header-company-container" style={{ position: 'relative' }} ref={companyDropdownRef}>
               <div className="header-company-dropdown" onClick={() => setShowCompanyDropdown(!showCompanyDropdown)}>
                 <FaBuilding className="header-company-icon" />
-                <span>{selectedCompany}</span>
-                <FaChevronDown style={{ fontSize: '0.75rem', color: '#64748b' }} />
+                <span className="header-company-text">{selectedCompany}</span>
+                <FaChevronDown style={{ fontSize: '0.75rem', color: '#64748b', flexShrink: 0 }} />
               </div>
               
               {showCompanyDropdown && companiesList.length > 0 && (
@@ -249,6 +352,7 @@ const DashboardLayout = ({ children }) => {
                   right: 0,
                   marginTop: '0.5rem',
                   width: '240px',
+                  maxWidth: '85vw',
                   backgroundColor: '#ffffff',
                   border: '1px solid #cbd5e1',
                   borderRadius: '8px',
@@ -289,27 +393,14 @@ const DashboardLayout = ({ children }) => {
               )}
             </div>
 
-            <button className="header-profile-button" onClick={() => navigate('/profile')} title="My Profile" style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              backgroundColor: '#ffffff',
-              border: '1px solid #e2e8f0',
-              borderRadius: '8px',
-              padding: '0.5rem 1rem',
-              color: '#3b82f6',
-              fontWeight: 600,
-              fontSize: '0.85rem',
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}>
-              <FaUserCircle style={{ fontSize: '1.1rem' }} />
-              <span>Profile</span>
+            <button className="header-profile-button" onClick={() => navigate('/profile')} title="My Profile">
+              <FaUserCircle style={{ fontSize: '1.1rem', flexShrink: 0 }} />
+              <span className="header-btn-text">Profile</span>
             </button>
 
             <button className="header-logout-button" onClick={handleLogoutClick} title="Logout Session">
-              <FaSignOutAlt />
-              <span>Logout</span>
+              <FaSignOutAlt style={{ flexShrink: 0 }} />
+              <span className="header-btn-text">Logout</span>
             </button>
           </div>
         </header>

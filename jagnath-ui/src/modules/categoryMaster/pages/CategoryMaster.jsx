@@ -408,12 +408,12 @@ const CategoryMaster = () => {
       )}
 
       {/* Title & Top Action bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' }}>
+      <div className="master-top-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' }}>
         <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
           <FaFolder style={{ color: '#22c55e' }} />
           <span>Categories Master</span>
         </h2>
-        <div style={{ display: 'flex', gap: '0.75rem', position: 'relative' }} ref={dropdownRef}>
+        <div className="master-top-bar-actions" style={{ display: 'flex', gap: '0.75rem', position: 'relative' }} ref={dropdownRef}>
           {!isFormOpen && (
             <button 
               onClick={handleOpenCreate} 
@@ -603,11 +603,11 @@ const CategoryMaster = () => {
       <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
         
         {/* Table Filters */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <div className="master-table-filters" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
           <div style={{ fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>
             Total Categories: {totalItems}
           </div>
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <div className="master-filter-inputs" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -627,8 +627,8 @@ const CategoryMaster = () => {
           </div>
         </div>
 
-        {/* Categories Table */}
-        <div style={{ overflowX: 'auto' }}>
+        {/* Desktop Table View */}
+        <div className="show-on-desktop master-table-responsive" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
@@ -641,13 +641,13 @@ const CategoryMaster = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={4} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                     Loading categories...
                   </td>
                 </tr>
               ) : categories.length === 0 ? (
                 <tr>
-                  <td colSpan={4} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                     No categories found.
                   </td>
                 </tr>
@@ -657,19 +657,18 @@ const CategoryMaster = () => {
                     key={category.id} 
                     onClick={() => handleOpenEdit(category)}
                     style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background-color 0.15s' }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    className="company-table-row"
                   >
                     <td style={{ padding: '0.75rem 1rem', display: 'flex', gap: '0.5rem' }}>
                       <button 
-                        onClick={(e) => { e.stopPropagation(); handleOpenEdit(category); }} 
+                        onClick={(e) => { e.stopPropagation(); handleOpenEdit(category); }}
                         style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                         title="Edit"
                       >
                         <FaEdit size={12} />
                       </button>
                       <button 
-                        onClick={(e) => { e.stopPropagation(); handleDelete(category.id); }} 
+                        onClick={(e) => { e.stopPropagation(); handleDelete(category.id); }}
                         style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                         title="Delete"
                       >
@@ -677,28 +676,17 @@ const CategoryMaster = () => {
                       </button>
                     </td>
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>
-                      <div style={{ fontWeight: 600 }}>{category.name}</div>
-                      <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.25rem', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {category.description || <em style={{ color: '#94a3b8' }}>No description</em>}
-                      </div>
-                    </td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{category.categoryName || category.name}</td>
                     <td style={{ padding: '0.75rem 1rem' }}>
-                      <span 
-                        onClick={(e) => handleToggleStatus(category, e)}
-                        title="Click to toggle status inline"
-                        style={{
-                          display: 'inline-block',
-                          padding: '0.125rem 0.5rem',
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          borderRadius: '12px',
-                          backgroundColor: category.status === 'Active' ? '#dcfce7' : '#fee2e2',
-                          color: category.status === 'Active' ? '#15803d' : '#991b1b',
-                          cursor: 'pointer',
-                          userSelect: 'none'
-                        }}
-                      >
+                      <span style={{ 
+                        display: 'inline-block',
+                        padding: '0.125rem 0.5rem',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        borderRadius: '12px',
+                        backgroundColor: category.status === 'Active' ? '#dcfce7' : '#fee2e2',
+                        color: category.status === 'Active' ? '#15803d' : '#991b1b'
+                      }}>
                         {category.status}
                       </span>
                     </td>
@@ -707,6 +695,57 @@ const CategoryMaster = () => {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Cards View */}
+        <div className="show-on-mobile">
+          {loading ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+              Loading categories...
+            </div>
+          ) : categories.length === 0 ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+              No categories found.
+            </div>
+          ) : (
+            <div className="master-card-grid">
+              {categories.map((category, index) => (
+                <div key={category.id} className="master-record-card" onClick={() => handleOpenEdit(category)}>
+                  <div className="master-record-card-header">
+                    <div>
+                      <div className="master-record-title">{category.categoryName || category.name}</div>
+                      <div className="master-record-subtitle">#{ (currentPage - 1) * pageSize + index + 1 }</div>
+                    </div>
+                    <span style={{ 
+                      padding: '0.2rem 0.6rem',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      borderRadius: '12px',
+                      backgroundColor: category.status === 'Active' ? '#dcfce7' : '#fee2e2',
+                      color: category.status === 'Active' ? '#15803d' : '#991b1b'
+                    }}>
+                      {category.status}
+                    </span>
+                  </div>
+
+                  <div className="master-record-actions">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleOpenEdit(category); }}
+                      style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                    >
+                      <FaEdit size={12} /> Edit
+                    </button>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleDelete(category.id); }}
+                      style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                    >
+                      <FaTrash size={12} /> Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         
         {/* Pagination Controls */}
