@@ -21,6 +21,14 @@ export const AUTH_ENDPOINTS = {
   LOGOUT: `${API_BASE_URL}/auth/logout`,
 };
 
+// ─── User Endpoints ─────────────────────────────────────────────────────────────
+export const USER_ENDPOINTS = {
+  CREATE: `${API_BASE_URL}/auth/users`,
+  GET_ALL: `${API_BASE_URL}/auth/users`,
+  UPDATE: (id) => `${API_BASE_URL}/auth/users/${id}`,
+  DELETE: (id) => `${API_BASE_URL}/auth/users/${id}`,
+};
+
 // ─── Company Endpoints ──────────────────────────────────────────────────────────
 export const COMPANY_ENDPOINTS = {
   CREATE: `${API_BASE_URL}/company`,

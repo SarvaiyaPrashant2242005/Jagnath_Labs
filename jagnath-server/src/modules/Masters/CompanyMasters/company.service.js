@@ -140,13 +140,41 @@ const createCompany = async (companyData, userId, files, generatedId, reqInfo) =
             }
         }
 
+        const bcrypt = require("bcrypt");
+        let targetUserId = userId;
+
+        if (companyData.createNewUser && companyData.newUser) {
+            const newUserObj = typeof companyData.newUser === 'string' ? JSON.parse(companyData.newUser) : companyData.newUser;
+            if (newUserObj.name && newUserObj.email && newUserObj.password) {
+                const hashedPassword = await bcrypt.hash(newUserObj.password, 10);
+                const createdUser = await Users.create({
+                    name: newUserObj.name,
+                    email: newUserObj.email,
+                    password: hashedPassword,
+                    role: newUserObj.role || "Admin",
+                    status: "Active"
+                }, { transaction });
+                targetUserId = createdUser.id;
+            }
+        } else if (companyData.assignedUserId && companyData.assignedUserId.trim() !== '') {
+            targetUserId = companyData.assignedUserId;
+        }
+
         const newCompany = await Company.create(dataToInsert, { transaction });
 
-        await UserCompanies.create({
-            user_id: userId,
-            company_id: newCompany.id,
-            is_default: true // Assume first created company is default
-        }, { transaction });
+        await UserCompanies.findOrCreate({
+            where: { user_id: targetUserId, company_id: newCompany.id },
+            defaults: { user_id: targetUserId, company_id: newCompany.id, is_default: true },
+            transaction
+        });
+
+        if (targetUserId !== userId) {
+            await UserCompanies.findOrCreate({
+                where: { user_id: userId, company_id: newCompany.id },
+                defaults: { user_id: userId, company_id: newCompany.id, is_default: false },
+                transaction
+            });
+        }
 
         const performedBy = await getPerformedBy(userId);
         const formattedDate = formatDateTime();
@@ -219,6 +247,34 @@ const updateCompany = async (companyId, companyData, userId, files, reqInfo) => 
             if (files.signature && files.signature.length > 0) {
                 dataToUpdate.signature = files.signature[0].path;
             }
+        }
+
+        const bcrypt = require("bcrypt");
+        let targetUserId = null;
+
+        if (companyData.createNewUser && companyData.newUser) {
+            const newUserObj = typeof companyData.newUser === 'string' ? JSON.parse(companyData.newUser) : companyData.newUser;
+            if (newUserObj.name && newUserObj.email && newUserObj.password) {
+                const hashedPassword = await bcrypt.hash(newUserObj.password, 10);
+                const createdUser = await Users.create({
+                    name: newUserObj.name,
+                    email: newUserObj.email,
+                    password: hashedPassword,
+                    role: newUserObj.role || "Admin",
+                    status: "Active"
+                }, { transaction });
+                targetUserId = createdUser.id;
+            }
+        } else if (companyData.assignedUserId && companyData.assignedUserId.trim() !== '') {
+            targetUserId = companyData.assignedUserId;
+        }
+
+        if (targetUserId) {
+            await UserCompanies.findOrCreate({
+                where: { user_id: targetUserId, company_id: companyId },
+                defaults: { user_id: targetUserId, company_id: companyId, is_default: true },
+                transaction
+            });
         }
 
         const updatedCompany = await company.update(dataToUpdate, { transaction });
@@ -297,44 +353,48 @@ Status      : SUCCESS
 };
 
 const getCompaniesByUser = async (userId, options = {}) => {
-    // Find all mapping records for the user
-    const mappings = await UserCompanies.findAll({
-        where: { user_id: userId }
-    });
+    let whereClause = {};
 
-    if (!mappings.length) {
-        return options.limit ? { rows: [], count: 0 } : [];
+    if (!options.isSuperAdmin) {
+        // Find all mapping records for standard user
+        const mappings = await UserCompanies.findAll({
+            where: { user_id: userId }
+        });
+
+        if (!mappings.length) {
+            return options.limit ? { rows: [], count: 0 } : [];
+        }
+
+        const companyIds = mappings.map(m => m.company_id);
+        whereClause.id = companyIds;
     }
 
-    const companyIds = mappings.map(m => m.company_id);
+    if (options.search) {
+        whereClause = {
+            ...whereClause,
+            [Op.or]: [
+                { company_name: { [Op.iLike]: `%${options.search}%` } },
+                { company_email: { [Op.iLike]: `%${options.search}%` } },
+                { company_code: { [Op.iLike]: `%${options.search}%` } }
+            ]
+        };
+    }
+
+    if (options.status && options.status !== 'ALL') {
+        whereClause.status = options.status;
+    }
 
     let queryOptions = {
-        where: { id: companyIds }
+        where: whereClause,
+        order: [['created_at', 'DESC']]
     };
 
     if (options.limit && options.page) {
         queryOptions.limit = parseInt(options.limit);
         queryOptions.offset = (parseInt(options.page) - 1) * queryOptions.limit;
-
-        // Optional searching
-        if (options.search) {
-            queryOptions.where = {
-                ...queryOptions.where,
-                [Op.or]: [
-                    { company_name: { [Op.iLike]: `%${options.search}%` } },
-                    { company_email: { [Op.iLike]: `%${options.search}%` } }
-                ]
-            };
-        }
-
-        if (options.status && options.status !== 'ALL') {
-            queryOptions.where.status = options.status;
-        }
-
         return await Company.findAndCountAll(queryOptions);
     }
 
-    // Fetch actual companies without pagination
     const companies = await Company.findAll(queryOptions);
     return companies;
 };
@@ -350,7 +410,8 @@ const getCompanyByUserId = async (userId) => {
     }
 };
 
-const checkOwnership = async (companyId, userId) => {
+const checkOwnership = async (companyId, userId, isSuperAdmin = false) => {
+    if (isSuperAdmin) return true;
     try {
         const company = await Company.findByPk(companyId);
         if (!company) return false;

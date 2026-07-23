@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FaBars, FaSignOutAlt, FaBuilding, FaChevronDown, FaUserCircle } from 'react-icons/fa';
 import Sidebar from './Sidebar';
-import { logoutUser } from '../../modules/auth/services/authService';
+import SuperAdminSidebar from './SuperAdminSidebar';
+import { logoutUser, getStoredUser } from '../../modules/auth/services/authService';
 import { apiService } from '../services/apiService';
 import { COMPANY_ENDPOINTS } from '../services/apiEndpoints';
 
@@ -13,6 +14,8 @@ import { COMPANY_ENDPOINTS } from '../services/apiEndpoints';
 const DashboardLayout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const user = getStoredUser();
+  const isSuperAdmin = user?.role === 'SuperAdmin' || user?.email === 'admin@jagnath.com';
 
   // Determine active tab key based on URL pathname
   const getActiveTabFromPath = (pathname) => {
@@ -35,6 +38,9 @@ const DashboardLayout = ({ children }) => {
   // Dropdown visibility
   const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
   const companyDropdownRef = useRef(null);
+
+  // Logout confirmation modal state
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   // Auto-manage sidebar drawer state on window resize
   useEffect(() => {
@@ -112,6 +118,7 @@ const DashboardLayout = ({ children }) => {
   const handleTabChange = (tabKey) => {
     let route = `/${tabKey}`;
     if (tabKey === 'companies') route = '/company';
+    if (tabKey === 'users') route = '/users';
     if (tabKey === 'requests') route = '/test-requests';
     
     navigate(route);
@@ -119,6 +126,11 @@ const DashboardLayout = ({ children }) => {
 
   // Logout handler
   const handleLogoutClick = () => {
+    setShowLogoutModal(true);
+  };
+
+  const confirmLogout = () => {
+    setShowLogoutModal(false);
     logoutUser();
     navigate('/login');
   };
@@ -313,13 +325,22 @@ const DashboardLayout = ({ children }) => {
       `}</style>
 
       {/* Sidebar navigation */}
-      <Sidebar
-        activeTab={activeTab}
-        onTabChange={handleTabChange}
-        onNewRequest={() => navigate('/test-requests/add')}
-        isOpen={isSidebarOpen}
-        onCloseMobile={() => setIsSidebarOpen(false)}
-      />
+      {isSuperAdmin ? (
+        <SuperAdminSidebar
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          isOpen={isSidebarOpen}
+          onCloseMobile={() => setIsSidebarOpen(false)}
+        />
+      ) : (
+        <Sidebar
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          onNewRequest={() => navigate('/test-requests/add')}
+          isOpen={isSidebarOpen}
+          onCloseMobile={() => setIsSidebarOpen(false)}
+        />
+      )}
 
       {/* Main Content Area on Right */}
       <div className="dashboard-main-area">
@@ -412,6 +433,101 @@ const DashboardLayout = ({ children }) => {
         </div>
       </div>
 
+      {/* Logout Confirmation Modal */}
+      {showLogoutModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.5)',
+          backdropFilter: 'blur(4px)',
+          WebkitBackdropFilter: 'blur(4px)',
+          zIndex: 9999,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: '1rem'
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '16px',
+            width: '100%',
+            maxWidth: '400px',
+            padding: '1.75rem',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+            border: '1px solid #e2e8f0',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1.25rem'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: '12px',
+                backgroundColor: '#fee2e2',
+                color: '#ef4444',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '1.25rem',
+                flexShrink: 0
+              }}>
+                <FaSignOutAlt />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Confirm Logout</h3>
+                <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0.2rem 0 0 0' }}>End current session</p>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '0.9rem', color: '#334155', margin: 0, lineHeight: 1.5 }}>
+              Are you sure you want to log out of your session? You will need to log back in to access the system.
+            </p>
+
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+              <button
+                type="button"
+                onClick={() => setShowLogoutModal(false)}
+                style={{
+                  padding: '0.6rem 1.25rem',
+                  borderRadius: '8px',
+                  border: '1px solid #cbd5e1',
+                  backgroundColor: '#ffffff',
+                  color: '#475569',
+                  fontWeight: 600,
+                  fontSize: '0.875rem',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmLogout}
+                style={{
+                  padding: '0.6rem 1.25rem',
+                  borderRadius: '8px',
+                  border: 'none',
+                  backgroundColor: '#ef4444',
+                  color: '#ffffff',
+                  fontWeight: 600,
+                  fontSize: '0.875rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  boxShadow: '0 4px 6px -1px rgba(239, 68, 68, 0.2)'
+                }}
+              >
+                <FaSignOutAlt /> Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

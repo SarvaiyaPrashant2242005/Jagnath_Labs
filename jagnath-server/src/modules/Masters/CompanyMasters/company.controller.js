@@ -59,9 +59,10 @@ const update = async (req, res) => {
     try {
         const { id } = req.params;
         const userId = req.user.user_id;
+        const isSuperAdmin = req.user.role === "SuperAdmin" || req.user.email === "admin@jagnath.com";
 
         // Verify ownership before update
-        const isOwner = await companyService.checkOwnership(id, userId);
+        const isOwner = await companyService.checkOwnership(id, userId, isSuperAdmin);
         if (!isOwner) {
             return res.status(403).json(errorResponse(
                 "FORBIDDEN",
@@ -111,12 +112,14 @@ const update = async (req, res) => {
 const getMyCompanies = async (req, res) => {
     try {
         const userId = req.user.user_id;
+        const isSuperAdmin = req.user.role === "SuperAdmin" || req.user.email === "admin@jagnath.com";
         
         const options = {
             page: req.query.page,
             limit: req.query.limit,
             search: req.query.search,
-            status: req.query.status
+            status: req.query.status,
+            isSuperAdmin
         };
 
         const result = await companyService.getCompaniesByUser(userId, options);
@@ -155,9 +158,10 @@ const remove = async (req, res) => {
     try {
         const { id } = req.params;
         const userId = req.user.user_id;
+        const isSuperAdmin = req.user.role === "SuperAdmin" || req.user.email === "admin@jagnath.com";
 
         // Verify ownership before delete
-        const isOwner = await companyService.checkOwnership(id, userId);
+        const isOwner = await companyService.checkOwnership(id, userId, isSuperAdmin);
         if (!isOwner) {
             return res.status(403).json(errorResponse(
                 "FORBIDDEN",

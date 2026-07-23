@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   FaChartPie, FaBuilding, FaUserFriends, FaTags, FaSlidersH,
   FaClipboardList, FaFileAlt, FaFileInvoiceDollar,
-  FaTruck, FaCog, FaChevronRight, FaFolder, FaTimes
+  FaTruck, FaCog, FaChevronRight, FaFolder, FaTimes, FaUserShield
 } from 'react-icons/fa';
 
 /**

@@ -2,10 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   FaBuilding, FaPlus, FaDownload, FaEdit, FaTrash, FaCheck, 
   FaExclamationCircle, FaFileExcel, FaCopy, FaFileCsv, 
-  FaFilePdf, FaPrint, FaChevronDown 
+  FaFilePdf, FaPrint, FaChevronDown, FaUserShield
 } from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
-import { COMPANY_ENDPOINTS } from '../../../shared/services/apiEndpoints';
+import { COMPANY_ENDPOINTS, USER_ENDPOINTS } from '../../../shared/services/apiEndpoints';
+import { getStoredUser } from '../../auth/services/authService';
 import Pagination from '../../../shared/components/Pagination';
 
 const CompanyMaster = ({ onCompanyUpdate }) => {
@@ -48,6 +49,26 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
 
   const [formErrors, setFormErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+
+  // Super Admin Detection & User Assignment State
+  const currentUser = getStoredUser();
+  const isSuperAdmin = currentUser?.role === 'SuperAdmin' || currentUser?.email === 'admin@jagnath.com';
+  const [usersList, setUsersList] = useState([]);
+  const [assignMode, setAssignMode] = useState('existing');
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [newUserData, setNewUserData] = useState({ name: '', email: '', password: '', role: 'Admin' });
+
+  useEffect(() => {
+    if (isSuperAdmin) {
+      apiService.get(USER_ENDPOINTS.GET_ALL)
+        .then(res => {
+          if (res?.data) {
+            setUsersList(Array.isArray(res.data) ? res.data : []);
+          }
+        })
+        .catch(err => console.error('Failed to fetch platform users for assignment', err));
+    }
+  }, [isSuperAdmin]);
 
   // Trigger Toast helper
   const triggerToast = (message, type = 'success') => {
@@ -180,6 +201,9 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
     setLogoFile(null);
     setSignatureFile(null);
     setFormErrors({});
+    setSelectedUserId('');
+    setNewUserData({ name: '', email: '', password: '', role: 'Admin' });
+    setAssignMode('existing');
     setEditingId(null);
     setIsFormOpen(true);
   };
@@ -197,6 +221,9 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
     setLogoFile(null);
     setSignatureFile(null);
     setFormErrors({});
+    setSelectedUserId('');
+    setNewUserData({ name: '', email: '', password: '', role: 'Admin' });
+    setAssignMode('existing');
     setEditingId(company.id);
     setIsFormOpen(true);
   };
@@ -220,6 +247,20 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
     }
     if (signatureFile) {
       formDataToSend.append('signature', signatureFile);
+    }
+
+    if (isSuperAdmin) {
+      if (assignMode === 'existing' && selectedUserId) {
+        formDataToSend.append('assignedUserId', selectedUserId);
+      } else if (assignMode === 'new') {
+        if (!newUserData.name.trim() || !newUserData.email.trim() || !newUserData.password.trim()) {
+          triggerToast('Please fill in Name, Email, and Password for the new user.', 'error');
+          setSubmitting(false);
+          return;
+        }
+        formDataToSend.append('createNewUser', 'true');
+        formDataToSend.append('newUser', JSON.stringify(newUserData));
+      }
     }
 
     try {
@@ -671,6 +712,103 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
                 />
               </div>
             </div>
+
+            {/* Assign User / Company Admin Section (Super Admin Only) */}
+            {isSuperAdmin && (
+              <div style={{
+                marginTop: '1rem',
+                padding: '1.25rem',
+                background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+                borderRadius: '10px',
+                border: '1px solid #cbd5e1',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '1rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <label style={{ fontSize: '0.9rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <FaUserShield style={{ color: '#a855f7' }} />
+                    <span>Assign Company Admin User</span>
+                  </label>
+                  <span style={{ fontSize: '0.72rem', background: '#f3e8ff', color: '#7e22ce', padding: '0.2rem 0.6rem', borderRadius: '20px', fontWeight: 700 }}>
+                    Super Admin Only
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 600, color: '#334155', cursor: 'pointer' }}>
+                    <input 
+                      type="radio" 
+                      name="assignUserMode" 
+                      value="existing" 
+                      checked={assignMode === 'existing'} 
+                      onChange={() => setAssignMode('existing')} 
+                    />
+                    <span>Assign Existing Platform User</span>
+                  </label>
+
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 600, color: '#334155', cursor: 'pointer' }}>
+                    <input 
+                      type="radio" 
+                      name="assignUserMode" 
+                      value="new" 
+                      checked={assignMode === 'new'} 
+                      onChange={() => setAssignMode('new')} 
+                    />
+                    <span>Create & Assign New Admin User</span>
+                  </label>
+                </div>
+
+                {assignMode === 'existing' ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Select Existing User</label>
+                    <select
+                      value={selectedUserId}
+                      onChange={(e) => setSelectedUserId(e.target.value)}
+                      style={{ padding: '0.6rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.85rem', background: '#ffffff' }}
+                    >
+                      <option value="">-- Select Existing User to Assign --</option>
+                      {usersList.map(u => (
+                        <option key={u.id} value={u.id}>{u.name} ({u.email}) - Role: {u.role || 'User'}</option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                      <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>User Full Name <span style={{ color: '#ef4444' }}>*</span></label>
+                      <input
+                        type="text"
+                        placeholder="e.g. John Manager"
+                        value={newUserData.name}
+                        onChange={(e) => setNewUserData(prev => ({ ...prev, name: e.target.value }))}
+                        style={{ padding: '0.6rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.85rem', background: '#ffffff' }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                      <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>User Email Address <span style={{ color: '#ef4444' }}>*</span></label>
+                      <input
+                        type="email"
+                        placeholder="manager@company.com"
+                        value={newUserData.email}
+                        onChange={(e) => setNewUserData(prev => ({ ...prev, email: e.target.value }))}
+                        style={{ padding: '0.6rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.85rem', background: '#ffffff' }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                      <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>User Password <span style={{ color: '#ef4444' }}>*</span></label>
+                      <input
+                        type="password"
+                        placeholder="••••••••"
+                        value={newUserData.password}
+                        onChange={(e) => setNewUserData(prev => ({ ...prev, password: e.target.value }))}
+                        style={{ padding: '0.6rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.85rem', background: '#ffffff' }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Form Actions */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>

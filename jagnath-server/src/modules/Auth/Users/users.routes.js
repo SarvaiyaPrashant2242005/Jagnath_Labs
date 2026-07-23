@@ -13,4 +13,11 @@ router.post("/refresh-token", usersController.rotateToken);
 router.get("/me", authenticateToken, usersController.getMe);
 router.post("/logout", authenticateToken, usersController.logout);
 
+// User Management Routes
+router.get("/users", authenticateToken, usersController.getAllUsers);
+router.post("/users", authenticateToken, usersController.register);
+router.put("/users/:id", authenticateToken, usersController.updateUser);
+router.delete("/users/:id", authenticateToken, usersController.deleteUser);
+
+
 module.exports = router;

@@ -3,10 +3,12 @@ import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import LandingPage from './modules/landingPage/LandingPage';
 import Login from './modules/auth/pages/Login';
 import Dashboard from './modules/dashboard/pages/Dashboard';
+import SuperAdminDashboard from './modules/superAdmin/pages/SuperAdminDashboard';
 import CompanyMaster from './modules/companyMaster/pages/CompanyMaster';
 import ClientMaster from './modules/clientMaster/pages/ClientMaster';
 import CategoryMaster from './modules/categoryMaster/pages/CategoryMaster';
 import ParameterMaster from './modules/parameterMaster/pages/ParameterMaster';
+import UserMaster from './modules/userMaster/pages/UserMaster';
 import DashboardLayout from './shared/layouts/DashboardLayout';
 import TestRequestForm from './modules/testRequest/pages/TestRequestForm';
 import TestRequestList from './modules/testRequest/pages/TestRequestList';
@@ -14,6 +16,13 @@ import TestRequestPrint from './modules/testRequest/pages/TestRequestPrint';
 import Profile from './modules/profile/pages/Profile';
 import { getStoredUser } from './modules/auth/services/authService';
 import './assets/styles/index.css';
+
+// Dynamic Dashboard Resolver based on User Role
+const DashboardView = () => {
+  const user = getStoredUser();
+  const isSuperAdmin = user?.role === 'SuperAdmin' || user?.email === 'admin@jagnath.com';
+  return isSuperAdmin ? <SuperAdminDashboard /> : <Dashboard />;
+};
 
 
 // Protected Route Wrapper Component
@@ -96,7 +105,7 @@ function App() {
           path="/dashboard"
           element={
             <ProtectedRoute>
-              <Dashboard />
+              <DashboardView />
             </ProtectedRoute>
           }
         />
@@ -113,6 +122,7 @@ function App() {
         <Route path="/clients" element={<ProtectedRoute><ClientMaster /></ProtectedRoute>} />
         <Route path="/categories" element={<ProtectedRoute><CategoryMaster /></ProtectedRoute>} />
         <Route path="/parameters" element={<ProtectedRoute><ParameterMaster /></ProtectedRoute>} />
+        <Route path="/users" element={<ProtectedRoute><UserMaster /></ProtectedRoute>} />
         <Route path="/test-requests" element={<ProtectedRoute><TestRequestList /></ProtectedRoute>} />
         <Route path="/test-requests/add" element={<ProtectedRoute><TestRequestForm /></ProtectedRoute>} />
         <Route path="/test-requests/edit/:id" element={<ProtectedRoute><TestRequestForm /></ProtectedRoute>} />
