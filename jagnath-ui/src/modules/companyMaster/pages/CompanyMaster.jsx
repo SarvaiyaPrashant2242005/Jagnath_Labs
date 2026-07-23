@@ -6,12 +6,19 @@ import {
 } from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
 import { COMPANY_ENDPOINTS } from '../../../shared/services/apiEndpoints';
+import Pagination from '../../../shared/components/Pagination';
 
 const CompanyMaster = ({ onCompanyUpdate }) => {
   // Company state
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(false);
   
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+
   // Toast notifications state (success or error)
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
@@ -65,22 +72,44 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
   const fetchCompanies = async () => {
     setLoading(true);
     try {
-      const response = await apiService.get(COMPANY_ENDPOINTS.GET_MY);
+      const params = new URLSearchParams({
+        page: currentPage,
+        limit: pageSize,
+        search: searchQuery,
+        status: statusFilter
+      });
+      const response = await apiService.get(`${COMPANY_ENDPOINTS.GET_MY}?${params.toString()}`);
+      
       if (response && response.data) {
-        const companyList = Array.isArray(response.data) ? response.data : [response.data];
-        setCompanies(companyList);
-        
-        if (companyList.length > 0 && onCompanyUpdate) {
-          onCompanyUpdate(companyList[0].companyName || companyList[0].company_name);
+        if (response.data.rows !== undefined) {
+           setCompanies(response.data.rows);
+           setTotalItems(response.data.total);
+           setTotalPages(response.data.totalPages);
+           if (response.data.rows.length > 0 && onCompanyUpdate) {
+              onCompanyUpdate(response.data.rows[0].companyName || response.data.rows[0].company_name);
+           }
+        } else {
+           const companyList = Array.isArray(response.data) ? response.data : [response.data];
+           setCompanies(companyList);
+           setTotalItems(companyList.length);
+           setTotalPages(1);
+           
+           if (companyList.length > 0 && onCompanyUpdate) {
+             onCompanyUpdate(companyList[0].companyName || companyList[0].company_name);
+           }
         }
       } else {
         setCompanies([]);
+        setTotalItems(0);
+        setTotalPages(0);
       }
     } catch (err) {
       if (err.status !== 404 && err.errorCode !== 'NOT_FOUND') {
         triggerToast(err.messageToShow || err.message || 'Failed to fetch companies.', 'error');
       } else {
         setCompanies([]);
+        setTotalItems(0);
+        setTotalPages(0);
       }
     } finally {
       setLoading(false);
@@ -89,7 +118,7 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
 
   useEffect(() => {
     fetchCompanies();
-  }, []);
+  }, [currentPage, pageSize, searchQuery, statusFilter]);
 
   // Form validation
   const validateForm = () => {
@@ -229,7 +258,7 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
   const handleDownloadCSV = () => {
     if (companies.length === 0) return;
     const headers = ['Company Name', 'Email', 'Phone', 'Address', 'City', 'Status'];
-    const rows = filteredCompanies.map(c => [
+    const rows = companies.map(c => [
       c.companyName || c.company_name || 'N/A',
       c.companyEmail || c.company_email || 'N/A',
       c.phone || c.contact_number || 'N/A',
@@ -254,7 +283,7 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
   const handleDownloadExcel = () => {
     if (companies.length === 0) return;
     const headers = ['Company Name', 'Email', 'Phone', 'Address', 'City', 'Status'];
-    const rows = filteredCompanies.map(c => [
+    const rows = companies.map(c => [
       c.companyName || c.company_name || 'N/A',
       c.companyEmail || c.company_email || 'N/A',
       c.phone || c.contact_number || 'N/A',
@@ -290,7 +319,7 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
   const handleCopy = () => {
     if (companies.length === 0) return;
     const headers = ['Company Name', 'Email', 'Phone', 'Address', 'City', 'Status'];
-    const rows = filteredCompanies.map(c => [
+    const rows = companies.map(c => [
       c.companyName || c.company_name || 'N/A',
       c.companyEmail || c.company_email || 'N/A',
       c.phone || c.contact_number || 'N/A',
@@ -309,7 +338,7 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
     if (companies.length === 0) return;
     const printWindow = window.open('', '_blank');
     const headers = ['Company Name', 'Email', 'Phone', 'Address', 'City', 'Status'];
-    const rows = filteredCompanies.map(c => `
+    const rows = companies.map(c => `
       <tr>
         <td>${c.companyName || c.company_name || 'N/A'}</td>
         <td>${c.companyEmail || c.company_email || 'N/A'}</td>
@@ -359,15 +388,6 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
     window.print();
     setShowDownloadDropdown(false);
   };
-
-  // Filter list locally for premium responsive feel
-  const filteredCompanies = companies.filter(c => {
-    const name = (c.companyName || c.company_name || '').toLowerCase();
-    const email = (c.companyEmail || c.company_email || '').toLowerCase();
-    const matchesSearch = name.includes(searchQuery.toLowerCase()) || email.includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'ALL' || c.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -679,7 +699,7 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
         {/* Table Filters */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
           <div style={{ fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>
-            Total Companies: {filteredCompanies.length}
+            Total Companies: {totalItems}
           </div>
           <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             <select
@@ -724,14 +744,14 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
                     Loading companies...
                   </td>
                 </tr>
-              ) : filteredCompanies.length === 0 ? (
+              ) : companies.length === 0 ? (
                 <tr>
                   <td colSpan={9} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                     No companies found.
                   </td>
                 </tr>
               ) : (
-                filteredCompanies.map((company, index) => (
+                companies.map((company, index) => (
                   <tr 
                     key={company.id} 
                     onClick={() => handleOpenEdit(company)}
@@ -754,7 +774,7 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
                         <FaTrash size={12} />
                       </button>
                     </td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{index + 1}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{company.company_code || 'N/A'}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{company.companyName || company.company_name}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{company.companyEmail || company.company_email || 'N/A'}</td>
@@ -780,6 +800,19 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        <Pagination 
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setCurrentPage(1); // Reset to page 1 on page size change
+          }}
+        />
 
       </div>
 

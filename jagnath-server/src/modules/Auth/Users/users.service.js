@@ -29,8 +29,7 @@ const register = async (userData, reqInfo) => {
         const hashedPassword = await bcrypt.hash(userData.password, 10);
         
         const newUser = await Users.create({
-            name: userData.name || userData.full_name,
-            full_name: userData.full_name || userData.name,
+            name: userData.name,
             email: userData.email,
             password: hashedPassword,
             status: "Active"
@@ -92,7 +91,7 @@ const login = async (credentials, reqInfo) => {
         writeLogToFile(`[${new Date().toISOString()}] Email: ${user.email} | IP: ${reqInfo.ip} | UserAgent: ${reqInfo.userAgent} | Success: true`, loginLogPath);
 
         return {
-            user: { id: user.id, name: user.name || user.full_name, full_name: user.full_name || user.name, email: user.email, status: user.status },
+            user: { id: user.id, name: user.name, email: user.email, status: user.status },
             token: accessToken,
             accessToken,
             refreshToken: rawRefreshToken // Return raw only once

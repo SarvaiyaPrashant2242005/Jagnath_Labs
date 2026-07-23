@@ -1,0 +1,942 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { apiService } from '../../../shared/services/apiService';
+import {
+  CLIENT_ENDPOINTS,
+  CATEGORY_ENDPOINTS,
+  CATEGORY_PARAMETER_ENDPOINTS,
+  TEST_REQUEST_ENDPOINTS,
+  TEST_REQUEST_PARAMETER_ENDPOINTS,
+  COMPANY_ENDPOINTS
+} from '../../../shared/services/apiEndpoints';
+import { FaPrint, FaSave, FaArrowLeft, FaCheck, FaExclamationCircle, FaEye, FaEyeSlash } from 'react-icons/fa';
+
+const TestRequestForm = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const isEditing = !!id;
+
+  // State for dropdown options
+  const [companies, setCompanies] = useState([]);
+  const [clients, setClients] = useState([]);
+  const [categories, setCategories] = useState([]);
+  
+  // State for dynamic parameter checklist
+  const [parameters, setParameters] = useState([]);
+  const [checkedParameters, setCheckedParameters] = useState({});
+
+  // Form state
+  const [formData, setFormData] = useState({
+    companyId: '',
+    clientId: '',
+    address: '',
+    email: '',
+    locationOfSample: '',
+    contactPerson: '',
+    contactNumber: '',
+    dateOfCollection: new Date().toISOString().split('T')[0],
+    dateOfReceipt: '',
+    sampleCollectedBy: '',
+    sampleQuantity: '',
+    fieldDataSheet: 'Not Available',
+    packingDetails: '',
+    sampleIdNumber: '',
+    reportNumber: '',
+    sampleParticular: '', // This will hold categoryId
+    equipmentAvailability: 'Available',
+    referenceStandardAvailability: 'Available',
+    sampleAdequacy: 'Adequate',
+    testMethodAvailability: 'Available',
+    trainedPersonAvailability: 'Available',
+    tentativeDays: '15-20 Days',
+    sampleTestingFacilityReviewedBy: 'Quality Manager /Technical Manager',
+    customerRepresentativeName: '',
+    sampleReceiverName: '',
+    testProtocol: 'Ground Water/Surface Water/Drinking Water: APHA 23rd Edition 2017\nWaste Water: APHA 23rd Edition 2017',
+    remarks: '',
+    formTitle: 'WATER & WASTE WATER',
+    formType: 'Regular'
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const [showLivePreview, setShowLivePreview] = useState(true);
+  const printRef = useRef();
+
+  const triggerToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast({ show: false, message: '', type: 'success' });
+    }, 2500);
+  };
+
+  useEffect(() => {
+    fetchInitialData();
+
+    const handleCompanyChange = () => {
+      fetchInitialData();
+    };
+    window.addEventListener('companyChanged', handleCompanyChange);
+    return () => window.removeEventListener('companyChanged', handleCompanyChange);
+  }, []);
+
+  const fetchInitialData = async () => {
+    try {
+      setLoading(true);
+      
+      // 1. Fetch companies and categories first (independently of request)
+      const [compRes, catRes] = await Promise.all([
+        apiService.get(COMPANY_ENDPOINTS.GET_MY),
+        apiService.get(CATEGORY_ENDPOINTS.GET_ALL)
+      ]);
+
+      const cList = Array.isArray(compRes?.data) ? compRes.data : [compRes?.data];
+      if (compRes?.data) setCompanies(cList);
+      if (catRes?.data) {
+        const catList = Array.isArray(catRes.data) ? catRes.data : [catRes.data];
+        setCategories(catList.filter(cat => cat.status === 'Active'));
+      }
+
+      let tr = null;
+      let targetCompanyId = '';
+
+      // 2. If editing, load the test request details to determine target company ID
+      if (isEditing) {
+        const trRes = await apiService.get(TEST_REQUEST_ENDPOINTS.GET_BY_ID(id));
+        if (trRes?.data) {
+          tr = trRes.data;
+          if (tr.companyId) {
+            targetCompanyId = tr.companyId;
+          } else if (tr.companyName) {
+            const matchingComp = cList.find(c => c.id === tr.companyId || (c.companyName || c.company_name) === tr.companyName);
+            if (matchingComp) targetCompanyId = matchingComp.id;
+          }
+        }
+      }
+
+      // If not editing, or if editing but targetCompanyId not found, use default selected company
+      if (!targetCompanyId && cList.length > 0) {
+        const savedSelectedId = localStorage.getItem('selectedCompanyId');
+        targetCompanyId = savedSelectedId || cList[0].id;
+      }
+
+      // 3. Fetch clients for that target company (not the system default company)
+      const clientRes = await apiService.get(
+        targetCompanyId 
+          ? `${CLIENT_ENDPOINTS.GET_ALL}?companyId=${targetCompanyId}`
+          : CLIENT_ENDPOINTS.GET_ALL
+      );
+      const clList = Array.isArray(clientRes?.data) ? clientRes.data : [clientRes?.data];
+      if (clientRes?.data) {
+        setClients(clList.filter(client => client.status === 'Active'));
+      }
+
+      // 4. If editing, pre-fill form fields
+      if (isEditing && tr) {
+        const matchingComp = cList.find(c => c.id === tr.companyId || (c.companyName || c.company_name) === tr.companyName) || {};
+        const matchingClient = clList.find(c => c.id === tr.clientId || c.clientName === tr.clientName) || {};
+
+        setFormData({
+          companyId: matchingComp.id || tr.companyId || '',
+          clientId: matchingClient.id || tr.clientId || '',
+          address: tr.address || '',
+          email: tr.email || '',
+          locationOfSample: tr.locationOfSample || '',
+          contactPerson: tr.contactPerson || '',
+          contactNumber: tr.contactNumber || '',
+          dateOfCollection: tr.dateOfCollection || '',
+          dateOfReceipt: tr.dateOfReceipt || '',
+          sampleCollectedBy: tr.sampleCollectedBy || '',
+          sampleQuantity: tr.sampleQuantity || '',
+          fieldDataSheet: tr.fieldDataSheet || 'Not Available',
+          packingDetails: tr.packingDetails || '',
+          sampleIdNumber: tr.sampleIdNumber || '',
+          reportNumber: tr.reportNumber || '',
+          sampleParticular: tr.sampleParticular || '',
+          equipmentAvailability: tr.equipmentAvailability || 'Available',
+          referenceStandardAvailability: tr.referenceStandardAvailability || 'Available',
+          sampleAdequacy: tr.sampleAdequacy || 'Adequate',
+          testMethodAvailability: tr.testMethodAvailability || 'Available',
+          trainedPersonAvailability: tr.trainedPersonAvailability || 'Available',
+          tentativeDays: tr.reportIssueDays || '15-20 Days',
+          sampleTestingFacilityReviewedBy: tr.reviewedBy || 'Quality Manager /Technical Manager',
+          customerRepresentativeName: tr.customerRepresentativeName || '',
+          sampleReceiverName: tr.sampleReceiverName || '',
+          remarks: tr.remarks || '',
+          testProtocol: tr.testProtocol || 'Ground Water/Surface Water/Drinking Water: APHA 23rd Edition 2017\nWaste Water: APHA 23rd Edition 2017',
+          formTitle: (tr.formTitle || 'WATER & WASTE WATER').replace(/^TEST REQUEST FORM FOR /i, ''),
+          formType: tr.formType || 'Regular'
+        });
+
+        if (tr.sampleParticular) {
+          fetchParametersForCategory(tr.sampleParticular);
+        }
+
+        // Fetch checked parameters
+        try {
+          const trpRes = await apiService.get(TEST_REQUEST_PARAMETER_ENDPOINTS.GET_ALL);
+          if (trpRes?.data) {
+            const trps = Array.isArray(trpRes.data) ? trpRes.data : [trpRes.data];
+            const matchingTrps = trps.filter(t => t.testRequestId === id);
+            const checks = {};
+            matchingTrps.forEach(t => {
+              if (t.parameterId) checks[t.parameterId] = true;
+              checks[`_id_${t.parameterId}`] = t.id; // Store transaction ID for updates/deletes
+            });
+            setCheckedParameters(checks);
+          }
+        } catch (e) {
+          console.error("Error fetching request parameters", e);
+        }
+      } else {
+        // Pre-select company if we resolved one
+        if (targetCompanyId) {
+          setFormData(prev => ({ ...prev, companyId: targetCompanyId }));
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      triggerToast('Failed to load initial data', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchParametersForCategory = async (categoryId) => {
+    try {
+      const res = await apiService.get(CATEGORY_PARAMETER_ENDPOINTS.GET_BY_CATEGORY(categoryId));
+      if (res?.data) {
+        const paramList = Array.isArray(res.data) ? res.data : [res.data];
+        setParameters(paramList.filter(param => param.status === 'Active'));
+      } else {
+        setParameters([]);
+      }
+    } catch (e) {
+      setParameters([]);
+    }
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    if (name === 'sampleParticular' && value) {
+      fetchParametersForCategory(value);
+      // Reset checks when category changes
+      setCheckedParameters({});
+    }
+
+    if (name === 'clientId' && value) {
+      // Auto-fill client details
+      const selectedClient = clients.find(c => c.id === value);
+      if (selectedClient) {
+        setFormData(prev => ({ 
+          ...prev, 
+          email: selectedClient.email || '', 
+          contactNumber: selectedClient.contactNumber || prev.contactNumber 
+        }));
+      }
+    }
+  };
+
+  const handleParameterCheck = (paramId) => {
+    setCheckedParameters(prev => ({
+      ...prev,
+      [paramId]: !prev[paramId]
+    }));
+  };
+
+  const validateForm = () => {
+    if (!formData.companyId) {
+      triggerToast('Please select a Company.', 'error');
+      return false;
+    }
+    if (!formData.clientId) {
+      triggerToast('Please select a Client.', 'error');
+      return false;
+    }
+    return true;
+  };
+
+  const handleSave = async () => {
+    if (!validateForm()) return false;
+    setSubmitting(true);
+    
+    try {
+      // 1. Save Test Request
+      const payload = { ...formData, reportIssueDays: formData.tentativeDays, reviewedBy: formData.sampleTestingFacilityReviewedBy };
+      delete payload.tentativeDays;
+      delete payload.sampleTestingFacilityReviewedBy;
+      
+      let savedTrId = id;
+      if (isEditing) {
+        await apiService.put(TEST_REQUEST_ENDPOINTS.UPDATE(id), payload);
+      } else {
+        const res = await apiService.post(TEST_REQUEST_ENDPOINTS.CREATE, payload);
+        savedTrId = res?.data?.id || res?.data?.data?.id; // depending on response format
+      }
+
+      if (!savedTrId) {
+        triggerToast('Failed to retrieve saved request ID.', 'error');
+        setSubmitting(false);
+        return false;
+      }
+
+      // 2. Save Parameters Checklist
+      const currentParamIds = Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]);
+      
+      for (const pId of currentParamIds) {
+        if (!checkedParameters[`_id_${pId}`]) {
+          await apiService.post(TEST_REQUEST_PARAMETER_ENDPOINTS.CREATE, {
+            testRequestId: savedTrId,
+            parameterId: pId
+          });
+        }
+      }
+
+      triggerToast('Test Request saved successfully!', 'success');
+      return savedTrId;
+    } catch (err) {
+      triggerToast(err.messageToShow || 'Failed to save test request.', 'error');
+      return false;
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSaveAndPrint = async () => {
+    const savedId = await handleSave();
+    if (savedId) {
+      window.open(`#/test-requests/print/${savedId}`, '_blank');
+    }
+  };
+
+  if (loading) return <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>Loading Form Data...</div>;
+
+  // Selected entities for display in print format
+  const selCompany = companies.find(c => c.id === formData.companyId) || {};
+  const selClient = clients.find(c => c.id === formData.clientId) || {};
+  const selCategory = categories.find(c => c.id === formData.sampleParticular) || {};
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', position: 'relative' }}>
+      
+      {toast.show && (
+        <div style={{
+          position: 'fixed',
+          top: '24px',
+          right: '24px',
+          backgroundColor: toast.type === 'success' ? '#10b981' : '#ef4444',
+          color: '#ffffff',
+          padding: '0.75rem 1.5rem',
+          borderRadius: '8px',
+          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          fontWeight: 600,
+          fontSize: '0.9rem',
+          transition: 'all 0.3s ease-in-out',
+        }}>
+          {toast.type === 'success' ? <FaCheck /> : <FaExclamationCircle />}
+          <span>{toast.message}</span>
+        </div>
+      )}
+
+      {/* Title & Top Action bar */}
+      <div className="hide-on-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <button onClick={() => navigate('/test-requests')} style={{ background: 'transparent', border: '1px solid #cbd5e1', padding: '0.5rem', borderRadius: '8px', cursor: 'pointer', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <FaArrowLeft />
+          </button>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+            {isEditing ? 'Edit Test Request' : 'New Test Request'}
+          </h2>
+        </div>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button 
+            onClick={() => setShowLivePreview(!showLivePreview)}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#ffffff', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.5rem 1.25rem', fontWeight: 600, cursor: 'pointer' }}
+          >
+            {showLivePreview ? <FaEyeSlash /> : <FaEye />}
+            <span>{showLivePreview ? 'Hide Preview' : 'Live Preview'}</span>
+          </button>
+          <button 
+            onClick={handleSave} 
+            disabled={submitting}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1.25rem', fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer' }}
+          >
+            <FaSave />
+            <span>{submitting ? 'Saving...' : 'Save'}</span>
+          </button>
+          <button 
+            onClick={handleSaveAndPrint} 
+            disabled={submitting}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1.25rem', fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer' }}
+          >
+            <FaPrint />
+            <span>Save & Generate PDF</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Main Split Screen Area (Screen Only) */}
+      <div className="premium-ui-form hide-on-print" style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
+        
+        {/* Left Column: Form Inputs (60% width when preview is active) */}
+        <div style={{ flex: '1', minWidth: '0', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          
+          {/* General Information Card */}
+          <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc' }}>
+              <div style={{ width: '12px', height: '24px', background: 'linear-gradient(to bottom, #3b82f6, #60a5fa)', borderRadius: '6px' }}></div>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>General Information</h3>
+            </div>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.75rem' }}>
+              
+              {/* Document Title Input */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', gridColumn: '1 / -1' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Document Title Postfix <span style={{color: '#ef4444'}}>*</span></label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#475569', whiteSpace: 'nowrap' }}>TEST REQUEST FORM FOR </span>
+                  <input 
+                    type="text" 
+                    name="formTitle" 
+                    value={formData.formTitle} 
+                    onChange={handleChange} 
+                    className="premium-input" 
+                    placeholder="e.g. WATER & WASTE WATER" 
+                    style={{ flex: 1 }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Customer / Client <span style={{color: '#ef4444'}}>*</span></label>
+                <select name="clientId" value={formData.clientId} onChange={handleChange} className="premium-input">
+                  <option value="">Select Client</option>
+                  {clients.map(c => <option key={c.id} value={c.id}>{c.clientName}</option>)}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Form Type <span style={{color: '#ef4444'}}>*</span></label>
+                <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', background: '#f8fafc', padding: '0.75rem 1rem', border: '1px solid #e2e8f0', borderRadius: '8px', height: '42px', boxSizing: 'border-box' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500, color: '#1e293b' }}>
+                    <input 
+                      type="radio" 
+                      name="formType" 
+                      value="Regular" 
+                      checked={formData.formType === 'Regular'} 
+                      onChange={handleChange} 
+                      style={{ width: '1.1rem', height: '1.1rem', accentColor: '#3b82f6' }} 
+                    />
+                    Regular
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500, color: '#1e293b' }}>
+                    <input 
+                      type="radio" 
+                      name="formType" 
+                      value="NABL" 
+                      checked={formData.formType === 'NABL'} 
+                      onChange={handleChange} 
+                      style={{ width: '1.1rem', height: '1.1rem', accentColor: '#3b82f6' }} 
+                    />
+                    NABL
+                  </label>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', gridColumn: '1 / -1' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Address for Communication</label>
+                <textarea name="address" value={formData.address} onChange={handleChange} className="premium-input" rows={2} placeholder="Enter full address..."></textarea>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Email ID</label>
+                <input type="email" name="email" value={formData.email} onChange={handleChange} className="premium-input" placeholder="e.g. contact@client.com" />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Location of Sample</label>
+                <input type="text" name="locationOfSample" value={formData.locationOfSample} onChange={handleChange} className="premium-input" placeholder="Sample site or location" />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Contact Person</label>
+                <input type="text" name="contactPerson" value={formData.contactPerson} onChange={handleChange} className="premium-input" placeholder="Name of contact" />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Contact Number</label>
+                <input type="text" name="contactNumber" value={formData.contactNumber} onChange={handleChange} className="premium-input" placeholder="+91 00000 00000" />
+              </div>
+            </div>
+          </div>
+
+          {/* Sample Details Card */}
+          <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc' }}>
+              <div style={{ width: '12px', height: '24px', background: 'linear-gradient(to bottom, #10b981, #34d399)', borderRadius: '6px' }}></div>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Sample Details</h3>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Date of Collection</label>
+                <input type="date" name="dateOfCollection" value={formData.dateOfCollection} onChange={handleChange} className="premium-input" />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Date of Receipt</label>
+                <input type="date" name="dateOfReceipt" value={formData.dateOfReceipt} onChange={handleChange} className="premium-input" />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Sample Collected By</label>
+                <input type="text" name="sampleCollectedBy" value={formData.sampleCollectedBy} onChange={handleChange} className="premium-input" placeholder="Name of collector" />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Sample Quantity</label>
+                <input type="text" name="sampleQuantity" value={formData.sampleQuantity} onChange={handleChange} className="premium-input" placeholder="e.g. 500ml" />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Field Data Sheet</label>
+                <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', background: '#f8fafc', padding: '0.75rem 1rem', border: '1px solid #e2e8f0', borderRadius: '8px', height: '100%', boxSizing: 'border-box' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500, color: '#1e293b' }}>
+                    <input type="radio" name="fieldDataSheet" value="Available" checked={formData.fieldDataSheet === 'Available'} onChange={handleChange} style={{ width: '1.1rem', height: '1.1rem', accentColor: '#3b82f6' }} />
+                    Available
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500, color: '#1e293b' }}>
+                    <input type="radio" name="fieldDataSheet" value="Not Available" checked={formData.fieldDataSheet === 'Not Available'} onChange={handleChange} style={{ width: '1.1rem', height: '1.1rem', accentColor: '#3b82f6' }} />
+                    Not Available
+                  </label>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Packing details</label>
+                <input type="text" name="packingDetails" value={formData.packingDetails} onChange={handleChange} className="premium-input" placeholder="e.g. Sealed glass bottle" />
+              </div>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Sample ID No.</label>
+                <input type="text" name="sampleIdNumber" value={formData.sampleIdNumber} onChange={handleChange} className="premium-input" placeholder="e.g. SPL-1002" />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Report No.</label>
+                <input type="text" name="reportNumber" value={formData.reportNumber} onChange={handleChange} className="premium-input" placeholder="e.g. RPT-001" />
+              </div>
+            </div>
+          </div>
+
+          {/* Testing Parameters Card */}
+          <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc' }}>
+              <div style={{ width: '12px', height: '24px', background: 'linear-gradient(to bottom, #8b5cf6, #a78bfa)', borderRadius: '6px' }}></div>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Testing Parameters</h3>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginBottom: '2rem', maxWidth: '400px' }}>
+              <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Sample Particular (Category) <span style={{color: '#ef4444'}}>*</span></label>
+              <select name="sampleParticular" value={formData.sampleParticular} onChange={handleChange} className="premium-input">
+                <option value="">Select Category</option>
+                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+
+            {parameters.length > 0 && (
+              <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                <div style={{ padding: '1.25rem', borderBottom: '1px solid #e2e8f0', background: 'linear-gradient(to right, #f8fafc, #ffffff)', fontWeight: 700, color: '#1e293b', fontSize: '1.05rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  Select Test Parameters to be Analyzed
+                  <span style={{ fontSize: '0.8rem', background: '#e0e7ff', color: '#4338ca', padding: '0.2rem 0.6rem', borderRadius: '999px' }}>
+                    {Object.values(checkedParameters).filter(Boolean).length} Selected
+                  </span>
+                </div>
+                <div style={{ maxHeight: '250px', overflowY: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.95rem' }}>
+                    <thead style={{ position: 'sticky', top: 0, background: '#f8fafc', zIndex: 1, boxShadow: '0 1px 0 #e2e8f0' }}>
+                      <tr>
+                        <th style={{ padding: '0.75rem 1rem', textAlign: 'center', width: '80px', color: '#64748b', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Select</th>
+                        <th style={{ padding: '0.75rem 1rem', textAlign: 'left', color: '#64748b', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Parameter Name</th>
+                        <th style={{ padding: '0.75rem 1rem', textAlign: 'left', color: '#64748b', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Test Method</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {parameters.map(param => {
+                        const isChecked = !!checkedParameters[param.id];
+                        return (
+                          <tr 
+                            key={param.id} 
+                            onClick={() => handleParameterCheck(param.id)} 
+                            style={{ 
+                              borderBottom: '1px solid #f1f5f9', 
+                              cursor: 'pointer', 
+                              transition: 'all 0.2s ease',
+                              backgroundColor: isChecked ? '#f0fdf4' : '#ffffff' 
+                            }} 
+                            onMouseEnter={(e) => { if(!isChecked) e.currentTarget.style.backgroundColor = '#f8fafc' }} 
+                            onMouseLeave={(e) => { if(!isChecked) e.currentTarget.style.backgroundColor = '#ffffff' }}
+                          >
+                            <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
+                              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                <div style={{ width: '22px', height: '22px', borderRadius: '6px', border: isChecked ? 'none' : '2px solid #cbd5e1', background: isChecked ? '#22c55e' : 'transparent', display: 'flex', justifyContent: 'center', alignItems: 'center', transition: 'all 0.2s' }}>
+                                  {isChecked && <span style={{ color: 'white', fontSize: '14px', fontWeight: 'bold' }}>✓</span>}
+                                </div>
+                              </div>
+                            </td>
+                            <td style={{ padding: '0.75rem 1rem', color: isChecked ? '#166534' : '#1e293b', fontWeight: isChecked ? 600 : 500 }}>{param.parameterName}</td>
+                            <td style={{ padding: '0.75rem 1rem', color: isChecked ? '#15803d' : '#64748b' }}>{param.testMethod || 'N/A'}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Facility & Technical Feasibility Card */}
+          <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc' }}>
+              <div style={{ width: '12px', height: '24px', background: 'linear-gradient(to bottom, #f59e0b, #fbbf24)', borderRadius: '6px' }}></div>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Facility & Feasibility</h3>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Availability of Equipments</label>
+                <select name="equipmentAvailability" value={formData.equipmentAvailability} onChange={handleChange} className="premium-input">
+                  <option value="Available">Available</option>
+                  <option value="Not Available">Not Available</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Availability of Reference Standards</label>
+                <select name="referenceStandardAvailability" value={formData.referenceStandardAvailability} onChange={handleChange} className="premium-input">
+                  <option value="Available">Available</option>
+                  <option value="Not Available">Not Available</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Adequacy of Sample Quantity</label>
+                <select name="sampleAdequacy" value={formData.sampleAdequacy} onChange={handleChange} className="premium-input">
+                  <option value="Adequate">Adequate</option>
+                  <option value="Not Adequate">Not Adequate</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Availability of Test Method</label>
+                <select name="testMethodAvailability" value={formData.testMethodAvailability} onChange={handleChange} className="premium-input">
+                  <option value="Available">Available</option>
+                  <option value="Not Available">Not Available</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Availability of Trained Person</label>
+                <select name="trainedPersonAvailability" value={formData.trainedPersonAvailability} onChange={handleChange} className="premium-input">
+                  <option value="Available">Available</option>
+                  <option value="Not Available">Not Available</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Tentative Days of Issuing Report</label>
+                <input type="text" name="tentativeDays" value={formData.tentativeDays} onChange={handleChange} className="premium-input" placeholder="e.g. 15-20 Days" />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', gridColumn: '1 / -1' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Sample Testing Facility Reviewed By</label>
+                <input type="text" name="sampleTestingFacilityReviewedBy" value={formData.sampleTestingFacilityReviewedBy} onChange={handleChange} className="premium-input" placeholder="Quality Manager /Technical Manager" />
+              </div>
+            </div>
+          </div>
+
+          {/* Signatures & Adoption Card */}
+          <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc' }}>
+              <div style={{ width: '12px', height: '24px', background: 'linear-gradient(to bottom, #ec4899, #f472b6)', borderRadius: '6px' }}></div>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Signatures & Adoption</h3>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Name & Designation of Customer Representative</label>
+                <input type="text" name="customerRepresentativeName" value={formData.customerRepresentativeName} onChange={handleChange} className="premium-input" placeholder="Enter representative name..." />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Name & Designation of Sample Receiver</label>
+                <input type="text" name="sampleReceiverName" value={formData.sampleReceiverName} onChange={handleChange} className="premium-input" placeholder="Enter receiver name..." />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', gridColumn: '1 / -1' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Test Protocol / Method to be Adopted</label>
+                <textarea name="testProtocol" value={formData.testProtocol} onChange={handleChange} className="premium-input" rows={3} placeholder="Ground Water/Surface Water/Drinking Water: APHA..."></textarea>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', gridColumn: '1 / -1' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Remarks / Additional Notes</label>
+                <textarea name="remarks" value={formData.remarks} onChange={handleChange} className="premium-input" rows={3} placeholder="Enter any extra remarks..."></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Sticky Live Preview Simulator */}
+        {showLivePreview && (
+          <div className="live-preview-container hide-on-mobile" style={{ 
+            width: '460px', 
+            flexShrink: 0, 
+            position: 'sticky', 
+            top: '24px', 
+            maxHeight: 'calc(100vh - 120px)', 
+            overflowY: 'auto',
+            background: '#f8fafc',
+            borderRadius: '16px',
+            padding: '1rem',
+            border: '1px solid #e2e8f0',
+            boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', paddingBottom: '0.5rem', borderBottom: '1px solid #cbd5e1' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Live Document Preview</span>
+              <span style={{ fontSize: '0.75rem', color: '#22c55e', background: '#e8fdf0', padding: '0.2rem 0.5rem', borderRadius: '6px', border: '1px solid #b8ffd0', fontWeight: 'bold' }}>A4 Format</span>
+            </div>
+
+            <div style={{
+              background: '#ffffff',
+              border: '1px solid #000000',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+              padding: '1.25rem',
+              fontSize: '10px',
+              fontFamily: '"Plus Jakarta Sans", "Inter", sans-serif',
+              color: '#000000',
+              lineHeight: '1.3'
+            }}>
+              {/* Header block */}
+              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', marginBottom: '8px' }}>
+                <tbody>
+                  <tr>
+                    <td style={{ width: '45%', border: '1px solid #000000', padding: '4px', verticalAlign: 'middle', textAlign: 'center' }}>
+                      <img src="/Images/Navbar_Logo.png" alt="Logo" style={{ height: '50px', objectFit: 'contain', display: 'block', margin: '0 auto' }} />
+                    </td>
+                    <td style={{ width: '25%', border: '1px solid #000000', padding: '4px', textAlign: 'center', fontWeight: 'bold', fontSize: '10px' }}>
+                      FORMATS
+                    </td>
+                    <td style={{ width: '30%', border: '1px solid #000000', padding: '0' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '7px' }}>
+                        <tbody>
+                          <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Amendment No.</td><td style={{ padding: '2px 3px' }}>00</td></tr>
+                          <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Amendment Date</td><td style={{ padding: '2px 3px' }}>--</td></tr>
+                          <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Issue No.</td><td style={{ padding: '2px 3px' }}>01</td></tr>
+                          <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Issue Date</td><td style={{ padding: '2px 3px' }}>01/09/2018</td></tr>
+                          <tr><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Format No.</td><td style={{ padding: '2px 3px' }}>7.1 F-01</td></tr>
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              {/* Document Title */}
+              <div style={{ border: '1px solid #000000', borderTop: 'none', background: '#f8fafc', padding: '3px', textAlign: 'center', fontWeight: 'bold', fontSize: '8px', marginBottom: '8px' }}>
+                TEST REQUEST FORM FOR {formData.formTitle || 'WATER & WASTE WATER'}
+              </div>
+
+              {/* Form Fields Table */}
+              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '8px' }}>
+                <tbody>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ width: '32%', padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Name of Company / Customer</td>
+                    <td style={{ padding: '3px 4px' }}>{selCompany.companyName || selCompany.company_name || '(Select Company)'} {selClient.clientName ? `- ${selClient.clientName}` : ''}</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Address for Communication</td>
+                    <td style={{ padding: '3px 4px' }}>{formData.address || 'N/A'}</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Email ID</td>
+                    <td style={{ padding: '3px 4px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>{formData.email || 'N/A'}</span>
+                        <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Location of Sample</span>
+                        <span style={{ paddingLeft: '6px' }}>{formData.locationOfSample || 'N/A'}</span>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Contact Person</td>
+                    <td style={{ padding: '3px 4px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>{formData.contactPerson || 'N/A'}</span>
+                        <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Contact No.</span>
+                        <span style={{ paddingLeft: '6px' }}>{formData.contactNumber || 'N/A'}</span>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Date of Collection</td>
+                    <td style={{ padding: '3px 4px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>{formData.dateOfCollection || 'N/A'}</span>
+                        <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Date of Receipt</span>
+                        <span style={{ paddingLeft: '6px' }}>{formData.dateOfReceipt || 'N/A'}</span>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Sample Collected By</td>
+                    <td style={{ padding: '3px 4px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>{formData.sampleCollectedBy || 'N/A'}</span>
+                        <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Sample Quantity</span>
+                        <span style={{ paddingLeft: '6px' }}>{formData.sampleQuantity || 'N/A'}</span>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Field Data Sheet</td>
+                    <td style={{ padding: '3px 4px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>{formData.fieldDataSheet}</span>
+                        <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px' }}>Packing details</span>
+                        <span>{formData.packingDetails || 'N/A'}</span>
+                        <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Form Type</span>
+                        <span style={{ paddingLeft: '6px' }}>{formData.formType || 'Regular'}</span>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Sample ID No.</td>
+                    <td style={{ padding: '3px 4px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>{formData.sampleIdNumber || 'N/A'}</span>
+                        <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Report No.</span>
+                        <span style={{ paddingLeft: '6px' }}>{formData.reportNumber || 'N/A'}</span>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Sample Particular (Cat)</td>
+                    <td style={{ padding: '3px 4px' }}>{selCategory.name || 'N/A'}</td>
+                  </tr>
+                  
+                  {/* Feasibility table inner block */}
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ padding: '0', fontWeight: '600' }} colSpan={2}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '7.5px' }}>
+                        <tbody>
+                          <tr style={{ borderBottom: '1px solid #000000' }}>
+                            <td style={{ width: '25%', padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Availability of Equip.</td>
+                            <td style={{ width: '25%', padding: '2px 3px', borderRight: '1px solid #000000' }}>{formData.equipmentAvailability}</td>
+                            <td style={{ width: '25%', padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Availability of Ref Std.</td>
+                            <td style={{ width: '25%', padding: '2px 3px' }}>{formData.referenceStandardAvailability}</td>
+                          </tr>
+                          <tr style={{ borderBottom: '1px solid #000000' }}>
+                            <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Availability of Test Method</td>
+                            <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>{formData.testMethodAvailability}</td>
+                            <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Availability of Trained Person</td>
+                            <td style={{ padding: '2px 3px' }}>{formData.trainedPersonAvailability}</td>
+                          </tr>
+                          <tr>
+                            <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Adequacy of sample qty</td>
+                            <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>{formData.sampleAdequacy}</td>
+                            <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Tentative Report Days</td>
+                            <td style={{ padding: '2px 3px' }}>{formData.tentativeDays}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Facility reviewed by</td>
+                    <td style={{ padding: '3px 4px' }}>{formData.sampleTestingFacilityReviewedBy}</td>
+                  </tr>
+
+                  {/* Signatures space */}
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ padding: '0', fontWeight: '600' }} colSpan={2}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '7.5px' }}>
+                        <tbody>
+                          <tr style={{ borderBottom: '1px solid #000000', height: '20px' }}>
+                            <td style={{ width: '50%', padding: '2px 3px', borderRight: '1px solid #000000', verticalAlign: 'top', fontWeight: 'bold' }}>Signature of Customer Representative:</td>
+                            <td style={{ width: '50%', padding: '2px 3px', verticalAlign: 'top', fontWeight: 'bold' }}>Signature of Sample Received By:</td>
+                          </tr>
+                          <tr>
+                            <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>
+                              Name & Designation: <span style={{ fontWeight: 'normal' }}>{formData.customerRepresentativeName || 'N/A'}</span>
+                            </td>
+                            <td style={{ padding: '2px 3px', fontWeight: 'bold' }}>
+                              Name & Designation: <span style={{ fontWeight: 'normal' }}>{formData.sampleReceiverName || 'N/A'}</span>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000', verticalAlign: 'top' }}>Test Protocol adopted</td>
+                    <td style={{ padding: '3px 4px', whiteSpace: 'pre-wrap' }}>{formData.testProtocol}</td>
+                  </tr>
+
+                  <tr>
+                    <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000', verticalAlign: 'top' }}>Remarks / Notes</td>
+                    <td style={{ padding: '3px 4px', whiteSpace: 'pre-wrap' }}>
+                      <ol style={{ margin: 0, paddingLeft: '1rem', fontSize: '7px' }}>
+                        <li>Please mention specific tests to be applied</li>
+                        <li>All the test procedures are followed as per National & International Standards.</li>
+                        <li>In case of sampling conducted by JLT, sampling plan is followed as per National & International Standards.</li>
+                        <li>If due to any unavoidable condition, testing will be sub-contracted only to NABL-complying competent agencies.</li>
+                      </ol>
+                      {formData.remarks && <div style={{ marginTop: '3px', borderTop: '1px dashed #cbd5e1', paddingTop: '3px' }}><strong>Additional:</strong> {formData.remarks}</div>}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              
+              {/* Selected Parameters Checklist */}
+              {Object.values(checkedParameters).some(Boolean) && (
+                <div style={{ marginTop: '8px', border: '1px solid #000000', padding: '4px' }}>
+                  <div style={{ fontWeight: 'bold', fontSize: '7px', textTransform: 'uppercase', marginBottom: '3px', borderBottom: '1px solid #000000', paddingBottom: '2px' }}>
+                    Selected Parameters ({parameters.filter(p => checkedParameters[p.id]).length})
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '7px' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid #000000' }}>
+                        <th style={{ textAlign: 'left', padding: '1px' }}>Parameter Name</th>
+                        <th style={{ textAlign: 'left', padding: '1px' }}>Test Method</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {parameters.filter(p => checkedParameters[p.id]).map(param => (
+                        <tr key={param.id} style={{ borderBottom: '1px dashed #e2e8f0' }}>
+                          <td style={{ padding: '1px', fontWeight: '600' }}>{param.parameterName}</td>
+                          <td style={{ padding: '1px', color: '#64748b' }}>{param.testMethod || 'N/A'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default TestRequestForm;

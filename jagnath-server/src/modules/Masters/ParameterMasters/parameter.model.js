@@ -28,6 +28,10 @@ const Parameter = sequelize.define("Parameter", {
         type: DataTypes.TEXT,
         allowNull: true,
     },
+    testMethod: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
     status: {
         type: DataTypes.ENUM("Active", "Inactive"),
         defaultValue: "Active",

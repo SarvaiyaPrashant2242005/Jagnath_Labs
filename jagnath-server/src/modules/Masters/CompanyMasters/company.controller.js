@@ -111,36 +111,40 @@ const update = async (req, res) => {
 const getMyCompanies = async (req, res) => {
     try {
         const userId = req.user.user_id;
-        const { Company } = require("../../../database"); // Import DB models if needed or query through sequelize
+        
+        const options = {
+            page: req.query.page,
+            limit: req.query.limit,
+            search: req.query.search,
+            status: req.query.status
+        };
 
-        // Fetch direct companies (created by user)
-        const directCompanies = await companyService.getCompaniesByUser ? await companyService.getCompaniesByUser(userId) : [];
-        const directByUserId = await companyService.getCompanyByUserId(userId);
-        
-        const companyMap = new Map();
-        if (directByUserId) {
-            companyMap.set(directByUserId.id, directByUserId);
-        }
-        
-        // Retrieve other mapped companies
-        const mappedCompanies = await companyService.getCompaniesByUser(userId);
-        mappedCompanies.forEach(c => companyMap.set(c.id, c));
-        
-        const allCompanies = Array.from(companyMap.values());
+        const result = await companyService.getCompaniesByUser(userId, options);
 
-        if (allCompanies.length === 0) {
-            return res.status(404).json(errorResponse(
-                "NOT_FOUND",
+        if (!result || (Array.isArray(result) && result.length === 0) || (result.rows && result.rows.length === 0)) {
+            return res.status(200).json(successResponse(
+                "COMPANIES_FETCHED",
+                "Companies fetched successfully.",
                 "No companies found.",
-                "You do not have any companies registered."
+                options.limit ? { rows: [], total: 0, page: parseInt(options.page), totalPages: 0 } : []
             ));
+        }
+
+        let responseData = result;
+        if (options.limit && result.rows) {
+            responseData = {
+                rows: result.rows,
+                total: result.count,
+                page: parseInt(options.page),
+                totalPages: Math.ceil(result.count / parseInt(options.limit))
+            };
         }
 
         return res.status(200).json(successResponse(
             "COMPANIES_FETCHED",
             "Companies fetched successfully.",
             "Companies retrieved.",
-            allCompanies
+            responseData
         ));
     } catch (err) {
         return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Failed to fetch companies."));

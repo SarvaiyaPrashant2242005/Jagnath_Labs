@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FaBars, FaSignOutAlt, FaBuilding, FaChevronDown } from 'react-icons/fa';
+import { FaBars, FaSignOutAlt, FaBuilding, FaChevronDown, FaUserCircle } from 'react-icons/fa';
 import Sidebar from './Sidebar';
 import { logoutUser } from '../../modules/auth/services/authService';
 import { apiService } from '../services/apiService';
@@ -20,6 +20,7 @@ const DashboardLayout = ({ children }) => {
     const path = pathname.replace('/', '');
     if (!path) return 'dashboard';
     if (path === 'company') return 'companies';
+    if (path.startsWith('test-requests')) return 'requests';
     return path;
   };
 
@@ -99,7 +100,10 @@ const DashboardLayout = ({ children }) => {
 
   // Sidebar navigation handler
   const handleTabChange = (tabKey) => {
-    const route = tabKey === 'companies' ? '/company' : `/${tabKey}`;
+    let route = `/${tabKey}`;
+    if (tabKey === 'companies') route = '/company';
+    if (tabKey === 'requests') route = '/test-requests';
+    
     navigate(route);
   };
 
@@ -189,6 +193,10 @@ const DashboardLayout = ({ children }) => {
           background-color: #fef2f2;
           border-color: #fca5a5;
         }
+        .header-profile-button:hover {
+          background-color: #eff6ff;
+          border-color: #bfdbfe;
+        }
         .dashboard-main-area {
           flex-grow: 1;
           display: flex;
@@ -211,7 +219,7 @@ const DashboardLayout = ({ children }) => {
       <Sidebar
         activeTab={activeTab}
         onTabChange={handleTabChange}
-        onNewRequest={() => navigate('/new-request')}
+        onNewRequest={() => navigate('/test-requests/add')}
         isOpen={isSidebarOpen}
       />
 
@@ -280,6 +288,24 @@ const DashboardLayout = ({ children }) => {
                 </div>
               )}
             </div>
+
+            <button className="header-profile-button" onClick={() => navigate('/profile')} title="My Profile" style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              backgroundColor: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              padding: '0.5rem 1rem',
+              color: '#3b82f6',
+              fontWeight: 600,
+              fontSize: '0.85rem',
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}>
+              <FaUserCircle style={{ fontSize: '1.1rem' }} />
+              <span>Profile</span>
+            </button>
 
             <button className="header-logout-button" onClick={handleLogoutClick} title="Logout Session">
               <FaSignOutAlt />

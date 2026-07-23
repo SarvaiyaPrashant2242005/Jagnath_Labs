@@ -6,6 +6,7 @@ import {
 } from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
 import { PARAMETER_ENDPOINTS, COMPANY_ENDPOINTS, CATEGORY_ENDPOINTS } from '../../../shared/services/apiEndpoints';
+import Pagination from '../../../shared/components/Pagination';
 
 const ParameterMaster = () => {
   // Parameter, Company & Category states
@@ -13,6 +14,12 @@ const ParameterMaster = () => {
   const [companies, setCompanies] = useState([]);
   const [categoriesList, setCategoriesList] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
   
   // Toast notifications state
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
@@ -33,12 +40,14 @@ const ParameterMaster = () => {
   const [formData, setFormData] = useState({
     parameterName: '',
     description: '',
+    testMethod: '',
     status: 'Active',
     companyName: '',
     categoryId: ''
   });
   const [formErrors, setFormErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const [viewMode, setViewMode] = useState('table'); // 'table' or 'cards'
 
   // Trigger Toast helper
   const triggerToast = (message, type = 'success') => {
@@ -81,7 +90,8 @@ const ParameterMaster = () => {
       const url = activeCompId ? `${CATEGORY_ENDPOINTS.GET_ALL}?companyId=${activeCompId}` : CATEGORY_ENDPOINTS.GET_ALL;
       const response = await apiService.get(url);
       if (response && response.data) {
-        setCategoriesList(Array.isArray(response.data) ? response.data : [response.data]);
+        const categories = Array.isArray(response.data) ? response.data : [response.data];
+        setCategoriesList(categories.filter(cat => cat.status === 'Active'));
       } else {
         setCategoriesList([]);
       }
@@ -95,23 +105,50 @@ const ParameterMaster = () => {
     setLoading(true);
     try {
       const activeCompId = localStorage.getItem('selectedCompanyId') || '';
-      const url = activeCompId ? `${PARAMETER_ENDPOINTS.GET_ALL}?companyId=${activeCompId}` : PARAMETER_ENDPOINTS.GET_ALL;
+      const params = new URLSearchParams({
+        page: currentPage,
+        limit: pageSize,
+        search: searchQuery,
+        status: statusFilter
+      });
+      if (activeCompId) {
+        params.append('companyId', activeCompId);
+      }
+      
+      const url = `${PARAMETER_ENDPOINTS.GET_ALL}?${params.toString()}`;
       const response = await apiService.get(url);
       if (response && response.data) {
-        setParameters(Array.isArray(response.data) ? response.data : [response.data]);
+        if (response.data.rows !== undefined) {
+           setParameters(response.data.rows);
+           setTotalItems(response.data.total);
+           setTotalPages(response.data.totalPages);
+        } else {
+           const paramList = Array.isArray(response.data) ? response.data : [response.data];
+           setParameters(paramList);
+           setTotalItems(paramList.length);
+           setTotalPages(1);
+        }
       } else {
         setParameters([]);
+        setTotalItems(0);
+        setTotalPages(0);
       }
     } catch (err) {
       if (err.status !== 404 && err.errorCode !== 'NOT_FOUND') {
         triggerToast(err.messageToShow || err.message || 'Failed to fetch parameters.', 'error');
       } else {
         setParameters([]);
+        setTotalItems(0);
+        setTotalPages(0);
       }
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchParameters();
+  }, [currentPage, pageSize, searchQuery, statusFilter]);
 
   useEffect(() => {
     const initializeData = async () => {
@@ -132,6 +169,9 @@ const ParameterMaster = () => {
   // Form validation
   const validateForm = () => {
     const errors = {};
+    if (!formData.categoryId) {
+      errors.categoryId = 'Category is required.';
+    }
     if (!formData.parameterName.trim()) {
       errors.parameterName = 'Parameter Name is required.';
     }
@@ -156,6 +196,7 @@ const ParameterMaster = () => {
     setFormData({
       parameterName: '',
       description: '',
+      testMethod: '',
       status: 'Active',
       companyName: defaultCompanyName,
       categoryId: ''
@@ -170,6 +211,7 @@ const ParameterMaster = () => {
     setFormData({
       parameterName: param.parameterName || '',
       description: param.description || '',
+      testMethod: param.testMethod || '',
       status: param.status || 'Active',
       companyName: param.companyName || (param.company ? (param.company.companyName || param.company.company_name) : ''),
       categoryId: param.categoryId || ''
@@ -198,6 +240,7 @@ const ParameterMaster = () => {
     const payload = {
       parameterName: formData.parameterName,
       description: formData.description,
+      testMethod: formData.testMethod,
       status: formData.status,
       companyName: activeCompanyName || formData.companyName,
       categoryId: formData.categoryId || null
@@ -228,6 +271,7 @@ const ParameterMaster = () => {
       const payload = {
         parameterName: param.parameterName,
         description: param.description,
+        testMethod: param.testMethod,
         status: newStatus,
         companyName: param.companyName,
         categoryId: param.categoryId
@@ -255,12 +299,12 @@ const ParameterMaster = () => {
   // CSV Export
   const handleDownloadCSV = () => {
     if (parameters.length === 0) return;
-    const headers = ['Parameter Name', 'Category', 'Description', 'Company Name', 'Status'];
-    const rows = filteredParameters.map(p => [
+    const headers = ['Parameter Name', 'Category', 'Test Method', 'Description', 'Status'];
+    const rows = parameters.map(p => [
       p.parameterName,
       p.categoryName || 'Unassigned',
+      p.testMethod || 'N/A',
       p.description || 'None',
-      p.companyName || 'N/A',
       p.status
     ]);
 
@@ -279,12 +323,12 @@ const ParameterMaster = () => {
   // Excel Export
   const handleDownloadExcel = () => {
     if (parameters.length === 0) return;
-    const headers = ['Parameter Name', 'Category', 'Description', 'Company Name', 'Status'];
-    const rows = filteredParameters.map(p => [
+    const headers = ['Parameter Name', 'Category', 'Test Method', 'Description', 'Status'];
+    const rows = parameters.map(p => [
       p.parameterName,
       p.categoryName || 'Unassigned',
+      p.testMethod || 'N/A',
       p.description || 'None',
-      p.companyName || 'N/A',
       p.status
     ]);
     
@@ -311,15 +355,15 @@ const ParameterMaster = () => {
     setShowDownloadDropdown(false);
   };
 
-  // Clipboard copy
+  // Copy to Clipboard
   const handleCopy = () => {
     if (parameters.length === 0) return;
-    const headers = ['Parameter Name', 'Category', 'Description', 'Company Name', 'Status'];
-    const rows = filteredParameters.map(p => [
+    const headers = ['Parameter Name', 'Category', 'Test Method', 'Description', 'Status'];
+    const rows = parameters.map(p => [
       p.parameterName,
       p.categoryName || 'Unassigned',
+      p.testMethod || 'N/A',
       p.description || 'None',
-      p.companyName || 'N/A',
       p.status
     ]);
     const text = [headers.join('\t'), ...rows.map(r => r.join('\t'))].join('\n');
@@ -332,13 +376,13 @@ const ParameterMaster = () => {
   const handlePrintPDF = () => {
     if (parameters.length === 0) return;
     const printWindow = window.open('', '_blank');
-    const headers = ['Parameter Name', 'Category', 'Description', 'Company Name', 'Status'];
-    const rows = filteredParameters.map(p => `
+    const headers = ['Parameter Name', 'Category', 'Test Method', 'Description', 'Status'];
+    const rows = parameters.map(p => `
       <tr>
         <td>${p.parameterName}</td>
         <td>${p.categoryName || 'Unassigned'}</td>
+        <td>${p.testMethod || 'N/A'}</td>
         <td>${p.description || 'None'}</td>
-        <td>${p.companyName || 'N/A'}</td>
         <td>${p.status}</td>
       </tr>
     `).join('');
@@ -382,22 +426,6 @@ const ParameterMaster = () => {
     window.print();
     setShowDownloadDropdown(false);
   };
-
-  // Filter list locally
-  const filteredParameters = parameters.filter(p => {
-    const pName = (p.parameterName || '').toLowerCase();
-    const desc = (p.description || '').toLowerCase();
-    const comp = (p.companyName || '').toLowerCase();
-    const catName = (p.categoryName || '').toLowerCase();
-    
-    const matchesSearch = pName.includes(searchQuery.toLowerCase()) || 
-                          desc.includes(searchQuery.toLowerCase()) ||
-                          comp.includes(searchQuery.toLowerCase()) ||
-                          catName.includes(searchQuery.toLowerCase());
-                           
-    const matchesStatus = statusFilter === 'ALL' || p.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -529,6 +557,25 @@ const ParameterMaster = () => {
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
               
+              {/* Category Dropdown */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Category *</label>
+                <select
+                  name="categoryId"
+                  value={formData.categoryId}
+                  onChange={handleInputChange}
+                  style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.categoryId ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', cursor: 'pointer', outline: 'none', backgroundColor: '#ffffff' }}
+                >
+                  <option value="">Select Category</option>
+                  {categoriesList.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </select>
+                {formErrors.categoryId && (
+                  <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 500 }}>{formErrors.categoryId}</span>
+                )}
+              </div>
+
               {/* Parameter Name */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Parameter Name *</label>
@@ -545,22 +592,6 @@ const ParameterMaster = () => {
                 )}
               </div>
 
-              {/* Category Dropdown */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Category</label>
-                <select
-                  name="categoryId"
-                  value={formData.categoryId}
-                  onChange={handleInputChange}
-                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', cursor: 'pointer', outline: 'none', backgroundColor: '#ffffff' }}
-                >
-                  <option value="">Unassigned / Select Category</option>
-                  {categoriesList.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
-                </select>
-              </div>
-
               {/* Description */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: 'span 2' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Description</label>
@@ -571,6 +602,19 @@ const ParameterMaster = () => {
                   placeholder="Optional description of the test parameter"
                   rows={2}
                   style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
+                />
+              </div>
+
+              {/* Test Method */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: 'span 2' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Test Method</label>
+                <input 
+                  type="text"
+                  name="testMethod"
+                  value={formData.testMethod}
+                  onChange={handleInputChange}
+                  placeholder="e.g. APHA, 23rd Edition 2017/4500-H-B"
+                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', fontFamily: 'inherit' }}
                 />
               </div>
 
@@ -634,15 +678,29 @@ const ParameterMaster = () => {
         </div>
       )}
 
-      {/* Main Table view */}
-      <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+      {/* Main view container */}
+      <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
         
         {/* Filters Row */}
         <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.25rem', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>
-            Total Parameters: {filteredParameters.length}
+            Total Parameters: {totalItems}
           </div>
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: '6px', padding: '0.25rem' }}>
+              <button 
+                onClick={() => setViewMode('table')}
+                style={{ padding: '0.35rem 0.75rem', border: 'none', borderRadius: '4px', cursor: 'pointer', background: viewMode === 'table' ? '#ffffff' : 'transparent', color: viewMode === 'table' ? '#0f172a' : '#64748b', fontWeight: 600, boxShadow: viewMode === 'table' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition: 'all 0.2s' }}
+              >
+                Table
+              </button>
+              <button 
+                onClick={() => setViewMode('cards')}
+                style={{ padding: '0.35rem 0.75rem', border: 'none', borderRadius: '4px', cursor: 'pointer', background: viewMode === 'cards' ? '#ffffff' : 'transparent', color: viewMode === 'cards' ? '#0f172a' : '#64748b', fontWeight: 600, boxShadow: viewMode === 'cards' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition: 'all 0.2s' }}
+              >
+                Cards
+              </button>
+            </div>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -662,7 +720,8 @@ const ParameterMaster = () => {
           </div>
         </div>
 
-        {/* Data Grid Table */}
+        {/* Data Grid Table or Cards */}
+        {viewMode === 'table' ? (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
             <thead>
@@ -671,26 +730,25 @@ const ParameterMaster = () => {
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>PARAMETER NAME</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CATEGORY</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>DESCRIPTION</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>COMPANY NAME</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>TEST METHOD</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATUS</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                     Loading parameters...
                   </td>
                 </tr>
-              ) : filteredParameters.length === 0 ? (
+              ) : parameters.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                     No parameters found.
                   </td>
                 </tr>
               ) : (
-                filteredParameters.map((p, index) => (
+                parameters.map((p, index) => (
                   <tr 
                     key={p.id} 
                     onClick={() => handleOpenEdit(p)}
@@ -714,15 +772,19 @@ const ParameterMaster = () => {
                         <FaTrash size={12} />
                       </button>
                     </td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{index + 1}</td>
-                    <td style={{ padding: '0.75rem 1rem', fontWeight: 600, color: '#0f172a' }}>{p.parameterName}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>
+                      <div style={{ fontWeight: 600 }}>{p.parameterName}</div>
+                      <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.25rem', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {p.description || <em style={{ color: '#94a3b8' }}>No description</em>}
+                      </div>
+                    </td>
                     <td style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 500 }}>
                       {p.categoryName || <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '0.85rem' }}>Unassigned</span>}
                     </td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#64748b', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {p.description || <em style={{ color: '#94a3b8' }}>No description</em>}
+                    <td style={{ padding: '0.75rem 1rem', color: '#475569', fontSize: '0.85rem' }}>
+                      {p.testMethod || <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>N/A</span>}
                     </td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#475569' }}>{p.companyName || 'N/A'}</td>
                     <td style={{ padding: '0.75rem 1rem' }}>
                       <span 
                         onClick={(e) => handleToggleStatus(p, e)}
@@ -747,7 +809,55 @@ const ParameterMaster = () => {
               )}
             </tbody>
           </table>
-        </div>
+        </div>) : (
+          <div style={{ minHeight: '300px' }}>
+            {loading ? (
+              <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>Loading parameters...</div>
+            ) : parameters.length === 0 ? (
+              <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>No parameters found.</div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem', alignItems: 'start' }}>
+                {Object.entries(
+                  parameters.reduce((acc, param) => {
+                    const cat = param.categoryName || 'Unassigned';
+                    if (!acc[cat]) acc[cat] = [];
+                    acc[cat].push(param);
+                    return acc;
+                  }, {})
+                ).map(([catName, params]) => (
+                  <div key={catName} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '1rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                    <h4 style={{ fontSize: '1rem', fontWeight: 700, color: '#1e293b', margin: '0 0 0.75rem 0', paddingBottom: '0.5rem', borderBottom: '1px solid #e2e8f0' }}>
+                      {catName} <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500, marginLeft: '0.25rem' }}>({params.length})</span>
+                    </h4>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      {params.map((p, idx) => (
+                        <div key={p.id} style={{ display: 'flex', alignItems: 'center', padding: '0.35rem 0', borderBottom: idx !== params.length - 1 ? '1px dashed #e2e8f0' : 'none' }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 500, color: '#334155', fontSize: '0.85rem' }}>{p.parameterName}</div>
+                            {p.testMethod && <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.15rem' }}>Method: {p.testMethod}</div>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        
+        {/* Pagination Controls */}
+        <Pagination 
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setCurrentPage(1);
+          }}
+        />
       </div>
 
     </div>

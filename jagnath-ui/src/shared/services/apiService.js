@@ -1,7 +1,7 @@
 /**
  * @file apiService.js
  * @description Lightweight HTTP client built on top of the native fetch API.
- * Automatically attaches the JWT access token from localStorage and provides
+ * Automatically attaches the JWT access token from sessionStorage and provides
  * standardised JSON request/response helpers for GET, POST, PUT, DELETE.
  */
 
@@ -11,7 +11,7 @@
  * Retrieve the stored access token.
  * @returns {string|null}
  */
-const getAccessToken = () => localStorage.getItem("accessToken");
+const getAccessToken = () => sessionStorage.getItem("accessToken");
 
 /**
  * Build default request headers.
@@ -32,6 +32,22 @@ const buildHeaders = (isJson = true) => {
 
 // ─── Core request function ──────────────────────────────────────────────────────
 
+import { AUTH_ENDPOINTS } from "./apiEndpoints";
+
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 /**
  * Make an HTTP request and return the parsed JSON body.
  *
@@ -50,11 +66,78 @@ const request = async (url, options = {}) => {
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    // Throw the server's error body so callers can show `messageToShow`
     const error = data || {
       success: false,
       message: `HTTP ${response.status}: ${response.statusText}`,
     };
+
+    // Handle Token Expiry
+    if (response.status === 401 || response.status === 403) {
+      const refreshToken = sessionStorage.getItem("refreshToken");
+
+      // Prevent infinite loops for the refresh endpoint itself
+      if (url === AUTH_ENDPOINTS.REFRESH_TOKEN || !refreshToken) {
+        throw error;
+      }
+
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then(token => {
+          if (options.headers && options.headers["Authorization"]) {
+            options.headers["Authorization"] = `Bearer ${token}`;
+          }
+          return request(url, options);
+        }).catch(err => {
+          throw err;
+        });
+      }
+
+      isRefreshing = true;
+
+      return new Promise((resolve, reject) => {
+        fetch(AUTH_ENDPOINTS.REFRESH_TOKEN, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: refreshToken })
+        })
+          .then(res => res.json())
+          .then(refreshData => {
+            if (refreshData?.success && refreshData?.data?.accessToken) {
+              const newAccessToken = refreshData.data.accessToken;
+              sessionStorage.setItem("accessToken", newAccessToken);
+              if (refreshData.data.refreshToken) {
+                 sessionStorage.setItem("refreshToken", refreshData.data.refreshToken);
+              }
+              processQueue(null, newAccessToken);
+              
+              if (options.headers && options.headers["Authorization"]) {
+                options.headers["Authorization"] = `Bearer ${newAccessToken}`;
+              }
+              resolve(request(url, options));
+            } else {
+              sessionStorage.removeItem("accessToken");
+              sessionStorage.removeItem("refreshToken");
+              sessionStorage.removeItem("user");
+              window.location.href = "/login";
+              processQueue(error, null);
+              reject(error);
+            }
+          })
+          .catch(err => {
+            sessionStorage.removeItem("accessToken");
+            sessionStorage.removeItem("refreshToken");
+            sessionStorage.removeItem("user");
+            window.location.href = "/login";
+            processQueue(err, null);
+            reject(err);
+          })
+          .finally(() => {
+            isRefreshing = false;
+          });
+      });
+    }
+
     throw error;
   }
 
