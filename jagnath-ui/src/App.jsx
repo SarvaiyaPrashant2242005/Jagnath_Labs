@@ -14,6 +14,7 @@ import TestRequestForm from './modules/testRequest/pages/TestRequestForm';
 import TestRequestList from './modules/testRequest/pages/TestRequestList';
 import TestRequestPrint from './modules/testRequest/pages/TestRequestPrint';
 import Profile from './modules/profile/pages/Profile';
+import PriceList from './modules/pricelist/pages/PriceList';
 import { getStoredUser } from './modules/auth/services/authService';
 import './assets/styles/index.css';
 
@@ -123,6 +124,8 @@ function App() {
         <Route path="/categories" element={<ProtectedRoute><CategoryMaster /></ProtectedRoute>} />
         <Route path="/parameters" element={<ProtectedRoute><ParameterMaster /></ProtectedRoute>} />
         <Route path="/users" element={<ProtectedRoute><UserMaster /></ProtectedRoute>} />
+        <Route path="/price-lists" element={<ProtectedRoute><PriceList /></ProtectedRoute>} />
+        <Route path="/price-master" element={<ProtectedRoute><PriceList /></ProtectedRoute>} />
         <Route path="/test-requests" element={<ProtectedRoute><TestRequestList /></ProtectedRoute>} />
         <Route path="/test-requests/add" element={<ProtectedRoute><TestRequestForm /></ProtectedRoute>} />
         <Route path="/test-requests/edit/:id" element={<ProtectedRoute><TestRequestForm /></ProtectedRoute>} />

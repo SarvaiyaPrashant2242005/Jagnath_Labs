@@ -91,3 +91,16 @@ export const TEST_REQUEST_PARAMETER_ENDPOINTS = {
   UPDATE: (id) => `${API_BASE_URL}/test-request-parameter/${id}`,
   DELETE: (id) => `${API_BASE_URL}/test-request-parameter/${id}`,
 };
+
+// ─── Price Master Endpoints ──────────────────────────────────────────────────────
+export const PRICE_MASTER_ENDPOINTS = {
+  CREATE: `${API_BASE_URL}/price-master`,
+  GET_ALL: `${API_BASE_URL}/price-master`,
+  GET_BY_ID: (id) => `${API_BASE_URL}/price-master/${id}`,
+  UPDATE: (id) => `${API_BASE_URL}/price-master/${id}`,
+  DELETE: (id) => `${API_BASE_URL}/price-master/${id}`,
+};
+
+export const PRICE_LIST_ENDPOINTS = PRICE_MASTER_ENDPOINTS;
+
+

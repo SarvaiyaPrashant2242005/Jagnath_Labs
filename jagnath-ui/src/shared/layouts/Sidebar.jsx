@@ -14,7 +14,7 @@ const Sidebar = ({ activeTab, onTabChange, onNewRequest, sidebarRef, isOpen = tr
 
   // Auto-expand group containing the active tab
   useEffect(() => {
-    if (['companies', 'clients', 'categories', 'parameters'].includes(activeTab)) {
+    if (['companies', 'clients', 'categories', 'parameters', 'price-lists'].includes(activeTab)) {
       setOpenGroup('masters');
     } else if (['requests', 'new-request'].includes(activeTab)) {
       setOpenGroup('workflow');
@@ -308,7 +308,8 @@ const Sidebar = ({ activeTab, onTabChange, onNewRequest, sidebarRef, isOpen = tr
                   { name: 'Company', key: 'companies', icon: <FaBuilding size={14} /> },
                   { name: 'Clients', key: 'clients', icon: <FaUserFriends size={14} /> },
                   { name: 'Categories', key: 'categories', icon: <FaTags size={14} /> },
-                  { name: 'Parameters', key: 'parameters', icon: <FaSlidersH size={14} /> }
+                  { name: 'Parameters', key: 'parameters', icon: <FaSlidersH size={14} /> },
+                  { name: 'Price List', key: 'price-lists', icon: <FaFileInvoiceDollar size={14} /> }
                 ].map(item => (
                   <div
                     key={item.key}

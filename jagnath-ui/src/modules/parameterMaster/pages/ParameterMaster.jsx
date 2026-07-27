@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   FaSlidersH, FaPlus, FaDownload, FaEdit, FaTrash, FaCheck, 
   FaExclamationCircle, FaFileExcel, FaCopy, FaFileCsv, 
-  FaFilePdf, FaPrint, FaChevronDown 
+  FaFilePdf, FaPrint, FaChevronDown, FaTimes 
 } from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
 import { PARAMETER_ENDPOINTS, COMPANY_ENDPOINTS, CATEGORY_ENDPOINTS } from '../../../shared/services/apiEndpoints';
@@ -49,12 +49,63 @@ const ParameterMaster = () => {
   const [submitting, setSubmitting] = useState(false);
   const [viewMode, setViewMode] = useState('table'); // 'table' or 'cards'
 
+  // Quick Add Category Modal State
+  const [isAddCatModalOpen, setIsAddCatModalOpen] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [isSavingCat, setIsSavingCat] = useState(false);
+
   // Trigger Toast helper
   const triggerToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
     setTimeout(() => {
       setToast({ show: false, message: '', type: 'success' });
     }, 2500);
+  };
+
+  // Quick Add Category Handler
+  const handleCreateCategoryDirect = async (e) => {
+    e.preventDefault();
+    if (!newCatName.trim()) {
+      triggerToast('Category name is required.', 'error');
+      return;
+    }
+
+    try {
+      setIsSavingCat(true);
+      const res = await apiService.post(CATEGORY_ENDPOINTS.CREATE, {
+        name: newCatName.trim(),
+        status: 'Active'
+      });
+
+      const createdCat = res?.data;
+      triggerToast('New Category created successfully!', 'success');
+      setIsAddCatModalOpen(false);
+      setNewCatName('');
+
+      // Refresh categories list for dropdown
+      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
+      const url = activeCompId ? `${CATEGORY_ENDPOINTS.GET_ALL}?companyId=${activeCompId}` : CATEGORY_ENDPOINTS.GET_ALL;
+      const response = await apiService.get(url);
+      if (response && response.data) {
+        const freshCategories = Array.isArray(response.data) ? response.data : [response.data];
+        const activeCats = freshCategories.filter(cat => cat.status === 'Active');
+        setCategoriesList(activeCats);
+
+        // Auto select newly created category
+        if (createdCat?.id) {
+          setFormData(prev => ({ ...prev, categoryId: createdCat.id }));
+        } else {
+          const match = activeCats.find(c => (c.categoryName || c.name).toLowerCase() === newCatName.trim().toLowerCase());
+          if (match) {
+            setFormData(prev => ({ ...prev, categoryId: match.id }));
+          }
+        }
+      }
+    } catch (err) {
+      triggerToast(err.message || 'Failed to create category.', 'error');
+    } finally {
+      setIsSavingCat(false);
+    }
   };
 
   // Close dropdown on click outside
@@ -557,9 +608,18 @@ const ParameterMaster = () => {
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
               
-              {/* Category Dropdown */}
+              {/* Category Dropdown & Quick Add Link */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Category *</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Category *</label>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddCatModalOpen(true)}
+                    style={{ background: 'none', border: 'none', color: '#22c55e', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}
+                  >
+                    <FaPlus size={10} /> Add New Category
+                  </button>
+                </div>
                 <select
                   name="categoryId"
                   value={formData.categoryId}
@@ -905,6 +965,49 @@ const ParameterMaster = () => {
           }}
         />
       </div>
+
+      {/* Quick Add Category Modal */}
+      {isAddCatModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.5)',
+          backdropFilter: 'blur(4px)',
+          zIndex: 9999,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: '1rem'
+        }}>
+          <div style={{ background: '#ffffff', borderRadius: '12px', width: '100%', maxWidth: '420px', border: '1px solid #e2e8f0', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.25rem', borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Add New Category</h3>
+              <button onClick={() => setIsAddCatModalOpen(false)} style={{ border: 'none', background: 'none', color: '#64748b', cursor: 'pointer' }}><FaTimes /></button>
+            </div>
+            <form onSubmit={handleCreateCategoryDirect} style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Category Name *</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Environmental Water Test"
+                  value={newCatName}
+                  onChange={(e) => setNewCatName(e.target.value)}
+                  autoFocus
+                  required
+                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.9rem', outline: 'none' }}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+                <button type="button" onClick={() => setIsAddCatModalOpen(false)} style={{ padding: '0.45rem 1rem', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#ffffff', color: '#475569', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+                <button type="submit" disabled={isSavingCat} style={{ padding: '0.45rem 1.2rem', border: 'none', borderRadius: '6px', backgroundColor: '#22c55e', color: '#ffffff', fontWeight: 600, cursor: 'pointer', opacity: isSavingCat ? 0.7 : 1 }}>{isSavingCat ? 'Saving...' : 'Create Category'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );
