@@ -39,16 +39,9 @@ const create = async (req, res) => {
             ));
         }
 
-        // Find the Company using companyName
-        const companyNameVal = value.companyName;
-        const company = await Company.findOne({
-            where: {
-                [Op.or]: [
-                    { companyName: companyNameVal },
-                    { company_name: companyNameVal }
-                ]
-            }
-        });
+        // Find the Company using companyId
+        const companyIdVal = value.companyId;
+        const company = await Company.findByPk(companyIdVal);
 
         if (!company) {
             return res.status(404).json(errorResponse(
@@ -68,10 +61,10 @@ const create = async (req, res) => {
             ));
         }
 
-        // Find the Client using clientName and companyId
+        // Find the Client using clientId and companyId
         const client = await Client.findOne({
             where: {
-                clientName: value.clientName,
+                id: value.clientId,
                 companyId: company.id
             }
         });
@@ -125,16 +118,38 @@ const getAll = async (req, res) => {
         try {
             company = await getUserCompany(userId);
         } catch (e) {
-            return res.status(404).json(errorResponse("NOT_FOUND", e.message, e.message));
+            return res.status(200).json(successResponse(
+                "TEST_REQUESTS_FETCHED",
+                "Test requests fetched successfully.",
+                "Test requests fetched successfully.",
+                req.query.limit ? { rows: [], total: 0, page: parseInt(req.query.page), totalPages: 0 } : []
+            ));
         }
 
-        const trs = await testRequestService.getTestRequestsByCompany(company.id);
+        const options = {
+            page: req.query.page,
+            limit: req.query.limit,
+            search: req.query.search,
+            status: req.query.status
+        };
+
+        const result = await testRequestService.getTestRequestsByCompany(company.id, options);
+
+        let responseData = result;
+        if (options.limit && result.rows) {
+            responseData = {
+                rows: result.rows,
+                total: result.count,
+                page: parseInt(options.page),
+                totalPages: Math.ceil(result.count / parseInt(options.limit))
+            };
+        }
 
         return res.status(200).json(successResponse(
             "TEST_REQUESTS_FETCHED",
             "Test requests fetched successfully.",
             "Test requests fetched successfully.",
-            trs
+            responseData
         ));
     } catch (err) {
         return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Failed to fetch test requests."));
@@ -217,16 +232,9 @@ const update = async (req, res) => {
         let resolvedCompanyId = existingTR.companyId;
         let resolvedClientId = existingTR.clientId;
 
-        // If companyName is updated
-        if (value.companyName) {
-            const comp = await Company.findOne({
-                where: {
-                    [Op.or]: [
-                        { companyName: value.companyName },
-                        { company_name: value.companyName }
-                    ]
-                }
-            });
+        // If companyId is updated
+        if (value.companyId) {
+            const comp = await Company.findByPk(value.companyId);
             if (!comp) {
                 return res.status(404).json(errorResponse("NOT_FOUND", "Company not found.", "Company not found."));
             }
@@ -237,18 +245,14 @@ const update = async (req, res) => {
             resolvedCompanyId = comp.id;
         }
 
-        // If clientName is updated (or companyName is updated)
-        if (value.clientName || value.companyName) {
-            let clientNameVal = value.clientName;
-            if (!clientNameVal) {
-                const currentClient = await Client.findByPk(existingTR.clientId);
-                clientNameVal = currentClient ? currentClient.clientName : null;
-            }
+        // If clientId is updated (or companyId is updated)
+        if (value.clientId || value.companyId) {
+            let clientIdVal = value.clientId || existingTR.clientId;
 
-            if (clientNameVal) {
+            if (clientIdVal) {
                 const client = await Client.findOne({
                     where: {
-                        clientName: clientNameVal,
+                        id: clientIdVal,
                         companyId: resolvedCompanyId
                     }
                 });

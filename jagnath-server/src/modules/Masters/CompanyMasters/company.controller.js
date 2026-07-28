@@ -16,16 +16,7 @@ const create = async (req, res) => {
     try {
         const userId = req.user.user_id;
 
-        // Ensure user can only create one company
-        const existingNewCompany = await companyService.getCompanyByUserId(userId);
-        const existingOldCompanies = await companyService.getCompaniesByUser(userId);
-        if (existingNewCompany || (existingOldCompanies && existingOldCompanies.length > 0)) {
-            return res.status(400).json(errorResponse(
-                "BAD_REQUEST",
-                "User already has a company.",
-                "Every user can only create one company."
-            ));
-        }
+
 
         const body = req.body || {};
         // Determine validation schema based on input fields (support backward compatibility)
@@ -120,34 +111,43 @@ const update = async (req, res) => {
 const getMyCompanies = async (req, res) => {
     try {
         const userId = req.user.user_id;
+        
+        const options = {
+            page: req.query.page,
+            limit: req.query.limit,
+            search: req.query.search,
+            status: req.query.status
+        };
 
-        // Try getting via direct userId field
-        let company = await companyService.getCompanyByUserId(userId);
+        const result = await companyService.getCompaniesByUser(userId, options);
 
-        // Fallback to legacy UserCompanies mapping table
-        if (!company) {
-            const companies = await companyService.getCompaniesByUser(userId);
-            if (companies && companies.length > 0) {
-                company = companies[0];
-            }
-        }
-
-        if (!company) {
-            return res.status(404).json(errorResponse(
-                "NOT_FOUND",
-                "Company not found.",
-                "You do not have a company registered."
+        if (!result || (Array.isArray(result) && result.length === 0) || (result.rows && result.rows.length === 0)) {
+            return res.status(200).json(successResponse(
+                "COMPANIES_FETCHED",
+                "Companies fetched successfully.",
+                "No companies found.",
+                options.limit ? { rows: [], total: 0, page: parseInt(options.page), totalPages: 0 } : []
             ));
         }
 
+        let responseData = result;
+        if (options.limit && result.rows) {
+            responseData = {
+                rows: result.rows,
+                total: result.count,
+                page: parseInt(options.page),
+                totalPages: Math.ceil(result.count / parseInt(options.limit))
+            };
+        }
+
         return res.status(200).json(successResponse(
-            "COMPANY_FETCHED",
-            "Company fetched successfully.",
-            "Company retrieved.",
-            company
+            "COMPANIES_FETCHED",
+            "Companies fetched successfully.",
+            "Companies retrieved.",
+            responseData
         ));
     } catch (err) {
-        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Failed to fetch company."));
+        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Failed to fetch companies."));
     }
 };
 

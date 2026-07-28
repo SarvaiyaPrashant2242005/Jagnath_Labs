@@ -50,9 +50,8 @@ const companyNewBaseSchema = {
         "any.required": "Company Email is required."
     }),
     phone: Joi.string().allow('', null),
-    website: Joi.string().allow('', null),
     address: Joi.string().allow('', null),
-    description: Joi.string().allow('', null),
+    city: Joi.string().allow('', null),
     status: Joi.string().valid("Active", "Inactive").default("Active")
 };
 

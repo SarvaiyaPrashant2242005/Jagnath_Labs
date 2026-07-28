@@ -1,3 +1,17 @@
+<<<<<<< HEAD
+/* Jaganath-Lab Import CSS Modules */
+@import './theme.css';
+@import './navbar.css';
+@import './hero.css';
+@import './counter.css';
+@import './services.css';
+@import './timeline.css';
+@import './testimonial.css';
+@import './faq.css';
+@import './footer.css';
+@import './animation.css';
+@import './responsive.css';
+=======
 /* Jaganath-Lab Import CSS Modules */
 @import './theme.css';
 @import './navbar.css';
@@ -17,3 +31,59 @@
 @import './parameters.css';
 @import './responsive.css';
 
+<<<<<<< HEAD
+=======
+/* Premium Form & Input Styles */
+.premium-ui-form {
+  max-width: 100%;
+}
+
+.premium-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #1e293b;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  outline: none;
+  transition: all 0.2s ease-in-out;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  font-family: 'Plus Jakarta Sans', 'Manrope', -apple-system, sans-serif;
+  box-sizing: border-box;
+}
+
+.premium-input:hover {
+  border-color: #94a3b8;
+}
+
+.premium-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
+  background-color: #ffffff;
+}
+
+/* For Select dropdowns specifically */
+select.premium-input {
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1.25rem;
+  padding-right: 2.5rem;
+}
+
+/* For textareas */
+textarea.premium-input {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* Placeholders styling */
+.premium-input::placeholder {
+  color: #94a3b8;
+}
+
+>>>>>>> 90d9f1faae69d02acfd8a6b6a13e6a008c073ddf
+>>>>>>> Prashant_Dev

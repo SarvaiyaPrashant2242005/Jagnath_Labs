@@ -83,7 +83,7 @@ const formatDateTime = (date = new Date()) => {
 const getPerformedBy = async (userId) => {
     try {
         const user = await Users.findByPk(userId);
-        return user ? (user.full_name || user.name || user.email) : "Unknown";
+        return user ? (user.name || user.email) : "Unknown";
     } catch {
         return "Unknown";
     }
@@ -297,7 +297,7 @@ const getMappingById = async (mappingId, companyId) => {
                 {
                     model: Company,
                     as: "company",
-                    attributes: ["companyName", "company_name"]
+                    attributes: ["company_name"]
                 },
                 {
                     model: Category,
@@ -328,7 +328,7 @@ const getAllMappings = async (companyId) => {
                 {
                     model: Company,
                     as: "company",
-                    attributes: ["companyName", "company_name"]
+                    attributes: ["company_name"]
                 },
                 {
                     model: Category,
@@ -361,7 +361,7 @@ const getParametersByCategoryId = async (categoryId, companyId) => {
                 include: [{
                     model: Company,
                     as: "company",
-                    attributes: ["companyName", "company_name"]
+                    attributes: ["company_name"]
                 }]
             }]
         });

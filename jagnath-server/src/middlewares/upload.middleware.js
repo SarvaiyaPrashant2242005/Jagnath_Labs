@@ -6,42 +6,33 @@
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
+const { v4: uuidv4 } = require("uuid");
 const { errorResponse } = require("../utils/response");
 
 // Maximum file size: 16MB
 const MAX_SIZE = 16 * 1024 * 1024;
 
 // Allowed file extensions
-const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/jpg", "image/svg+xml", "application/pdf"];
+const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/jpg"];
 
 /**
  * Multer storage configuration for Company uploads.
- * Saves files to uploads/Companies/<Company_ID>/<Field_Name>/
+ * Saves files to uploads/<company_id>/{uuid}.{ext}
  */
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        // We expect company_id to be available, either in req.params or req.body or generated in service.
-        // Wait, for creating a company, the ID might not exist yet, so we might need a temporary folder 
-        // or generate the UUID in the middleware/controller.
-        // Let's use a temporary fallback if company_id is not in params/body, but usually it should be provided
-        // or we handle upload AFTER company creation. 
-        // A common pattern is generating the UUID in the controller and passing it to req.
-        const body = req.body || {};
-        const companyId = body.company_id || req.params.id || req.query.company_id || 'temp';
-        const fieldName = file.fieldname; // 'logo' or 'signature'
+        const companyId = req.company_id || req.params.id || req.query.company_id || 'temp';
+        const destFolder = path.join(__dirname, "../../uploads/companies", companyId);
 
-        const destFolder = path.join(__dirname, "../../uploads/Companies", companyId, fieldName);
-        
         if (!fs.existsSync(destFolder)) {
             fs.mkdirSync(destFolder, { recursive: true });
         }
         cb(null, destFolder);
     },
     filename: (req, file, cb) => {
-        // Keep original filename or generate a unique one. We will append a timestamp to ensure uniqueness.
-        const ext = path.extname(file.originalname);
-        const name = path.basename(file.originalname, ext);
-        cb(null, `${name}_${Date.now()}${ext}`);
+        // Unique filename: {uuid}.{ext}
+        const ext = path.extname(file.originalname).toLowerCase();
+        cb(null, `${uuidv4()}${ext}`);
     }
 });
 
@@ -78,7 +69,7 @@ const handleUpload = (multerMiddleware) => {
                     return res.status(400).json(errorResponse(
                         "INVALID_FILE_TYPE",
                         "File type not allowed.",
-                        "Only PNG, JPG, JPEG, SVG, and PDF files are allowed."
+                        "Only PNG, JPG, and JPEG files are allowed."
                     ));
                 }
                 return res.status(500).json(errorResponse(

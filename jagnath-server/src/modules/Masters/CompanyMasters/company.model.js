@@ -1,8 +1,7 @@
 /**
  * @file company.model.js
- * @description Sequelize model for Companies.
+ * @description Sequelize model for Companies (cleaned schema with no duplicates).
  */
-
 
 const { DataTypes } = require("sequelize");
 const sequelize = require("../../../config/database");
@@ -21,26 +20,6 @@ const Company = sequelize.define("Company", {
             key: "id",
         }
     },
-    companyName: {
-        type: DataTypes.STRING,
-        allowNull: true,
-    },
-    companyEmail: {
-        type: DataTypes.STRING,
-        allowNull: true,
-    },
-    phone: {
-        type: DataTypes.STRING,
-        allowNull: true,
-    },
-    website: {
-        type: DataTypes.STRING,
-        allowNull: true,
-    },
-    description: {
-        type: DataTypes.TEXT,
-        allowNull: true,
-    },
     company_code: {
         type: DataTypes.STRING,
         allowNull: false,
@@ -50,25 +29,30 @@ const Company = sequelize.define("Company", {
         type: DataTypes.STRING,
         allowNull: false,
     },
-    address: DataTypes.TEXT,
-    city: DataTypes.STRING,
-    contact_number: DataTypes.STRING,
-    company_email: DataTypes.STRING,
-    // pan_card_number: DataTypes.STRING,
-    // gst_number: DataTypes.STRING,
-    // cha_licence_number: DataTypes.STRING,
-    // bank_name: DataTypes.STRING,
-    // account_number: DataTypes.STRING,
-    // ifsc_code: DataTypes.STRING,
-    // branch_name: DataTypes.STRING,
-    // usd_bank: DataTypes.STRING,
-    // usd_account_number: DataTypes.STRING,
-    // usd_ifsc_swift_code: DataTypes.STRING,
-    // usd_branch: DataTypes.STRING,
-    // einvoice_username: DataTypes.STRING,
-    // einvoice_password: DataTypes.STRING,
-    logo: DataTypes.STRING,
-    signature: DataTypes.STRING,
+    company_email: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
+    contact_number: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
+    address: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+    },
+    city: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
+    logo: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
+    signature: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
     status: {
         type: DataTypes.ENUM("Active", "Inactive"),
         defaultValue: "Active",
