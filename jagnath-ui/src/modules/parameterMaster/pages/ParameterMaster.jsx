@@ -7,6 +7,7 @@ import {
 import { apiService } from '../../../shared/services/apiService';
 import { PARAMETER_ENDPOINTS, COMPANY_ENDPOINTS, CATEGORY_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 import Pagination from '../../../shared/components/Pagination';
+import { copyTextToClipboard, downloadCSV } from '../../../shared/utils/exportUtils';
 
 const ParameterMaster = () => {
   // Parameter, Company & Category states
@@ -358,16 +359,7 @@ const ParameterMaster = () => {
       p.description || 'None',
       p.status
     ]);
-
-    const csvContent = "data:text/csv;charset=utf-8," 
-      + [headers.join(','), ...rows.map(e => e.map(val => `"${val}"`).join(","))].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "Parameters_Report.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadCSV(headers, rows, 'Parameters_Report.csv');
     setShowDownloadDropdown(false);
   };
 
@@ -382,27 +374,7 @@ const ParameterMaster = () => {
       p.description || 'None',
       p.status
     ]);
-    
-    const htmlTable = `
-      <table border="1">
-        <thead>
-          <tr style="background-color: #f8fafc; font-weight: bold;">
-            ${headers.map(h => `<th>${h}</th>`).join('')}
-          </tr>
-        </thead>
-        <tbody>
-          ${rows.map(r => `<tr>${r.map(val => `<td>${val}</td>`).join('')}</tr>`).join('')}
-        </tbody>
-      </table>
-    `;
-    const excelBlob = new Blob([htmlTable], { type: 'application/vnd.ms-excel' });
-    const excelUrl = URL.createObjectURL(excelBlob);
-    const link = document.createElement("a");
-    link.setAttribute("href", excelUrl);
-    link.setAttribute("download", "Parameters_Report.xls");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadCSV(headers, rows, 'Parameters_Report.csv'); // Download as CSV to prevent insecure download blocks
     setShowDownloadDropdown(false);
   };
 
@@ -418,8 +390,10 @@ const ParameterMaster = () => {
       p.status
     ]);
     const text = [headers.join('\t'), ...rows.map(r => r.join('\t'))].join('\n');
-    navigator.clipboard.writeText(text);
-    triggerToast('Copied to clipboard successfully.', 'success');
+    copyTextToClipboard(text, 
+      () => triggerToast('Copied to clipboard successfully.', 'success'),
+      () => triggerToast('Failed to copy text.', 'error')
+    );
     setShowDownloadDropdown(false);
   };
 
