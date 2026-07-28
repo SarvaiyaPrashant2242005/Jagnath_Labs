@@ -1,5 +1,5 @@
 .counter-section {
-  padding: 80px 6% 60px;
+  padding: 60px 6%;
   background: var(--bg-light);
   position: relative;
   margin-top: 0;
@@ -9,7 +9,7 @@
 .counter-container {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 40px;
+  padding: 40px clamp(20px, 4vw, 40px);
   border-radius: var(--radius-lg);
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -19,6 +19,7 @@
   border: 1px solid var(--border-color);
   background: var(--white);
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
 }
 
 .counter-container:hover {
@@ -31,6 +32,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   position: relative;
 }
@@ -47,10 +49,10 @@
 
 .counter-number {
   font-family: var(--font-heading);
-  font-size: clamp(2.2rem, 4vw, 3.2rem);
+  font-size: clamp(1.8rem, 3.5vw, 3.2rem);
   font-weight: 800;
   color: var(--text-dark);
-  line-height: 1;
+  line-height: 1.1;
   letter-spacing: -0.03em;
 }
 
@@ -63,30 +65,46 @@
 
 .counter-label {
   font-family: var(--font-body);
-  font-size: 0.95rem;
+  font-size: clamp(0.8rem, 1.1vw, 0.95rem);
   color: var(--text-light);
   font-weight: 600;
 }
 
 @media (max-width: 991px) {
+  .counter-section {
+    padding: 40px 5%;
+  }
+
   .counter-container {
     grid-template-columns: repeat(2, 1fr);
-    gap: 40px;
-  }
-  
-  .counter-item:nth-child(2)::after {
-    display: none;
-  }
-}
-
-@media (max-width: 576px) {
-  .counter-container {
-    grid-template-columns: 1fr;
-    gap: 30px;
+    gap: 30px 20px;
     padding: 30px 20px;
   }
   
   .counter-item::after {
     display: none !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .counter-section {
+    padding: 30px 4%;
+  }
+
+  .counter-container {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px 12px;
+    padding: 24px 16px;
+  }
+
+  .counter-number {
+    font-size: clamp(1.5rem, 6vw, 2.2rem);
+  }
+}
+
+@media (max-width: 340px) {
+  .counter-container {
+    grid-template-columns: 1fr;
+    gap: 20px;
   }
 }

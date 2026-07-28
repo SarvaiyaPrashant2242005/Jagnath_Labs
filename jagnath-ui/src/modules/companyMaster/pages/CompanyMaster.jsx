@@ -2,10 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   FaBuilding, FaPlus, FaDownload, FaEdit, FaTrash, FaCheck, 
   FaExclamationCircle, FaFileExcel, FaCopy, FaFileCsv, 
-  FaFilePdf, FaPrint, FaChevronDown 
+  FaFilePdf, FaPrint, FaChevronDown, FaUserShield
 } from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
-import { COMPANY_ENDPOINTS } from '../../../shared/services/apiEndpoints';
+import { COMPANY_ENDPOINTS, USER_ENDPOINTS } from '../../../shared/services/apiEndpoints';
+import { getStoredUser } from '../../auth/services/authService';
 import Pagination from '../../../shared/components/Pagination';
 
 const CompanyMaster = ({ onCompanyUpdate }) => {
@@ -48,6 +49,26 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
 
   const [formErrors, setFormErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+
+  // Super Admin Detection & User Assignment State
+  const currentUser = getStoredUser();
+  const isSuperAdmin = currentUser?.role === 'SuperAdmin' || currentUser?.email === 'admin@jagnath.com';
+  const [usersList, setUsersList] = useState([]);
+  const [assignMode, setAssignMode] = useState('existing');
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [newUserData, setNewUserData] = useState({ name: '', email: '', password: '', role: 'Admin' });
+
+  useEffect(() => {
+    if (isSuperAdmin) {
+      apiService.get(USER_ENDPOINTS.GET_ALL)
+        .then(res => {
+          if (res?.data) {
+            setUsersList(Array.isArray(res.data) ? res.data : []);
+          }
+        })
+        .catch(err => console.error('Failed to fetch platform users for assignment', err));
+    }
+  }, [isSuperAdmin]);
 
   // Trigger Toast helper
   const triggerToast = (message, type = 'success') => {
@@ -180,6 +201,9 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
     setLogoFile(null);
     setSignatureFile(null);
     setFormErrors({});
+    setSelectedUserId('');
+    setNewUserData({ name: '', email: '', password: '', role: 'Admin' });
+    setAssignMode('existing');
     setEditingId(null);
     setIsFormOpen(true);
   };
@@ -197,6 +221,9 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
     setLogoFile(null);
     setSignatureFile(null);
     setFormErrors({});
+    setSelectedUserId('');
+    setNewUserData({ name: '', email: '', password: '', role: 'Admin' });
+    setAssignMode('existing');
     setEditingId(company.id);
     setIsFormOpen(true);
   };
@@ -220,6 +247,20 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
     }
     if (signatureFile) {
       formDataToSend.append('signature', signatureFile);
+    }
+
+    if (isSuperAdmin) {
+      if (assignMode === 'existing' && selectedUserId) {
+        formDataToSend.append('assignedUserId', selectedUserId);
+      } else if (assignMode === 'new') {
+        if (!newUserData.name.trim() || !newUserData.email.trim() || !newUserData.password.trim()) {
+          triggerToast('Please fill in Name, Email, and Password for the new user.', 'error');
+          setSubmitting(false);
+          return;
+        }
+        formDataToSend.append('createNewUser', 'true');
+        formDataToSend.append('newUser', JSON.stringify(newUserData));
+      }
     }
 
     try {
@@ -417,12 +458,12 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
       )}
 
       {/* Title & Top Action bar matching Screenshot 2 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' }}>
+      <div className="master-top-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' }}>
         <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
           <FaBuilding style={{ color: '#22c55e' }} />
           <span>Company</span>
         </h2>
-        <div style={{ display: 'flex', gap: '0.75rem', position: 'relative' }} ref={dropdownRef}>
+        <div className="master-top-bar-actions" style={{ display: 'flex', gap: '0.75rem', position: 'relative' }} ref={dropdownRef}>
           {!isFormOpen && (
             <button 
               onClick={handleOpenCreate} 
@@ -672,6 +713,103 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
               </div>
             </div>
 
+            {/* Assign User / Company Admin Section (Super Admin Only) */}
+            {isSuperAdmin && (
+              <div style={{
+                marginTop: '1rem',
+                padding: '1.25rem',
+                background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+                borderRadius: '10px',
+                border: '1px solid #cbd5e1',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '1rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <label style={{ fontSize: '0.9rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <FaUserShield style={{ color: '#a855f7' }} />
+                    <span>Assign Company Admin User</span>
+                  </label>
+                  <span style={{ fontSize: '0.72rem', background: '#f3e8ff', color: '#7e22ce', padding: '0.2rem 0.6rem', borderRadius: '20px', fontWeight: 700 }}>
+                    Super Admin Only
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 600, color: '#334155', cursor: 'pointer' }}>
+                    <input 
+                      type="radio" 
+                      name="assignUserMode" 
+                      value="existing" 
+                      checked={assignMode === 'existing'} 
+                      onChange={() => setAssignMode('existing')} 
+                    />
+                    <span>Assign Existing Platform User</span>
+                  </label>
+
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 600, color: '#334155', cursor: 'pointer' }}>
+                    <input 
+                      type="radio" 
+                      name="assignUserMode" 
+                      value="new" 
+                      checked={assignMode === 'new'} 
+                      onChange={() => setAssignMode('new')} 
+                    />
+                    <span>Create & Assign New Admin User</span>
+                  </label>
+                </div>
+
+                {assignMode === 'existing' ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Select Existing User</label>
+                    <select
+                      value={selectedUserId}
+                      onChange={(e) => setSelectedUserId(e.target.value)}
+                      style={{ padding: '0.6rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.85rem', background: '#ffffff' }}
+                    >
+                      <option value="">-- Select Existing User to Assign --</option>
+                      {usersList.map(u => (
+                        <option key={u.id} value={u.id}>{u.name} ({u.email}) - Role: {u.role || 'User'}</option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                      <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>User Full Name <span style={{ color: '#ef4444' }}>*</span></label>
+                      <input
+                        type="text"
+                        placeholder="e.g. John Manager"
+                        value={newUserData.name}
+                        onChange={(e) => setNewUserData(prev => ({ ...prev, name: e.target.value }))}
+                        style={{ padding: '0.6rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.85rem', background: '#ffffff' }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                      <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>User Email Address <span style={{ color: '#ef4444' }}>*</span></label>
+                      <input
+                        type="email"
+                        placeholder="manager@company.com"
+                        value={newUserData.email}
+                        onChange={(e) => setNewUserData(prev => ({ ...prev, email: e.target.value }))}
+                        style={{ padding: '0.6rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.85rem', background: '#ffffff' }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                      <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>User Password <span style={{ color: '#ef4444' }}>*</span></label>
+                      <input
+                        type="password"
+                        placeholder="••••••••"
+                        value={newUserData.password}
+                        onChange={(e) => setNewUserData(prev => ({ ...prev, password: e.target.value }))}
+                        style={{ padding: '0.6rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.85rem', background: '#ffffff' }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Form Actions */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
               <button
@@ -697,11 +835,11 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
       <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
         
         {/* Table Filters */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <div className="master-table-filters" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
           <div style={{ fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>
             Total Companies: {totalItems}
           </div>
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <div className="master-filter-inputs" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -721,85 +859,149 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
           </div>
         </div>
 
-        {/* Company Table */}
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
-            <thead>
-              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ACTIONS</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>COMPANY CODE</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>COMPANY NAME</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>EMAIL</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>PHONE</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ADDRESS</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CITY</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATUS</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={9} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-                    Loading companies...
-                  </td>
-                </tr>
-              ) : companies.length === 0 ? (
-                <tr>
-                  <td colSpan={9} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-                    No companies found.
-                  </td>
-                </tr>
-              ) : (
-                companies.map((company, index) => (
-                  <tr 
-                    key={company.id} 
-                    onClick={() => handleOpenEdit(company)}
-                    style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background-color 0.15s' }}
-                    className="company-table-row"
-                  >
-                    <td style={{ padding: '0.75rem 1rem', display: 'flex', gap: '0.5rem' }}>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); handleOpenEdit(company); }}
-                        style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
-                        title="Edit"
-                      >
-                        <FaEdit size={12} />
-                      </button>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); handleDelete(company.id); }}
-                        style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
-                        title="Delete"
-                      >
-                        <FaTrash size={12} />
-                      </button>
-                    </td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{company.company_code || 'N/A'}</td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{company.companyName || company.company_name}</td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{company.companyEmail || company.company_email || 'N/A'}</td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{company.phone || company.contact_number || 'N/A'}</td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{company.address || 'N/A'}</td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{company.city || 'N/A'}</td>
-                    <td style={{ padding: '0.75rem 1rem' }}>
-                      <span style={{ 
-                        display: 'inline-block',
-                        padding: '0.125rem 0.5rem',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        borderRadius: '12px',
-                        backgroundColor: company.status === 'Active' ? '#dcfce7' : '#fee2e2',
-                        color: company.status === 'Active' ? '#15803d' : '#991b1b'
-                      }}>
-                        {company.status}
-                      </span>
-                    </td>
+            {/* Desktop Table View */}
+            <div className="show-on-desktop master-table-responsive" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+                <thead>
+                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ACTIONS</th>
+                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
+                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>COMPANY CODE</th>
+                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>COMPANY NAME</th>
+                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>EMAIL</th>
+                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>PHONE</th>
+                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ADDRESS</th>
+                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATUS</th>
                   </tr>
-                ))
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr>
+                      <td colSpan={10} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                        Loading companies...
+                      </td>
+                    </tr>
+                  ) : companies.length === 0 ? (
+                    <tr>
+                      <td colSpan={10} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                        No companies found.
+                      </td>
+                    </tr>
+                  ) : (
+                    companies.map((company, index) => (
+                      <tr 
+                        key={company.id} 
+                        onClick={() => handleOpenEdit(company)}
+                        style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background-color 0.15s' }}
+                        className="company-table-row"
+                      >
+                        <td style={{ padding: '0.75rem 1rem', display: 'flex', gap: '0.5rem' }}>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleOpenEdit(company); }}
+                            style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
+                            title="Edit"
+                          >
+                            <FaEdit size={12} />
+                          </button>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleDelete(company.id); }}
+                            style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
+                            title="Delete"
+                          >
+                            <FaTrash size={12} />
+                          </button>
+                        </td>
+                        <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
+                        <td style={{ padding: '0.75rem 1rem', color: '#2563eb', fontWeight: 700 }}>{company.companyCode || 'N/A'}</td>
+                        <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{company.companyName || company.company_name}</td>
+                        <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{company.companyEmail || company.email || 'N/A'}</td>
+                        <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{company.contactNumber || company.phone || 'N/A'}</td>
+                        <td style={{ padding: '0.75rem 1rem', color: '#334155', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{company.address || 'N/A'}</td>
+                        <td style={{ padding: '0.75rem 1rem' }}>
+                          <span style={{ 
+                            display: 'inline-block',
+                            padding: '0.125rem 0.5rem',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            borderRadius: '12px',
+                            backgroundColor: company.status === 'Active' ? '#dcfce7' : '#fee2e2',
+                            color: company.status === 'Active' ? '#15803d' : '#991b1b'
+                          }}>
+                            {company.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Cards View */}
+            <div className="show-on-mobile">
+              {loading ? (
+                <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                  Loading companies...
+                </div>
+              ) : companies.length === 0 ? (
+                <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                  No companies found.
+                </div>
+              ) : (
+                <div className="master-card-grid">
+                  {companies.map((company, index) => (
+                    <div key={company.id} className="master-record-card" onClick={() => handleOpenEdit(company)}>
+                      <div className="master-record-card-header">
+                        <div>
+                          <div className="master-record-title">{company.companyName || company.company_name}</div>
+                          <div className="master-record-subtitle">Code: <span style={{ color: '#2563eb', fontWeight: 700 }}>{company.companyCode || 'N/A'}</span></div>
+                        </div>
+                        <span style={{ 
+                          padding: '0.2rem 0.6rem',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          borderRadius: '12px',
+                          backgroundColor: company.status === 'Active' ? '#dcfce7' : '#fee2e2',
+                          color: company.status === 'Active' ? '#15803d' : '#991b1b'
+                        }}>
+                          {company.status}
+                        </span>
+                      </div>
+
+                      <div className="master-record-details">
+                        <div className="master-record-detail-item">
+                          <span className="master-record-label">Email</span>
+                          <span className="master-record-value">{company.companyEmail || company.email || 'N/A'}</span>
+                        </div>
+                        <div className="master-record-detail-item">
+                          <span className="master-record-label">Phone</span>
+                          <span className="master-record-value">{company.contactNumber || company.phone || 'N/A'}</span>
+                        </div>
+                        <div className="master-record-detail-item" style={{ gridColumn: '1 / -1' }}>
+                          <span className="master-record-label">Address</span>
+                          <span className="master-record-value">{company.address || 'N/A'}</span>
+                        </div>
+                      </div>
+
+                      <div className="master-record-actions">
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleOpenEdit(company); }}
+                          style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                        >
+                          <FaEdit size={12} /> Edit
+                        </button>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleDelete(company.id); }}
+                          style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                        >
+                          <FaTrash size={12} /> Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
-            </tbody>
-          </table>
-        </div>
+            </div>
 
         {/* Pagination Controls */}
         <Pagination 

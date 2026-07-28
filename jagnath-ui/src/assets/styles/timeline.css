@@ -1,19 +1,12 @@
-<<<<<<< HEAD
-/* =============================================
-   Timeline / Process Section
-   Design Reference: FreightFlow ERP workflow
-   Colors: Jaganath-Lab palette (sky blue + green)
-   ============================================= */
-
 .timeline-section {
-  padding: 120px 6%;
+  padding: clamp(60px, 8vw, 120px) 6%;
   background: var(--bg-light);
   overflow-x: hidden;
 }
 
 .timeline-outer-container {
   max-width: 1400px;
-  margin: 60px auto 0;
+  margin: clamp(30px, 4vw, 60px) auto 0;
   position: relative;
   padding: 20px 0;
 }
@@ -223,14 +216,14 @@
 }
 =======
 .timeline-section {
-  padding: 120px 6%;
+  padding: clamp(60px, 8vw, 120px) 6%;
   background: var(--bg-light);
   overflow-x: hidden;
 }
 
 .timeline-outer-container {
   max-width: 1400px;
-  margin: 60px auto 0;
+  margin: clamp(30px, 4vw, 60px) auto 0;
   position: relative;
   padding: 20px 0;
 }
@@ -253,7 +246,7 @@
   left: 0;
   height: 100%;
   background: linear-gradient(to right, var(--primary), var(--primary-dark));
-  width: 0%; /* Dynamic animation via GSAP */
+  width: 0%;
   transition: width 0.1s ease;
   border-radius: var(--radius-full);
 }
@@ -275,20 +268,21 @@
 }
 
 .timeline-node {
-  width: 80px;
-  height: 80px;
+  width: clamp(60px, 5.5vw, 80px);
+  height: clamp(60px, 5.5vw, 80px);
   border-radius: 50%;
   background: var(--white);
   border: 4px solid var(--border-color);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
+  font-size: clamp(1.2rem, 1.8vw, 1.5rem);
   color: var(--text-light);
   box-shadow: var(--shadow-sm);
   transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
   position: relative;
+  flex-shrink: 0;
 }
 
 .timeline-node::after {
@@ -337,7 +331,7 @@
 
 .timeline-step-title {
   font-family: var(--font-heading);
-  font-size: 1.05rem;
+  font-size: clamp(0.92rem, 1.1vw, 1.05rem);
   font-weight: 700;
   color: var(--text-dark);
   margin-bottom: 6px;
@@ -345,7 +339,7 @@
 }
 
 .timeline-step-desc {
-  font-size: 0.82rem;
+  font-size: clamp(0.78rem, 0.95vw, 0.85rem);
   color: var(--text-light);
   line-height: 1.5;
   padding: 0 4px;
@@ -354,22 +348,31 @@
 
 /* Mobile layout: horizontal -> vertical timeline */
 @media (max-width: 991px) {
+  .timeline-section {
+    padding: 50px 5%;
+  }
+
+  .timeline-outer-container {
+    padding: 10px 0;
+  }
+
   .timeline-line {
-    top: 5%;
-    left: 45px;
+    top: 25px;
+    left: 48px;
     width: 4px;
-    height: 90%;
+    height: calc(100% - 50px);
   }
 
   .timeline-progress-bar {
     width: 100%;
-    height: 0%; /* Animate vertical height instead */
+    height: 0%;
+    background: linear-gradient(to bottom, var(--primary), var(--primary-dark));
   }
 
   .timeline-steps {
     flex-direction: column;
     align-items: flex-start;
-    gap: 40px;
+    gap: 32px;
     padding-left: 20px;
   }
 
@@ -378,13 +381,13 @@
     align-items: center;
     text-align: left;
     width: 100%;
-    gap: 24px;
+    gap: 20px;
   }
 
   .timeline-node {
-    width: 60px;
-    height: 60px;
-    min-width: 60px;
+    width: 56px;
+    height: 56px;
+    min-width: 56px;
     font-size: 1.25rem;
   }
 
@@ -392,4 +395,30 @@
     margin-top: 0;
   }
 }
->>>>>>> Prashant_Dev
+
+@media (max-width: 480px) {
+  .timeline-section {
+    padding: 40px 4%;
+  }
+
+  .timeline-line {
+    left: 36px;
+  }
+
+  .timeline-steps {
+    padding-left: 10px;
+    gap: 26px;
+  }
+
+  .timeline-step {
+    gap: 14px;
+  }
+
+  .timeline-node {
+    width: 50px;
+    height: 50px;
+    min-width: 50px;
+    font-size: 1.1rem;
+    border-width: 3px;
+  }
+}

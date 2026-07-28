@@ -32,14 +32,15 @@ const register = async (userData, reqInfo) => {
             name: userData.name,
             email: userData.email,
             password: hashedPassword,
-            status: "Active"
+            role: userData.role || "User",
+            status: userData.status || "Active"
         });
 
         // Omit password from response
         const userResponse = newUser.toJSON();
         delete userResponse.password;
 
-        writeLogToFile(`[${new Date().toISOString()}] Email: ${newUser.email} | IP: ${reqInfo.ip} | UserAgent: ${reqInfo.userAgent} | Success: true | Created User ID: ${newUser.id}`, registerLogPath);
+        writeLogToFile(`[${new Date().toISOString()}] Email: ${newUser.email} | IP: ${reqInfo ? reqInfo.ip : 'N/A'} | UserAgent: ${reqInfo ? reqInfo.userAgent : 'N/A'} | Success: true | Created User ID: ${newUser.id}`, registerLogPath);
 
         return userResponse;
     } catch (error) {
@@ -66,12 +67,11 @@ const login = async (credentials, reqInfo) => {
             throw new Error("Invalid email or password");
         }
 
-        // We assume company_id will be derived later, for now we set it to null or fetch from UserCompanies
-        // Since we are not doing roles yet, we'll leave company_id out or set it if available.
         const tokenPayload = {
             user_id: user.id,
             email: user.email,
-            company_id: null // To be populated from mapping table when needed
+            role: user.role || 'SuperAdmin',
+            company_id: null
         };
 
         const accessToken = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRES });
@@ -91,10 +91,10 @@ const login = async (credentials, reqInfo) => {
         writeLogToFile(`[${new Date().toISOString()}] Email: ${user.email} | IP: ${reqInfo.ip} | UserAgent: ${reqInfo.userAgent} | Success: true`, loginLogPath);
 
         return {
-            user: { id: user.id, name: user.name, email: user.email, status: user.status },
+            user: { id: user.id, name: user.name, email: user.email, role: user.role || 'SuperAdmin', status: user.status },
             token: accessToken,
             accessToken,
-            refreshToken: rawRefreshToken // Return raw only once
+            refreshToken: rawRefreshToken
         };
     } catch (error) {
         throw error;
@@ -107,6 +107,74 @@ const getUserById = async (id) => {
             attributes: { exclude: ["password", "deleted_at"] }
         });
         return user;
+    } catch (error) {
+        throw error;
+    }
+};
+
+const getAllUsers = async (page = 1, limit = 10, search = '', roleFilter = '') => {
+    try {
+        const offset = (page - 1) * limit;
+        const { Op } = require("sequelize");
+        const whereClause = {};
+
+        if (search) {
+            whereClause[Op.or] = [
+                { name: { [Op.like]: `%${search}%` } },
+                { email: { [Op.like]: `%${search}%` } }
+            ];
+        }
+
+        if (roleFilter && roleFilter !== 'ALL') {
+            whereClause.role = roleFilter;
+        }
+
+        const { count, rows } = await Users.findAndCountAll({
+            where: whereClause,
+            attributes: { exclude: ["password", "deleted_at"] },
+            limit: parseInt(limit, 10),
+            offset: parseInt(offset, 10),
+            order: [["created_at", "DESC"]]
+        });
+
+        return {
+            totalItems: count,
+            totalPages: Math.ceil(count / limit),
+            currentPage: parseInt(page, 10),
+            data: rows
+        };
+    } catch (error) {
+        throw error;
+    }
+};
+
+const updateUser = async (id, updateData) => {
+    try {
+        const user = await Users.findByPk(id);
+        if (!user) throw new Error("User not found");
+
+        if (updateData.password && updateData.password.trim() !== '') {
+            updateData.password = await bcrypt.hash(updateData.password, 10);
+        } else {
+            delete updateData.password;
+        }
+
+        await user.update(updateData);
+
+        const updatedUser = user.toJSON();
+        delete updatedUser.password;
+        return updatedUser;
+    } catch (error) {
+        throw error;
+    }
+};
+
+const deleteUser = async (id) => {
+    try {
+        const user = await Users.findByPk(id);
+        if (!user) throw new Error("User not found");
+        await user.destroy();
+        return { success: true };
     } catch (error) {
         throw error;
     }
@@ -167,5 +235,8 @@ module.exports = {
     register,
     login,
     rotateToken,
-    getUserById
+    getUserById,
+    getAllUsers,
+    updateUser,
+    deleteUser
 };

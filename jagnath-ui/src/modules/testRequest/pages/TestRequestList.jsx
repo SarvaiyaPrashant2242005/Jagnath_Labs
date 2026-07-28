@@ -153,12 +153,12 @@ const TestRequestList = () => {
       )}
 
       {/* Title & Top Action bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' }}>
+      <div className="master-top-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' }}>
         <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
           <FaClipboardList style={{ color: '#22c55e' }} />
           <span>Test Requests</span>
         </h2>
-        <div style={{ display: 'flex', gap: '0.75rem', position: 'relative' }} ref={dropdownRef}>
+        <div className="master-top-bar-actions" style={{ display: 'flex', gap: '0.75rem', position: 'relative' }} ref={dropdownRef}>
           <button 
             onClick={() => navigate('/test-requests/add')} 
             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1rem', fontWeight: 600, cursor: 'pointer' }}
@@ -245,11 +245,11 @@ const TestRequestList = () => {
       <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
         
         {/* Filters Row */}
-        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.25rem', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className="master-table-filters" style={{ display: 'flex', gap: '1rem', marginBottom: '1.25rem', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>
             Total Requests: {totalItems}
           </div>
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <div className="master-filter-inputs" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -269,58 +269,58 @@ const TestRequestList = () => {
           </div>
         </div>
 
-        {/* Data Grid Table */}
-        <div style={{ overflowX: 'auto' }}>
+        {/* Desktop Table View */}
+        <div className="show-on-desktop master-table-responsive" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ACTIONS</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>REPORT NO</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CLIENT</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>COMPANY</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CLIENT / CUSTOMER</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CATEGORY</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>DATE OF RECEIPT</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>COLLECTED BY</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATUS</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-                    Loading requests...
+                  <td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                    Loading test requests...
                   </td>
                 </tr>
               ) : requests.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                     No test requests found.
                   </td>
                 </tr>
               ) : (
-                requests.map((r, index) => (
+                requests.map((req, index) => (
                   <tr 
-                    key={r.id} 
-                    onClick={() => navigate(`/test-requests/edit/${r.id}`)}
+                    key={req.id} 
+                    onClick={() => navigate(`/test-requests/edit/${req.id}`)}
                     style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background-color 0.15s' }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    className="company-table-row"
                   >
                     <td style={{ padding: '0.75rem 1rem', display: 'flex', gap: '0.5rem' }}>
                       <button 
-                        onClick={(e) => { e.stopPropagation(); navigate(`/test-requests/edit/${r.id}`); }}
+                        onClick={(e) => { e.stopPropagation(); navigate(`/test-requests/print/${req.id}`); }}
+                        style={{ background: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
+                        title="Print / View PDF"
+                      >
+                        <FaPrint size={12} />
+                      </button>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); navigate(`/test-requests/edit/${req.id}`); }}
                         style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                         title="Edit"
                       >
                         <FaEdit size={12} />
                       </button>
                       <button 
-                        onClick={(e) => { e.stopPropagation(); window.open(`#/test-requests/print/${r.id}`, '_blank'); }}
-                        style={{ background: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
-                        title="Print / PDF Preview"
-                      >
-                        <FaFilePdf size={12} />
-                      </button>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); handleDelete(r.id); }}
+                        onClick={(e) => { e.stopPropagation(); handleDelete(req.id); }}
                         style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                         title="Delete"
                       >
@@ -328,25 +328,21 @@ const TestRequestList = () => {
                       </button>
                     </td>
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
-                    <td style={{ padding: '0.75rem 1rem', fontWeight: 600, color: '#0f172a' }}>{r.reportNumber || 'N/A'}</td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#1e293b' }}>
-                      {r.clientName || 'N/A'}
-                    </td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#475569' }}>
-                      {r.companyName || 'N/A'}
-                    </td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{req.clientName || 'N/A'}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{req.sampleParticularName || req.sampleParticular || 'N/A'}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{req.dateOfReceipt || req.dateOfCollection || 'N/A'}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{req.sampleCollectedBy || 'N/A'}</td>
                     <td style={{ padding: '0.75rem 1rem' }}>
                       <span style={{ 
-                        display: 'inline-flex', 
-                        alignItems: 'center', 
-                        padding: '0.15rem 0.5rem', 
-                        borderRadius: '4px', 
-                        fontSize: '0.75rem', 
-                        fontWeight: 600, 
-                        backgroundColor: (r.status || 'Active') === 'Active' ? '#dcfce7' : '#f1f5f9', 
-                        color: (r.status || 'Active') === 'Active' ? '#16a34a' : '#64748b' 
+                        display: 'inline-block',
+                        padding: '0.125rem 0.5rem',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        borderRadius: '12px',
+                        backgroundColor: req.status === 'Active' ? '#dcfce7' : '#fee2e2',
+                        color: req.status === 'Active' ? '#15803d' : '#991b1b'
                       }}>
-                        {r.status || 'Active'}
+                        {req.status || 'Active'}
                       </span>
                     </td>
                   </tr>
@@ -354,6 +350,74 @@ const TestRequestList = () => {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Cards View */}
+        <div className="show-on-mobile">
+          {loading ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+              Loading test requests...
+            </div>
+          ) : requests.length === 0 ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+              No test requests found.
+            </div>
+          ) : (
+            <div className="master-card-grid">
+              {requests.map((req, index) => (
+                <div key={req.id} className="master-record-card" onClick={() => navigate(`/test-requests/edit/${req.id}`)}>
+                  <div className="master-record-card-header">
+                    <div>
+                      <div className="master-record-title">{req.clientName || 'N/A'}</div>
+                      <div className="master-record-subtitle">#{ (currentPage - 1) * pageSize + index + 1 } • {req.sampleParticularName || req.sampleParticular || 'N/A'}</div>
+                    </div>
+                    <span style={{ 
+                      padding: '0.2rem 0.6rem',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      borderRadius: '12px',
+                      backgroundColor: req.status === 'Active' ? '#dcfce7' : '#fee2e2',
+                      color: req.status === 'Active' ? '#15803d' : '#991b1b'
+                    }}>
+                      {req.status || 'Active'}
+                    </span>
+                  </div>
+
+                  <div className="master-record-details">
+                    <div className="master-record-detail-item">
+                      <span className="master-record-label">Date Receipt</span>
+                      <span className="master-record-value">{req.dateOfReceipt || req.dateOfCollection || 'N/A'}</span>
+                    </div>
+                    <div className="master-record-detail-item">
+                      <span className="master-record-label">Collected By</span>
+                      <span className="master-record-value">{req.sampleCollectedBy || 'N/A'}</span>
+                    </div>
+                  </div>
+
+                  <div className="master-record-actions">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); navigate(`/test-requests/print/${req.id}`); }}
+                      style={{ background: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                    >
+                      <FaPrint size={12} /> Print
+                    </button>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); navigate(`/test-requests/edit/${req.id}`); }}
+                      style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                    >
+                      <FaEdit size={12} /> Edit
+                    </button>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleDelete(req.id); }}
+                      style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                    >
+                      <FaTrash size={12} /> Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         
         {/* Pagination Controls */}

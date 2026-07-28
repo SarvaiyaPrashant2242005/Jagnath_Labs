@@ -196,6 +196,17 @@ export const apiService = {
     }),
 
   /**
+   * PATCH request with a JSON body.
+   * @param {string} url
+   * @param {object} body
+   */
+  patch: (url, body) =>
+    request(url, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+
+  /**
    * DELETE request.
    * @param {string} url
    */

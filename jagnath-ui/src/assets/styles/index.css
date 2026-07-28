@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 /* Jaganath-Lab Import CSS Modules */
 @import './theme.css';
 @import './navbar.css';
@@ -10,25 +9,7 @@
 @import './faq.css';
 @import './footer.css';
 @import './animation.css';
-@import './responsive.css';
-=======
-/* Jaganath-Lab Import CSS Modules */
-@import './theme.css';
-@import './navbar.css';
-@import './hero.css';
-@import './counter.css';
-@import './services.css';
-@import './timeline.css';
-@import './testimonial.css';
-@import './faq.css';
-@import './footer.css';
-@import './animation.css';
-@import './testRequests.css';
-@import './wizard.css';
-@import './companies.css';
-@import './clients.css';
-@import './categories.css';
-@import './parameters.css';
+@import './dashboard.css';
 @import './responsive.css';
 
 <<<<<<< HEAD
@@ -85,5 +66,75 @@ textarea.premium-input {
   color: #94a3b8;
 }
 
->>>>>>> 90d9f1faae69d02acfd8a6b6a13e6a008c073ddf
->>>>>>> Prashant_Dev
+/* Global Master Responsiveness Helpers */
+@media (max-width: 768px) {
+  .master-top-bar {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 1rem !important;
+  }
+  
+  .master-top-bar-actions {
+    width: 100% !important;
+    justify-content: space-between !important;
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+  }
+
+  .master-top-bar-actions button {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .master-table-filters {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.75rem !important;
+  }
+
+  .master-table-filters input,
+  .master-table-filters select {
+    width: 100% !important;
+  }
+}
+
+/* Test Request Form Mobile Optimization */
+@media (max-width: 991px) {
+  .test-request-split-container {
+    flex-direction: column !important;
+    gap: 1.5rem !important;
+  }
+
+  .live-preview-container {
+    width: 100% !important;
+    max-height: none !important;
+    position: relative !important;
+    top: auto !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .test-request-form-card {
+    padding: 1.25rem 1rem !important;
+    border-radius: 12px !important;
+  }
+
+  .test-request-title-prefix {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.35rem !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .test-request-bottom-actions {
+    padding: 1rem !important;
+    justify-content: stretch !important;
+  }
+  .test-request-bottom-actions button {
+    flex: 1 1 100% !important;
+    justify-content: center !important;
+  }
+}
+
+

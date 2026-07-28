@@ -1,782 +1,3 @@
-<<<<<<< HEAD
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  FaBuilding, FaPlus, FaDownload, FaEdit, FaTrash, FaCheck, 
-  FaExclamationCircle, FaFileExcel, FaCopy, FaFileCsv, 
-  FaFilePdf, FaPrint, FaChevronDown, FaUser 
-} from 'react-icons/fa';
-import { apiService } from '../../../shared/services/apiService';
-import { CLIENT_ENDPOINTS, COMPANY_ENDPOINTS } from '../../../shared/services/apiEndpoints';
-
-const ClientMaster = () => {
-  // Client & Company states
-  const [clients, setClients] = useState([]);
-  const [companies, setCompanies] = useState([]);
-  const [loading, setLoading] = useState(false);
-  
-  // Toast notifications state
-  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
-
-  // Form visibility and editing state
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  
-  // Search & Filter state
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL');
-
-  // Download Dropdown toggle
-  const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
-  const dropdownRef = useRef(null);
-
-  // Form inputs state
-  const [formData, setFormData] = useState({
-    clientName: '',
-    contactNumber: '',
-    companyName: '',
-    gender: 'Male',
-    address: '',
-    city: '',
-    status: 'Active'
-  });
-  const [formErrors, setFormErrors] = useState({});
-  const [submitting, setSubmitting] = useState(false);
-
-  // Trigger Toast helper
-  const triggerToast = (message, type = 'success') => {
-    setToast({ show: true, message, type });
-    setTimeout(() => {
-      setToast({ show: false, message: '', type: 'success' });
-    }, 2500);
-  };
-
-  // Close dropdown on click outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setShowDownloadDropdown(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // Fetch all companies associated with user to populate select input
-  const fetchCompanies = async () => {
-    try {
-      const response = await apiService.get(COMPANY_ENDPOINTS.GET_MY);
-      if (response && response.data) {
-        const companyList = Array.isArray(response.data) ? response.data : [response.data];
-        setCompanies(companyList);
-        return companyList;
-      }
-      return [];
-    } catch (err) {
-      return [];
-    }
-  };
-
-  // Fetch all clients
-  const fetchClients = async () => {
-    setLoading(true);
-    try {
-      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
-      const url = activeCompId ? `${CLIENT_ENDPOINTS.GET_ALL}?companyId=${activeCompId}` : CLIENT_ENDPOINTS.GET_ALL;
-      const response = await apiService.get(url);
-      if (response && response.data) {
-        setClients(Array.isArray(response.data) ? response.data : [response.data]);
-      } else {
-        setClients([]);
-      }
-    } catch (err) {
-      if (err.status !== 404 && err.errorCode !== 'NOT_FOUND') {
-        triggerToast(err.messageToShow || err.message || 'Failed to fetch clients.', 'error');
-      } else {
-        setClients([]);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    const initializeData = async () => {
-      await fetchCompanies();
-      await fetchClients();
-    };
-    initializeData();
-
-    const handleCompanyChange = () => {
-      fetchClients();
-    };
-    window.addEventListener('companyChanged', handleCompanyChange);
-    return () => window.removeEventListener('companyChanged', handleCompanyChange);
-  }, []);
-
-  // Form validation
-  const validateForm = () => {
-    const errors = {};
-    const phoneRegex = /^[0-9]+$/;
-
-    if (!formData.clientName.trim()) {
-      errors.clientName = 'Client Name is required.';
-    }
-
-    if (!formData.contactNumber.trim()) {
-      errors.contactNumber = 'Contact Number is required.';
-    } else if (!phoneRegex.test(formData.contactNumber)) {
-      errors.contactNumber = 'Contact Number must contain only digits.';
-    }
-    if (!formData.address.trim()) {
-      errors.address = 'Address is required.';
-    }
-    if (!formData.city.trim()) {
-      errors.city = 'City is required.';
-    }
-
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    if (formErrors[name]) {
-      setFormErrors(prev => ({ ...prev, [name]: '' }));
-    }
-  };
-
-  // Open Form for Create
-  const handleOpenCreate = () => {
-    // Default to currently selected company from localStorage if available
-    const activeCompId = localStorage.getItem('selectedCompanyId');
-    const matchedComp = companies.find(c => c.id === activeCompId);
-    const defaultCompanyName = matchedComp ? (matchedComp.companyName || matchedComp.company_name) : (companies.length > 0 ? (companies[0].companyName || companies[0].company_name) : '');
-
-    setFormData({
-      clientName: '',
-      contactNumber: '',
-      companyName: defaultCompanyName,
-      gender: 'Male',
-      address: '',
-      city: '',
-      status: 'Active'
-    });
-    setFormErrors({});
-    setEditingId(null);
-    setIsFormOpen(true);
-  };
-
-  // Open Form for Edit
-  const handleOpenEdit = (client) => {
-    setFormData({
-      clientName: client.clientName || '',
-      contactNumber: client.contactNumber || '',
-      companyName: client.companyName || client.company_name || (client.company ? (client.company.companyName || client.company.company_name) : ''),
-      gender: client.gender || 'Male',
-      address: client.address || '',
-      city: client.city || '',
-      status: client.status || 'Active'
-    });
-    setFormErrors({});
-    setEditingId(client.id);
-    setIsFormOpen(true);
-  };
-
-  // Submit Handler
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validateForm()) return;
-    setSubmitting(true);
-
-    const activeCompId = localStorage.getItem('selectedCompanyId');
-    const matchedComp = companies.find(c => c.id === activeCompId);
-    const activeCompanyName = matchedComp ? (matchedComp.companyName || matchedComp.company_name) : '';
-
-    if (!activeCompanyName && !formData.companyName) {
-      triggerToast('Please select a company in the top header first.', 'error');
-      setSubmitting(false);
-      return;
-    }
-
-    const payload = {
-      ...formData,
-      companyName: activeCompanyName || formData.companyName
-    };
-
-    try {
-      if (editingId) {
-        await apiService.put(CLIENT_ENDPOINTS.UPDATE(editingId), payload);
-        triggerToast('Client updated successfully.', 'success');
-      } else {
-        await apiService.post(CLIENT_ENDPOINTS.CREATE, payload);
-        triggerToast('Client created successfully.', 'success');
-      }
-      setIsFormOpen(false);
-      fetchClients();
-    } catch (err) {
-      triggerToast(err.messageToShow || err.message || 'Operation failed. Please try again.', 'error');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  // Delete Handler
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this client?')) return;
-    try {
-      await apiService.delete(CLIENT_ENDPOINTS.DELETE(id));
-      triggerToast('Client deleted successfully.', 'success');
-      fetchClients();
-    } catch (err) {
-      triggerToast(err.messageToShow || err.message || 'Failed to delete client.', 'error');
-    }
-  };
-
-  // CSV Export logic
-  const handleDownloadCSV = () => {
-    if (clients.length === 0) return;
-    const headers = ['Client Name', 'Company Name', 'Gender', 'Phone', 'Address', 'City', 'Status'];
-    const rows = filteredClients.map(c => [
-      c.clientName,
-      c.companyName || (c.company ? (c.company.companyName || c.company.company_name) : 'N/A'),
-      c.gender,
-      c.contactNumber,
-      c.address,
-      c.city,
-      c.status
-    ]);
-
-    const csvContent = "data:text/csv;charset=utf-8," 
-      + [headers.join(','), ...rows.map(e => e.map(val => `"${val}"`).join(","))].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "Clients_Report.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setShowDownloadDropdown(false);
-  };
-
-  // Excel Export logic
-  const handleDownloadExcel = () => {
-    if (clients.length === 0) return;
-    const headers = ['Client Name', 'Company Name', 'Gender', 'Phone', 'Address', 'City', 'Status'];
-    const rows = filteredClients.map(c => [
-      c.clientName,
-      c.companyName || (c.company ? (c.company.companyName || c.company.company_name) : 'N/A'),
-      c.gender,
-      c.contactNumber,
-      c.address,
-      c.city,
-      c.status
-    ]);
-    
-    const htmlTable = `
-      <table border="1">
-        <thead>
-          <tr style="background-color: #f8fafc; font-weight: bold;">
-            ${headers.map(h => `<th>${h}</th>`).join('')}
-          </tr>
-        </thead>
-        <tbody>
-          ${rows.map(r => `<tr>${r.map(val => `<td>${val}</td>`).join('')}</tr>`).join('')}
-        </tbody>
-      </table>
-    `;
-    const excelBlob = new Blob([htmlTable], { type: 'application/vnd.ms-excel' });
-    const excelUrl = URL.createObjectURL(excelBlob);
-    const link = document.createElement("a");
-    link.setAttribute("href", excelUrl);
-    link.setAttribute("download", "Clients_Report.xls");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setShowDownloadDropdown(false);
-  };
-
-  // Clipboard copy
-  const handleCopy = () => {
-    if (clients.length === 0) return;
-    const headers = ['Client Name', 'Company Name', 'Gender', 'Phone', 'Address', 'City', 'Status'];
-    const rows = filteredClients.map(c => [
-      c.clientName,
-      c.companyName || (c.company ? (c.company.companyName || c.company.company_name) : 'N/A'),
-      c.gender,
-      c.contactNumber,
-      c.address,
-      c.city,
-      c.status
-    ]);
-    const text = [headers.join('\t'), ...rows.map(r => r.join('\t'))].join('\n');
-    navigator.clipboard.writeText(text);
-    triggerToast('Copied to clipboard successfully.', 'success');
-    setShowDownloadDropdown(false);
-  };
-
-  // PDF Export
-  const handlePrintPDF = () => {
-    if (clients.length === 0) return;
-    const printWindow = window.open('', '_blank');
-    const headers = ['Client Name', 'Company Name', 'Gender', 'Phone', 'Address', 'City', 'Status'];
-    const rows = filteredClients.map(c => `
-      <tr>
-        <td>${c.clientName}</td>
-        <td>${c.companyName || (c.company ? (c.company.companyName || c.company.company_name) : 'N/A')}</td>
-        <td>${c.gender}</td>
-        <td>${c.contactNumber}</td>
-        <td>${c.address}</td>
-        <td>${c.city}</td>
-        <td>${c.status}</td>
-      </tr>
-    `).join('');
-
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Clients Report</title>
-          <style>
-            body { font-family: sans-serif; padding: 20px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: left; font-size: 13px; }
-            th { background-color: #f8fafc; }
-          </style>
-        </head>
-        <body>
-          <h2>Clients Report</h2>
-          <table>
-            <thead>
-              <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
-            </thead>
-            <tbody>
-              ${rows}
-            </tbody>
-          </table>
-          <script>
-            window.onload = function() {
-              window.print();
-              window.close();
-            }
-          </script>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    setShowDownloadDropdown(false);
-  };
-
-  // Print trigger
-  const handlePrint = () => {
-    window.print();
-    setShowDownloadDropdown(false);
-  };
-
-  // Filter list locally for premium responsive feel
-  const filteredClients = clients.filter(c => {
-    const cName = (c.clientName || '').toLowerCase();
-    const phone = (c.contactNumber || '').toLowerCase();
-    const comp = (c.companyName || (c.company ? (c.company.companyName || c.company.company_name) : '') || '').toLowerCase();
-    
-    const matchesSearch = cName.includes(searchQuery.toLowerCase()) || 
-                          phone.includes(searchQuery.toLowerCase()) ||
-                          comp.includes(searchQuery.toLowerCase());
-                          
-    const matchesStatus = statusFilter === 'ALL' || c.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      
-      {/* Toast Notification Container in Top Right Corner */}
-      {toast.show && (
-        <div style={{
-          position: 'fixed',
-          top: '24px',
-          right: '24px',
-          backgroundColor: toast.type === 'success' ? '#10b981' : '#ef4444',
-          color: '#ffffff',
-          padding: '0.75rem 1.5rem',
-          borderRadius: '8px',
-          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-          zIndex: 9999,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          fontWeight: 600,
-          fontSize: '0.9rem',
-          transition: 'all 0.3s ease-in-out'
-        }}>
-          {toast.type === 'success' ? <FaCheck /> : <FaExclamationCircle />}
-          <span>{toast.message}</span>
-        </div>
-      )}
-
-      {/* Title & Top Action bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' }}>
-        <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
-          <FaUser style={{ color: '#22c55e' }} />
-          <span>Clients Master</span>
-        </h2>
-        <div style={{ display: 'flex', gap: '0.75rem', position: 'relative' }} ref={dropdownRef}>
-          {!isFormOpen && (
-            <button 
-              onClick={handleOpenCreate} 
-              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1rem', fontWeight: 600, cursor: 'pointer' }}
-            >
-              <FaPlus />
-              <span>Client</span>
-            </button>
-          )}
-
-          {/* Premium Download Button */}
-          <button 
-            onClick={() => setShowDownloadDropdown(!showDownloadDropdown)} 
-            disabled={clients.length === 0}
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '0.5rem', 
-              backgroundColor: '#22c55e', 
-              color: '#ffffff', 
-              border: 'none', 
-              borderRadius: '8px', 
-              padding: '0.5rem 1.25rem', 
-              fontWeight: 600, 
-              cursor: 'pointer', 
-              opacity: clients.length === 0 ? 0.6 : 1,
-              boxShadow: '0 2px 4px rgba(34, 197, 94, 0.2)'
-            }}
-          >
-            <FaDownload />
-            <span>Download</span>
-            <FaChevronDown style={{ fontSize: '0.75rem', opacity: 0.8 }} />
-          </button>
-
-          {/* Download Dropdown List Container */}
-          {showDownloadDropdown && (
-            <div style={{
-              position: 'absolute',
-              top: '100%',
-              right: 0,
-              marginTop: '0.5rem',
-              width: '160px',
-              backgroundColor: '#ffffff',
-              border: '1px solid #cbd5e1',
-              borderRadius: '8px',
-              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-              zIndex: 100,
-              overflow: 'hidden',
-              padding: '4px 0'
-            }}>
-              {[
-                { name: 'Excel', action: handleDownloadExcel, icon: <FaFileExcel style={{ color: '#16a34a' }} /> },
-                { name: 'Copy', action: handleCopy, icon: <FaCopy style={{ color: '#475569' }} /> },
-                { name: 'CSV', action: handleDownloadCSV, icon: <FaFileCsv style={{ color: '#2563eb' }} /> },
-                { name: 'PDF', action: handlePrintPDF, icon: <FaFilePdf style={{ color: '#dc2626' }} /> },
-                { name: 'Print', action: handlePrint, icon: <FaPrint style={{ color: '#7c3aed' }} /> }
-              ].map(opt => (
-                <button
-                  key={opt.name}
-                  onClick={opt.action}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                    width: '100%',
-                    padding: '0.625rem 1rem',
-                    border: 'none',
-                    backgroundColor: 'transparent',
-                    color: '#334155',
-                    fontSize: '0.875rem',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    transition: 'background-color 0.15s'
-                  }}
-                  onMouseEnter={(e) => e.target.style.backgroundColor = '#f1f5f9'}
-                  onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
-                >
-                  {opt.icon}
-                  <span>{opt.name}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Toggleable Form Block positioned right below action bar */}
-      {isFormOpen && (
-        <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
-          <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '1.25rem', color: '#1e293b' }}>
-            {editingId ? 'Edit Client Details' : 'Add New Client'}
-          </h3>
-          
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
-              
-              {/* Client Name */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>
-                  Client Name <span style={{ color: '#ef4444' }}>*</span>
-                </label>
-                <input
-                  type="text"
-                  name="clientName"
-                  value={formData.clientName}
-                  onChange={handleInputChange}
-                  placeholder="Enter Client Name"
-                  style={{ padding: '0.625rem', border: `1px solid ${formErrors.clientName ? '#ef4444' : '#cbd5e1'}`, borderRadius: '6px', outline: 'none' }}
-                />
-                {formErrors.clientName && <span style={{ fontSize: '0.75rem', color: '#ef4444' }}>{formErrors.clientName}</span>}
-              </div>
-
-
-
-              {/* Contact Number */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>
-                  Contact Number <span style={{ color: '#ef4444' }}>*</span>
-                </label>
-                <input
-                  type="text"
-                  name="contactNumber"
-                  value={formData.contactNumber}
-                  onChange={handleInputChange}
-                  placeholder="Enter Contact Number"
-                  style={{ padding: '0.625rem', border: `1px solid ${formErrors.contactNumber ? '#ef4444' : '#cbd5e1'}`, borderRadius: '6px', outline: 'none' }}
-                />
-                {formErrors.contactNumber && <span style={{ fontSize: '0.75rem', color: '#ef4444' }}>{formErrors.contactNumber}</span>}
-              </div>
-
-            </div>
-
-            {/* Address, City, Gender & Status Side by Side */}
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '1.25rem', marginTop: '0.5rem', alignItems: 'end' }}>
-              {/* Address */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>
-                  Address <span style={{ color: '#ef4444' }}>*</span>
-                </label>
-                <textarea
-                  name="address"
-                  value={formData.address}
-                  onChange={handleInputChange}
-                  placeholder="Enter Address"
-                  rows={1}
-                  style={{ padding: '0.625rem', border: `1px solid ${formErrors.address ? '#ef4444' : '#cbd5e1'}`, borderRadius: '6px', outline: 'none', resize: 'none', height: '42px', fontFamily: 'inherit' }}
-                />
-                {formErrors.address && <span style={{ fontSize: '0.75rem', color: '#ef4444' }}>{formErrors.address}</span>}
-              </div>
-
-              {/* City */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>
-                  City <span style={{ color: '#ef4444' }}>*</span>
-                </label>
-                <input
-                  type="text"
-                  name="city"
-                  value={formData.city}
-                  onChange={handleInputChange}
-                  placeholder="Enter City"
-                  style={{ padding: '0.625rem', border: `1px solid ${formErrors.city ? '#ef4444' : '#cbd5e1'}`, borderRadius: '6px', outline: 'none', height: '42px' }}
-                />
-                {formErrors.city && <span style={{ fontSize: '0.75rem', color: '#ef4444' }}>{formErrors.city}</span>}
-              </div>
-
-              {/* Gender */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Gender <span style={{ color: '#ef4444' }}>*</span></label>
-                <select
-                  name="gender"
-                  value={formData.gender}
-                  onChange={handleInputChange}
-                  style={{ padding: '0.625rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', backgroundColor: '#ffffff', height: '42px' }}
-                >
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-
-              {/* Status Toggle Switch */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Status</label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', height: '42px' }}>
-                  <button
-                    type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, status: prev.status === 'Active' ? 'Inactive' : 'Active' }))}
-                    style={{
-                      width: '46px',
-                      height: '24px',
-                      borderRadius: '12px',
-                      backgroundColor: formData.status === 'Active' ? '#22c55e' : '#cbd5e1',
-                      border: 'none',
-                      position: 'relative',
-                      cursor: 'pointer',
-                      transition: 'background-color 0.2s',
-                      padding: 0
-                    }}
-                  >
-                    <div style={{
-                      width: '18px',
-                      height: '18px',
-                      borderRadius: '50%',
-                      backgroundColor: '#ffffff',
-                      position: 'absolute',
-                      top: '3px',
-                      left: formData.status === 'Active' ? '25px' : '3px',
-                      transition: 'left 0.2s'
-                    }} />
-                  </button>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: formData.status === 'Active' ? '#22c55e' : '#64748b' }}>
-                    {formData.status === 'Active' ? 'ACTIVE' : 'INACTIVE'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Form Actions */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
-              <button
-                type="button"
-                onClick={() => setIsFormOpen(false)}
-                style={{ padding: '0.5rem 1.25rem', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', backgroundColor: '#ffffff', color: '#475569', fontWeight: 600 }}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                style={{ padding: '0.5rem 1.25rem', border: 'none', borderRadius: '6px', cursor: 'pointer', backgroundColor: '#22c55e', color: '#ffffff', fontWeight: 600, opacity: submitting ? 0.7 : 1 }}
-              >
-                {submitting ? 'Saving...' : 'Save'}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* Filter and Table view */}
-      <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-        
-        {/* Table Filters */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
-          <div style={{ fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>
-            Total Clients: {filteredClients.length}
-          </div>
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem' }}
-            >
-              <option value="ALL">ALL STATUS</option>
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-            </select>
-            <input
-              type="text"
-              placeholder="Search Name or Phone..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ padding: '0.5rem 1rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', width: '220px' }}
-            />
-          </div>
-        </div>
-
-        {/* Clients Table */}
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
-            <thead>
-              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ACTIONS</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CLIENT NAME</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>COMPANY NAME</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>GENDER</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>PHONE</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ADDRESS</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CITY</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATUS</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={9} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-                    Loading clients...
-                  </td>
-                </tr>
-              ) : filteredClients.length === 0 ? (
-                <tr>
-                  <td colSpan={9} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-                    No clients found.
-                  </td>
-                </tr>
-              ) : (
-                filteredClients.map((client, index) => (
-                  <tr 
-                    key={client.id} 
-                    onClick={() => handleOpenEdit(client)}
-                    style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background-color 0.15s' }}
-                    className="company-table-row"
-                  >
-                    <td style={{ padding: '0.75rem 1rem', display: 'flex', gap: '0.5rem' }}>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); handleOpenEdit(client); }}
-                        style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
-                        title="Edit"
-                      >
-                        <FaEdit size={12} />
-                      </button>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); handleDelete(client.id); }}
-                        style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
-                        title="Delete"
-                      >
-                        <FaTrash size={12} />
-                      </button>
-                    </td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{index + 1}</td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{client.clientName}</td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>
-                      {client.companyName || (client.company ? (client.company.companyName || client.company.company_name) : 'N/A')}
-                    </td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.gender}</td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.contactNumber}</td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.address}</td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.city}</td>
-                    <td style={{ padding: '0.75rem 1rem' }}>
-                      <span style={{ 
-                        display: 'inline-block',
-                        padding: '0.125rem 0.5rem',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        borderRadius: '12px',
-                        backgroundColor: client.status === 'Active' ? '#dcfce7' : '#fee2e2',
-                        color: client.status === 'Active' ? '#15803d' : '#991b1b'
-                      }}>
-                        {client.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-      </div>
-
-    </div>
-  );
-};
-
-export default ClientMaster;
-=======
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   FaUserFriends, FaPlus, FaDownload, FaEdit, FaTrash, FaCheck, 
@@ -1217,12 +438,12 @@ const ClientMaster = () => {
       )}
 
       {/* Title & Top Action bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' }}>
+      <div className="master-top-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' }}>
         <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
           <FaUserFriends style={{ color: '#22c55e' }} />
           <span>Clients Master</span>
         </h2>
-        <div style={{ display: 'flex', gap: '0.75rem', position: 'relative' }} ref={dropdownRef}>
+        <div className="master-top-bar-actions" style={{ display: 'flex', gap: '0.75rem', position: 'relative' }} ref={dropdownRef}>
           {!isFormOpen && (
             <button 
               onClick={handleOpenCreate} 
@@ -1484,11 +705,11 @@ const ClientMaster = () => {
       <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
         
         {/* Table Filters */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <div className="master-table-filters" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
           <div style={{ fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>
             Total Clients: {totalItems}
           </div>
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <div className="master-filter-inputs" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -1508,8 +729,8 @@ const ClientMaster = () => {
           </div>
         </div>
 
-        {/* Client Table */}
-        <div style={{ overflowX: 'auto' }}>
+        {/* Desktop Table View */}
+        <div className="show-on-desktop master-table-responsive" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
@@ -1585,6 +806,76 @@ const ClientMaster = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Mobile Cards View */}
+        <div className="show-on-mobile">
+          {loading ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+              Loading clients...
+            </div>
+          ) : clients.length === 0 ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+              No clients found.
+            </div>
+          ) : (
+            <div className="master-card-grid">
+              {clients.map((client, index) => (
+                <div key={client.id} className="master-record-card" onClick={() => handleOpenEdit(client)}>
+                  <div className="master-record-card-header">
+                    <div>
+                      <div className="master-record-title">{client.clientName}</div>
+                      <div className="master-record-subtitle">#{ (currentPage - 1) * pageSize + index + 1 } • {client.companyName || 'N/A'}</div>
+                    </div>
+                    <span style={{ 
+                      padding: '0.2rem 0.6rem',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      borderRadius: '12px',
+                      backgroundColor: client.status === 'Active' ? '#dcfce7' : '#fee2e2',
+                      color: client.status === 'Active' ? '#15803d' : '#991b1b'
+                    }}>
+                      {client.status}
+                    </span>
+                  </div>
+
+                  <div className="master-record-details">
+                    <div className="master-record-detail-item">
+                      <span className="master-record-label">Contact</span>
+                      <span className="master-record-value">{client.contactNumber || 'N/A'}</span>
+                    </div>
+                    <div className="master-record-detail-item">
+                      <span className="master-record-label">Email</span>
+                      <span className="master-record-value">{client.email || 'N/A'}</span>
+                    </div>
+                    <div className="master-record-detail-item">
+                      <span className="master-record-label">City</span>
+                      <span className="master-record-value">{client.city || 'N/A'}</span>
+                    </div>
+                    <div className="master-record-detail-item">
+                      <span className="master-record-label">State</span>
+                      <span className="master-record-value">{client.state || 'N/A'}</span>
+                    </div>
+                  </div>
+
+                  <div className="master-record-actions">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleOpenEdit(client); }}
+                      style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                    >
+                      <FaEdit size={12} /> Edit
+                    </button>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleDelete(client.id); }}
+                      style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                    >
+                      <FaTrash size={12} /> Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
         
         {/* Pagination Controls */}
         <Pagination 
@@ -1605,4 +896,3 @@ const ClientMaster = () => {
 };
 
 export default ClientMaster;
->>>>>>> 90d9f1faae69d02acfd8a6b6a13e6a008c073ddf

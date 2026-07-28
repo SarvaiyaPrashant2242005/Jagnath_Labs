@@ -2147,7 +2147,7 @@ function LandingPage({ onNavigate }) {
                     <ChevronDown />
                   </span>
                 </button>
-                <div className="faq-content" style={{ maxHeight: openFaq === index ? '200px' : '0px' }}>
+                <div className="faq-content" style={{ maxHeight: openFaq === index ? '500px' : '0px' }}>
                   <p className="faq-answer">{faq.a}</p>
                 </div>
               </div>
@@ -2156,19 +2156,22 @@ function LandingPage({ onNavigate }) {
         </section>
 
         {/* Final CTA Section */}
-        <section className="section-padding" id="cta-section" style={{ padding: '120px 6%' }}>
+        <section className="landing-cta-section" id="cta-section">
           <div ref={ctaContainerRef} className="cta-gradient-card">
-            <h2 className="section-title" style={{ color: 'var(--white)', marginBottom: '1rem' }}>
+            <h2 className="section-title cta-title">
               Ready For Your Health Checkup?
             </h2>
-            <p className="hero-desc" style={{ margin: '0 auto 2rem', color: 'rgba(255, 255, 255, 0.9)', textAlign: 'center' }}>
+            <p className="hero-desc cta-desc">
               Book your diagnostic laboratory tests and home sample collection in minutes.
             </p>
-            <div className="hero-ctas" style={{ justifyContent: 'center' }}>
-              <Button variant="secondary">
+            <div className="hero-ctas cta-ctas">
+              <Button variant="secondary" onClick={() => onNavigate && onNavigate('login')}>
                 Book Appointment
               </Button>
-              <Button variant="glass">
+              <Button variant="glass" onClick={() => {
+                const el = document.getElementById('faqs');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }}>
                 <Phone style={{ marginRight: '0.5rem' }} size={18} /> Contact Us
               </Button>
             </div>

@@ -125,10 +125,62 @@ const logout = async (req, res) => {
     }
 };
 
+const getAllUsers = async (req, res) => {
+    try {
+        const { page = 1, limit = 10, search = '', role = '' } = req.query;
+        const result = await usersService.getAllUsers(page, limit, search, role);
+        return res.status(200).json(successResponse(
+            "USERS_FETCHED",
+            "Users fetched successfully.",
+            "Users retrieved.",
+            result.data,
+            {
+                totalItems: result.totalItems,
+                totalPages: result.totalPages,
+                currentPage: result.currentPage,
+                pageSize: parseInt(limit, 10)
+            }
+        ));
+    } catch (err) {
+        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "An unexpected error occurred."));
+    }
+};
+
+const updateUser = async (req, res) => {
+    try {
+        const updated = await usersService.updateUser(req.params.id, req.body);
+        return res.status(200).json(successResponse(
+            "USER_UPDATED",
+            "User updated successfully.",
+            "User updated successfully.",
+            updated
+        ));
+    } catch (err) {
+        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Failed to update user."));
+    }
+};
+
+const deleteUser = async (req, res) => {
+    try {
+        await usersService.deleteUser(req.params.id);
+        return res.status(200).json(successResponse(
+            "USER_DELETED",
+            "User deleted successfully.",
+            "User deleted successfully.",
+            null
+        ));
+    } catch (err) {
+        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Failed to delete user."));
+    }
+};
+
 module.exports = {
     register,
     login,
     rotateToken,
     getMe,
-    logout
+    logout,
+    getAllUsers,
+    updateUser,
+    deleteUser
 };

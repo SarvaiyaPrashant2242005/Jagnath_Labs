@@ -7,8 +7,11 @@
  */
 
 // ─── Base URL ───────────────────────────────────────────────────────────────────
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+console.log("ENV OBJECT:", import.meta.env);
+console.log("API URL:", import.meta.env.VITE_API_BASE_URL);
 
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+console.log(API_BASE_URL);
 // ─── Auth Endpoints ─────────────────────────────────────────────────────────────
 export const AUTH_ENDPOINTS = {
   LOGIN: `${API_BASE_URL}/auth/login`,
@@ -16,6 +19,14 @@ export const AUTH_ENDPOINTS = {
   REFRESH_TOKEN: `${API_BASE_URL}/auth/refresh-token`,
   ME: `${API_BASE_URL}/auth/me`,
   LOGOUT: `${API_BASE_URL}/auth/logout`,
+};
+
+// ─── User Endpoints ─────────────────────────────────────────────────────────────
+export const USER_ENDPOINTS = {
+  CREATE: `${API_BASE_URL}/auth/users`,
+  GET_ALL: `${API_BASE_URL}/auth/users`,
+  UPDATE: (id) => `${API_BASE_URL}/auth/users/${id}`,
+  DELETE: (id) => `${API_BASE_URL}/auth/users/${id}`,
 };
 
 // ─── Company Endpoints ──────────────────────────────────────────────────────────
@@ -80,3 +91,16 @@ export const TEST_REQUEST_PARAMETER_ENDPOINTS = {
   UPDATE: (id) => `${API_BASE_URL}/test-request-parameter/${id}`,
   DELETE: (id) => `${API_BASE_URL}/test-request-parameter/${id}`,
 };
+
+// ─── Price Master Endpoints ──────────────────────────────────────────────────────
+export const PRICE_MASTER_ENDPOINTS = {
+  CREATE: `${API_BASE_URL}/price-master`,
+  GET_ALL: `${API_BASE_URL}/price-master`,
+  GET_BY_ID: (id) => `${API_BASE_URL}/price-master/${id}`,
+  UPDATE: (id) => `${API_BASE_URL}/price-master/${id}`,
+  DELETE: (id) => `${API_BASE_URL}/price-master/${id}`,
+};
+
+export const PRICE_LIST_ENDPOINTS = PRICE_MASTER_ENDPOINTS;
+
+

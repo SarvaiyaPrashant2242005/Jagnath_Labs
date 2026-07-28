@@ -346,7 +346,7 @@ const TestRequestForm = () => {
       )}
 
       {/* Title & Top Action bar */}
-      <div className="hide-on-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' }}>
+      <div className="master-top-bar hide-on-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <button onClick={() => navigate('/test-requests')} style={{ background: 'transparent', border: '1px solid #cbd5e1', padding: '0.5rem', borderRadius: '8px', cursor: 'pointer', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <FaArrowLeft />
@@ -355,7 +355,7 @@ const TestRequestForm = () => {
             {isEditing ? 'Edit Test Request' : 'New Test Request'}
           </h2>
         </div>
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
+        <div className="master-top-bar-actions" style={{ display: 'flex', gap: '0.75rem' }}>
           <button 
             onClick={() => setShowLivePreview(!showLivePreview)}
             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#ffffff', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.5rem 1.25rem', fontWeight: 600, cursor: 'pointer' }}
@@ -383,13 +383,13 @@ const TestRequestForm = () => {
       </div>
 
       {/* Main Split Screen Area (Screen Only) */}
-      <div className="premium-ui-form hide-on-print" style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
+      <div className="premium-ui-form test-request-split-container hide-on-print" style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
         
-        {/* Left Column: Form Inputs (60% width when preview is active) */}
+        {/* Left Column: Form Inputs */}
         <div style={{ flex: '1', minWidth: '0', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
           
           {/* General Information Card */}
-          <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
+          <div className="test-request-form-card" style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc' }}>
               <div style={{ width: '12px', height: '24px', background: 'linear-gradient(to bottom, #3b82f6, #60a5fa)', borderRadius: '6px' }}></div>
               <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>General Information</h3>
@@ -400,7 +400,7 @@ const TestRequestForm = () => {
               {/* Document Title Input */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', gridColumn: '1 / -1' }}>
                 <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Document Title Postfix <span style={{color: '#ef4444'}}>*</span></label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div className="test-request-title-prefix" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#475569', whiteSpace: 'nowrap' }}>TEST REQUEST FORM FOR </span>
                   <input 
                     type="text" 
@@ -478,7 +478,7 @@ const TestRequestForm = () => {
           </div>
 
           {/* Sample Details Card */}
-          <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
+          <div className="test-request-form-card" style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc' }}>
               <div style={{ width: '12px', height: '24px', background: 'linear-gradient(to bottom, #10b981, #34d399)', borderRadius: '6px' }}></div>
               <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Sample Details</h3>
@@ -559,7 +559,7 @@ const TestRequestForm = () => {
                     {Object.values(checkedParameters).filter(Boolean).length} Selected
                   </span>
                 </div>
-                <div style={{ maxHeight: '250px', overflowY: 'auto' }}>
+                <div className="master-table-responsive" style={{ maxHeight: '250px', overflowY: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.95rem' }}>
                     <thead style={{ position: 'sticky', top: 0, background: '#f8fafc', zIndex: 1, boxShadow: '0 1px 0 #e2e8f0' }}>
                       <tr>
@@ -604,7 +604,7 @@ const TestRequestForm = () => {
           </div>
 
           {/* Facility & Technical Feasibility Card */}
-          <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
+          <div className="test-request-form-card" style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc' }}>
               <div style={{ width: '12px', height: '24px', background: 'linear-gradient(to bottom, #f59e0b, #fbbf24)', borderRadius: '6px' }}></div>
               <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Facility & Feasibility</h3>
@@ -664,7 +664,7 @@ const TestRequestForm = () => {
           </div>
 
           {/* Signatures & Adoption Card */}
-          <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
+          <div className="test-request-form-card" style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc' }}>
               <div style={{ width: '12px', height: '24px', background: 'linear-gradient(to bottom, #ec4899, #f472b6)', borderRadius: '6px' }}></div>
               <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Signatures & Adoption</h3>
@@ -691,6 +691,47 @@ const TestRequestForm = () => {
                 <textarea name="remarks" value={formData.remarks} onChange={handleChange} className="premium-input" rows={3} placeholder="Enter any extra remarks..."></textarea>
               </div>
             </div>
+          </div>
+
+          {/* Bottom Action Bar */}
+          <div className="test-request-bottom-actions hide-on-print" style={{ 
+            display: 'flex', 
+            justifyContent: 'flex-end', 
+            alignItems: 'center', 
+            gap: '0.75rem', 
+            background: '#ffffff', 
+            borderRadius: '16px', 
+            padding: '1.25rem 2rem', 
+            boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', 
+            border: '1px solid #f1f5f9',
+            flexWrap: 'wrap'
+          }}>
+            <button 
+              type="button"
+              onClick={() => setShowLivePreview(!showLivePreview)}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#ffffff', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.6rem 1.25rem', fontWeight: 600, cursor: 'pointer' }}
+            >
+              {showLivePreview ? <FaEyeSlash /> : <FaEye />}
+              <span>{showLivePreview ? 'Hide Preview' : 'Live Preview'}</span>
+            </button>
+            <button 
+              type="button"
+              onClick={handleSave} 
+              disabled={submitting}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.6rem 1.25rem', fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer' }}
+            >
+              <FaSave />
+              <span>{submitting ? 'Saving...' : 'Save'}</span>
+            </button>
+            <button 
+              type="button"
+              onClick={handleSaveAndPrint} 
+              disabled={submitting}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.6rem 1.25rem', fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer' }}
+            >
+              <FaPrint />
+              <span>Save & Generate PDF</span>
+            </button>
           </div>
         </div>
 
