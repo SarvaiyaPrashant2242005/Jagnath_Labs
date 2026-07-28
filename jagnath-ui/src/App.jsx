@@ -100,7 +100,7 @@ function App() {
             </PublicRoute>
           }
         />
->>>>>>> Prashant_Dev
+{/* >>>>>>> Prashant_Dev */}
 
         {/* Authenticated Dashboard Pages */}
         <Route
