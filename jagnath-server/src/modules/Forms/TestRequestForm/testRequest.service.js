@@ -340,6 +340,14 @@ const getTestRequestsByCompany = async (companyId, options = {}) => {
             attributes: { exclude: ["deleted_at"] }
         };
 
+        if (options.clientId) {
+            queryOptions.where.clientId = options.clientId;
+        }
+
+        if (options.status && options.status !== 'ALL') {
+            queryOptions.where.status = options.status;
+        }
+
         if (options.limit && options.page) {
             queryOptions.limit = parseInt(options.limit);
             queryOptions.offset = (parseInt(options.page) - 1) * queryOptions.limit;
@@ -349,13 +357,10 @@ const getTestRequestsByCompany = async (companyId, options = {}) => {
                     ...queryOptions.where,
                     [Op.or]: [
                         { sampleIdNumber: { [Op.iLike]: `%${options.search}%` } },
-                        { reportNumber: { [Op.iLike]: `%${options.search}%` } }
+                        { reportNumber: { [Op.iLike]: `%${options.search}%` } },
+                        { sampleCollectedBy: { [Op.iLike]: `%${options.search}%` } }
                     ]
                 };
-            }
-
-            if (options.status && options.status !== 'ALL') {
-                queryOptions.where.status = options.status;
             }
 
             const result = await TestRequest.findAndCountAll(queryOptions);

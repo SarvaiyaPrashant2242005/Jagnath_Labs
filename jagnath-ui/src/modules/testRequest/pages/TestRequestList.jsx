@@ -6,12 +6,15 @@ import {
 } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../../../shared/services/apiService';
-import { TEST_REQUEST_ENDPOINTS } from '../../../shared/services/apiEndpoints';
+import { TEST_REQUEST_ENDPOINTS, CATEGORY_ENDPOINTS, CLIENT_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 import Pagination from '../../../shared/components/Pagination';
 
 const TestRequestList = () => {
   const navigate = useNavigate();
   const [requests, setRequests] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [clients, setClients] = useState([]);
+  const [selectedClient, setSelectedClient] = useState('');
   const [loading, setLoading] = useState(false);
 
   // Pagination State
@@ -31,6 +34,69 @@ const TestRequestList = () => {
   const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, targetId: null });
   const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    fetchCategories();
+    fetchClients();
+  }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const res = await apiService.get(CATEGORY_ENDPOINTS.GET_ALL);
+      if (res?.data) {
+        setCategories(Array.isArray(res.data) ? res.data : (res.data.rows || []));
+      }
+    } catch (err) {
+      console.error('Failed to load categories', err);
+    }
+  };
+
+  const fetchClients = async () => {
+    try {
+      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
+      const url = activeCompId ? `${CLIENT_ENDPOINTS.GET_ALL}?companyId=${activeCompId}` : CLIENT_ENDPOINTS.GET_ALL;
+      const res = await apiService.get(url);
+      if (res?.data) {
+        const clList = Array.isArray(res.data) ? res.data : (res.data.rows || []);
+        setClients(clList.filter(c => c.status === 'Active'));
+      }
+    } catch (err) {
+      console.error('Failed to load clients', err);
+    }
+  };
+
+  const getCategoryName = (req) => {
+    if (req.sampleParticularName && !req.sampleParticularName.match(/^[0-9a-f]{8}-[0-9a-f]{4}-/i)) {
+      return req.sampleParticularName;
+    }
+    if (req.category && req.category.name) return req.category.name;
+    const match = categories.find(c => c.id === req.sampleParticular);
+    if (match) return match.name;
+    if (req.sampleParticular && !req.sampleParticular.match(/^[0-9a-f]{8}-[0-9a-f]{4}-/i)) {
+      return req.sampleParticular;
+    }
+    return 'N/A';
+  };
+
+  const formatDateDDMMYYYY = (dateStr) => {
+    if (!dateStr || dateStr === 'N/A') return 'N/A';
+    const cleanStr = String(dateStr).split('T')[0];
+    const parts = cleanStr.split('-');
+    if (parts.length === 3) {
+      const [year, month, day] = parts;
+      if (year.length === 4 && month.length === 2 && day.length === 2) {
+        return `${day}/${month}/${year}`;
+      }
+    }
+    const dateObj = new Date(dateStr);
+    if (!isNaN(dateObj.getTime())) {
+      const dd = String(dateObj.getDate()).padStart(2, '0');
+      const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const yyyy = dateObj.getFullYear();
+      return `${dd}/${mm}/${yyyy}`;
+    }
+    return dateStr;
+  };
 
   // Trigger Toast helper
   const triggerToast = (message, type = 'success') => {
@@ -65,6 +131,9 @@ const TestRequestList = () => {
       if (activeCompId) {
         params.append('companyId', activeCompId);
       }
+      if (selectedClient) {
+        params.append('clientId', selectedClient);
+      }
       
       const url = `${TEST_REQUEST_ENDPOINTS.GET_ALL}?${params.toString()}`;
       const response = await apiService.get(url);
@@ -96,7 +165,7 @@ const TestRequestList = () => {
 
   useEffect(() => {
     fetchRequests();
-  }, [currentPage, pageSize, searchQuery, statusFilter]);
+  }, [currentPage, pageSize, searchQuery, statusFilter, selectedClient]);
 
   // Soft delete parameter (trigger confirmation modal)
   const handleDelete = (id) => {
@@ -250,9 +319,22 @@ const TestRequestList = () => {
             Total Requests: {totalItems}
           </div>
           <div className="master-filter-inputs" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            {/* Customer / Client Filter */}
+            <select
+              value={selectedClient}
+              onChange={(e) => { setSelectedClient(e.target.value); setCurrentPage(1); }}
+              style={{ padding: '0.5rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', backgroundColor: '#ffffff' }}
+            >
+              <option value="">ALL CUSTOMERS</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>{c.clientName}</option>
+              ))}
+            </select>
+
+            {/* Status Filter */}
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
               style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem' }}
             >
               <option value="ALL">ALL STATUS</option>
@@ -329,8 +411,8 @@ const TestRequestList = () => {
                     </td>
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{req.clientName || 'N/A'}</td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{req.sampleParticularName || req.sampleParticular || 'N/A'}</td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{req.dateOfReceipt || req.dateOfCollection || 'N/A'}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{getCategoryName(req)}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{formatDateDDMMYYYY(req.dateOfReceipt || req.dateOfCollection)}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{req.sampleCollectedBy || 'N/A'}</td>
                     <td style={{ padding: '0.75rem 1rem' }}>
                       <span style={{ 
@@ -369,7 +451,7 @@ const TestRequestList = () => {
                   <div className="master-record-card-header">
                     <div>
                       <div className="master-record-title">{req.clientName || 'N/A'}</div>
-                      <div className="master-record-subtitle">#{ (currentPage - 1) * pageSize + index + 1 } • {req.sampleParticularName || req.sampleParticular || 'N/A'}</div>
+                      <div className="master-record-subtitle">#{ (currentPage - 1) * pageSize + index + 1 } • {getCategoryName(req)}</div>
                     </div>
                     <span style={{ 
                       padding: '0.2rem 0.6rem',
@@ -386,7 +468,7 @@ const TestRequestList = () => {
                   <div className="master-record-details">
                     <div className="master-record-detail-item">
                       <span className="master-record-label">Date Receipt</span>
-                      <span className="master-record-value">{req.dateOfReceipt || req.dateOfCollection || 'N/A'}</span>
+                      <span className="master-record-value">{formatDateDDMMYYYY(req.dateOfReceipt || req.dateOfCollection)}</span>
                     </div>
                     <div className="master-record-detail-item">
                       <span className="master-record-label">Collected By</span>
