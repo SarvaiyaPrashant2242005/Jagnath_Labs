@@ -319,10 +319,58 @@ const remove = async (req, res) => {
     }
 };
 
+/**
+ * Bulk Import Categories from Excel dataset.
+ */
+const bulkImport = async (req, res) => {
+    try {
+        const userId = req.user.user_id;
+        const { rows } = req.body || {};
+
+        if (!Array.isArray(rows) || rows.length === 0) {
+            return res.status(400).json(errorResponse(
+                "VALIDATION_ERROR",
+                "No rows provided for bulk import.",
+                "No valid data provided."
+            ));
+        }
+
+        let company = await companyService.getCompanyByUserId(userId);
+        if (!company) {
+            const companies = await companyService.getCompaniesByUser(userId);
+            if (companies && companies.length > 0) {
+                company = companies[0];
+            }
+        }
+
+        if (!company) {
+            return res.status(404).json(errorResponse("NOT_FOUND", "Company not found for user.", "Company not found."));
+        }
+
+        const reqInfo = {
+            ip: req.ip || req.connection.remoteAddress,
+            userAgent: req.headers["user-agent"]
+        };
+
+        const result = await categoryService.bulkImportCategories(rows, company.id, userId, reqInfo);
+
+        return res.status(200).json(successResponse(
+            "CATEGORIES_BULK_IMPORTED",
+            `Successfully processed ${result.totalProcessed} categories (${result.createdCount} created, ${result.updatedCount} updated).`,
+            "Bulk import completed.",
+            result
+        ));
+    } catch (err) {
+        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Bulk import failed."));
+    }
+};
+
 module.exports = {
     create,
     getAll,
     getById,
     update,
-    remove
+    remove,
+    bulkImport
 };
+

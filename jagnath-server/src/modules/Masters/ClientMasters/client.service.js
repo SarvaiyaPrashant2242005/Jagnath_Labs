@@ -322,5 +322,41 @@ module.exports = {
     updateClient,
     deleteClient,
     getClientById,
-    getClientsByCompany
+    getClientsByCompany,
+    bulkImportClients: async (records, companyId, userId, reqInfo) => {
+        const transaction = await sequelize.transaction();
+        try {
+            let createdCount = 0;
+            let updatedCount = 0;
+
+            for (const item of records) {
+                const data = { ...item.data, companyId };
+                delete data.companyName;
+
+                let existing = null;
+                if (item._dbId) {
+                    existing = await Client.findOne({ where: { id: item._dbId, companyId }, transaction });
+                } else if (data.email && data.email !== '') {
+                    existing = await Client.findOne({ where: { email: data.email, companyId }, transaction });
+                } else if (data.clientName) {
+                    existing = await Client.findOne({ where: { clientName: data.clientName, companyId }, transaction });
+                }
+
+                if (existing) {
+                    await existing.update(data, { transaction });
+                    updatedCount++;
+                } else {
+                    await Client.create(data, { transaction });
+                    createdCount++;
+                }
+            }
+
+            await transaction.commit();
+            return { createdCount, updatedCount, totalProcessed: records.length };
+        } catch (error) {
+            await transaction.rollback();
+            throw error;
+        }
+    }
 };
+

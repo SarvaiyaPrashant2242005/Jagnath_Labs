@@ -15,6 +15,7 @@ router.post("/logout", authenticateToken, usersController.logout);
 
 // User Management Routes
 router.get("/users", authenticateToken, usersController.getAllUsers);
+router.post("/users/bulk-import", authenticateToken, usersController.bulkImport);
 router.post("/users", authenticateToken, usersController.register);
 router.put("/users/:id", authenticateToken, usersController.updateUser);
 router.delete("/users/:id", authenticateToken, usersController.deleteUser);

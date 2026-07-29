@@ -27,6 +27,7 @@ export const USER_ENDPOINTS = {
   GET_ALL: `${API_BASE_URL}/auth/users`,
   UPDATE: (id) => `${API_BASE_URL}/auth/users/${id}`,
   DELETE: (id) => `${API_BASE_URL}/auth/users/${id}`,
+  BULK_IMPORT: `${API_BASE_URL}/auth/users/bulk-import`,
 };
 
 // ─── Company Endpoints ──────────────────────────────────────────────────────────
@@ -44,6 +45,7 @@ export const CLIENT_ENDPOINTS = {
   GET_BY_ID: (id) => `${API_BASE_URL}/client/${id}`,
   UPDATE: (id) => `${API_BASE_URL}/client/${id}`,
   DELETE: (id) => `${API_BASE_URL}/client/${id}`,
+  BULK_IMPORT: `${API_BASE_URL}/client/bulk-import`,
 };
 
 // ─── Parameter Endpoints ────────────────────────────────────────────────────────
@@ -53,6 +55,7 @@ export const PARAMETER_ENDPOINTS = {
   GET_BY_ID: (id) => `${API_BASE_URL}/parameter/${id}`,
   UPDATE: (id) => `${API_BASE_URL}/parameter/${id}`,
   DELETE: (id) => `${API_BASE_URL}/parameter/${id}`,
+  BULK_IMPORT: `${API_BASE_URL}/parameter/bulk-import`,
 };
 
 // ─── Category Endpoints ─────────────────────────────────────────────────────────
@@ -62,6 +65,7 @@ export const CATEGORY_ENDPOINTS = {
   GET_BY_ID: (id) => `${API_BASE_URL}/category/${id}`,
   UPDATE: (id) => `${API_BASE_URL}/category/${id}`,
   DELETE: (id) => `${API_BASE_URL}/category/${id}`,
+  BULK_IMPORT: `${API_BASE_URL}/category/bulk-import`,
 };
 
 // ─── Category-Parameter Mapping Endpoints ───────────────────────────────────────
@@ -99,6 +103,7 @@ export const PRICE_MASTER_ENDPOINTS = {
   GET_BY_ID: (id) => `${API_BASE_URL}/price-master/${id}`,
   UPDATE: (id) => `${API_BASE_URL}/price-master/${id}`,
   DELETE: (id) => `${API_BASE_URL}/price-master/${id}`,
+  BULK_IMPORT: `${API_BASE_URL}/price-master/bulk-import`,
 };
 
 export const PRICE_LIST_ENDPOINTS = PRICE_MASTER_ENDPOINTS;

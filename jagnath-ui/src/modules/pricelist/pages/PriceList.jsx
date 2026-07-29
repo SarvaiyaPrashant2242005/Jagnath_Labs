@@ -6,8 +6,9 @@ import {
 } from 'react-icons/fa';
 import { priceMasterService } from '../services/priceMasterService';
 import { apiService } from '../../../shared/services/apiService';
-import { CATEGORY_ENDPOINTS, PARAMETER_ENDPOINTS } from '../../../shared/services/apiEndpoints';
+import { CATEGORY_ENDPOINTS, PARAMETER_ENDPOINTS, PRICE_MASTER_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 import Pagination from '../../../shared/components/Pagination';
+import BulkImportModal from '../../../shared/components/BulkImport/BulkImportModal';
 
 const PriceMasterPage = () => {
   // Data States
@@ -16,6 +17,7 @@ const PriceMasterPage = () => {
   const [parameters, setParameters] = useState([]);
   const [filteredParameters, setFilteredParameters] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
 
   // Filters State
   const [searchQuery, setSearchQuery] = useState('');
@@ -314,7 +316,7 @@ const PriceMasterPage = () => {
     const headers = ['Category', 'Parameter', 'Price (INR)', 'Status'];
     const rows = prices.map(p => [
       p.category ? p.category.name : '',
-      p.parameter ? p.parameter.name : '',
+      p.parameter ? (p.parameter.parameterName || p.parameter.name) : '',
       p.price,
       p.status
     ]);
@@ -337,7 +339,7 @@ const PriceMasterPage = () => {
     const rows = prices.map(p => `
       <tr>
         <td>${p.category ? p.category.name : ''}</td>
-        <td>${p.parameter ? p.parameter.name : ''}</td>
+        <td>${p.parameter ? (p.parameter.parameterName || p.parameter.name) : ''}</td>
         <td>${p.price}</td>
         <td>${p.status}</td>
       </tr>
@@ -366,7 +368,7 @@ const PriceMasterPage = () => {
 
   const handleCopy = () => {
     if (prices.length === 0) return;
-    const text = prices.map(p => `${p.category?.name} | ${p.parameter?.name} | ₹${p.price} | ${p.status}`).join('\n');
+    const text = prices.map(p => `${p.category?.name} | ${p.parameter?.parameterName || p.parameter?.name} | ₹${p.price} | ${p.status}`).join('\n');
     navigator.clipboard.writeText(text);
     triggerToast('Copied to clipboard!', 'success');
     setShowDownloadDropdown(false);
@@ -413,13 +415,22 @@ const PriceMasterPage = () => {
 
         <div className="master-top-bar-actions" style={{ display: 'flex', gap: '0.75rem', position: 'relative' }} ref={dropdownRef}>
           {!isFormOpen && (
-            <button 
-              onClick={handleOpenCreate} 
-              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1rem', fontWeight: 600, cursor: 'pointer' }}
-            >
-              <FaPlus />
-              <span>Add Price</span>
-            </button>
+            <>
+              <button 
+                onClick={handleOpenCreate} 
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1rem', fontWeight: 600, cursor: 'pointer' }}
+              >
+                <FaPlus />
+                <span>Add Price</span>
+              </button>
+              <button
+                onClick={() => setIsBulkImportOpen(true)}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1rem', fontWeight: 600, cursor: 'pointer' }}
+              >
+                <FaFileExcel />
+                <span>Bulk Import</span>
+              </button>
+            </>
           )}
 
           {/* Premium Download Button Dropdown */}
@@ -751,10 +762,10 @@ const PriceMasterPage = () => {
                       {item.category ? item.category.name : '-'}
                     </td>
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>
-                      {item.parameter ? (item.parameter.name || item.parameter.parameterName) : '-'}
-                      {item.parameter?.testingStandard && (
+                      {item.parameter ? (item.parameter.parameterName || item.parameter.name) : '-'}
+                      {(item.parameter?.testMethod || item.parameter?.testingStandard) && (
                         <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 400 }}>
-                          {item.parameter.testingStandard}
+                          {item.parameter.testMethod || item.parameter.testingStandard}
                         </div>
                       )}
                     </td>
@@ -945,6 +956,23 @@ const PriceMasterPage = () => {
           </div>
         </div>
       )}
+
+      {/* Bulk Excel Import Modal */}
+      <BulkImportModal
+        isOpen={isBulkImportOpen}
+        onClose={() => setIsBulkImportOpen(false)}
+        masterType="pricelist"
+        existingDbRecords={prices}
+        onImportSuccess={async (validRows) => {
+          const res = await apiService.post(PRICE_MASTER_ENDPOINTS.BULK_IMPORT, { rows: validRows });
+          if (res && res.success) {
+            triggerToast(res.message || 'Price list imported successfully!', 'success');
+            fetchPrices(currentPage, pageSize, searchQuery, statusFilter, selectedCategory);
+          } else {
+            throw new Error(res?.message || 'Failed to import price list.');
+          }
+        }}
+      />
 
     </div>
   );

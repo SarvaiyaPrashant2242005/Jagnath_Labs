@@ -3,9 +3,10 @@ import { apiService } from '../../../shared/services/apiService';
 import { USER_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 import { 
   FaUserShield, FaPlus, FaSearch, FaEdit, FaTrash, FaCheck, 
-  FaExclamationCircle, FaUserCheck, FaUserTimes, FaKey, FaShieldAlt
+  FaExclamationCircle, FaUserCheck, FaUserTimes, FaKey, FaShieldAlt, FaFileExcel
 } from 'react-icons/fa';
 import Pagination from '../../../shared/components/Pagination';
+import BulkImportModal from '../../../shared/components/BulkImport/BulkImportModal';
 
 /**
  * @component UserMaster
@@ -14,6 +15,7 @@ import Pagination from '../../../shared/components/Pagination';
 const UserMaster = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
 
   // Pagination & Filtering
   const [currentPage, setCurrentPage] = useState(1);
@@ -173,13 +175,20 @@ const UserMaster = () => {
           <FaUserShield style={{ color: '#22c55e' }} />
           <span>Users & Access Control</span>
         </h2>
-        <div className="master-top-bar-actions">
+        <div className="master-top-bar-actions" style={{ display: 'flex', gap: '0.75rem' }}>
           <button 
             onClick={handleOpenCreate}
             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1.25rem', fontWeight: 600, cursor: 'pointer' }}
           >
             <FaPlus />
             <span>Add User</span>
+          </button>
+          <button
+            onClick={() => setIsBulkImportOpen(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1.25rem', fontWeight: 600, cursor: 'pointer' }}
+          >
+            <FaFileExcel />
+            <span>Bulk Import</span>
           </button>
         </div>
       </div>
@@ -480,6 +489,23 @@ const UserMaster = () => {
           </div>
         </div>
       )}
+
+      {/* Bulk Excel Import Modal */}
+      <BulkImportModal
+        isOpen={isBulkImportOpen}
+        onClose={() => setIsBulkImportOpen(false)}
+        masterType="user"
+        existingDbRecords={users}
+        onImportSuccess={async (validRows) => {
+          const res = await apiService.post(USER_ENDPOINTS.BULK_IMPORT, { rows: validRows });
+          if (res && res.success) {
+            triggerToast(res.message || 'Users imported successfully!', 'success');
+            fetchUsers(currentPage, pageSize, searchQuery, roleFilter);
+          } else {
+            throw new Error(res?.message || 'Failed to import users.');
+          }
+        }}
+      />
     </div>
   );
 };

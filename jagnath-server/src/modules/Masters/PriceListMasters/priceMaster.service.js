@@ -51,7 +51,7 @@ const createPrice = async (data, userId) => {
     return await PriceMaster.findByPk(newRecord.id, {
         include: [
             { model: Category, as: "category", attributes: ["id", "name"] },
-            { model: Parameter, as: "parameter", attributes: ["id", "name", "testingStandard", "unit"] }
+            { model: Parameter, as: "parameter", attributes: ["id", "parameterName", "testMethod"] }
         ]
     });
 };
@@ -80,14 +80,14 @@ const getPricesByCompany = async (companyId, options = {}) => {
         {
             model: Parameter,
             as: "parameter",
-            attributes: ["id", "name", "testingStandard", "unit"]
+            attributes: ["id", "parameterName", "testMethod"]
         }
     ];
 
     let paramWhere = undefined;
     if (search) {
         include[1].where = {
-            name: { [Op.iLike]: `%${search}%` }
+            parameterName: { [Op.iLike]: `%${search}%` }
         };
     }
 
@@ -125,7 +125,7 @@ const getPriceById = async (id, companyId) => {
         where: { id, companyId },
         include: [
             { model: Category, as: "category", attributes: ["id", "name"] },
-            { model: Parameter, as: "parameter", attributes: ["id", "name", "testingStandard", "unit"] }
+            { model: Parameter, as: "parameter", attributes: ["id", "parameterName", "testMethod"] }
         ]
     });
 
@@ -168,5 +168,69 @@ module.exports = {
     getPricesByCompany,
     getPriceById,
     updatePrice,
-    deletePrice
+    deletePrice,
+    bulkImportPrices: async (records, companyId, userId) => {
+        const transaction = await db.sequelize.transaction();
+        try {
+            let createdCount = 0;
+            let updatedCount = 0;
+
+            for (const item of records) {
+                const data = item.data;
+
+                // Resolve Category ID
+                let catId = data.categoryId;
+                if (!catId && data.categoryName) {
+                    let cat = await Category.findOne({ where: { name: data.categoryName, companyId }, transaction });
+                    if (!cat) {
+                        cat = await Category.create({ name: data.categoryName, companyId, status: "Active" }, { transaction });
+                    }
+                    catId = cat.id;
+                }
+
+                // Resolve Parameter ID
+                let paramId = data.parameterId;
+                if (!paramId && data.parameterName) {
+                    let param = await Parameter.findOne({ where: { parameterName: data.parameterName, companyId }, transaction });
+                    if (!param) {
+                        param = await Parameter.create({ parameterName: data.parameterName, companyId, status: "Active" }, { transaction });
+                    }
+                    paramId = param.id;
+                }
+
+                if (!catId || !paramId) continue;
+
+                let existing = await PriceMaster.findOne({
+                    where: { categoryId: catId, parameterId: paramId, companyId },
+                    transaction
+                });
+
+                if (existing) {
+                    await existing.update({
+                        price: data.price,
+                        status: data.status || "Active",
+                        updatedBy: userId
+                    }, { transaction });
+                    updatedCount++;
+                } else {
+                    await PriceMaster.create({
+                        companyId,
+                        categoryId: catId,
+                        parameterId: paramId,
+                        price: data.price,
+                        status: data.status || "Active",
+                        createdBy: userId
+                    }, { transaction });
+                    createdCount++;
+                }
+            }
+
+            await transaction.commit();
+            return { createdCount, updatedCount, totalProcessed: records.length };
+        } catch (error) {
+            await transaction.rollback();
+            throw error;
+        }
+    }
 };
+
