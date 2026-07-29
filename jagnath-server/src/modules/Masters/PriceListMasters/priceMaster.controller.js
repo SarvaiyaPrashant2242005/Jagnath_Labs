@@ -214,10 +214,42 @@ const remove = async (req, res) => {
     }
 };
 
+/**
+ * Bulk Import Price List from Excel dataset.
+ */
+const bulkImport = async (req, res) => {
+    try {
+        const userId = req.user.user_id;
+        const { rows } = req.body || {};
+
+        if (!Array.isArray(rows) || rows.length === 0) {
+            return res.status(400).json(errorResponse(
+                "VALIDATION_ERROR",
+                "No rows provided for bulk import.",
+                "No valid data provided."
+            ));
+        }
+
+        const companyId = await resolveCompanyId(req.body, req.query, userId);
+        const result = await priceMasterService.bulkImportPrices(rows, companyId, userId);
+
+        return res.status(200).json(successResponse(
+            "PRICES_BULK_IMPORTED",
+            `Successfully processed ${result.totalProcessed} price records (${result.createdCount} created, ${result.updatedCount} updated).`,
+            "Bulk import completed.",
+            result
+        ));
+    } catch (err) {
+        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Bulk import failed."));
+    }
+};
+
 module.exports = {
     create,
     getAll,
     getById,
     update,
-    remove
+    remove,
+    bulkImport
 };
+

@@ -316,5 +316,42 @@ module.exports = {
     updateCategory,
     deleteCategory,
     getCategoryById,
-    getCategoriesByCompany
+    getCategoriesByCompany,
+    bulkImportCategories: async (records, companyId, userId, reqInfo) => {
+        const transaction = await sequelize.transaction();
+        try {
+            let createdCount = 0;
+            let updatedCount = 0;
+
+            for (const item of records) {
+                const data = { ...item.data, companyId };
+                // Ensure field name mapping if categoryName is passed
+                if (data.categoryName && !data.name) {
+                    data.name = data.categoryName;
+                }
+
+                let existing = null;
+                if (item._dbId) {
+                    existing = await Category.findOne({ where: { id: item._dbId, companyId }, transaction });
+                } else if (data.name) {
+                    existing = await Category.findOne({ where: { name: data.name, companyId }, transaction });
+                }
+
+                if (existing) {
+                    await existing.update(data, { transaction });
+                    updatedCount++;
+                } else {
+                    await Category.create(data, { transaction });
+                    createdCount++;
+                }
+            }
+
+            await transaction.commit();
+            return { createdCount, updatedCount, totalProcessed: records.length };
+        } catch (error) {
+            await transaction.rollback();
+            throw error;
+        }
+    }
 };
+

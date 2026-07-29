@@ -112,20 +112,50 @@ const getChangesBlock = (oldValues, newValues) => {
     return "\nChanges\n\n" + lines.join("\n\n");
 };
 
+const PriceMaster = require("../../Masters/PriceListMasters/price_master.model");
+
 /**
  * Creates a new TestRequestParameter.
  */
 const createTransaction = async (trpData, userId, reqInfo) => {
     const transaction = await sequelize.transaction();
     try {
-        const newTRP = await TestRequestParameter.create(trpData, { transaction });
+        const tr = await TestRequest.findByPk(trpData.testRequestId, { transaction });
+        const parameter = await Parameter.findByPk(trpData.parameterId, { transaction });
+
+        let finalTestMethod = trpData.testMethod || (parameter ? (parameter.defaultTestMethod || parameter.testMethod) : null);
+        let finalUnit = trpData.unit || (parameter ? (parameter.defaultUnit || parameter.unit) : null);
+        let finalPrice = trpData.price;
+
+        if (finalPrice === undefined || finalPrice === null) {
+            if (tr && tr.companyId && tr.sampleParticular && trpData.parameterId) {
+                const priceRecord = await PriceMaster.findOne({
+                    where: {
+                        companyId: tr.companyId,
+                        categoryId: tr.sampleParticular,
+                        parameterId: trpData.parameterId,
+                        status: "Active"
+                    },
+                    transaction
+                });
+                if (priceRecord) {
+                    finalPrice = priceRecord.price;
+                }
+            }
+        }
+
+        const payload = {
+            ...trpData,
+            testMethod: finalTestMethod,
+            unit: finalUnit,
+            price: finalPrice || 0
+        };
+
+        const newTRP = await TestRequestParameter.create(payload, { transaction });
 
         // Fetch details for logging
-        const tr = await TestRequest.findByPk(newTRP.testRequestId, { transaction });
         const company = tr ? await Company.findByPk(tr.companyId, { transaction }) : null;
         const companyName = company ? (company.companyName || company.company_name) : "Unknown";
-
-        const parameter = await Parameter.findByPk(newTRP.parameterId, { transaction });
         const parameterName = parameter ? parameter.parameterName : "Unknown";
 
         const performedBy = await getPerformedBy(userId);

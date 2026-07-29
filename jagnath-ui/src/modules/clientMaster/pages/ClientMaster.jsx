@@ -1,33 +1,39 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  FaUserFriends, FaPlus, FaDownload, FaEdit, FaTrash, FaCheck, 
-  FaExclamationCircle, FaFileExcel, FaCopy, FaFileCsv, 
-  FaFilePdf, FaPrint, FaChevronDown 
+import {
+  FaUserFriends, FaPlus, FaDownload, FaEdit, FaTrash, FaCheck,
+  FaExclamationCircle, FaFileExcel, FaCopy, FaFileCsv,
+  FaFilePdf, FaPrint, FaChevronDown
 } from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
 import { CLIENT_ENDPOINTS, COMPANY_ENDPOINTS } from '../../../shared/services/apiEndpoints';
+import { getIndianStates, getCitiesByStateIso2 } from '../../../shared/services/locationService';
 import Pagination from '../../../shared/components/Pagination';
-import { copyTextToClipboard, downloadCSV } from '../../../shared/utils/exportUtils';
+import BulkImportModal from '../../../shared/components/BulkImport/BulkImportModal';
 
 const ClientMaster = () => {
   // Client state
   const [clients, setClients] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(false);
-  
+  const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
+
+  // Location dropdown states (India)
+  const [indianStates, setIndianStates] = useState([]);
+  const [availableCities, setAvailableCities] = useState([]);
+
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-  
+
   // Toast notifications state
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
   // Form visibility and editing state
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  
+
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -50,6 +56,43 @@ const ClientMaster = () => {
   });
   const [formErrors, setFormErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+
+  // Fetch Indian states on mount
+  useEffect(() => {
+    getIndianStates().then(states => {
+      setIndianStates(states);
+    });
+  }, []);
+
+  // Fetch cities whenever selected state changes
+  useEffect(() => {
+    if (formData.state && indianStates.length > 0) {
+      const matchedState = indianStates.find(
+        s => s.name.toLowerCase() === formData.state.toLowerCase() || s.iso2.toLowerCase() === formData.state.toLowerCase()
+      );
+      if (matchedState) {
+        getCitiesByStateIso2(matchedState.iso2).then(cities => {
+          setAvailableCities(cities);
+        });
+      } else {
+        setAvailableCities([]);
+      }
+    } else {
+      setAvailableCities([]);
+    }
+  }, [formData.state, indianStates]);
+
+  const handleStateChange = (e) => {
+    const selectedStateName = e.target.value;
+    setFormData(prev => ({
+      ...prev,
+      state: selectedStateName,
+      city: ''
+    }));
+    if (formErrors.state) {
+      setFormErrors(prev => ({ ...prev, state: '' }));
+    }
+  };
 
   // Trigger Toast helper
   const triggerToast = (message, type = 'success') => {
@@ -99,19 +142,19 @@ const ClientMaster = () => {
       if (activeCompId) {
         params.append('companyId', activeCompId);
       }
-      
+
       const url = `${CLIENT_ENDPOINTS.GET_ALL}?${params.toString()}`;
       const response = await apiService.get(url);
       if (response && response.data) {
         if (response.data.rows !== undefined) {
-           setClients(response.data.rows);
-           setTotalItems(response.data.total);
-           setTotalPages(response.data.totalPages);
+          setClients(response.data.rows);
+          setTotalItems(response.data.total);
+          setTotalPages(response.data.totalPages);
         } else {
-           const clientList = Array.isArray(response.data) ? response.data : [response.data];
-           setClients(clientList);
-           setTotalItems(clientList.length);
-           setTotalPages(1);
+          const clientList = Array.isArray(response.data) ? response.data : [response.data];
+          setClients(clientList);
+          setTotalItems(clientList.length);
+          setTotalPages(1);
         }
       } else {
         setClients([]);
@@ -321,7 +364,7 @@ const ClientMaster = () => {
       c.status
     ]);
     const text = [headers.join('\t'), ...rows.map(r => r.join('\t'))].join('\n');
-    copyTextToClipboard(text, 
+    copyTextToClipboard(text,
       () => triggerToast('Copied to clipboard successfully.', 'success'),
       () => triggerToast('Failed to copy text.', 'error')
     );
@@ -386,7 +429,7 @@ const ClientMaster = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      
+
       {/* Toast Notification Container in Top Right Corner */}
       {toast.show && (
         <div style={{
@@ -419,30 +462,39 @@ const ClientMaster = () => {
         </h2>
         <div className="master-top-bar-actions" style={{ display: 'flex', gap: '0.75rem', position: 'relative' }} ref={dropdownRef}>
           {!isFormOpen && (
-            <button 
-              onClick={handleOpenCreate} 
-              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1rem', fontWeight: 600, cursor: 'pointer' }}
-            >
-              <FaPlus />
-              <span>Client</span>
-            </button>
+            <>
+              <button
+                onClick={handleOpenCreate}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1rem', fontWeight: 600, cursor: 'pointer' }}
+              >
+                <FaPlus />
+                <span>Client</span>
+              </button>
+              <button
+                onClick={() => setIsBulkImportOpen(true)}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1rem', fontWeight: 600, cursor: 'pointer' }}
+              >
+                <FaFileExcel />
+                <span>Bulk Import</span>
+              </button>
+            </>
           )}
 
           {/* Premium Download Button */}
-          <button 
-            onClick={() => setShowDownloadDropdown(!showDownloadDropdown)} 
+          <button
+            onClick={() => setShowDownloadDropdown(!showDownloadDropdown)}
             disabled={clients.length === 0}
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '0.5rem', 
-              backgroundColor: '#22c55e', 
-              color: '#ffffff', 
-              border: 'none', 
-              borderRadius: '8px', 
-              padding: '0.5rem 1.25rem', 
-              fontWeight: 600, 
-              cursor: 'pointer', 
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              backgroundColor: '#22c55e',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '0.5rem 1.25rem',
+              fontWeight: 600,
+              cursor: 'pointer',
               opacity: clients.length === 0 ? 0.6 : 1,
               boxShadow: '0 2px 4px rgba(34, 197, 94, 0.2)'
             }}
@@ -510,10 +562,10 @@ const ClientMaster = () => {
           <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '1.25rem', color: '#1e293b' }}>
             {editingId ? 'Edit Client Details' : 'Add New Client'}
           </h3>
-          
+
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
-              
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>
                   Client Name <span style={{ color: '#ef4444' }}>*</span>
@@ -576,33 +628,59 @@ const ClientMaster = () => {
                 />
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>
-                  City <span style={{ color: '#ef4444' }}>*</span>
-                </label>
-                <input
-                  type="text"
-                  name="city"
-                  value={formData.city}
-                  onChange={handleInputChange}
-                  placeholder="Enter City"
-                  style={{ padding: '0.625rem', border: `1px solid ${formErrors.city ? '#ef4444' : '#cbd5e1'}`, borderRadius: '6px', outline: 'none', height: '42px' }}
-                />
-                {formErrors.city && <span style={{ fontSize: '0.75rem', color: '#ef4444' }}>{formErrors.city}</span>}
-              </div>
-
+              {/* State Dropdown (India) */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>
                   State
                 </label>
-                <input
-                  type="text"
+                <select
                   name="state"
                   value={formData.state}
+                  onChange={handleStateChange}
+                  style={{ padding: '0.625rem', border: `1px solid ${formErrors.state ? '#ef4444' : '#cbd5e1'}`, borderRadius: '6px', outline: 'none', backgroundColor: '#ffffff', height: '42px', fontSize: '0.875rem' }}
+                >
+                  <option value="">-- Select State --</option>
+                  {indianStates.map((s) => (
+                    <option key={s.id || s.iso2} value={s.name}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+                {formErrors.state && <span style={{ fontSize: '0.75rem', color: '#ef4444' }}>{formErrors.state}</span>}
+              </div>
+
+              {/* City Dropdown (India) */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>
+                  City <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <select
+                  name="city"
+                  value={formData.city}
                   onChange={handleInputChange}
-                  placeholder="Enter State"
-                  style={{ padding: '0.625rem', border: `1px solid ${formErrors.state ? '#ef4444' : '#cbd5e1'}`, borderRadius: '6px', outline: 'none', height: '42px' }}
-                />
+                  disabled={!formData.state}
+                  style={{
+                    padding: '0.625rem',
+                    border: `1px solid ${formErrors.city ? '#ef4444' : '#cbd5e1'}`,
+                    borderRadius: '6px',
+                    outline: 'none',
+                    backgroundColor: !formData.state ? '#f8fafc' : '#ffffff',
+                    height: '42px',
+                    fontSize: '0.875rem',
+                    cursor: !formData.state ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  <option value="">{formData.state ? '-- Select City --' : '-- Select State First --'}</option>
+                  {availableCities.map((c) => (
+                    <option key={c.id || c.name} value={c.name}>
+                      {c.name}
+                    </option>
+                  ))}
+                  {formData.city && !availableCities.some(c => c.name.toLowerCase() === formData.city.toLowerCase()) && (
+                    <option value={formData.city}>{formData.city}</option>
+                  )}
+                </select>
+                {formErrors.city && <span style={{ fontSize: '0.75rem', color: '#ef4444' }}>{formErrors.city}</span>}
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
@@ -677,7 +755,7 @@ const ClientMaster = () => {
 
       {/* Filter and Table view */}
       <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-        
+
         {/* Table Filters */}
         <div className="master-table-filters" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
           <div style={{ fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>
@@ -733,21 +811,21 @@ const ClientMaster = () => {
                 </tr>
               ) : (
                 clients.map((client, index) => (
-                  <tr 
-                    key={client.id} 
+                  <tr
+                    key={client.id}
                     onClick={() => handleOpenEdit(client)}
                     style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background-color 0.15s' }}
                     className="company-table-row"
                   >
                     <td style={{ padding: '0.75rem 1rem', display: 'flex', gap: '0.5rem' }}>
-                      <button 
+                      <button
                         onClick={(e) => { e.stopPropagation(); handleOpenEdit(client); }}
                         style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                         title="Edit"
                       >
                         <FaEdit size={12} />
                       </button>
-                      <button 
+                      <button
                         onClick={(e) => { e.stopPropagation(); handleDelete(client.id); }}
                         style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                         title="Delete"
@@ -762,7 +840,7 @@ const ClientMaster = () => {
                     <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.city}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.state || 'N/A'}</td>
                     <td style={{ padding: '0.75rem 1rem' }}>
-                      <span style={{ 
+                      <span style={{
                         display: 'inline-block',
                         padding: '0.125rem 0.5rem',
                         fontSize: '0.75rem',
@@ -798,9 +876,9 @@ const ClientMaster = () => {
                   <div className="master-record-card-header">
                     <div>
                       <div className="master-record-title">{client.clientName}</div>
-                      <div className="master-record-subtitle">#{ (currentPage - 1) * pageSize + index + 1 } • {client.companyName || 'N/A'}</div>
+                      <div className="master-record-subtitle">#{(currentPage - 1) * pageSize + index + 1} • {client.companyName || 'N/A'}</div>
                     </div>
-                    <span style={{ 
+                    <span style={{
                       padding: '0.2rem 0.6rem',
                       fontSize: '0.75rem',
                       fontWeight: 700,
@@ -832,13 +910,13 @@ const ClientMaster = () => {
                   </div>
 
                   <div className="master-record-actions">
-                    <button 
+                    <button
                       onClick={(e) => { e.stopPropagation(); handleOpenEdit(client); }}
                       style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                     >
                       <FaEdit size={12} /> Edit
                     </button>
-                    <button 
+                    <button
                       onClick={(e) => { e.stopPropagation(); handleDelete(client.id); }}
                       style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                     >
@@ -850,9 +928,9 @@ const ClientMaster = () => {
             </div>
           )}
         </div>
-        
+
         {/* Pagination Controls */}
-        <Pagination 
+        <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
           totalItems={totalItems}
@@ -864,6 +942,23 @@ const ClientMaster = () => {
           }}
         />
       </div>
+
+      {/* Bulk Excel Import Modal */}
+      <BulkImportModal
+        isOpen={isBulkImportOpen}
+        onClose={() => setIsBulkImportOpen(false)}
+        masterType="client"
+        existingDbRecords={clients}
+        onImportSuccess={async (validRows) => {
+          const res = await apiService.post(CLIENT_ENDPOINTS.BULK_IMPORT, { rows: validRows });
+          if (res && res.success) {
+            triggerToast(res.message || 'Clients imported successfully!', 'success');
+            fetchClients(currentPage, pageSize, searchQuery, statusFilter);
+          } else {
+            throw new Error(res?.message || 'Failed to import clients.');
+          }
+        }}
+      />
 
     </div>
   );

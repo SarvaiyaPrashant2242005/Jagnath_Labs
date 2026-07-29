@@ -146,6 +146,21 @@ const TestRequest = sequelize.define("TestRequest", {
         defaultValue: "Regular",
         allowNull: false
     },
+    includeCaution: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+        allowNull: false,
+        field: "include_caution"
+    },
+    cautionId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: "caution_master",
+            key: "id"
+        },
+        field: "caution_id"
+    },
     status: {
         type: DataTypes.ENUM("Active", "Inactive"),
         defaultValue: "Active",

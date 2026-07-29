@@ -16,13 +16,14 @@ const createTransactionSchema = Joi.object({
         "string.empty": "Parameter ID must not be empty."
     }),
     testMethod: Joi.string().optional().allow("", null),
+    price: Joi.number().optional().allow(null),
     unit: Joi.string().optional().allow("", null),
     result: Joi.string().optional().allow("", null),
     remark: Joi.string().optional().allow("", null),
     status: Joi.string().optional().allow("", null),
     enteredBy: Joi.string().optional().allow("", null),
     enteredAt: Joi.string().optional().allow("", null)
-});
+}).unknown(true);
 
 const updateTransactionSchema = Joi.object({
     testRequestId: Joi.string().guid({ version: 'uuidv4' }).optional().messages({
@@ -32,13 +33,14 @@ const updateTransactionSchema = Joi.object({
         "string.guid": "Parameter ID must be a valid UUIDv4."
     }),
     testMethod: Joi.string().optional().allow("", null),
+    price: Joi.number().optional().allow(null),
     unit: Joi.string().optional().allow("", null),
     result: Joi.string().optional().allow("", null),
     remark: Joi.string().optional().allow("", null),
     status: Joi.string().optional().allow("", null),
     enteredBy: Joi.string().optional().allow("", null),
     enteredAt: Joi.string().optional().allow("", null)
-});
+}).unknown(true);
 
 module.exports = {
     createTransactionSchema,

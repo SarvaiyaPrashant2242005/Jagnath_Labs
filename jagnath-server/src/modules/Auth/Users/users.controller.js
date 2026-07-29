@@ -174,6 +174,25 @@ const deleteUser = async (req, res) => {
     }
 };
 
+const bulkImport = async (req, res) => {
+    try {
+        const { rows } = req.body || {};
+        if (!Array.isArray(rows) || rows.length === 0) {
+            return res.status(400).json(errorResponse("VALIDATION_ERROR", "No rows provided for bulk import.", "No valid data provided."));
+        }
+
+        const result = await usersService.bulkImportUsers(rows);
+        return res.status(200).json(successResponse(
+            "USERS_BULK_IMPORTED",
+            `Successfully processed ${result.totalProcessed} users (${result.createdCount} created, ${result.updatedCount} updated).`,
+            "Bulk import completed.",
+            result
+        ));
+    } catch (err) {
+        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Failed to bulk import users."));
+    }
+};
+
 module.exports = {
     register,
     login,
@@ -182,5 +201,7 @@ module.exports = {
     logout,
     getAllUsers,
     updateUser,
-    deleteUser
+    deleteUser,
+    bulkImport
 };
+

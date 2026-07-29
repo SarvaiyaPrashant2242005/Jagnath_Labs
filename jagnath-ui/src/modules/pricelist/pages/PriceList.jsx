@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  FaTag, FaPlus, FaDownload, FaEdit, FaTrash, FaCheck, 
-  FaExclamationCircle, FaFileExcel, FaCopy, FaFileCsv, 
-  FaFilePdf, FaPrint, FaChevronDown, FaSave, FaSearch, FaTimes 
+import {
+  FaTag, FaPlus, FaDownload, FaEdit, FaTrash, FaCheck,
+  FaExclamationCircle, FaFileExcel, FaCopy, FaFileCsv,
+  FaFilePdf, FaPrint, FaChevronDown, FaSave, FaSearch, FaTimes
 } from 'react-icons/fa';
 import { priceMasterService } from '../services/priceMasterService';
 import { apiService } from '../../../shared/services/apiService';
-import { CATEGORY_ENDPOINTS, PARAMETER_ENDPOINTS } from '../../../shared/services/apiEndpoints';
+import { CATEGORY_ENDPOINTS, PARAMETER_ENDPOINTS, PRICE_MASTER_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 import Pagination from '../../../shared/components/Pagination';
-import { copyTextToClipboard, downloadCSV } from '../../../shared/utils/exportUtils';
+import BulkImportModal from '../../../shared/components/BulkImport/BulkImportModal';
 
 const PriceMasterPage = () => {
   // Data States
@@ -17,6 +17,7 @@ const PriceMasterPage = () => {
   const [parameters, setParameters] = useState([]);
   const [filteredParameters, setFilteredParameters] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
 
   // Filters State
   const [searchQuery, setSearchQuery] = useState('');
@@ -164,7 +165,7 @@ const PriceMasterPage = () => {
       if (catRes?.data) {
         const freshList = Array.isArray(catRes.data) ? catRes.data : (catRes.data.rows || []);
         setCategories(freshList);
-        
+
         // Auto select newly created category
         if (createdCat?.id) {
           setFormData(prev => ({ ...prev, categoryId: createdCat.id }));
@@ -209,7 +210,7 @@ const PriceMasterPage = () => {
       if (paramRes?.data) {
         const freshList = Array.isArray(paramRes.data) ? paramRes.data : (paramRes.data.rows || []);
         setParameters(freshList);
-        
+
         // Auto select newly created parameter
         if (createdParam?.id) {
           setFormData(prev => ({ ...prev, parameterId: createdParam.id }));
@@ -315,7 +316,7 @@ const PriceMasterPage = () => {
     const headers = ['Category', 'Parameter', 'Price (INR)', 'Status'];
     const rows = prices.map(p => [
       p.category ? p.category.name : '',
-      p.parameter ? p.parameter.name : '',
+      p.parameter ? (p.parameter.parameterName || p.parameter.name) : '',
       p.price,
       p.status
     ]);
@@ -326,23 +327,41 @@ const PriceMasterPage = () => {
   const handleDownloadExcel = () => {
     if (prices.length === 0) return;
     const headers = ['Category', 'Parameter', 'Price (INR)', 'Status'];
-    const rows = prices.map(p => [
-      p.category ? p.category.name : '',
-      p.parameter ? p.parameter.name : '',
-      p.price,
-      p.status
-    ]);
-    downloadCSV(headers, rows, 'PriceMaster_Report.csv'); // Download as CSV to prevent insecure download blocks
+    const rows = prices.map(p => `
+      <tr>
+        <td>${p.category ? p.category.name : ''}</td>
+        <td>${p.parameter ? (p.parameter.parameterName || p.parameter.name) : ''}</td>
+        <td>${p.price}</td>
+        <td>${p.status}</td>
+      </tr>
+    `).join('');
+
+    const htmlTable = `
+      <table border="1">
+        <thead>
+          <tr style="background-color: #f8fafc; font-weight: bold;">
+            ${headers.map(h => `<th>${h}</th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+
+    const blob = new Blob([htmlTable], { type: 'application/vnd.ms-excel' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'PriceMaster_Report.xls';
+    a.click();
+    URL.revokeObjectURL(url);
     setShowDownloadDropdown(false);
   };
 
   const handleCopy = () => {
     if (prices.length === 0) return;
-    const text = prices.map(p => `${p.category?.name} | ${p.parameter?.name} | ₹${p.price} | ${p.status}`).join('\n');
-    copyTextToClipboard(text, 
-      () => triggerToast('Copied to clipboard!', 'success'),
-      () => triggerToast('Failed to copy text.', 'error')
-    );
+    const text = prices.map(p => `${p.category?.name} | ${p.parameter?.parameterName || p.parameter?.name} | ₹${p.price} | ${p.status}`).join('\n');
+    navigator.clipboard.writeText(text);
+    triggerToast('Copied to clipboard!', 'success');
     setShowDownloadDropdown(false);
   };
 
@@ -353,7 +372,7 @@ const PriceMasterPage = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      
+
       {/* Toast Notification Container */}
       {toast.show && (
         <div style={{
@@ -387,30 +406,39 @@ const PriceMasterPage = () => {
 
         <div className="master-top-bar-actions" style={{ display: 'flex', gap: '0.75rem', position: 'relative' }} ref={dropdownRef}>
           {!isFormOpen && (
-            <button 
-              onClick={handleOpenCreate} 
-              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1rem', fontWeight: 600, cursor: 'pointer' }}
-            >
-              <FaPlus />
-              <span>Add Price</span>
-            </button>
+            <>
+              <button
+                onClick={handleOpenCreate}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1rem', fontWeight: 600, cursor: 'pointer' }}
+              >
+                <FaPlus />
+                <span>Add Price</span>
+              </button>
+              <button
+                onClick={() => setIsBulkImportOpen(true)}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1rem', fontWeight: 600, cursor: 'pointer' }}
+              >
+                <FaFileExcel />
+                <span>Bulk Import</span>
+              </button>
+            </>
           )}
 
           {/* Premium Download Button Dropdown */}
-          <button 
-            onClick={() => setShowDownloadDropdown(!showDownloadDropdown)} 
+          <button
+            onClick={() => setShowDownloadDropdown(!showDownloadDropdown)}
             disabled={prices.length === 0}
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '0.5rem', 
-              backgroundColor: '#22c55e', 
-              color: '#ffffff', 
-              border: 'none', 
-              borderRadius: '8px', 
-              padding: '0.5rem 1.25rem', 
-              fontWeight: 600, 
-              cursor: 'pointer', 
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              backgroundColor: '#22c55e',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '0.5rem 1.25rem',
+              fontWeight: 600,
+              cursor: 'pointer',
               opacity: prices.length === 0 ? 0.6 : 1,
               boxShadow: '0 2px 4px rgba(34, 197, 94, 0.2)'
             }}
@@ -481,7 +509,7 @@ const PriceMasterPage = () => {
 
           <form onSubmit={handleFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
-              
+
               {/* Category Dropdown & Quick Add Link */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -547,8 +575,8 @@ const PriceMasterPage = () => {
               {/* Price Input */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Price (₹) *</label>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   step="0.01"
                   min="0"
                   placeholder="0.00"
@@ -601,15 +629,15 @@ const PriceMasterPage = () => {
 
             {/* Action Buttons */}
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => setIsFormOpen(false)}
                 style={{ padding: '0.5rem 1.25rem', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', backgroundColor: '#ffffff', color: '#475569', fontWeight: 600 }}
               >
                 Cancel
               </button>
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 disabled={submitting}
                 style={{ padding: '0.5rem 1.25rem', border: 'none', borderRadius: '6px', cursor: 'pointer', backgroundColor: '#22c55e', color: '#ffffff', fontWeight: 600, opacity: submitting ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: '0.4rem' }}
               >
@@ -624,14 +652,14 @@ const PriceMasterPage = () => {
 
       {/* Main Table View Card */}
       <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
-        
+
         {/* Table Filters */}
         <div className="master-table-filters" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
           <div style={{ fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>
             Total Prices: {totalItems}
           </div>
           <div className="master-filter-inputs" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            
+
             {/* Category Filter */}
             <select
               value={selectedCategory}
@@ -698,21 +726,21 @@ const PriceMasterPage = () => {
                 </tr>
               ) : (
                 prices.map((item, index) => (
-                  <tr 
-                    key={item.id} 
+                  <tr
+                    key={item.id}
                     onClick={() => handleOpenEdit(item)}
                     style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background-color 0.15s' }}
                     className="company-table-row"
                   >
                     <td style={{ padding: '0.75rem 1rem', display: 'flex', gap: '0.5rem' }}>
-                      <button 
+                      <button
                         onClick={(e) => { e.stopPropagation(); handleOpenEdit(item); }}
                         style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                         title="Edit"
                       >
                         <FaEdit size={12} />
                       </button>
-                      <button 
+                      <button
                         onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
                         style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                         title="Delete"
@@ -725,10 +753,10 @@ const PriceMasterPage = () => {
                       {item.category ? item.category.name : '-'}
                     </td>
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>
-                      {item.parameter ? (item.parameter.name || item.parameter.parameterName) : '-'}
-                      {item.parameter?.testingStandard && (
+                      {item.parameter ? (item.parameter.parameterName || item.parameter.name) : '-'}
+                      {(item.parameter?.testMethod || item.parameter?.testingStandard) && (
                         <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 400 }}>
-                          {item.parameter.testingStandard}
+                          {item.parameter.testMethod || item.parameter.testingStandard}
                         </div>
                       )}
                     </td>
@@ -736,7 +764,7 @@ const PriceMasterPage = () => {
                       ₹{Number(item.price || 0).toFixed(2)}
                     </td>
                     <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
-                      <span style={{ 
+                      <span style={{
                         display: 'inline-block',
                         padding: '0.125rem 0.5rem',
                         fontSize: '0.75rem',
@@ -774,7 +802,7 @@ const PriceMasterPage = () => {
                       <div className="master-record-title">{item.parameter?.name || item.parameter?.parameterName || 'Parameter'}</div>
                       <div className="master-record-subtitle">{item.category?.name} • ₹{Number(item.price || 0).toFixed(2)}</div>
                     </div>
-                    <span style={{ 
+                    <span style={{
                       padding: '0.2rem 0.6rem',
                       fontSize: '0.75rem',
                       fontWeight: 700,
@@ -787,13 +815,13 @@ const PriceMasterPage = () => {
                   </div>
 
                   <div className="master-record-actions">
-                    <button 
+                    <button
                       onClick={(e) => { e.stopPropagation(); handleOpenEdit(item); }}
                       style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                     >
                       <FaEdit size={12} /> Edit
                     </button>
-                    <button 
+                    <button
                       onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
                       style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                     >
@@ -919,6 +947,23 @@ const PriceMasterPage = () => {
           </div>
         </div>
       )}
+
+      {/* Bulk Excel Import Modal */}
+      <BulkImportModal
+        isOpen={isBulkImportOpen}
+        onClose={() => setIsBulkImportOpen(false)}
+        masterType="pricelist"
+        existingDbRecords={prices}
+        onImportSuccess={async (validRows) => {
+          const res = await apiService.post(PRICE_MASTER_ENDPOINTS.BULK_IMPORT, { rows: validRows });
+          if (res && res.success) {
+            triggerToast(res.message || 'Price list imported successfully!', 'success');
+            fetchPrices(currentPage, pageSize, searchQuery, statusFilter, selectedCategory);
+          } else {
+            throw new Error(res?.message || 'Failed to import price list.');
+          }
+        }}
+      />
 
     </div>
   );

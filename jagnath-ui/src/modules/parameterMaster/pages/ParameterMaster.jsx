@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  FaSlidersH, FaPlus, FaDownload, FaEdit, FaTrash, FaCheck, 
-  FaExclamationCircle, FaFileExcel, FaCopy, FaFileCsv, 
-  FaFilePdf, FaPrint, FaChevronDown, FaTimes 
+import {
+  FaSlidersH, FaPlus, FaDownload, FaEdit, FaTrash, FaCheck,
+  FaExclamationCircle, FaFileExcel, FaCopy, FaFileCsv,
+  FaFilePdf, FaPrint, FaChevronDown, FaTimes
 } from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
 import { PARAMETER_ENDPOINTS, COMPANY_ENDPOINTS, CATEGORY_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 import Pagination from '../../../shared/components/Pagination';
-import { copyTextToClipboard, downloadCSV } from '../../../shared/utils/exportUtils';
+import BulkImportModal from '../../../shared/components/BulkImport/BulkImportModal';
 
 const ParameterMaster = () => {
   // Parameter, Company & Category states
@@ -15,20 +15,21 @@ const ParameterMaster = () => {
   const [companies, setCompanies] = useState([]);
   const [categoriesList, setCategoriesList] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-  
+
   // Toast notifications state
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
   // Form visibility and editing state
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  
+
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -166,19 +167,19 @@ const ParameterMaster = () => {
       if (activeCompId) {
         params.append('companyId', activeCompId);
       }
-      
+
       const url = `${PARAMETER_ENDPOINTS.GET_ALL}?${params.toString()}`;
       const response = await apiService.get(url);
       if (response && response.data) {
         if (response.data.rows !== undefined) {
-           setParameters(response.data.rows);
-           setTotalItems(response.data.total);
-           setTotalPages(response.data.totalPages);
+          setParameters(response.data.rows);
+          setTotalItems(response.data.total);
+          setTotalPages(response.data.totalPages);
         } else {
-           const paramList = Array.isArray(response.data) ? response.data : [response.data];
-           setParameters(paramList);
-           setTotalItems(paramList.length);
-           setTotalPages(1);
+          const paramList = Array.isArray(response.data) ? response.data : [response.data];
+          setParameters(paramList);
+          setTotalItems(paramList.length);
+          setTotalPages(1);
         }
       } else {
         setParameters([]);
@@ -390,7 +391,7 @@ const ParameterMaster = () => {
       p.status
     ]);
     const text = [headers.join('\t'), ...rows.map(r => r.join('\t'))].join('\n');
-    copyTextToClipboard(text, 
+    copyTextToClipboard(text,
       () => triggerToast('Copied to clipboard successfully.', 'success'),
       () => triggerToast('Failed to copy text.', 'error')
     );
@@ -454,7 +455,7 @@ const ParameterMaster = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      
+
       {/* Toast Notification Container */}
       {toast.show && (
         <div style={{
@@ -487,30 +488,39 @@ const ParameterMaster = () => {
         </h2>
         <div className="master-top-bar-actions" style={{ display: 'flex', gap: '0.75rem', position: 'relative' }} ref={dropdownRef}>
           {!isFormOpen && (
-            <button 
-              onClick={handleOpenCreate} 
-              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1rem', fontWeight: 600, cursor: 'pointer' }}
-            >
-              <FaPlus />
-              <span>Parameter</span>
-            </button>
+            <>
+              <button
+                onClick={handleOpenCreate}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1rem', fontWeight: 600, cursor: 'pointer' }}
+              >
+                <FaPlus />
+                <span>Parameter</span>
+              </button>
+              <button
+                onClick={() => setIsBulkImportOpen(true)}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1rem', fontWeight: 600, cursor: 'pointer' }}
+              >
+                <FaFileExcel />
+                <span>Bulk Import</span>
+              </button>
+            </>
           )}
 
           {/* Premium Download Button */}
-          <button 
-            onClick={() => setShowDownloadDropdown(!showDownloadDropdown)} 
+          <button
+            onClick={() => setShowDownloadDropdown(!showDownloadDropdown)}
             disabled={parameters.length === 0}
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '0.5rem', 
-              backgroundColor: '#22c55e', 
-              color: '#ffffff', 
-              border: 'none', 
-              borderRadius: '8px', 
-              padding: '0.5rem 1.25rem', 
-              fontWeight: 600, 
-              cursor: 'pointer', 
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              backgroundColor: '#22c55e',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '0.5rem 1.25rem',
+              fontWeight: 600,
+              cursor: 'pointer',
               opacity: parameters.length === 0 ? 0.6 : 1,
               boxShadow: '0 2px 4px rgba(34, 197, 94, 0.2)'
             }}
@@ -578,10 +588,10 @@ const ParameterMaster = () => {
           <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '1.25rem', color: '#1e293b' }}>
             {editingId ? 'Edit Parameter' : 'Add New Parameter'}
           </h3>
-          
+
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
-              
+
               {/* Category Dropdown & Quick Add Link */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -613,8 +623,8 @@ const ParameterMaster = () => {
               {/* Parameter Name */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Parameter Name *</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   name="parameterName"
                   value={formData.parameterName}
                   onChange={handleInputChange}
@@ -629,7 +639,7 @@ const ParameterMaster = () => {
               {/* Description */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: 'span 2' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Description</label>
-                <textarea 
+                <textarea
                   name="description"
                   value={formData.description}
                   onChange={handleInputChange}
@@ -642,7 +652,7 @@ const ParameterMaster = () => {
               {/* Test Method */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: 'span 2' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Test Method</label>
-                <input 
+                <input
                   type="text"
                   name="testMethod"
                   value={formData.testMethod}
@@ -692,15 +702,15 @@ const ParameterMaster = () => {
 
             {/* Action Buttons */}
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => setIsFormOpen(false)}
                 style={{ padding: '0.5rem 1.25rem', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', backgroundColor: '#ffffff', color: '#475569', fontWeight: 600 }}
               >
                 Cancel
               </button>
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 disabled={submitting}
                 style={{ padding: '0.5rem 1.25rem', border: 'none', borderRadius: '6px', cursor: 'pointer', backgroundColor: '#22c55e', color: '#ffffff', fontWeight: 600, opacity: submitting ? 0.7 : 1 }}
               >
@@ -714,7 +724,7 @@ const ParameterMaster = () => {
 
       {/* Main view container */}
       <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-        
+
         {/* Filters Row */}
         <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.25rem', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>
@@ -722,13 +732,13 @@ const ParameterMaster = () => {
           </div>
           <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: '6px', padding: '0.25rem' }}>
-              <button 
+              <button
                 onClick={() => setViewMode('table')}
                 style={{ padding: '0.35rem 0.75rem', border: 'none', borderRadius: '4px', cursor: 'pointer', background: viewMode === 'table' ? '#ffffff' : 'transparent', color: viewMode === 'table' ? '#0f172a' : '#64748b', fontWeight: 600, boxShadow: viewMode === 'table' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition: 'all 0.2s' }}
               >
                 Table
               </button>
-              <button 
+              <button
                 onClick={() => setViewMode('cards')}
                 style={{ padding: '0.35rem 0.75rem', border: 'none', borderRadius: '4px', cursor: 'pointer', background: viewMode === 'cards' ? '#ffffff' : 'transparent', color: viewMode === 'cards' ? '#0f172a' : '#64748b', fontWeight: 600, boxShadow: viewMode === 'cards' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition: 'all 0.2s' }}
               >
@@ -744,9 +754,9 @@ const ParameterMaster = () => {
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
             </select>
-            <input 
-              type="text" 
-              placeholder="Search parameter name..." 
+            <input
+              type="text"
+              placeholder="Search parameter name..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{ padding: '0.5rem 1rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', width: '220px' }}
@@ -756,139 +766,139 @@ const ParameterMaster = () => {
 
         {/* Data Grid Table or Cards */}
         {viewMode === 'table' ? (
-        <>
-          {/* Desktop Table View */}
-          <div className="show-on-desktop master-table-responsive" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
-              <thead>
-                <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                  <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ACTIONS</th>
-                  <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
-                  <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>PARAMETER NAME</th>
-                  <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CATEGORY</th>
-                  <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>TEST METHOD</th>
-                  <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATUS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-                      Loading parameters...
-                    </td>
+          <>
+            {/* Desktop Table View */}
+            <div className="show-on-desktop master-table-responsive" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+                <thead>
+                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ACTIONS</th>
+                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
+                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>PARAMETER NAME</th>
+                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CATEGORY</th>
+                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>TEST METHOD</th>
+                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATUS</th>
                   </tr>
-                ) : parameters.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-                      No parameters found.
-                    </td>
-                  </tr>
-                ) : (
-                  parameters.map((param, index) => (
-                    <tr 
-                      key={param.id} 
-                      onClick={() => handleOpenEdit(param)}
-                      style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background-color 0.15s' }}
-                      className="company-table-row"
-                    >
-                      <td style={{ padding: '0.75rem 1rem', display: 'flex', gap: '0.5rem' }}>
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); handleOpenEdit(param); }}
-                          style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
-                          title="Edit"
-                        >
-                          <FaEdit size={12} />
-                        </button>
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); handleDelete(param.id); }}
-                          style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
-                          title="Delete"
-                        >
-                          <FaTrash size={12} />
-                        </button>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr>
+                      <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                        Loading parameters...
                       </td>
-                      <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
-                      <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{param.parameterName}</td>
-                      <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.categoryName || (param.category ? param.category.categoryName : 'Unassigned')}</td>
-                      <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.testMethod || 'N/A'}</td>
-                      <td style={{ padding: '0.75rem 1rem' }}>
-                        <span style={{ 
-                          display: 'inline-block',
-                          padding: '0.125rem 0.5rem',
+                    </tr>
+                  ) : parameters.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                        No parameters found.
+                      </td>
+                    </tr>
+                  ) : (
+                    parameters.map((param, index) => (
+                      <tr
+                        key={param.id}
+                        onClick={() => handleOpenEdit(param)}
+                        style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background-color 0.15s' }}
+                        className="company-table-row"
+                      >
+                        <td style={{ padding: '0.75rem 1rem', display: 'flex', gap: '0.5rem' }}>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleOpenEdit(param); }}
+                            style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
+                            title="Edit"
+                          >
+                            <FaEdit size={12} />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDelete(param.id); }}
+                            style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
+                            title="Delete"
+                          >
+                            <FaTrash size={12} />
+                          </button>
+                        </td>
+                        <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
+                        <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{param.parameterName}</td>
+                        <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.categoryName || (param.category ? param.category.categoryName : 'Unassigned')}</td>
+                        <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.testMethod || 'N/A'}</td>
+                        <td style={{ padding: '0.75rem 1rem' }}>
+                          <span style={{
+                            display: 'inline-block',
+                            padding: '0.125rem 0.5rem',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            borderRadius: '12px',
+                            backgroundColor: param.status === 'Active' ? '#dcfce7' : '#fee2e2',
+                            color: param.status === 'Active' ? '#15803d' : '#991b1b'
+                          }}>
+                            {param.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Cards View */}
+            <div className="show-on-mobile">
+              {loading ? (
+                <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                  Loading parameters...
+                </div>
+              ) : parameters.length === 0 ? (
+                <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                  No parameters found.
+                </div>
+              ) : (
+                <div className="master-card-grid">
+                  {parameters.map((param, index) => (
+                    <div key={param.id} className="master-record-card" onClick={() => handleOpenEdit(param)}>
+                      <div className="master-record-card-header">
+                        <div>
+                          <div className="master-record-title">{param.parameterName}</div>
+                          <div className="master-record-subtitle">#{(currentPage - 1) * pageSize + index + 1} • {param.categoryName || (param.category ? param.category.categoryName : 'Unassigned')}</div>
+                        </div>
+                        <span style={{
+                          padding: '0.2rem 0.6rem',
                           fontSize: '0.75rem',
-                          fontWeight: 600,
+                          fontWeight: 700,
                           borderRadius: '12px',
                           backgroundColor: param.status === 'Active' ? '#dcfce7' : '#fee2e2',
                           color: param.status === 'Active' ? '#15803d' : '#991b1b'
                         }}>
                           {param.status}
                         </span>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile Cards View */}
-          <div className="show-on-mobile">
-            {loading ? (
-              <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-                Loading parameters...
-              </div>
-            ) : parameters.length === 0 ? (
-              <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-                No parameters found.
-              </div>
-            ) : (
-              <div className="master-card-grid">
-                {parameters.map((param, index) => (
-                  <div key={param.id} className="master-record-card" onClick={() => handleOpenEdit(param)}>
-                    <div className="master-record-card-header">
-                      <div>
-                        <div className="master-record-title">{param.parameterName}</div>
-                        <div className="master-record-subtitle">#{ (currentPage - 1) * pageSize + index + 1 } • {param.categoryName || (param.category ? param.category.categoryName : 'Unassigned')}</div>
                       </div>
-                      <span style={{ 
-                        padding: '0.2rem 0.6rem',
-                        fontSize: '0.75rem',
-                        fontWeight: 700,
-                        borderRadius: '12px',
-                        backgroundColor: param.status === 'Active' ? '#dcfce7' : '#fee2e2',
-                        color: param.status === 'Active' ? '#15803d' : '#991b1b'
-                      }}>
-                        {param.status}
-                      </span>
-                    </div>
 
-                    <div className="master-record-details">
-                      <div className="master-record-detail-item" style={{ gridColumn: '1 / -1' }}>
-                        <span className="master-record-label">Test Method</span>
-                        <span className="master-record-value">{param.testMethod || 'N/A'}</span>
+                      <div className="master-record-details">
+                        <div className="master-record-detail-item" style={{ gridColumn: '1 / -1' }}>
+                          <span className="master-record-label">Test Method</span>
+                          <span className="master-record-value">{param.testMethod || 'N/A'}</span>
+                        </div>
+                      </div>
+
+                      <div className="master-record-actions">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleOpenEdit(param); }}
+                          style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                        >
+                          <FaEdit size={12} /> Edit
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDelete(param.id); }}
+                          style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                        >
+                          <FaTrash size={12} /> Delete
+                        </button>
                       </div>
                     </div>
-
-                    <div className="master-record-actions">
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); handleOpenEdit(param); }}
-                        style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-                      >
-                        <FaEdit size={12} /> Edit
-                      </button>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); handleDelete(param.id); }}
-                        style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-                      >
-                        <FaTrash size={12} /> Delete
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
         ) : (
           <div style={{ minHeight: '300px' }}>
             {loading ? (
@@ -925,9 +935,9 @@ const ParameterMaster = () => {
             )}
           </div>
         )}
-        
+
         {/* Pagination Controls */}
-        <Pagination 
+        <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
           totalItems={totalItems}
@@ -982,6 +992,23 @@ const ParameterMaster = () => {
           </div>
         </div>
       )}
+
+      {/* Bulk Excel Import Modal */}
+      <BulkImportModal
+        isOpen={isBulkImportOpen}
+        onClose={() => setIsBulkImportOpen(false)}
+        masterType="parameter"
+        existingDbRecords={parameters}
+        onImportSuccess={async (validRows) => {
+          const res = await apiService.post(PARAMETER_ENDPOINTS.BULK_IMPORT, { rows: validRows });
+          if (res && res.success) {
+            triggerToast(res.message || 'Parameters imported successfully!', 'success');
+            fetchParameters(currentPage, pageSize, searchQuery, statusFilter);
+          } else {
+            throw new Error(res?.message || 'Failed to import parameters.');
+          }
+        }}
+      />
 
     </div>
   );

@@ -26,6 +26,7 @@ db.TestRequest = require("../modules/Forms/TestRequestForm/testRequest.model");
 db.CategoryParameter = require("../modules/Masters/CategoryParameterMasters/categoryParameter.model");
 db.TestRequestParameter = require("../modules/Transactions/TestRequestParameters/testRequestParameter.model");
 db.PriceMaster = require("../modules/Masters/PriceListMasters/price_master.model");
+db.Caution = require("../modules/Masters/CautionMasters/caution.model");
 
 // Define Associations
 db.Users.hasMany(db.RefreshTokens, { foreignKey: "user_id" });
@@ -76,5 +77,12 @@ db.PriceMaster.belongsTo(db.Category, { foreignKey: "categoryId", as: "category"
 
 db.Parameter.hasMany(db.PriceMaster, { foreignKey: "parameterId", as: "priceMasters" });
 db.PriceMaster.belongsTo(db.Parameter, { foreignKey: "parameterId", as: "parameter" });
+
+// Caution Master Associations
+db.Company.hasMany(db.Caution, { foreignKey: "companyId", as: "cautions" });
+db.Caution.belongsTo(db.Company, { foreignKey: "companyId", as: "company" });
+
+db.Caution.hasMany(db.TestRequest, { foreignKey: "cautionId", as: "testRequests" });
+db.TestRequest.belongsTo(db.Caution, { foreignKey: "cautionId", as: "caution" });
 
 module.exports = db;

@@ -10,6 +10,7 @@ const { authenticateToken } = require("../../../middlewares/auth.middleware");
 // Protect all category routes
 router.use(authenticateToken);
 
+router.post("/bulk-import", categoryController.bulkImport);
 router.post("/", categoryController.create);
 router.get("/", categoryController.getAll);
 router.get("/:id", categoryController.getById);

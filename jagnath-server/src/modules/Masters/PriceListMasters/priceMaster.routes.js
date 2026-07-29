@@ -9,6 +9,7 @@ const { authenticateToken } = require("../../../middlewares/auth.middleware");
 
 router.use(authenticateToken);
 
+router.post("/bulk-import", priceMasterController.bulkImport);
 router.get("/", priceMasterController.getAll);
 router.get("/:id", priceMasterController.getById);
 router.post("/", priceMasterController.create);

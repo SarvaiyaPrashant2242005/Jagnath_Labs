@@ -238,5 +238,47 @@ module.exports = {
     getUserById,
     getAllUsers,
     updateUser,
-    deleteUser
+    deleteUser,
+    bulkImportUsers: async (records) => {
+        const transaction = await sequelize.transaction();
+        try {
+            let createdCount = 0;
+            let updatedCount = 0;
+
+            for (const item of records) {
+                const data = { ...item.data };
+
+                let existing = null;
+                if (item._dbId) {
+                    existing = await Users.findByPk(item._dbId, { transaction });
+                } else if (data.email) {
+                    existing = await Users.findOne({ where: { email: data.email }, transaction });
+                }
+
+                if (data.password && data.password.trim() !== '') {
+                    data.password = await bcrypt.hash(data.password, 10);
+                } else {
+                    delete data.password;
+                }
+
+                if (existing) {
+                    await existing.update(data, { transaction });
+                    updatedCount++;
+                } else {
+                    if (!data.password) {
+                        data.password = await bcrypt.hash("User@123", 10);
+                    }
+                    await Users.create(data, { transaction });
+                    createdCount++;
+                }
+            }
+
+            await transaction.commit();
+            return { createdCount, updatedCount, totalProcessed: records.length };
+        } catch (error) {
+            await transaction.rollback();
+            throw error;
+        }
+    }
 };
+

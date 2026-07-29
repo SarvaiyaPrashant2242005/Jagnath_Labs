@@ -388,5 +388,71 @@ module.exports = {
     updateParameter,
     deleteParameter,
     getParameterById,
-    getParametersByCompany
+    getParametersByCompany,
+    bulkImportParameters: async (records, companyId, userId, reqInfo) => {
+        const transaction = await sequelize.transaction();
+        try {
+            let createdCount = 0;
+            let updatedCount = 0;
+
+            for (const item of records) {
+                const data = item.data;
+                const paramName = data.parameterName || data.name;
+                if (!paramName) continue;
+
+                // Resolve category mapping if categoryName is provided
+                let categoryId = null;
+                if (data.categoryName && data.categoryName.trim() !== '') {
+                    let cat = await Category.findOne({ where: { name: data.categoryName.trim(), companyId }, transaction });
+                    if (!cat) {
+                        cat = await Category.create({ name: data.categoryName.trim(), companyId, status: "Active" }, { transaction });
+                    }
+                    categoryId = cat.id;
+                }
+
+                const paramPayload = {
+                    companyId,
+                    parameterName: paramName,
+                    description: data.description || null,
+                    testMethod: data.testMethod || null,
+                    status: data.status || "Active"
+                };
+
+                let existing = null;
+                if (item._dbId) {
+                    existing = await Parameter.findOne({ where: { id: item._dbId, companyId }, transaction });
+                } else {
+                    existing = await Parameter.findOne({ where: { parameterName: paramName, companyId }, transaction });
+                }
+
+                if (existing) {
+                    await existing.update(paramPayload, { transaction });
+                    updatedCount++;
+
+                    if (categoryId) {
+                        const rel = await CategoryParameter.findOne({ where: { parameterId: existing.id, companyId }, transaction });
+                        if (rel) {
+                            await rel.update({ categoryId }, { transaction });
+                        } else {
+                            await CategoryParameter.create({ companyId, categoryId, parameterId: existing.id, status: "Active" }, { transaction });
+                        }
+                    }
+                } else {
+                    const newParam = await Parameter.create(paramPayload, { transaction });
+                    createdCount++;
+
+                    if (categoryId) {
+                        await CategoryParameter.create({ companyId, categoryId, parameterId: newParam.id, status: "Active" }, { transaction });
+                    }
+                }
+            }
+
+            await transaction.commit();
+            return { createdCount, updatedCount, totalProcessed: records.length };
+        } catch (error) {
+            await transaction.rollback();
+            throw error;
+        }
+    }
 };
+

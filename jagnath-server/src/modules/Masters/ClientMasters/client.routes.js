@@ -10,6 +10,7 @@ const { authenticateToken } = require("../../../middlewares/auth.middleware");
 // Protect all client routes
 router.use(authenticateToken);
 
+router.post("/bulk-import", clientController.bulkImport);
 router.post("/", clientController.create);
 router.get("/", clientController.getAll);
 router.get("/:id", clientController.getById);
