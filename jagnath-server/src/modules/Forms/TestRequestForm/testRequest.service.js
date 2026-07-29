@@ -5,6 +5,7 @@
 const TestRequest = require("./testRequest.model");
 const Company = require("../../Masters/CompanyMasters/company.model");
 const Client = require("../../Masters/ClientMasters/client.model");
+const Caution = require("../../Masters/CautionMasters/caution.model");
 const Users = require("../../Auth/Users/users.model");
 const sequelize = require("../../../config/database");
 const { Op } = require("sequelize");
@@ -308,6 +309,10 @@ const getTestRequestById = async (trId, companyId) => {
                     model: Client,
                     as: "client",
                     attributes: ["clientName"]
+                },
+                {
+                    model: Caution,
+                    as: "caution"
                 }
             ],
             attributes: { exclude: ["deleted_at"] }

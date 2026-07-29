@@ -13,8 +13,10 @@ import DashboardLayout from './shared/layouts/DashboardLayout';
 import TestRequestForm from './modules/testRequest/pages/TestRequestForm';
 import TestRequestList from './modules/testRequest/pages/TestRequestList';
 import TestRequestPrint from './modules/testRequest/pages/TestRequestPrint';
+import QuotationPrint from './modules/testRequest/pages/QuotationPrint';
 import Profile from './modules/profile/pages/Profile';
 import PriceList from './modules/pricelist/pages/PriceList';
+import CautionMaster from './modules/cautionMaster/pages/CautionMaster';
 import { getStoredUser } from './modules/auth/services/authService';
 import './assets/styles/index.css';
 
@@ -126,12 +128,14 @@ function App() {
         <Route path="/users" element={<ProtectedRoute><UserMaster /></ProtectedRoute>} />
         <Route path="/price-lists" element={<ProtectedRoute><PriceList /></ProtectedRoute>} />
         <Route path="/price-master" element={<ProtectedRoute><PriceList /></ProtectedRoute>} />
+        <Route path="/cautions" element={<ProtectedRoute><CautionMaster /></ProtectedRoute>} />
         <Route path="/test-requests" element={<ProtectedRoute><TestRequestList /></ProtectedRoute>} />
         <Route path="/test-requests/add" element={<ProtectedRoute><TestRequestForm /></ProtectedRoute>} />
         <Route path="/test-requests/edit/:id" element={<ProtectedRoute><TestRequestForm /></ProtectedRoute>} />
 
-        {/* Print Route without DashboardLayout */}
+        {/* Print Routes without DashboardLayout */}
         <Route path="/test-requests/print/:id" element={<ProtectedPrintRoute><TestRequestPrint /></ProtectedPrintRoute>} />
+        <Route path="/test-requests/quotation/:id" element={<ProtectedPrintRoute><QuotationPrint /></ProtectedPrintRoute>} />
         <Route path="/reports" element={<ProtectedRoute><PlaceholderPage title="Reports Directory" /></ProtectedRoute>} />
         <Route path="/invoices" element={<ProtectedRoute><PlaceholderPage title="Invoices Directory" /></ProtectedRoute>} />
         <Route path="/dispatch" element={<ProtectedRoute><PlaceholderPage title="Dispatch Directory" /></ProtectedRoute>} />

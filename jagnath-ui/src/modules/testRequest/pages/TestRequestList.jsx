@@ -386,13 +386,20 @@ const TestRequestList = () => {
                     style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background-color 0.15s' }}
                     className="company-table-row"
                   >
-                    <td style={{ padding: '0.75rem 1rem', display: 'flex', gap: '0.5rem' }}>
+                    <td style={{ padding: '0.75rem 1rem', display: 'flex', gap: '0.4rem' }}>
                       <button 
                         onClick={(e) => { e.stopPropagation(); navigate(`/test-requests/print/${req.id}`); }}
                         style={{ background: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
-                        title="Print / View PDF"
+                        title="Print TRF PDF"
                       >
                         <FaPrint size={12} />
+                      </button>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); window.open(`#/test-requests/quotation/${req.id}`, '_blank'); }}
+                        style={{ background: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
+                        title="Generate Quotation PDF"
+                      >
+                        <FaFilePdf size={12} />
                       </button>
                       <button 
                         onClick={(e) => { e.stopPropagation(); navigate(`/test-requests/edit/${req.id}`); }}

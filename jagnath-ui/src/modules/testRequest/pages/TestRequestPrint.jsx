@@ -7,7 +7,8 @@ import {
   CATEGORY_PARAMETER_ENDPOINTS,
   TEST_REQUEST_ENDPOINTS,
   TEST_REQUEST_PARAMETER_ENDPOINTS,
-  COMPANY_ENDPOINTS
+  COMPANY_ENDPOINTS,
+  CAUTION_ENDPOINTS
 } from '../../../shared/services/apiEndpoints';
 
 const TestRequestPrint = () => {
@@ -19,6 +20,7 @@ const TestRequestPrint = () => {
   const [selCompany, setSelCompany] = useState({});
   const [selClient, setSelClient] = useState({});
   const [selCategory, setSelCategory] = useState({});
+  const [selCaution, setSelCaution] = useState(null);
   const [formData, setFormData] = useState({});
 
   const [parameters, setParameters] = useState([]);
@@ -63,10 +65,22 @@ const TestRequestPrint = () => {
       setSelClient(matchingClient);
       setSelCategory(matchingCat);
 
+      if (tr.caution) {
+        setSelCaution(tr.caution);
+      } else if (tr.cautionId) {
+        try {
+          const cautionRes = await apiService.get(CAUTION_ENDPOINTS.GET_BY_ID(tr.cautionId));
+          if (cautionRes?.data) setSelCaution(cautionRes.data);
+        } catch (e) {
+          console.error("Error fetching caution for TR print:", e);
+        }
+      }
+
+      let allCategoryParams = [];
       if (tr.sampleParticular) {
         const paramRes = await apiService.get(CATEGORY_PARAMETER_ENDPOINTS.GET_BY_CATEGORY(tr.sampleParticular));
         if (paramRes?.data) {
-          setParameters(Array.isArray(paramRes.data) ? paramRes.data : [paramRes.data]);
+          allCategoryParams = Array.isArray(paramRes.data) ? paramRes.data : [paramRes.data];
         }
       }
 
@@ -79,6 +93,12 @@ const TestRequestPrint = () => {
           if (t.parameterId) checks[t.parameterId] = true;
         });
         setCheckedParameters(checks);
+
+        // Filter allCategoryParams to include only selected parameters
+        const selectedParamsOnly = allCategoryParams.filter(p => checks[p.id]);
+        setParameters(selectedParamsOnly);
+      } else {
+        setParameters([]);
       }
 
       // Small delay to ensure render is complete before popping the print dialog
@@ -324,21 +344,40 @@ const TestRequestPrint = () => {
             </tr>
           </thead>
           <tbody>
-            {Array.from({ length: 25 }).map((_, i) => {
+            {Array.from({ length: Math.max(20, parameters.length) }).map((_, i) => {
               const param = parameters[i];
               return (
                 <tr key={i}>
                   <td style={{ textAlign: 'center' }}>{i + 1}.</td>
-                  <td style={{ textAlign: 'center' }}>{param ? param.parameterName : ''}</td>
-                  <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{param && checkedParameters[param.id] ? '√' : ''}</td>
-                  <td style={{ textAlign: 'center' }}>{param ? param.testMethod : ''}</td>
+                  <td style={{ textAlign: 'left', paddingLeft: '8px' }}>{param ? (param.parameterName || param.name) : ''}</td>
+                  <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{param ? '√' : ''}</td>
+                  <td style={{ textAlign: 'center' }}>{param ? (param.testMethod || param.defaultTestMethod || '') : ''}</td>
                 </tr>
               );
             })}
           </tbody>
         </table>
 
-        <div style={{ textAlign: 'right', marginTop: '1.5rem', fontWeight: 'bold', fontSize: '0.9rem', paddingRight: '2rem' }}>
+        {/* Caution / Notice Section (Printed if Include Caution = YES) */}
+        {(formData.includeCaution || formData.include_caution) && selCaution && (
+          <div style={{
+            marginTop: '0.8rem',
+            border: '1px solid #000',
+            padding: '0.5rem 0.75rem',
+            fontSize: '0.75rem',
+            lineHeight: '1.3',
+            background: '#fff'
+          }}>
+            <div style={{ fontWeight: 'bold', textDecoration: 'underline', marginBottom: '0.25rem' }}>
+              CAUTION / NOTICE: {selCaution.title}
+            </div>
+            <div style={{ whiteSpace: 'pre-wrap', color: '#111' }}>
+              {selCaution.description}
+            </div>
+          </div>
+        )}
+
+        <div style={{ textAlign: 'right', marginTop: '1rem', fontWeight: 'bold', fontSize: '0.9rem', paddingRight: '2rem' }}>
           Approved By<br />
           Technical Manager
         </div>

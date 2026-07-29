@@ -108,4 +108,14 @@ export const PRICE_MASTER_ENDPOINTS = {
 
 export const PRICE_LIST_ENDPOINTS = PRICE_MASTER_ENDPOINTS;
 
+// ─── Caution Master Endpoints ───────────────────────────────────────────────────
+export const CAUTION_ENDPOINTS = {
+  CREATE: `${API_BASE_URL}/caution`,
+  GET_ALL: `${API_BASE_URL}/caution`,
+  GET_BY_ID: (id) => `${API_BASE_URL}/caution/${id}`,
+  UPDATE: (id) => `${API_BASE_URL}/caution/${id}`,
+  DELETE: (id) => `${API_BASE_URL}/caution/${id}`,
+};
+
+
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   FaChartPie, FaBuilding, FaUserFriends, FaTags, FaSlidersH,
   FaClipboardList, FaFileAlt, FaFileInvoiceDollar,
-  FaTruck, FaCog, FaChevronRight, FaFolder, FaTimes, FaUserShield
+  FaTruck, FaCog, FaChevronRight, FaFolder, FaTimes, FaUserShield, FaShieldAlt
 } from 'react-icons/fa';
 
 /**
@@ -14,7 +14,7 @@ const Sidebar = ({ activeTab, onTabChange, onNewRequest, sidebarRef, isOpen = tr
 
   // Auto-expand group containing the active tab
   useEffect(() => {
-    if (['companies', 'clients', 'categories', 'parameters', 'price-lists'].includes(activeTab)) {
+    if (['companies', 'clients', 'categories', 'parameters', 'price-lists', 'cautions'].includes(activeTab)) {
       setOpenGroup('masters');
     } else if (['requests', 'new-request'].includes(activeTab)) {
       setOpenGroup('workflow');
@@ -222,7 +222,7 @@ const Sidebar = ({ activeTab, onTabChange, onNewRequest, sidebarRef, isOpen = tr
           }
 
           .submenu-container.open {
-            max-height: 220px;
+            max-height: 500px;
             opacity: 1;
             margin-bottom: 0.4rem;
             margin-top: 0.15rem;
@@ -309,7 +309,8 @@ const Sidebar = ({ activeTab, onTabChange, onNewRequest, sidebarRef, isOpen = tr
                   { name: 'Clients', key: 'clients', icon: <FaUserFriends size={14} /> },
                   { name: 'Categories', key: 'categories', icon: <FaTags size={14} /> },
                   { name: 'Parameters', key: 'parameters', icon: <FaSlidersH size={14} /> },
-                  { name: 'Price List', key: 'price-lists', icon: <FaFileInvoiceDollar size={14} /> }
+                  { name: 'Price List', key: 'price-lists', icon: <FaFileInvoiceDollar size={14} /> },
+                  { name: 'Caution Master', key: 'cautions', icon: <FaShieldAlt size={14} /> }
                 ].map(item => (
                   <div
                     key={item.key}

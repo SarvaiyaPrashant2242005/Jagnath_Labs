@@ -82,6 +82,8 @@ const create = async (req, res) => {
             ...value,
             companyId: company.id,
             clientId: client.id,
+            cautionId: (value.cautionId && typeof value.cautionId === 'string' && value.cautionId.trim() !== "") ? value.cautionId : null,
+            includeCaution: !!value.includeCaution,
             address: value.address !== undefined && value.address !== null && value.address !== "" ? value.address : client.address,
             contactNumber: value.contactNumber !== undefined && value.contactNumber !== null && value.contactNumber !== "" ? value.contactNumber : client.contactNumber
         };
@@ -277,6 +279,12 @@ const update = async (req, res) => {
             companyId: resolvedCompanyId,
             clientId: resolvedClientId
         };
+        if (value.cautionId !== undefined) {
+            updateData.cautionId = (value.cautionId && typeof value.cautionId === 'string' && value.cautionId.trim() !== "") ? value.cautionId : null;
+        }
+        if (value.includeCaution !== undefined) {
+            updateData.includeCaution = !!value.includeCaution;
+        }
         delete updateData.companyName;
         delete updateData.clientName;
 

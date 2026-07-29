@@ -7,7 +7,9 @@ import {
   CATEGORY_PARAMETER_ENDPOINTS,
   TEST_REQUEST_ENDPOINTS,
   TEST_REQUEST_PARAMETER_ENDPOINTS,
-  COMPANY_ENDPOINTS
+  COMPANY_ENDPOINTS,
+  CAUTION_ENDPOINTS,
+  PRICE_MASTER_ENDPOINTS
 } from '../../../shared/services/apiEndpoints';
 import { FaPrint, FaSave, FaArrowLeft, FaCheck, FaExclamationCircle, FaEye, FaEyeSlash } from 'react-icons/fa';
 
@@ -20,6 +22,8 @@ const TestRequestForm = () => {
   const [companies, setCompanies] = useState([]);
   const [clients, setClients] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [cautions, setCautions] = useState([]);
+  const [priceMasterMap, setPriceMasterMap] = useState({});
   
   // State for dynamic parameter checklist
   const [parameters, setParameters] = useState([]);
@@ -55,7 +59,9 @@ const TestRequestForm = () => {
     testProtocol: 'Ground Water/Surface Water/Drinking Water: APHA 23rd Edition 2017\nWaste Water: APHA 23rd Edition 2017',
     remarks: '',
     formTitle: 'WATER & WASTE WATER',
-    formType: 'Regular'
+    formType: 'Regular',
+    includeCaution: false,
+    cautionId: ''
   });
 
   const [loading, setLoading] = useState(false);
@@ -85,10 +91,12 @@ const TestRequestForm = () => {
     try {
       setLoading(true);
       
-      // 1. Fetch companies and categories first (independently of request)
-      const [compRes, catRes] = await Promise.all([
+      // 1. Fetch companies, categories, cautions, and price master first
+      const [compRes, catRes, cautionRes, priceRes] = await Promise.all([
         apiService.get(COMPANY_ENDPOINTS.GET_MY),
-        apiService.get(CATEGORY_ENDPOINTS.GET_ALL)
+        apiService.get(CATEGORY_ENDPOINTS.GET_ALL),
+        apiService.get(CAUTION_ENDPOINTS.GET_ALL),
+        apiService.get(PRICE_MASTER_ENDPOINTS.GET_ALL)
       ]);
 
       const cList = Array.isArray(compRes?.data) ? compRes.data : [compRes?.data];
@@ -96,6 +104,22 @@ const TestRequestForm = () => {
       if (catRes?.data) {
         const catList = Array.isArray(catRes.data) ? catRes.data : [catRes.data];
         setCategories(catList.filter(cat => cat.status === 'Active'));
+      }
+
+      if (cautionRes?.data) {
+        const cautionList = Array.isArray(cautionRes.data) ? cautionRes.data : [cautionRes.data];
+        setCautions(cautionList.filter(c => c.status === true || c.status === 'Active'));
+      }
+
+      if (priceRes?.data) {
+        const priceList = Array.isArray(priceRes.data) ? priceRes.data : [priceRes.data];
+        const pMap = {};
+        priceList.forEach(p => {
+          if (p.parameterId && (p.status === 'Active' || p.status === true)) {
+            pMap[p.parameterId] = parseFloat(p.price || 0);
+          }
+        });
+        setPriceMasterMap(pMap);
       }
 
       let tr = null;
@@ -166,7 +190,9 @@ const TestRequestForm = () => {
           remarks: tr.remarks || '',
           testProtocol: tr.testProtocol || 'Ground Water/Surface Water/Drinking Water: APHA 23rd Edition 2017\nWaste Water: APHA 23rd Edition 2017',
           formTitle: (tr.formTitle || 'WATER & WASTE WATER').replace(/^TEST REQUEST FORM FOR /i, ''),
-          formType: tr.formType || 'Regular'
+          formType: tr.formType || 'Regular',
+          includeCaution: tr.includeCaution !== undefined ? !!tr.includeCaution : false,
+          cautionId: tr.cautionId || ''
         });
 
         if (tr.sampleParticular) {
@@ -259,19 +285,28 @@ const TestRequestForm = () => {
     return true;
   };
 
+  const [savedRequestId, setSavedRequestId] = useState(id || null);
+
   const handleSave = async () => {
     if (!validateForm()) return false;
     setSubmitting(true);
     
     try {
       // 1. Save Test Request
-      const payload = { ...formData, reportIssueDays: formData.tentativeDays, reviewedBy: formData.sampleTestingFacilityReviewedBy };
+      const payload = { 
+        ...formData, 
+        includeCaution: Boolean(formData.includeCaution),
+        cautionId: formData.includeCaution && formData.cautionId ? formData.cautionId : null,
+        reportIssueDays: formData.tentativeDays, 
+        reviewedBy: formData.sampleTestingFacilityReviewedBy 
+      };
       delete payload.tentativeDays;
       delete payload.sampleTestingFacilityReviewedBy;
       
-      let savedTrId = id;
-      if (isEditing) {
-        await apiService.put(TEST_REQUEST_ENDPOINTS.UPDATE(id), payload);
+      const targetId = savedRequestId || id;
+      let savedTrId = targetId;
+      if (targetId) {
+        await apiService.put(TEST_REQUEST_ENDPOINTS.UPDATE(targetId), payload);
       } else {
         const res = await apiService.post(TEST_REQUEST_ENDPOINTS.CREATE, payload);
         savedTrId = res?.data?.id || res?.data?.data?.id; // depending on response format
@@ -283,14 +318,23 @@ const TestRequestForm = () => {
         return false;
       }
 
+      // Update saved requestId state & navigate to edit mode so subsequent clicks trigger UPDATE instead of CREATE
+      setSavedRequestId(savedTrId);
+      if (!id) {
+        navigate(`/test-requests/edit/${savedTrId}`, { replace: true });
+      }
+
       // 2. Save Parameters Checklist
       const currentParamIds = Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]);
       
       for (const pId of currentParamIds) {
         if (!checkedParameters[`_id_${pId}`]) {
+          const targetParam = parameters.find(p => p.id === pId);
           await apiService.post(TEST_REQUEST_PARAMETER_ENDPOINTS.CREATE, {
             testRequestId: savedTrId,
-            parameterId: pId
+            parameterId: pId,
+            testMethod: targetParam ? (targetParam.testMethod || targetParam.defaultTestMethod) : null,
+            price: priceMasterMap[pId] || 0
           });
         }
       }
@@ -309,6 +353,13 @@ const TestRequestForm = () => {
     const savedId = await handleSave();
     if (savedId) {
       window.open(`#/test-requests/print/${savedId}`, '_blank');
+    }
+  };
+
+  const handleSaveAndQuotation = async () => {
+    const savedId = await handleSave();
+    if (savedId) {
+      window.open(`#/test-requests/quotation/${savedId}`, '_blank');
     }
   };
 
@@ -450,6 +501,53 @@ const TestRequestForm = () => {
                 </div>
               </div>
 
+              {/* Include Caution Toggle */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Include Caution</label>
+                <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', background: '#f8fafc', padding: '0.75rem 1rem', border: '1px solid #e2e8f0', borderRadius: '8px', height: '42px', boxSizing: 'border-box' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500, color: '#1e293b' }}>
+                    <input 
+                      type="radio" 
+                      name="includeCaution" 
+                      value="false" 
+                      checked={!formData.includeCaution} 
+                      onChange={() => setFormData(prev => ({ ...prev, includeCaution: false, cautionId: '' }))} 
+                      style={{ width: '1.1rem', height: '1.1rem', accentColor: '#3b82f6' }} 
+                    />
+                    No
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500, color: '#1e293b' }}>
+                    <input 
+                      type="radio" 
+                      name="includeCaution" 
+                      value="true" 
+                      checked={formData.includeCaution} 
+                      onChange={() => setFormData(prev => ({ ...prev, includeCaution: true }))} 
+                      style={{ width: '1.1rem', height: '1.1rem', accentColor: '#3b82f6' }} 
+                    />
+                    Yes
+                  </label>
+                </div>
+              </div>
+
+              {/* Select Caution Dropdown */}
+              {formData.includeCaution && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                  <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Select Caution <span style={{color: '#ef4444'}}>*</span></label>
+                  <select 
+                    name="cautionId" 
+                    value={formData.cautionId} 
+                    onChange={handleChange} 
+                    className="premium-input"
+                  >
+                    <option value="">Select Caution</option>
+                    {cautions.map(c => (
+                      <option key={c.id} value={c.id}>{c.title}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', gridColumn: '1 / -1' }}>
                 <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Address for Communication</label>
                 <textarea name="address" value={formData.address} onChange={handleChange} className="premium-input" rows={2} placeholder="Enter full address..."></textarea>
@@ -553,11 +651,16 @@ const TestRequestForm = () => {
 
             {parameters.length > 0 && (
               <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                <div style={{ padding: '1.25rem', borderBottom: '1px solid #e2e8f0', background: 'linear-gradient(to right, #f8fafc, #ffffff)', fontWeight: 700, color: '#1e293b', fontSize: '1.05rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  Select Test Parameters to be Analyzed
-                  <span style={{ fontSize: '0.8rem', background: '#e0e7ff', color: '#4338ca', padding: '0.2rem 0.6rem', borderRadius: '999px' }}>
-                    {Object.values(checkedParameters).filter(Boolean).length} Selected
-                  </span>
+                <div style={{ padding: '1.25rem', borderBottom: '1px solid #e2e8f0', background: 'linear-gradient(to right, #f8fafc, #ffffff)', fontWeight: 700, color: '#1e293b', fontSize: '1.05rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <span>Select Test Parameters to be Analyzed</span>
+                  <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.85rem', background: '#dcfce7', color: '#166534', padding: '0.25rem 0.75rem', borderRadius: '999px', fontWeight: 700 }}>
+                      Total: ₹{parameters.reduce((sum, param) => sum + (checkedParameters[param.id] ? (priceMasterMap[param.id] || 0) : 0), 0).toFixed(2)}
+                    </span>
+                    <span style={{ fontSize: '0.8rem', background: '#e0e7ff', color: '#4338ca', padding: '0.2rem 0.6rem', borderRadius: '999px' }}>
+                      {Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]).length} Selected
+                    </span>
+                  </div>
                 </div>
                 <div className="master-table-responsive" style={{ maxHeight: '250px', overflowY: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.95rem' }}>
@@ -566,11 +669,13 @@ const TestRequestForm = () => {
                         <th style={{ padding: '0.75rem 1rem', textAlign: 'center', width: '80px', color: '#64748b', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Select</th>
                         <th style={{ padding: '0.75rem 1rem', textAlign: 'left', color: '#64748b', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Parameter Name</th>
                         <th style={{ padding: '0.75rem 1rem', textAlign: 'left', color: '#64748b', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Test Method</th>
+                        <th style={{ padding: '0.75rem 1rem', textAlign: 'right', color: '#64748b', fontWeight: 600, borderBottom: '2px solid #e2e8f0', width: '120px' }}>Price (₹)</th>
                       </tr>
                     </thead>
                     <tbody>
                       {parameters.map(param => {
                         const isChecked = !!checkedParameters[param.id];
+                        const paramPrice = priceMasterMap[param.id] || 0;
                         return (
                           <tr 
                             key={param.id} 
@@ -593,6 +698,9 @@ const TestRequestForm = () => {
                             </td>
                             <td style={{ padding: '0.75rem 1rem', color: isChecked ? '#166534' : '#1e293b', fontWeight: isChecked ? 600 : 500 }}>{param.parameterName}</td>
                             <td style={{ padding: '0.75rem 1rem', color: isChecked ? '#15803d' : '#64748b' }}>{param.testMethod || 'N/A'}</td>
+                            <td style={{ padding: '0.75rem 1rem', textAlign: 'right', color: isChecked ? '#15803d' : '#334155', fontWeight: 600 }}>
+                              ₹{paramPrice.toFixed(2)}
+                            </td>
                           </tr>
                         );
                       })}
@@ -730,7 +838,16 @@ const TestRequestForm = () => {
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.6rem 1.25rem', fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer' }}
             >
               <FaPrint />
-              <span>Save & Generate PDF</span>
+              <span>Save & TRF PDF</span>
+            </button>
+            <button 
+              type="button"
+              onClick={handleSaveAndQuotation} 
+              disabled={submitting}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.6rem 1.25rem', fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer' }}
+            >
+              <FaFilePdf />
+              <span>Generate Quotation</span>
             </button>
           </div>
         </div>

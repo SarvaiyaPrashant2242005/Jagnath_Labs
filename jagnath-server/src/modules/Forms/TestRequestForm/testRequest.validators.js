@@ -44,6 +44,8 @@ const createTestRequestSchema = Joi.object({
     formType: Joi.string().valid("NABL", "Regular").optional().allow("", null).messages({
         "any.only": "Form Type must be NABL or Regular."
     }),
+    includeCaution: Joi.boolean().optional().allow(null),
+    cautionId: Joi.string().optional().allow("", null),
     status: Joi.string().valid("Active", "Inactive").optional().allow("", null).messages({
         "any.only": "Status must be Active or Inactive."
     })
@@ -87,6 +89,8 @@ const updateTestRequestSchema = Joi.object({
     formType: Joi.string().valid("NABL", "Regular").optional().allow("", null).messages({
         "any.only": "Form Type must be NABL or Regular."
     }),
+    includeCaution: Joi.boolean().optional().allow(null),
+    cautionId: Joi.string().optional().allow("", null),
     status: Joi.string().valid("Active", "Inactive").optional().allow("", null).messages({
         "any.only": "Status must be Active or Inactive."
     })
