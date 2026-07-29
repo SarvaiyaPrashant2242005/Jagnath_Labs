@@ -9,6 +9,7 @@ const companyBaseSchema = {
     company_name: Joi.string().required(),
     address: Joi.string().allow('', null),
     city: Joi.string().allow('', null),
+    state: Joi.string().allow('', null),
     contact_number: Joi.string().pattern(/^[0-9]+$/).allow('', null).messages({
         "string.pattern.base": "Phone Number must contain only digits."
     }),
@@ -52,6 +53,7 @@ const companyNewBaseSchema = {
     phone: Joi.string().allow('', null),
     address: Joi.string().allow('', null),
     city: Joi.string().allow('', null),
+    state: Joi.string().allow('', null),
     status: Joi.string().valid("Active", "Inactive").default("Active")
 };
 

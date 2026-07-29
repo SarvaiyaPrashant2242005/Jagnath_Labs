@@ -7,6 +7,7 @@ import {
 import { apiService } from '../../../shared/services/apiService';
 import { COMPANY_ENDPOINTS, USER_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 import { getStoredUser } from '../../auth/services/authService';
+import { getIndianStates, getCitiesByStateIso2 } from '../../../shared/services/locationService';
 import Pagination from '../../../shared/components/Pagination';
 
 const CompanyMaster = ({ onCompanyUpdate }) => {
@@ -14,6 +15,10 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(false);
   
+  // Location dropdown states (India)
+  const [indianStates, setIndianStates] = useState([]);
+  const [availableCities, setAvailableCities] = useState([]);
+
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -41,6 +46,7 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
     companyEmail: '',
     phone: '',
     address: '',
+    state: '',
     city: '',
     status: 'Active'
   });
@@ -57,6 +63,43 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
   const [assignMode, setAssignMode] = useState('existing');
   const [selectedUserId, setSelectedUserId] = useState('');
   const [newUserData, setNewUserData] = useState({ name: '', email: '', password: '', role: 'Admin' });
+
+  // Fetch Indian states on mount
+  useEffect(() => {
+    getIndianStates().then(states => {
+      setIndianStates(states);
+    });
+  }, []);
+
+  // Fetch cities whenever selected state changes
+  useEffect(() => {
+    if (formData.state && indianStates.length > 0) {
+      const matchedState = indianStates.find(
+        s => s.name.toLowerCase() === formData.state.toLowerCase() || s.iso2.toLowerCase() === formData.state.toLowerCase()
+      );
+      if (matchedState) {
+        getCitiesByStateIso2(matchedState.iso2).then(cities => {
+          setAvailableCities(cities);
+        });
+      } else {
+        setAvailableCities([]);
+      }
+    } else {
+      setAvailableCities([]);
+    }
+  }, [formData.state, indianStates]);
+
+  const handleStateChange = (e) => {
+    const selectedStateName = e.target.value;
+    setFormData(prev => ({
+      ...prev,
+      state: selectedStateName,
+      city: ''
+    }));
+    if (formErrors.state) {
+      setFormErrors(prev => ({ ...prev, state: '' }));
+    }
+  };
 
   useEffect(() => {
     if (isSuperAdmin) {
@@ -195,6 +238,7 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
       companyEmail: '',
       phone: '',
       address: '',
+      state: '',
       city: '',
       status: 'Active'
     });
@@ -215,6 +259,7 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
       companyEmail: company.companyEmail || company.company_email || '',
       phone: company.phone || company.contact_number || '',
       address: company.address || '',
+      state: company.state || '',
       city: company.city || '',
       status: company.status || 'Active'
     });
@@ -240,7 +285,8 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
     formDataToSend.append('companyEmail', formData.companyEmail);
     formDataToSend.append('phone', formData.phone);
     formDataToSend.append('address', formData.address);
-    formDataToSend.append('city', formData.city);
+    formDataToSend.append('state', formData.state || '');
+    formDataToSend.append('city', formData.city || '');
     formDataToSend.append('status', formData.status);
     if (logoFile) {
       formDataToSend.append('logo', logoFile);
@@ -607,8 +653,8 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
 
             </div>
 
-            {/* Address, City & Status Side by Side */}
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '1.25rem', marginTop: '0.5rem', alignItems: 'end' }}>
+            {/* Address, State, City & Status Side by Side */}
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '1.25rem', marginTop: '0.5rem', alignItems: 'end' }}>
               {/* Address */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Address</label>
@@ -622,17 +668,53 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
                 />
               </div>
 
-              {/* City */}
+              {/* State Dropdown (India) */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>State</label>
+                <select
+                  name="state"
+                  value={formData.state || ''}
+                  onChange={handleStateChange}
+                  style={{ padding: '0.625rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', backgroundColor: '#ffffff', height: '42px', fontSize: '0.85rem' }}
+                >
+                  <option value="">-- Select State --</option>
+                  {indianStates.map((s) => (
+                    <option key={s.id || s.iso2} value={s.name}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* City Dropdown (India) */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>City</label>
-                <input
-                  type="text"
+                <select
                   name="city"
-                  value={formData.city}
+                  value={formData.city || ''}
                   onChange={handleInputChange}
-                  placeholder="Enter City"
-                  style={{ padding: '0.625rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', height: '42px' }}
-                />
+                  disabled={!formData.state}
+                  style={{ 
+                    padding: '0.625rem', 
+                    border: '1px solid #cbd5e1', 
+                    borderRadius: '6px', 
+                    outline: 'none', 
+                    backgroundColor: !formData.state ? '#f8fafc' : '#ffffff', 
+                    height: '42px',
+                    fontSize: '0.85rem',
+                    cursor: !formData.state ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  <option value="">{formData.state ? '-- Select City --' : '-- Select State First --'}</option>
+                  {availableCities.map((c) => (
+                    <option key={c.id || c.name} value={c.name}>
+                      {c.name}
+                    </option>
+                  ))}
+                  {formData.city && !availableCities.some(c => c.name.toLowerCase() === formData.city.toLowerCase()) && (
+                    <option value={formData.city}>{formData.city}</option>
+                  )}
+                </select>
               </div>
 
               {/* Status Toggle Switch */}

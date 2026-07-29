@@ -45,6 +45,10 @@ const Company = sequelize.define("Company", {
         type: DataTypes.STRING,
         allowNull: true,
     },
+    state: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
     logo: {
         type: DataTypes.STRING,
         allowNull: true,

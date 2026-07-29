@@ -6,6 +6,7 @@ import {
 } from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
 import { CLIENT_ENDPOINTS, COMPANY_ENDPOINTS } from '../../../shared/services/apiEndpoints';
+import { getIndianStates, getCitiesByStateIso2 } from '../../../shared/services/locationService';
 import Pagination from '../../../shared/components/Pagination';
 import BulkImportModal from '../../../shared/components/BulkImport/BulkImportModal';
 
@@ -16,6 +17,10 @@ const ClientMaster = () => {
   const [loading, setLoading] = useState(false);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
   
+  // Location dropdown states (India)
+  const [indianStates, setIndianStates] = useState([]);
+  const [availableCities, setAvailableCities] = useState([]);
+
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -51,6 +56,43 @@ const ClientMaster = () => {
   });
   const [formErrors, setFormErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+
+  // Fetch Indian states on mount
+  useEffect(() => {
+    getIndianStates().then(states => {
+      setIndianStates(states);
+    });
+  }, []);
+
+  // Fetch cities whenever selected state changes
+  useEffect(() => {
+    if (formData.state && indianStates.length > 0) {
+      const matchedState = indianStates.find(
+        s => s.name.toLowerCase() === formData.state.toLowerCase() || s.iso2.toLowerCase() === formData.state.toLowerCase()
+      );
+      if (matchedState) {
+        getCitiesByStateIso2(matchedState.iso2).then(cities => {
+          setAvailableCities(cities);
+        });
+      } else {
+        setAvailableCities([]);
+      }
+    } else {
+      setAvailableCities([]);
+    }
+  }, [formData.state, indianStates]);
+
+  const handleStateChange = (e) => {
+    const selectedStateName = e.target.value;
+    setFormData(prev => ({
+      ...prev,
+      state: selectedStateName,
+      city: ''
+    }));
+    if (formErrors.state) {
+      setFormErrors(prev => ({ ...prev, state: '' }));
+    }
+  };
 
   // Trigger Toast helper
   const triggerToast = (message, type = 'success') => {
@@ -613,33 +655,59 @@ const ClientMaster = () => {
                 />
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>
-                  City <span style={{ color: '#ef4444' }}>*</span>
-                </label>
-                <input
-                  type="text"
-                  name="city"
-                  value={formData.city}
-                  onChange={handleInputChange}
-                  placeholder="Enter City"
-                  style={{ padding: '0.625rem', border: `1px solid ${formErrors.city ? '#ef4444' : '#cbd5e1'}`, borderRadius: '6px', outline: 'none', height: '42px' }}
-                />
-                {formErrors.city && <span style={{ fontSize: '0.75rem', color: '#ef4444' }}>{formErrors.city}</span>}
-              </div>
-
+              {/* State Dropdown (India) */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>
                   State
                 </label>
-                <input
-                  type="text"
+                <select
                   name="state"
                   value={formData.state}
+                  onChange={handleStateChange}
+                  style={{ padding: '0.625rem', border: `1px solid ${formErrors.state ? '#ef4444' : '#cbd5e1'}`, borderRadius: '6px', outline: 'none', backgroundColor: '#ffffff', height: '42px', fontSize: '0.875rem' }}
+                >
+                  <option value="">-- Select State --</option>
+                  {indianStates.map((s) => (
+                    <option key={s.id || s.iso2} value={s.name}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+                {formErrors.state && <span style={{ fontSize: '0.75rem', color: '#ef4444' }}>{formErrors.state}</span>}
+              </div>
+
+              {/* City Dropdown (India) */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>
+                  City <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <select
+                  name="city"
+                  value={formData.city}
                   onChange={handleInputChange}
-                  placeholder="Enter State"
-                  style={{ padding: '0.625rem', border: `1px solid ${formErrors.state ? '#ef4444' : '#cbd5e1'}`, borderRadius: '6px', outline: 'none', height: '42px' }}
-                />
+                  disabled={!formData.state}
+                  style={{ 
+                    padding: '0.625rem', 
+                    border: `1px solid ${formErrors.city ? '#ef4444' : '#cbd5e1'}`, 
+                    borderRadius: '6px', 
+                    outline: 'none', 
+                    backgroundColor: !formData.state ? '#f8fafc' : '#ffffff', 
+                    height: '42px', 
+                    fontSize: '0.875rem',
+                    cursor: !formData.state ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  <option value="">{formData.state ? '-- Select City --' : '-- Select State First --'}</option>
+                  {availableCities.map((c) => (
+                    <option key={c.id || c.name} value={c.name}>
+                      {c.name}
+                    </option>
+                  ))}
+                  {formData.city && !availableCities.some(c => c.name.toLowerCase() === formData.city.toLowerCase()) && (
+                    <option value={formData.city}>{formData.city}</option>
+                  )}
+                </select>
+                {formErrors.city && <span style={{ fontSize: '0.75rem', color: '#ef4444' }}>{formErrors.city}</span>}
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
