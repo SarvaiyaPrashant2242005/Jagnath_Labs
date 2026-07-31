@@ -11,6 +11,7 @@ const sequelize = require("../../../config/database");
 const { Op } = require("sequelize");
 const path = require("path");
 const { writeLogToFile } = require("../../../services/loggerService");
+const { normalizeString } = require("../../../utils/normalizers");
 
 const createLogPath = path.join(__dirname, "../../../../logs/Parameter/Create.txt");
 const updateLogPath = path.join(__dirname, "../../../../logs/Parameter/Update.txt");
@@ -392,63 +393,139 @@ module.exports = {
     bulkImportParameters: async (records, companyId, userId, reqInfo) => {
         const transaction = await sequelize.transaction();
         try {
-            let createdCount = 0;
+            // Batch fetch existing parameters for companyId
+            const existingParams = await Parameter.findAll({
+                where: { companyId },
+                transaction
+            });
+
+            // Map normalized parameter name -> Parameter DB record
+            const parameterMap = new Map();
+            existingParams.forEach(p => {
+                const plain = p.get ? p.get({ plain: true }) : p;
+                const normName = normalizeString(plain.parameterName);
+                if (normName) parameterMap.set(normName, plain);
+            });
+
+            const seenParametersInFile = new Map(); // normName -> rowNumber
+
+            let insertedCount = 0;
             let updatedCount = 0;
+            let failedCount = 0;
+            let skippedCount = 0;
 
-            for (const item of records) {
-                const data = item.data;
-                const paramName = data.parameterName || data.name;
-                if (!paramName) continue;
+            const rowResults = [];
 
-                // Resolve category mapping if categoryName is provided
+            for (let i = 0; i < records.length; i++) {
+                const item = records[i];
+                const rawData = item.data || item;
+                const rowNum = item._originalIndex || (i + 1);
+
+                const paramName = rawData.parameterName || rawData.name;
+                const categoryName = rawData.categoryName || rawData.category;
+                const description = rawData.description || null;
+                const testMethod = rawData.testMethod || null;
+                const status = rawData.status || "Active";
+
+                const errors = [];
+
+                if (!paramName || !String(paramName).trim()) {
+                    errors.push("Parameter Name is required.");
+                }
+
+                const normName = normalizeString(paramName);
+
+                if (seenParametersInFile.has(normName)) {
+                    errors.push(`Duplicate parameter in uploaded file. First found at row ${seenParametersInFile.get(normName)}.`);
+                }
+
+                if (errors.length > 0) {
+                    failedCount++;
+                    rowResults.push({
+                        rowNumber: rowNum,
+                        action: "error",
+                        errors,
+                        data: rawData
+                    });
+                    continue;
+                }
+
+                seenParametersInFile.set(normName, rowNum);
+
+                // DB Duplicate Check
+                const dbMatch = parameterMap.get(normName);
+                if (dbMatch) {
+                    failedCount++;
+                    rowResults.push({
+                        rowNumber: rowNum,
+                        action: "error",
+                        errors: ["Parameter already exists for the selected company."],
+                        data: rawData
+                    });
+                    continue;
+                }
+
+                // Resolve Category if categoryName provided
                 let categoryId = null;
-                if (data.categoryName && data.categoryName.trim() !== '') {
-                    let cat = await Category.findOne({ where: { name: data.categoryName.trim(), companyId }, transaction });
+                if (categoryName && String(categoryName).trim() !== "") {
+                    const normCatName = normalizeString(categoryName);
+                    let cat = await Category.findOne({
+                        where: sequelize.where(sequelize.fn("LOWER", sequelize.fn("TRIM", sequelize.col("name"))), normCatName),
+                        transaction
+                    });
                     if (!cat) {
-                        cat = await Category.create({ name: data.categoryName.trim(), companyId, status: "Active" }, { transaction });
+                        cat = await Category.create({
+                            companyId,
+                            name: String(categoryName).trim(),
+                            status: "Active"
+                        }, { transaction });
                     }
                     categoryId = cat.id;
                 }
 
-                const paramPayload = {
+                // Insert New Parameter
+                const newParam = await Parameter.create({
                     companyId,
-                    parameterName: paramName,
-                    description: data.description || null,
-                    testMethod: data.testMethod || null,
-                    status: data.status || "Active"
-                };
+                    parameterName: String(paramName).trim(),
+                    description,
+                    testMethod,
+                    status
+                }, { transaction });
 
-                let existing = null;
-                if (item._dbId) {
-                    existing = await Parameter.findOne({ where: { id: item._dbId, companyId }, transaction });
-                } else {
-                    existing = await Parameter.findOne({ where: { parameterName: paramName, companyId }, transaction });
+                if (categoryId) {
+                    await CategoryParameter.create({
+                        companyId,
+                        categoryId,
+                        parameterId: newParam.id,
+                        status: "Active"
+                    }, { transaction });
                 }
 
-                if (existing) {
-                    await existing.update(paramPayload, { transaction });
-                    updatedCount++;
+                const createdObj = newParam.get ? newParam.get({ plain: true }) : newParam;
+                parameterMap.set(normName, createdObj);
 
-                    if (categoryId) {
-                        const rel = await CategoryParameter.findOne({ where: { parameterId: existing.id, companyId }, transaction });
-                        if (rel) {
-                            await rel.update({ categoryId }, { transaction });
-                        } else {
-                            await CategoryParameter.create({ companyId, categoryId, parameterId: existing.id, status: "Active" }, { transaction });
-                        }
-                    }
-                } else {
-                    const newParam = await Parameter.create(paramPayload, { transaction });
-                    createdCount++;
-
-                    if (categoryId) {
-                        await CategoryParameter.create({ companyId, categoryId, parameterId: newParam.id, status: "Active" }, { transaction });
-                    }
-                }
+                insertedCount++;
+                rowResults.push({
+                    rowNumber: rowNum,
+                    action: "inserted",
+                    recordId: createdObj.id,
+                    message: "Parameter created successfully"
+                });
             }
 
             await transaction.commit();
-            return { createdCount, updatedCount, totalProcessed: records.length };
+
+            return {
+                totalRows: records.length,
+                inserted: insertedCount,
+                updated: updatedCount,
+                failed: failedCount,
+                skipped: skippedCount,
+                createdCount: insertedCount,
+                updatedCount: updatedCount,
+                totalProcessed: records.length,
+                rows: rowResults
+            };
         } catch (error) {
             await transaction.rollback();
             throw error;

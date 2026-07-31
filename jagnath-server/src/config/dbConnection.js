@@ -27,7 +27,11 @@ const connectDB = async () => {
         await sequelize.sync({ alter: true });
         console.log('📂 Database & tables synced!');
 
-        // 3. Seed default data if needed
+        // 3. Run unique index migration and duplicate report
+        const { runMigration } = require("../database/migrations/01_add_unique_indexes_and_cleanup");
+        await runMigration();
+
+        // 4. Seed default data if needed
         const { seedDefaultUser } = require("../database/seeders");
         await seedDefaultUser();
     } catch (error) {

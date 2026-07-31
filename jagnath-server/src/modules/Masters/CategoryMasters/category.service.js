@@ -9,6 +9,7 @@ const sequelize = require("../../../config/database");
 const { Op } = require("sequelize");
 const path = require("path");
 const { writeLogToFile } = require("../../../services/loggerService");
+const { normalizeString } = require("../../../utils/normalizers");
 
 const createLogPath = path.join(__dirname, "../../../../logs/Category/Create.txt");
 const updateLogPath = path.join(__dirname, "../../../../logs/Category/Update.txt");
@@ -320,34 +321,109 @@ module.exports = {
     bulkImportCategories: async (records, companyId, userId, reqInfo) => {
         const transaction = await sequelize.transaction();
         try {
-            let createdCount = 0;
+            // Batch fetch existing categories for companyId
+            const existingCategories = await Category.findAll({
+                where: { companyId },
+                transaction
+            });
+
+            // Map normalized category name -> category DB record
+            const categoryMap = new Map();
+            existingCategories.forEach(c => {
+                const plain = c.get ? c.get({ plain: true }) : c;
+                const normName = normalizeString(plain.name);
+                if (normName) categoryMap.set(normName, plain);
+            });
+
+            const seenCategoriesInFile = new Map(); // normName -> rowNumber
+
+            let insertedCount = 0;
             let updatedCount = 0;
+            let failedCount = 0;
+            let skippedCount = 0;
 
-            for (const item of records) {
-                const data = { ...item.data, companyId };
-                // Ensure field name mapping if categoryName is passed
-                if (data.categoryName && !data.name) {
-                    data.name = data.categoryName;
+            const rowResults = [];
+
+            for (let i = 0; i < records.length; i++) {
+                const item = records[i];
+                const rawData = item.data || item;
+                const rowNum = item._originalIndex || (i + 1);
+
+                const categoryName = rawData.name || rawData.categoryName;
+                const description = rawData.description || null;
+                const status = rawData.status || "Active";
+
+                const errors = [];
+
+                if (!categoryName || !String(categoryName).trim()) {
+                    errors.push("Category Name is required.");
                 }
 
-                let existing = null;
-                if (item._dbId) {
-                    existing = await Category.findOne({ where: { id: item._dbId, companyId }, transaction });
-                } else if (data.name) {
-                    existing = await Category.findOne({ where: { name: data.name, companyId }, transaction });
+                const normName = normalizeString(categoryName);
+
+                if (seenCategoriesInFile.has(normName)) {
+                    errors.push(`Duplicate category in uploaded file. First found at row ${seenCategoriesInFile.get(normName)}.`);
                 }
 
-                if (existing) {
-                    await existing.update(data, { transaction });
-                    updatedCount++;
-                } else {
-                    await Category.create(data, { transaction });
-                    createdCount++;
+                if (errors.length > 0) {
+                    failedCount++;
+                    rowResults.push({
+                        rowNumber: rowNum,
+                        action: "error",
+                        errors,
+                        data: rawData
+                    });
+                    continue;
                 }
+
+                seenCategoriesInFile.set(normName, rowNum);
+
+                // DB Duplicate Check
+                const dbMatch = categoryMap.get(normName);
+                if (dbMatch) {
+                    failedCount++;
+                    rowResults.push({
+                        rowNumber: rowNum,
+                        action: "error",
+                        errors: ["Category already exists for the selected company."],
+                        data: rawData
+                    });
+                    continue;
+                }
+
+                // Insert New Category
+                const newCat = await Category.create({
+                    companyId,
+                    name: String(categoryName).trim(),
+                    description,
+                    status
+                }, { transaction });
+
+                const createdObj = newCat.get ? newCat.get({ plain: true }) : newCat;
+                categoryMap.set(normName, createdObj);
+
+                insertedCount++;
+                rowResults.push({
+                    rowNumber: rowNum,
+                    action: "inserted",
+                    recordId: createdObj.id,
+                    message: "Category created successfully"
+                });
             }
 
             await transaction.commit();
-            return { createdCount, updatedCount, totalProcessed: records.length };
+
+            return {
+                totalRows: records.length,
+                inserted: insertedCount,
+                updated: updatedCount,
+                failed: failedCount,
+                skipped: skippedCount,
+                createdCount: insertedCount,
+                updatedCount: updatedCount,
+                totalProcessed: records.length,
+                rows: rowResults
+            };
         } catch (error) {
             await transaction.rollback();
             throw error;

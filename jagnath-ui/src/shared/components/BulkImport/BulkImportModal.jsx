@@ -8,7 +8,7 @@ import {
   FaCheckCircle, FaExclamationTriangle, FaTrash, FaSyncAlt,
   FaFilter, FaInfoCircle
 } from 'react-icons/fa';
-import { downloadTemplate, parseExcelFile, validateMasterRows, MASTER_SCHEMAS } from '../../services/excelService';
+import { downloadTemplate, parseExcelFile, validateMasterRows, exportFailedRowsToExcel, MASTER_SCHEMAS } from '../../services/excelService';
 
 const BulkImportModal = ({
   isOpen,
@@ -580,16 +580,31 @@ const BulkImportModal = ({
 
         {/* Modal Footer */}
         <div className="bulk-modal-footer">
-          <button className="btn-secondary" onClick={onClose} disabled={submitting}>
-            Cancel
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button className="btn-secondary" onClick={onClose} disabled={submitting}>
+              Cancel
+            </button>
+            {step === 2 && errorCount > 0 && (
+              <button
+                className="btn-secondary"
+                style={{ color: '#dc2626', borderColor: '#fca5a5' }}
+                onClick={() => exportFailedRowsToExcel(masterType, rows.filter(r => r._status === 'ERROR'))}
+              >
+                <FaDownload /> Download Failed Rows ({errorCount})
+              </button>
+            )}
+          </div>
           {step === 2 && (
             <button
               className="btn-primary"
               onClick={handleFinalSubmit}
               disabled={submitting || (totalCount - errorCount) === 0}
             >
-              {submitting ? 'Importing to DB...' : `Load ${totalCount - errorCount} Valid Rows to DB`}
+              {submitting
+                ? 'Importing to DB...'
+                : updateCount > 0
+                  ? `Import ${newCount} records & update ${updateCount} ${masterType}s`
+                  : `Import ${newCount} records to DB`}
             </button>
           )}
         </div>

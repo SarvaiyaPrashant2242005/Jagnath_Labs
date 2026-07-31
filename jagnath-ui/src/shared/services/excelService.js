@@ -196,6 +196,61 @@ export const parseExcelFile = (file) => {
 };
 
 /**
+ * Normalization helpers
+ */
+export const normalizeEmail = (email) => {
+  if (!email || typeof email !== 'string') return '';
+  return email.trim().toLowerCase();
+};
+
+export const normalizePhone = (phone) => {
+  if (phone === null || phone === undefined) return '';
+  const str = String(phone).trim();
+  return str.replace(/[\s\-\(\)\+]/g, '');
+};
+
+export const normalizeString = (str) => {
+  if (!str || typeof str !== 'string') return '';
+  return str.trim().toLowerCase();
+};
+
+/**
+ * Sanitizes cell text to protect against formula injection when exporting Excel / CSV.
+ */
+export const sanitizeSpreadsheetValue = (val) => {
+  if (typeof val === 'string' && /^[=\+\-@]/.test(val)) {
+    return `'${val}`;
+  }
+  return val;
+};
+
+/**
+ * Exports failed rows into a downloadable Excel file.
+ */
+export const exportFailedRowsToExcel = (masterType, failedRows) => {
+  const schema = MASTER_SCHEMAS[masterType];
+  if (!schema || !failedRows || failedRows.length === 0) return;
+
+  const exportData = failedRows.map(r => {
+    const rowObj = {
+      'Row Number': r._originalIndex,
+      'Error Messages': Object.values(r._errors || {}).join(' | ')
+    };
+
+    schema.headers.forEach(h => {
+      rowObj[h.label] = sanitizeSpreadsheetValue(r.data[h.key] || '');
+    });
+
+    return rowObj;
+  });
+
+  const worksheet = XLSX.utils.json_to_sheet(exportData);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Failed Rows');
+  XLSX.writeFile(workbook, `${masterType}_Failed_Rows_${Date.now()}.xlsx`);
+};
+
+/**
  * Validates parsed Excel rows against master schema rules and existing database records.
  *
  * @param {string} masterType
@@ -211,19 +266,21 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
   const labelToKeyMap = {};
   schema.headers.forEach(h => {
     labelToKeyMap[h.label] = h.key;
-    // Also support label without asterisk or spaces
     labelToKeyMap[h.label.replace(' *', '').trim()] = h.key;
   });
 
   const evaluatedRows = [];
-  const seenKeys = new Set(); // To track internal file duplicates
+  const seenEmailsInFile = new Map();
+  const seenPhonesInFile = new Map();
+  const seenNamesInFile = new Map();
+  const seenCompositeKeys = new Map();
 
   rawRows.forEach((row, index) => {
     const normalizedData = {};
     const cellErrors = {};
     let isRowValid = true;
 
-    // Normalize keys from Excel labels
+    // Map Excel header labels to internal keys
     Object.keys(row).forEach(rawHeader => {
       const trimmedHeader = rawHeader.trim();
       const matchedKey = labelToKeyMap[trimmedHeader] || labelToKeyMap[trimmedHeader.replace(' *', '')];
@@ -236,13 +293,11 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
     schema.headers.forEach(h => {
       const val = normalizedData[h.key] || '';
 
-      // 1. Required check
       if (h.required && (!val || val === '')) {
         cellErrors[h.key] = `${h.label} is required.`;
         isRowValid = false;
       }
 
-      // 2. Email format check
       if (h.type === 'email' && val && val !== '') {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(val)) {
@@ -251,7 +306,6 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
         }
       }
 
-      // 3. Numeric format check
       if (h.type === 'number' && val && val !== '') {
         if (isNaN(Number(val))) {
           cellErrors[h.key] = 'Must be a valid number.';
@@ -259,83 +313,79 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
         }
       }
 
-      // 4. Default values for status/role/gender
       if (h.key === 'status' && !normalizedData['status']) {
         normalizedData['status'] = 'Active';
       }
     });
 
+    const rowNum = index + 1;
+
     // Check for internal file duplicates
-    let fileDuplicate = false;
-    let duplicateKeyVal = '';
+    if (masterType === 'client') {
+      const nEmail = normalizeEmail(normalizedData.email);
+      const nPhone = normalizePhone(normalizedData.contactNumber);
 
-    if (schema.uniqueKeys.length > 1) {
-      // Composite unique key check (e.g. Category + Parameter for Price List)
-      if (schema.uniqueKeys.every(uk => normalizedData[uk] && normalizedData[uk] !== '')) {
-        const compositeKeyStr = schema.uniqueKeys
-          .map(uk => normalizedData[uk].toLowerCase())
-          .join('___');
-        if (seenKeys.has(compositeKeyStr)) {
-          fileDuplicate = true;
-          duplicateKeyVal = schema.uniqueKeys.map(uk => normalizedData[uk]).join(' / ');
-        } else {
-          seenKeys.add(compositeKeyStr);
-        }
+      if (nEmail && seenEmailsInFile.has(nEmail)) {
+        cellErrors['_row'] = `Duplicate email in uploaded file. First found at row ${seenEmailsInFile.get(nEmail)}.`;
+        isRowValid = false;
+      } else if (nPhone && seenPhonesInFile.has(nPhone)) {
+        cellErrors['_row'] = `Duplicate phone number in uploaded file. First found at row ${seenPhonesInFile.get(nPhone)}.`;
+        isRowValid = false;
+      } else {
+        if (nEmail) seenEmailsInFile.set(nEmail, rowNum);
+        if (nPhone) seenPhonesInFile.set(nPhone, rowNum);
       }
-    } else {
-      // Single unique key check (e.g. email or categoryName)
-      schema.uniqueKeys.forEach(uk => {
-        if (normalizedData[uk] && normalizedData[uk] !== '') {
-          const checkStr = `${uk}:${normalizedData[uk].toLowerCase()}`;
-          if (seenKeys.has(checkStr)) {
-            fileDuplicate = true;
-            duplicateKeyVal = normalizedData[uk];
-          } else {
-            seenKeys.add(checkStr);
-          }
-        }
-      });
+    } else if (masterType === 'category' || masterType === 'parameter') {
+      const fieldKey = masterType === 'category' ? 'categoryName' : 'parameterName';
+      const nName = normalizeString(normalizedData[fieldKey] || normalizedData.name);
+
+      if (nName && seenNamesInFile.has(nName)) {
+        cellErrors['_row'] = `Duplicate ${masterType} in uploaded file. First found at row ${seenNamesInFile.get(nName)}.`;
+        isRowValid = false;
+      } else if (nName) {
+        seenNamesInFile.set(nName, rowNum);
+      }
     }
 
-    if (fileDuplicate) {
-      cellErrors['_row'] = `Duplicate entry in Excel file (${duplicateKeyVal}).`;
-      isRowValid = false;
-    }
-
-    // Check for database existing match (Insert vs Update detection)
+    // Check for database existing match (Insert vs Update vs Duplicate Error)
     let isDbMatch = false;
     let matchingDbId = null;
+    let isDbDuplicateError = false;
 
     if (existingDbRecords && existingDbRecords.length > 0) {
-      const dbMatch = existingDbRecords.find(record => {
-        // Compare unique keys
-        if (masterType === 'client') {
-          return (record.email && normalizedData.email && record.email.toLowerCase() === normalizedData.email.toLowerCase()) ||
-                 (record.clientName && normalizedData.clientName && record.clientName.toLowerCase() === normalizedData.clientName.toLowerCase());
-        }
-        if (masterType === 'category') {
-          return record.categoryName && normalizedData.categoryName && record.categoryName.toLowerCase() === normalizedData.categoryName.toLowerCase();
-        }
-        if (masterType === 'parameter') {
-          return record.parameterName && normalizedData.parameterName && record.parameterName.toLowerCase() === normalizedData.parameterName.toLowerCase();
-        }
-        if (masterType === 'user') {
-          return record.email && normalizedData.email && record.email.toLowerCase() === normalizedData.email.toLowerCase();
-        }
-        if (masterType === 'pricelist') {
-          return record.categoryName && normalizedData.categoryName && record.categoryName.toLowerCase() === normalizedData.categoryName.toLowerCase() &&
-                 record.parameterName && normalizedData.parameterName && record.parameterName.toLowerCase() === normalizedData.parameterName.toLowerCase();
-        }
-        return false;
-      });
+      if (masterType === 'client') {
+        const nEmail = normalizeEmail(normalizedData.email);
+        const nPhone = normalizePhone(normalizedData.contactNumber);
 
-      if (dbMatch) {
-        isDbMatch = true;
-        matchingDbId = dbMatch.id;
+        const emailClient = nEmail ? existingDbRecords.find(c => normalizeEmail(c.email) === nEmail) : null;
+        const phoneClient = nPhone ? existingDbRecords.find(c => normalizePhone(c.contactNumber) === nPhone) : null;
+
+        if (emailClient && phoneClient && emailClient.id !== phoneClient.id) {
+          cellErrors['_row'] = `Email belongs to client ID ${emailClient.id}, but phone number belongs to client ID ${phoneClient.id}.`;
+          isRowValid = false;
+        } else if (emailClient || phoneClient) {
+          isDbMatch = true;
+          matchingDbId = (emailClient || phoneClient).id;
+        }
+      } else if (masterType === 'category') {
+        const nCatName = normalizeString(normalizedData.categoryName || normalizedData.name);
+        const dbCat = existingDbRecords.find(c => normalizeString(c.name || c.categoryName) === nCatName);
+        if (dbCat) {
+          cellErrors['_row'] = 'Category already exists for the selected company.';
+          isRowValid = false;
+          isDbDuplicateError = true;
+        }
+      } else if (masterType === 'parameter') {
+        const nParamName = normalizeString(normalizedData.parameterName || normalizedData.name);
+        const dbParam = existingDbRecords.find(p => normalizeString(p.parameterName || p.name) === nParamName);
+        if (dbParam) {
+          cellErrors['_row'] = 'Parameter already exists for the selected company.';
+          isRowValid = false;
+          isDbDuplicateError = true;
+        }
       }
     }
 
-    // Determine row overall status tag
     let statusTag = 'NEW';
     if (!isRowValid) {
       statusTag = 'ERROR';
@@ -345,8 +395,8 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
 
     evaluatedRows.push({
       _id: `row_${index}_${Date.now()}`,
-      _originalIndex: index + 1,
-      _status: statusTag, // 'NEW' | 'UPDATE' | 'ERROR'
+      _originalIndex: rowNum,
+      _status: statusTag,
       _errors: cellErrors,
       _dbId: matchingDbId,
       data: normalizedData
