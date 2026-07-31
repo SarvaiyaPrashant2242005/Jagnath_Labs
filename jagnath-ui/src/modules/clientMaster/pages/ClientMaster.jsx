@@ -317,11 +317,37 @@ const ClientMaster = () => {
     }
   };
 
+  // Helper to fetch all records matching active filter (no pagination limit)
+  const fetchAllExportData = async () => {
+    try {
+      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
+      const params = new URLSearchParams({
+        page: 1,
+        limit: 100000,
+        search: searchQuery,
+        status: statusFilter
+      });
+      if (activeCompId) {
+        params.append('companyId', activeCompId);
+      }
+
+      const url = `${CLIENT_ENDPOINTS.GET_ALL}?${params.toString()}`;
+      const response = await apiService.get(url);
+      if (response && response.data) {
+        return Array.isArray(response.data) ? response.data : (response.data.rows || []);
+      }
+      return clients;
+    } catch (err) {
+      return clients;
+    }
+  };
+
   // CSV Export logic
-  const handleDownloadCSV = () => {
-    if (clients.length === 0) return;
+  const handleDownloadCSV = async () => {
+    const allData = await fetchAllExportData();
+    if (!allData || allData.length === 0) return;
     const headers = ['Client Name', 'Email', 'Contact Number', 'Address', 'City', 'State', 'Status'];
-    const rows = clients.map(c => [
+    const rows = allData.map(c => [
       c.clientName,
       c.email || 'N/A',
       c.contactNumber,
@@ -335,10 +361,11 @@ const ClientMaster = () => {
   };
 
   // Excel Export logic
-  const handleDownloadExcel = () => {
-    if (clients.length === 0) return;
+  const handleDownloadExcel = async () => {
+    const allData = await fetchAllExportData();
+    if (!allData || allData.length === 0) return;
     const headers = ['Client Name', 'Email', 'Contact Number', 'Address', 'City', 'State', 'Status'];
-    const rows = clients.map(c => [
+    const rows = allData.map(c => [
       c.clientName,
       c.email || 'N/A',
       c.contactNumber,
@@ -352,16 +379,18 @@ const ClientMaster = () => {
   };
 
   // Copy to Clipboard logic
-  const handleCopy = () => {
-    if (clients.length === 0) return;
-    const headers = ['Client Code', 'Client Name', 'Company Name', 'Email', 'Contact Number', 'Address', 'City', 'State', 'Status'];
-    const rows = clients.map(c => [
+  const handleCopy = async () => {
+    const allData = await fetchAllExportData();
+    if (!allData || allData.length === 0) return;
+    const headers = ['Client Name', 'Company Name', 'Email', 'Contact Number', 'Address', 'City', 'State', 'Status'];
+    const rows = allData.map(c => [
       c.clientName,
       c.companyName || (c.company ? (c.company.companyName || c.company.company_name) : 'N/A'),
-      c.gender,
+      c.email || 'N/A',
       c.contactNumber,
       c.address,
       c.city,
+      c.state || 'N/A',
       c.status
     ]);
     const text = [headers.join('\t'), ...rows.map(r => r.join('\t'))].join('\n');
@@ -373,14 +402,15 @@ const ClientMaster = () => {
   };
 
   // PDF Print logic
-  const handlePrintPDF = () => {
-    if (clients.length === 0) return;
+  const handlePrintPDF = async () => {
+    const allData = await fetchAllExportData();
+    if (!allData || allData.length === 0) return;
     const printWindow = window.open('', '_blank');
-    const rowsHtml = clients.map(c => `
+    const rowsHtml = allData.map(c => `
       <tr>
         <td>${c.clientName}</td>
         <td>${c.companyName || (c.company ? (c.company.companyName || c.company.company_name) : 'N/A')}</td>
-        <td>${c.gender}</td>
+        <td>${c.email || 'N/A'}</td>
         <td>${c.contactNumber}</td>
         <td>${c.address}</td>
         <td>${c.city}</td>
@@ -403,7 +433,7 @@ const ClientMaster = () => {
           <h2>Clients Report</h2>
           <table>
             <thead>
-              <tr><th>Client Name</th><th>Company</th><th>Gender</th><th>Phone</th><th>Address</th><th>City</th><th>Status</th></tr>
+              <tr><th>Client Name</th><th>Company</th><th>Email</th><th>Phone</th><th>Address</th><th>City</th><th>Status</th></tr>
             </thead>
             <tbody>
               ${rowsHtml}

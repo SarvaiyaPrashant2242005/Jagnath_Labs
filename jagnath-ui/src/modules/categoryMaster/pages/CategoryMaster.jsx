@@ -265,10 +265,36 @@ const CategoryMaster = () => {
     }
   };
 
-  const handleDownloadCSV = () => {
-    if (categories.length === 0) return;
+  // Helper to fetch all records matching active filter (no pagination limit)
+  const fetchAllExportData = async () => {
+    try {
+      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
+      const params = new URLSearchParams({
+        page: 1,
+        limit: 100000,
+        search: searchQuery,
+        status: statusFilter
+      });
+      if (activeCompId) {
+        params.append('companyId', activeCompId);
+      }
+
+      const url = `${CATEGORY_ENDPOINTS.GET_ALL}?${params.toString()}`;
+      const response = await apiService.get(url);
+      if (response && response.data) {
+        return Array.isArray(response.data) ? response.data : (response.data.rows || []);
+      }
+      return categories;
+    } catch (err) {
+      return categories;
+    }
+  };
+
+  const handleDownloadCSV = async () => {
+    const allData = await fetchAllExportData();
+    if (!allData || allData.length === 0) return;
     const headers = ['Category Name', 'Description', 'Status'];
-    const rows = categories.map(c => [
+    const rows = allData.map(c => [
       c.name,
       c.description || 'None',
       c.status
@@ -277,10 +303,11 @@ const CategoryMaster = () => {
     setShowDownloadDropdown(false);
   };
 
-  const handleDownloadExcel = () => {
-    if (categories.length === 0) return;
+  const handleDownloadExcel = async () => {
+    const allData = await fetchAllExportData();
+    if (!allData || allData.length === 0) return;
     const headers = ['Category Name', 'Description', 'Status'];
-    const rows = categories.map(c => [
+    const rows = allData.map(c => [
       c.name,
       c.description || 'None',
       c.status
@@ -289,10 +316,11 @@ const CategoryMaster = () => {
     setShowDownloadDropdown(false);
   };
 
-  const handleCopy = () => {
-    if (categories.length === 0) return;
+  const handleCopy = async () => {
+    const allData = await fetchAllExportData();
+    if (!allData || allData.length === 0) return;
     const headers = ['Category Name', 'Description', 'Status'];
-    const rows = categories.map(c => [
+    const rows = allData.map(c => [
       c.name,
       c.description || 'None',
       c.status
@@ -305,10 +333,11 @@ const CategoryMaster = () => {
     setShowDownloadDropdown(false);
   };
 
-  const handlePrintPDF = () => {
-    if (categories.length === 0) return;
+  const handlePrintPDF = async () => {
+    const allData = await fetchAllExportData();
+    if (!allData || allData.length === 0) return;
     const printWindow = window.open('', '_blank');
-    const rows = categories.map(c => `
+    const rows = allData.map(c => `
       <tr>
         <td>${c.name}</td>
         <td>${c.description || 'None'}</td>

@@ -350,11 +350,38 @@ const ParameterMaster = () => {
     }
   };
 
+  // Helper to fetch all records matching active filter (no pagination limit)
+  const fetchAllExportData = async () => {
+    try {
+      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
+      const params = new URLSearchParams({
+        page: 1,
+        limit: 100000,
+        search: searchQuery,
+        status: statusFilter,
+        categoryId: categoryFilter
+      });
+      if (activeCompId) {
+        params.append('companyId', activeCompId);
+      }
+
+      const url = `${PARAMETER_ENDPOINTS.GET_ALL}?${params.toString()}`;
+      const response = await apiService.get(url);
+      if (response && response.data) {
+        return Array.isArray(response.data) ? response.data : (response.data.rows || []);
+      }
+      return parameters;
+    } catch (err) {
+      return parameters;
+    }
+  };
+
   // CSV Export
-  const handleDownloadCSV = () => {
-    if (parameters.length === 0) return;
+  const handleDownloadCSV = async () => {
+    const allData = await fetchAllExportData();
+    if (!allData || allData.length === 0) return;
     const headers = ['Parameter Name', 'Category', 'Test Method', 'Description', 'Status'];
-    const rows = parameters.map(p => [
+    const rows = allData.map(p => [
       p.parameterName,
       p.categoryName || 'Unassigned',
       p.testMethod || 'N/A',
@@ -366,10 +393,11 @@ const ParameterMaster = () => {
   };
 
   // Excel Export
-  const handleDownloadExcel = () => {
-    if (parameters.length === 0) return;
+  const handleDownloadExcel = async () => {
+    const allData = await fetchAllExportData();
+    if (!allData || allData.length === 0) return;
     const headers = ['Parameter Name', 'Category', 'Test Method', 'Description', 'Status'];
-    const rows = parameters.map(p => [
+    const rows = allData.map(p => [
       p.parameterName,
       p.categoryName || 'Unassigned',
       p.testMethod || 'N/A',
@@ -381,10 +409,11 @@ const ParameterMaster = () => {
   };
 
   // Copy to Clipboard
-  const handleCopy = () => {
-    if (parameters.length === 0) return;
+  const handleCopy = async () => {
+    const allData = await fetchAllExportData();
+    if (!allData || allData.length === 0) return;
     const headers = ['Parameter Name', 'Category', 'Test Method', 'Description', 'Status'];
-    const rows = parameters.map(p => [
+    const rows = allData.map(p => [
       p.parameterName,
       p.categoryName || 'Unassigned',
       p.testMethod || 'N/A',
@@ -400,11 +429,12 @@ const ParameterMaster = () => {
   };
 
   // PDF Export
-  const handlePrintPDF = () => {
-    if (parameters.length === 0) return;
+  const handlePrintPDF = async () => {
+    const allData = await fetchAllExportData();
+    if (!allData || allData.length === 0) return;
     const printWindow = window.open('', '_blank');
     const headers = ['Parameter Name', 'Category', 'Test Method', 'Description', 'Status'];
-    const rows = parameters.map(p => `
+    const rows = allData.map(p => `
       <tr>
         <td>${p.parameterName}</td>
         <td>${p.categoryName || 'Unassigned'}</td>

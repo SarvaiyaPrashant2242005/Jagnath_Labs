@@ -342,11 +342,33 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
     }
   };
 
+  // Helper to fetch all records matching active filter (no pagination limit)
+  const fetchAllExportData = async () => {
+    try {
+      const params = new URLSearchParams({
+        page: 1,
+        limit: 100000,
+        search: searchQuery,
+        status: statusFilter
+      });
+
+      const url = `${COMPANY_ENDPOINTS.GET_ALL}?${params.toString()}`;
+      const response = await apiService.get(url);
+      if (response && response.data) {
+        return Array.isArray(response.data) ? response.data : (response.data.rows || []);
+      }
+      return companies;
+    } catch (err) {
+      return companies;
+    }
+  };
+
   // CSV Export logic
-  const handleDownloadCSV = () => {
-    if (companies.length === 0) return;
+  const handleDownloadCSV = async () => {
+    const allData = await fetchAllExportData();
+    if (!allData || allData.length === 0) return;
     const headers = ['Company Name', 'Email', 'Phone', 'Address', 'City', 'Status'];
-    const rows = companies.map(c => [
+    const rows = allData.map(c => [
       c.companyName || c.company_name || 'N/A',
       c.companyEmail || c.company_email || 'N/A',
       c.phone || c.contact_number || 'N/A',
@@ -359,10 +381,11 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
   };
 
   // Excel Export logic
-  const handleDownloadExcel = () => {
-    if (companies.length === 0) return;
+  const handleDownloadExcel = async () => {
+    const allData = await fetchAllExportData();
+    if (!allData || allData.length === 0) return;
     const headers = ['Company Name', 'Email', 'Phone', 'Address', 'City', 'Status'];
-    const rows = companies.map(c => [
+    const rows = allData.map(c => [
       c.companyName || c.company_name || 'N/A',
       c.companyEmail || c.company_email || 'N/A',
       c.phone || c.contact_number || 'N/A',
@@ -375,10 +398,11 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
   };
 
   // Clipboard copy
-  const handleCopy = () => {
-    if (companies.length === 0) return;
+  const handleCopy = async () => {
+    const allData = await fetchAllExportData();
+    if (!allData || allData.length === 0) return;
     const headers = ['Company Name', 'Email', 'Phone', 'Address', 'City', 'Status'];
-    const rows = companies.map(c => [
+    const rows = allData.map(c => [
       c.companyName || c.company_name || 'N/A',
       c.companyEmail || c.company_email || 'N/A',
       c.phone || c.contact_number || 'N/A',
@@ -395,11 +419,12 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
   };
 
   // PDF Export
-  const handlePrintPDF = () => {
-    if (companies.length === 0) return;
+  const handlePrintPDF = async () => {
+    const allData = await fetchAllExportData();
+    if (!allData || allData.length === 0) return;
     const printWindow = window.open('', '_blank');
     const headers = ['Company Name', 'Email', 'Phone', 'Address', 'City', 'Status'];
-    const rows = companies.map(c => `
+    const rows = allData.map(c => `
       <tr>
         <td>${c.companyName || c.company_name || 'N/A'}</td>
         <td>${c.companyEmail || c.company_email || 'N/A'}</td>

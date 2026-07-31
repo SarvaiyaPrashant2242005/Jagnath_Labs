@@ -312,10 +312,37 @@ const PriceMasterPage = () => {
   };
 
   // Download Export Handlers
-  const handleDownloadCSV = () => {
-    if (prices.length === 0) return;
+  // Helper to fetch all records matching active filter (no pagination limit)
+  const fetchAllExportData = async () => {
+    try {
+      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
+      const params = new URLSearchParams({
+        page: 1,
+        limit: 100000,
+        search: searchQuery,
+        status: statusFilter,
+        categoryId: selectedCategory
+      });
+      if (activeCompId) {
+        params.append('companyId', activeCompId);
+      }
+
+      const url = `${PRICE_MASTER_ENDPOINTS.GET_ALL}?${params.toString()}`;
+      const response = await apiService.get(url);
+      if (response && response.data) {
+        return Array.isArray(response.data) ? response.data : (response.data.rows || []);
+      }
+      return prices;
+    } catch (err) {
+      return prices;
+    }
+  };
+
+  const handleDownloadCSV = async () => {
+    const allData = await fetchAllExportData();
+    if (!allData || allData.length === 0) return;
     const headers = ['Category', 'Parameter', 'Price (INR)', 'Status'];
-    const rows = prices.map(p => [
+    const rows = allData.map(p => [
       p.category ? p.category.name : '',
       p.parameter ? (p.parameter.parameterName || p.parameter.name) : '',
       p.price,
@@ -325,10 +352,11 @@ const PriceMasterPage = () => {
     setShowDownloadDropdown(false);
   };
 
-  const handleDownloadExcel = () => {
-    if (prices.length === 0) return;
+  const handleDownloadExcel = async () => {
+    const allData = await fetchAllExportData();
+    if (!allData || allData.length === 0) return;
     const headers = ['Category', 'Parameter', 'Price (INR)', 'Status'];
-    const rows = prices.map(p => [
+    const rows = allData.map(p => [
       p.category ? p.category.name : 'Unassigned',
       p.parameter ? (p.parameter.parameterName || p.parameter.name) : 'Unassigned',
       p.price,
@@ -338,10 +366,11 @@ const PriceMasterPage = () => {
     setShowDownloadDropdown(false);
   };
 
-  const handleCopy = () => {
-    if (prices.length === 0) return;
+  const handleCopy = async () => {
+    const allData = await fetchAllExportData();
+    if (!allData || allData.length === 0) return;
     const headers = ['Category', 'Parameter', 'Price', 'Status'];
-    const rows = prices.map(p => [
+    const rows = allData.map(p => [
       p.category ? p.category.name : 'Unassigned',
       p.parameter ? (p.parameter.parameterName || p.parameter.name) : 'Unassigned',
       p.price,
