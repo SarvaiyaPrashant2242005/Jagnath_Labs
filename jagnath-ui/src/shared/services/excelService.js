@@ -326,12 +326,20 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
       const nPhone = normalizePhone(normalizedData.contactNumber);
 
       if (nEmail && seenEmailsInFile.has(nEmail)) {
-        cellErrors['_row'] = `Duplicate email in uploaded file. First found at row ${seenEmailsInFile.get(nEmail)}.`;
+        const msg = `Duplicate email in uploaded file. First found at row ${seenEmailsInFile.get(nEmail)}.`;
+        cellErrors['email'] = msg;
+        cellErrors['_row'] = msg;
         isRowValid = false;
-      } else if (nPhone && seenPhonesInFile.has(nPhone)) {
-        cellErrors['_row'] = `Duplicate phone number in uploaded file. First found at row ${seenPhonesInFile.get(nPhone)}.`;
+      }
+      
+      if (nPhone && seenPhonesInFile.has(nPhone)) {
+        const msg = `Duplicate phone number in uploaded file. First found at row ${seenPhonesInFile.get(nPhone)}.`;
+        cellErrors['contactNumber'] = msg;
+        cellErrors['_row'] = cellErrors['_row'] ? `${cellErrors['_row']} | ${msg}` : msg;
         isRowValid = false;
-      } else {
+      }
+
+      if (isRowValid) {
         if (nEmail) seenEmailsInFile.set(nEmail, rowNum);
         if (nPhone) seenPhonesInFile.set(nPhone, rowNum);
       }
@@ -340,7 +348,9 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
       const nName = normalizeString(normalizedData[fieldKey] || normalizedData.name);
 
       if (nName && seenNamesInFile.has(nName)) {
-        cellErrors['_row'] = `Duplicate ${masterType} in uploaded file. First found at row ${seenNamesInFile.get(nName)}.`;
+        const msg = `Duplicate ${masterType} in uploaded file. First found at row ${seenNamesInFile.get(nName)}.`;
+        cellErrors[fieldKey] = msg;
+        cellErrors['_row'] = msg;
         isRowValid = false;
       } else if (nName) {
         seenNamesInFile.set(nName, rowNum);
@@ -350,7 +360,6 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
     // Check for database existing match (Insert vs Update vs Duplicate Error)
     let isDbMatch = false;
     let matchingDbId = null;
-    let isDbDuplicateError = false;
 
     if (existingDbRecords && existingDbRecords.length > 0) {
       if (masterType === 'client') {
@@ -361,7 +370,10 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
         const phoneClient = nPhone ? existingDbRecords.find(c => normalizePhone(c.contactNumber) === nPhone) : null;
 
         if (emailClient && phoneClient && emailClient.id !== phoneClient.id) {
-          cellErrors['_row'] = `Email belongs to client ID ${emailClient.id}, but phone number belongs to client ID ${phoneClient.id}.`;
+          const msg = `Email belongs to client ID ${emailClient.id}, but phone number belongs to client ID ${phoneClient.id}.`;
+          cellErrors['email'] = msg;
+          cellErrors['contactNumber'] = msg;
+          cellErrors['_row'] = msg;
           isRowValid = false;
         } else if (emailClient || phoneClient) {
           isDbMatch = true;
@@ -371,17 +383,19 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
         const nCatName = normalizeString(normalizedData.categoryName || normalizedData.name);
         const dbCat = existingDbRecords.find(c => normalizeString(c.name || c.categoryName) === nCatName);
         if (dbCat) {
-          cellErrors['_row'] = 'Category already exists for the selected company.';
+          const msg = 'Category already exists for the selected company.';
+          cellErrors['categoryName'] = msg;
+          cellErrors['_row'] = msg;
           isRowValid = false;
-          isDbDuplicateError = true;
         }
       } else if (masterType === 'parameter') {
         const nParamName = normalizeString(normalizedData.parameterName || normalizedData.name);
         const dbParam = existingDbRecords.find(p => normalizeString(p.parameterName || p.name) === nParamName);
         if (dbParam) {
-          cellErrors['_row'] = 'Parameter already exists for the selected company.';
+          const msg = 'Parameter already exists for the selected company.';
+          cellErrors['parameterName'] = msg;
+          cellErrors['_row'] = msg;
           isRowValid = false;
-          isDbDuplicateError = true;
         }
       }
     }

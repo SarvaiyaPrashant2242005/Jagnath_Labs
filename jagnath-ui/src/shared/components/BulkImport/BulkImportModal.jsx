@@ -122,10 +122,18 @@ const BulkImportModal = ({
   const errorCount = rows.filter(r => r._status === 'ERROR').length;
   const newCount = rows.filter(r => r._status === 'NEW').length;
   const updateCount = rows.filter(r => r._status === 'UPDATE').length;
+  const duplicateCount = rows.filter(r => {
+    const errStr = Object.values(r._errors || {}).join(' ').toLowerCase();
+    return errStr.includes('duplicate') || errStr.includes('exists');
+  }).length;
 
   // Filtered rows for preview table
   const displayedRows = rows.filter(r => {
     if (filter === 'ERRORS') return r._status === 'ERROR';
+    if (filter === 'DUPLICATES') {
+      const errStr = Object.values(r._errors || {}).join(' ').toLowerCase();
+      return errStr.includes('duplicate') || errStr.includes('exists');
+    }
     if (filter === 'NEW') return r._status === 'NEW';
     if (filter === 'UPDATE') return r._status === 'UPDATE';
     return true;
@@ -503,17 +511,22 @@ const BulkImportModal = ({
                   <button className={`pill-btn ${filter === 'ALL' ? 'active' : ''}`} onClick={() => setFilter('ALL')}>
                     All Rows ({totalCount})
                   </button>
-                  {errorCount > 0 && (
-                    <button className={`pill-btn ${filter === 'ERRORS' ? 'active' : ''}`} onClick={() => setFilter('ERRORS')} style={{ color: '#ef4444' }}>
-                      Errors Only ({errorCount})
-                    </button>
-                  )}
                   <button className={`pill-btn ${filter === 'NEW' ? 'active' : ''}`} onClick={() => setFilter('NEW')}>
                     New ({newCount})
                   </button>
                   <button className={`pill-btn ${filter === 'UPDATE' ? 'active' : ''}`} onClick={() => setFilter('UPDATE')}>
                     Updates ({updateCount})
                   </button>
+                  {duplicateCount > 0 && (
+                    <button className={`pill-btn ${filter === 'DUPLICATES' ? 'active' : ''}`} onClick={() => setFilter('DUPLICATES')} style={{ color: '#d97706', borderColor: '#fcd34d' }}>
+                      Duplicates ({duplicateCount})
+                    </button>
+                  )}
+                  {errorCount > 0 && (
+                    <button className={`pill-btn ${filter === 'ERRORS' ? 'active' : ''}`} onClick={() => setFilter('ERRORS')} style={{ color: '#ef4444', borderColor: '#fca5a5' }}>
+                      Errors Only ({errorCount})
+                    </button>
+                  )}
                 </div>
 
                 <button className="btn-secondary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }} onClick={() => { setStep(1); setFile(null); }}>
@@ -527,7 +540,8 @@ const BulkImportModal = ({
                   <thead>
                     <tr>
                       <th style={{ width: '45px', textAlign: 'center' }}>#</th>
-                      <th style={{ width: '110px' }}>Status</th>
+                      <th style={{ width: '90px' }}>Status</th>
+                      <th style={{ minWidth: '180px' }}>Validation Note / Duplicate Info</th>
                       {schema.headers.map(h => (
                         <th key={h.key}>{h.label}</th>
                       ))}
@@ -535,42 +549,79 @@ const BulkImportModal = ({
                     </tr>
                   </thead>
                   <tbody>
-                    {displayedRows.map((r, idx) => (
-                      <tr key={r._id} style={{ background: r._status === 'ERROR' ? '#fff1f2' : 'transparent' }}>
-                        <td style={{ textAlign: 'center', fontWeight: 600, color: '#64748b' }}>
-                          {r._originalIndex}
-                        </td>
-                        <td>
-                          <span className={`status-badge ${r._status}`}>
-                            {r._status === 'NEW' && '✨ New'}
-                            {r._status === 'UPDATE' && '⚠️ Update'}
-                            {r._status === 'ERROR' && '❌ Error'}
+                    {displayedRows.map((r, idx) => {
+                      const rowError = Object.values(r._errors || {}).join(' | ');
+
+                      // Compute short tag for note column
+                      let noteBadge = null;
+                      if (r._status === 'ERROR') {
+                        let shortText = 'Validation Error';
+                        if (rowError.toLowerCase().includes('duplicate email')) shortText = 'Duplicate Email (File)';
+                        else if (rowError.toLowerCase().includes('duplicate phone')) shortText = 'Duplicate Phone (File)';
+                        else if (rowError.toLowerCase().includes('duplicate category') || rowError.toLowerCase().includes('category already exists')) shortText = 'Duplicate Category';
+                        else if (rowError.toLowerCase().includes('duplicate parameter') || rowError.toLowerCase().includes('parameter already exists')) shortText = 'Duplicate Parameter';
+                        else if (rowError.toLowerCase().includes('belong to')) shortText = 'Email/Phone Conflict';
+
+                        noteBadge = (
+                          <div style={{ color: '#b91c1c', fontSize: '0.78rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap' }} title={rowError}>
+                            <FaExclamationTriangle color="#ef4444" /> {shortText}
+                          </div>
+                        );
+                      } else if (r._status === 'UPDATE') {
+                        noteBadge = (
+                          <div style={{ color: '#b45309', fontSize: '0.78rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap' }} title={`Matches existing client ID ${r._dbId}`}>
+                            <FaInfoCircle color="#f59e0b" /> Will Update (ID: {r._dbId})
+                          </div>
+                        );
+                      } else {
+                        noteBadge = (
+                          <span style={{ color: '#166534', fontSize: '0.78rem', fontWeight: 500 }}>
+                            Ready to insert
                           </span>
-                        </td>
-                        {schema.headers.map(h => {
-                          const cellErr = r._errors[h.key] || r._errors['_row'];
-                          return (
-                            <td key={h.key}>
-                              <input
-                                className={`cell-input ${cellErr ? 'has-error' : ''}`}
-                                value={r.data[h.key] || ''}
-                                title={cellErr || ''}
-                                onChange={(e) => handleCellEdit(r._id, h.key, e.target.value)}
-                              />
-                            </td>
-                          );
-                        })}
-                        <td style={{ textAlign: 'center' }}>
-                          <button
-                            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '0.3rem' }}
-                            title="Remove Row"
-                            onClick={() => handleRemoveRow(r._id)}
-                          >
-                            <FaTrash />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                        );
+                      }
+
+                      return (
+                        <tr key={r._id} style={{ background: r._status === 'ERROR' ? '#fff1f2' : 'transparent' }}>
+                          <td style={{ textAlign: 'center', fontWeight: 600, color: '#64748b' }}>
+                            {r._originalIndex}
+                          </td>
+                          <td>
+                            <span className={`status-badge ${r._status}`}>
+                              {r._status === 'NEW' && '✨ New'}
+                              {r._status === 'UPDATE' && '⚠️ Update'}
+                              {r._status === 'ERROR' && '❌ Error'}
+                            </span>
+                          </td>
+                          <td>
+                            {noteBadge}
+                          </td>
+                          {schema.headers.map(h => {
+                            const fieldErr = r._errors[h.key];
+                            const cellErr = fieldErr || r._errors['_row'];
+                            return (
+                              <td key={h.key}>
+                                <input
+                                  className={`cell-input ${cellErr ? 'has-error' : ''}`}
+                                  value={r.data[h.key] || ''}
+                                  title={cellErr || ''}
+                                  onChange={(e) => handleCellEdit(r._id, h.key, e.target.value)}
+                                />
+                              </td>
+                            );
+                          })}
+                          <td style={{ textAlign: 'center' }}>
+                            <button
+                              style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '0.3rem' }}
+                              title="Remove Row"
+                              onClick={() => handleRemoveRow(r._id)}
+                            >
+                              <FaTrash />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
