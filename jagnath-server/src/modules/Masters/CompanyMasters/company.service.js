@@ -416,7 +416,10 @@ const checkOwnership = async (companyId, userId, isSuperAdmin = false) => {
         if (!userId) return true;
 
         const user = await Users.findByPk(userId);
-        if (user && (user.role === 'SuperAdmin' || user.role === 'superadmin' || isSuperAdmin)) {
+        if (!user) return false;
+
+        // SuperAdmin & Admin roles have full operational permissions for company data
+        if (['SuperAdmin', 'superadmin', 'Admin', 'admin'].includes(user.role) || isSuperAdmin) {
             return true;
         }
 
