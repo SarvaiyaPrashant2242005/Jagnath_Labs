@@ -11,7 +11,10 @@
  * Retrieve the stored access token.
  * @returns {string|null}
  */
-const getAccessToken = () => sessionStorage.getItem("accessToken");
+const getAccessToken = () =>
+  sessionStorage.getItem("accessToken") ||
+  localStorage.getItem("accessToken") ||
+  localStorage.getItem("token");
 
 /**
  * Build default request headers.
