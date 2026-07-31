@@ -18,15 +18,24 @@ import { AUTH_ENDPOINTS } from "../../../shared/services/apiEndpoints";
 export const loginUser = async (credentials) => {
   const data = await apiService.post(AUTH_ENDPOINTS.LOGIN, credentials);
 
-  // Persist tokens returned by the server
-  if (data?.data?.accessToken) {
-    sessionStorage.setItem("accessToken", data.data.accessToken);
+  // Persist tokens returned by the server in both storage mechanisms
+  const token = data?.data?.accessToken || data?.data?.token;
+  if (token) {
+    sessionStorage.setItem("accessToken", token);
+    sessionStorage.setItem("token", token);
+    localStorage.setItem("token", token);
+    localStorage.setItem("accessToken", token);
   }
   if (data?.data?.refreshToken) {
     sessionStorage.setItem("refreshToken", data.data.refreshToken);
+    localStorage.setItem("refreshToken", data.data.refreshToken);
   }
   if (data?.data?.user) {
     sessionStorage.setItem("user", JSON.stringify(data.data.user));
+    localStorage.setItem("user", JSON.stringify(data.data.user));
+    if (data.data.user.role) {
+      localStorage.setItem("role", data.data.user.role);
+    }
   }
 
   return data;
