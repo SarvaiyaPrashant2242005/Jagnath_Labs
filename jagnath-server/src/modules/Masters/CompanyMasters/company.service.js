@@ -413,6 +413,11 @@ const getCompanyByUserId = async (userId) => {
 const checkOwnership = async (companyId, userId, isSuperAdmin = false) => {
     if (isSuperAdmin) return true;
     try {
+        const user = await Users.findByPk(userId);
+        if (user && (user.role === 'SuperAdmin' || user.role === 'superadmin')) {
+            return true;
+        }
+
         const company = await Company.findByPk(companyId);
         if (!company) return false;
         if (company.userId === userId) return true;
