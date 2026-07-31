@@ -9,6 +9,7 @@ import { apiService } from '../../../shared/services/apiService';
 import { CATEGORY_ENDPOINTS, PARAMETER_ENDPOINTS, PRICE_MASTER_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 import Pagination from '../../../shared/components/Pagination';
 import BulkImportModal from '../../../shared/components/BulkImport/BulkImportModal';
+import { downloadCSV, downloadExcel, copyTextToClipboard } from '../../../shared/utils/exportUtils';
 
 const PriceMasterPage = () => {
   // Data States
@@ -327,41 +328,30 @@ const PriceMasterPage = () => {
   const handleDownloadExcel = () => {
     if (prices.length === 0) return;
     const headers = ['Category', 'Parameter', 'Price (INR)', 'Status'];
-    const rows = prices.map(p => `
-      <tr>
-        <td>${p.category ? p.category.name : ''}</td>
-        <td>${p.parameter ? (p.parameter.parameterName || p.parameter.name) : ''}</td>
-        <td>${p.price}</td>
-        <td>${p.status}</td>
-      </tr>
-    `).join('');
-
-    const htmlTable = `
-      <table border="1">
-        <thead>
-          <tr style="background-color: #f8fafc; font-weight: bold;">
-            ${headers.map(h => `<th>${h}</th>`).join('')}
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-    `;
-
-    const blob = new Blob([htmlTable], { type: 'application/vnd.ms-excel' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'PriceMaster_Report.xls';
-    a.click();
-    URL.revokeObjectURL(url);
+    const rows = prices.map(p => [
+      p.category ? p.category.name : 'Unassigned',
+      p.parameter ? (p.parameter.parameterName || p.parameter.name) : 'Unassigned',
+      p.price,
+      p.status
+    ]);
+    downloadExcel(headers, rows, 'PriceMaster_Report.xlsx');
     setShowDownloadDropdown(false);
   };
 
   const handleCopy = () => {
     if (prices.length === 0) return;
-    const text = prices.map(p => `${p.category?.name} | ${p.parameter?.parameterName || p.parameter?.name} | ₹${p.price} | ${p.status}`).join('\n');
-    navigator.clipboard.writeText(text);
-    triggerToast('Copied to clipboard!', 'success');
+    const headers = ['Category', 'Parameter', 'Price', 'Status'];
+    const rows = prices.map(p => [
+      p.category ? p.category.name : 'Unassigned',
+      p.parameter ? (p.parameter.parameterName || p.parameter.name) : 'Unassigned',
+      p.price,
+      p.status
+    ]);
+    const text = [headers.join('\t'), ...rows.map(r => r.join('\t'))].join('\n');
+    copyTextToClipboard(text,
+      () => triggerToast('Copied to clipboard successfully.', 'success'),
+      () => triggerToast('Failed to copy text.', 'error')
+    );
     setShowDownloadDropdown(false);
   };
 

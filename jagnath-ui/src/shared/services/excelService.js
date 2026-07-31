@@ -166,8 +166,16 @@ export const downloadTemplate = (masterType) => {
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Template');
 
-  // Generate Excel file and trigger download
-  XLSX.writeFile(workbook, schema.filename);
+  // Generate Excel file base64 data URL to bypass Chrome insecure download blocks
+  const base64 = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
+  const dataUrl = `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${base64}`;
+
+  const link = document.createElement('a');
+  link.href = dataUrl;
+  link.download = schema.filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 };
 
 /**
@@ -247,7 +255,16 @@ export const exportFailedRowsToExcel = (masterType, failedRows) => {
   const worksheet = XLSX.utils.json_to_sheet(exportData);
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Failed Rows');
-  XLSX.writeFile(workbook, `${masterType}_Failed_Rows_${Date.now()}.xlsx`);
+
+  const base64 = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
+  const dataUrl = `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${base64}`;
+
+  const link = document.createElement('a');
+  link.href = dataUrl;
+  link.download = `${masterType}_Failed_Rows_${Date.now()}.xlsx`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 };
 
 /**

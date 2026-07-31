@@ -9,6 +9,7 @@ import { CLIENT_ENDPOINTS, COMPANY_ENDPOINTS } from '../../../shared/services/ap
 import { getIndianStates, getCitiesByStateIso2 } from '../../../shared/services/locationService';
 import Pagination from '../../../shared/components/Pagination';
 import BulkImportModal from '../../../shared/components/BulkImport/BulkImportModal';
+import { downloadCSV, downloadExcel, copyTextToClipboard } from '../../../shared/utils/exportUtils';
 
 const ClientMaster = () => {
   // Client state
@@ -346,7 +347,7 @@ const ClientMaster = () => {
       c.state || 'N/A',
       c.status
     ]);
-    downloadCSV(headers, rows, 'Clients_Report.csv'); // Download as CSV to prevent insecure download blocks
+    downloadExcel(headers, rows, 'Clients_Report.xlsx');
     setShowDownloadDropdown(false);
   };
 

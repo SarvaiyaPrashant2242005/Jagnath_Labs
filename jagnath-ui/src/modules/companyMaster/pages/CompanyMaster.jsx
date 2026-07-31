@@ -9,7 +9,7 @@ import { COMPANY_ENDPOINTS, USER_ENDPOINTS } from '../../../shared/services/apiE
 import { getStoredUser } from '../../auth/services/authService';
 import { getIndianStates, getCitiesByStateIso2 } from '../../../shared/services/locationService';
 import Pagination from '../../../shared/components/Pagination';
-import { copyTextToClipboard, downloadCSV } from '../../../shared/utils/exportUtils';
+import { copyTextToClipboard, downloadCSV, downloadExcel } from '../../../shared/utils/exportUtils';
 
 const CompanyMaster = ({ onCompanyUpdate }) => {
   // Company state
@@ -370,7 +370,7 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
       c.city || 'N/A',
       c.status
     ]);
-    downloadCSV(headers, rows, 'Companies_Report.csv'); // Download as CSV to prevent insecure download blocks
+    downloadExcel(headers, rows, 'Companies_Report.xlsx');
     setShowDownloadDropdown(false);
   };
 

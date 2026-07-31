@@ -8,6 +8,7 @@ import { apiService } from '../../../shared/services/apiService';
 import { CATEGORY_ENDPOINTS, COMPANY_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 import Pagination from '../../../shared/components/Pagination';
 import BulkImportModal from '../../../shared/components/BulkImport/BulkImportModal';
+import { downloadCSV, downloadExcel, copyTextToClipboard } from '../../../shared/utils/exportUtils';
 
 const CategoryMaster = () => {
   // Category & Company states
@@ -284,7 +285,7 @@ const CategoryMaster = () => {
       c.description || 'None',
       c.status
     ]);
-    downloadCSV(headers, rows, 'Categories_Report.csv'); // Download as CSV to prevent insecure download blocks
+    downloadExcel(headers, rows, 'Categories_Report.xlsx');
     setShowDownloadDropdown(false);
   };
 

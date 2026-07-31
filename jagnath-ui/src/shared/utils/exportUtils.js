@@ -1,6 +1,8 @@
+import * as XLSX from 'xlsx';
+
 /**
- * Shared utilities for copy-to-clipboard and CSV exporting.
- * Prevents insecure download blocks and clipboard errors on HTTP connections.
+ * Shared utilities for copy-to-clipboard, CSV, and Excel exporting.
+ * Uses data URIs to prevent Chrome insecure download blocks on HTTP connections.
  */
 
 export const copyTextToClipboard = (text, onSuccess, onError) => {
@@ -43,7 +45,6 @@ const fallbackCopyTextToClipboard = (text, onSuccess, onError) => {
 };
 
 export const downloadCSV = (headers, rows, filename) => {
-  // Add UTF-8 BOM for Excel to open it correctly with UTF-8 encoding
   const BOM = '\uFEFF';
   const csvContent = BOM + [
     headers.map(h => `"${String(h).replace(/"/g, '""')}"`).join(','),
@@ -53,13 +54,35 @@ export const downloadCSV = (headers, rows, filename) => {
     }).join(','))
   ].join('\n');
 
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
+  const encodedUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csvContent);
   const link = document.createElement("a");
-  link.setAttribute("href", url);
+  link.setAttribute("href", encodedUri);
   link.setAttribute("download", filename.endsWith('.csv') ? filename : `${filename}.csv`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+};
+
+export const downloadExcel = (headers, rows, filename) => {
+  const exportData = rows.map(r => {
+    const obj = {};
+    headers.forEach((h, idx) => {
+      obj[h] = r[idx] === null || r[idx] === undefined ? '' : String(r[idx]);
+    });
+    return obj;
+  });
+
+  const worksheet = XLSX.utils.json_to_sheet(exportData);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Data');
+
+  const base64 = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
+  const dataUrl = `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${base64}`;
+
+  const link = document.createElement('a');
+  link.href = dataUrl;
+  link.download = filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 };
