@@ -29,6 +29,58 @@ const SuperAdminSidebar = ({ activeTab, onTabChange, sidebarRef, isOpen = true, 
         style={{ padding: 0 }}
       >
         <style>{`
+          .dashboard-sidebar {
+            padding: 0 !important;
+            background-color: var(--bg-dark);
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border-glass-dark);
+            width: 260px;
+            flex-shrink: 0;
+            z-index: 1005;
+            height: 100%;
+            transition: margin-left 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+          }
+
+          @media (min-width: 992px) {
+            .dashboard-sidebar:not(.open) {
+              margin-left: -260px !important;
+            }
+          }
+
+          .sidebar-backdrop {
+            display: none;
+          }
+
+          @media (max-width: 991px) {
+            .sidebar-backdrop {
+              display: block;
+              position: fixed;
+              inset: 0;
+              background-color: rgba(15, 23, 42, 0.6);
+              backdrop-filter: blur(4px);
+              -webkit-backdrop-filter: blur(4px);
+              z-index: 1004;
+              animation: fadeIn 0.2s ease-out;
+            }
+
+            .dashboard-sidebar {
+              position: fixed;
+              top: 0;
+              left: 0;
+              bottom: 0;
+              width: 270px;
+              max-width: 85vw;
+              transform: translateX(-100%);
+              box-shadow: 10px 0 30px rgba(0, 0, 0, 0.3);
+              margin-left: 0 !important;
+            }
+
+            .dashboard-sidebar.open {
+              transform: translateX(0);
+            }
+          }
+
           .super-admin-sidebar-header {
             padding: 1.25rem 1rem 0.75rem 1rem;
             border-bottom: 1px solid rgba(255, 255, 255, 0.08);
