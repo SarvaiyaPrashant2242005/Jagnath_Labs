@@ -783,11 +783,12 @@ const CategoryMaster = () => {
         masterType="category"
         existingDbRecords={categories}
         onImportSuccess={async (validRows) => {
-          const selectedCompanyId = localStorage.getItem('selectedCompanyId');
-          const res = await apiService.post(CATEGORY_ENDPOINTS.BULK_IMPORT, {
-            rows: validRows,
-            companyId: selectedCompanyId
-          });
+          const savedId = localStorage.getItem('selectedCompanyId');
+          const selectedCompanyId = (savedId && savedId !== 'undefined' && savedId !== 'null') ? savedId : null;
+          const payload = { rows: validRows };
+          if (selectedCompanyId) payload.companyId = selectedCompanyId;
+
+          const res = await apiService.post(CATEGORY_ENDPOINTS.BULK_IMPORT, payload);
           if (res && res.success) {
             triggerToast(res.message || 'Categories imported successfully!', 'success');
             fetchCategories(currentPage, pageSize, searchQuery, statusFilter);

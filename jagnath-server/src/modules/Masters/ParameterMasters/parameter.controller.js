@@ -339,7 +339,10 @@ const bulkImport = async (req, res) => {
             ));
         }
 
-        const reqCompanyId = req.body?.companyId || req.query?.companyId || req.headers['x-company-id'];
+        let reqCompanyId = req.body?.companyId || req.query?.companyId || req.headers['x-company-id'];
+        if (reqCompanyId === 'undefined' || reqCompanyId === 'null' || !reqCompanyId) {
+            reqCompanyId = null;
+        }
         let companyId = reqCompanyId;
 
         if (!companyId) {
