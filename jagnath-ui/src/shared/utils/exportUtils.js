@@ -54,13 +54,15 @@ export const downloadCSV = (headers, rows, filename) => {
     }).join(','))
   ].join('\n');
 
-  const encodedUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csvContent);
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
-  link.setAttribute("href", encodedUri);
-  link.setAttribute("download", filename.endsWith('.csv') ? filename : `${filename}.csv`);
+  link.href = url;
+  link.download = filename.endsWith('.csv') ? filename : `${filename}.csv`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 };
 
 export const downloadExcel = (headers, rows, filename) => {
@@ -76,13 +78,15 @@ export const downloadExcel = (headers, rows, filename) => {
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Data');
 
-  const base64 = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
-  const dataUrl = `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${base64}`;
+  const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
 
   const link = document.createElement('a');
-  link.href = dataUrl;
+  link.href = url;
   link.download = filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 };

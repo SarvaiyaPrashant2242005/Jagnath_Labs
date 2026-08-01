@@ -166,16 +166,17 @@ export const downloadTemplate = (masterType) => {
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Template');
 
-  // Generate Excel file base64 data URL to bypass Chrome insecure download blocks
-  const base64 = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
-  const dataUrl = `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${base64}`;
+  const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
 
   const link = document.createElement('a');
-  link.href = dataUrl;
+  link.href = url;
   link.download = schema.filename;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 };
 
 /**
@@ -256,15 +257,17 @@ export const exportFailedRowsToExcel = (masterType, failedRows) => {
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Failed Rows');
 
-  const base64 = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
-  const dataUrl = `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${base64}`;
+  const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
 
   const link = document.createElement('a');
-  link.href = dataUrl;
+  link.href = url;
   link.download = `${masterType}_Failed_Rows_${Date.now()}.xlsx`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 };
 
 /**
