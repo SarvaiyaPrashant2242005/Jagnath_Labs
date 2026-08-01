@@ -152,14 +152,26 @@ Status      : SUCCESS
 const updateCategory = async (categoryId, categoryData, userId, companyId, reqInfo) => {
     const transaction = await sequelize.transaction();
     try {
-        const category = await Category.findOne({
-            where: { id: categoryId, companyId },
+        const whereClause = { id: categoryId };
+        if (companyId) {
+            whereClause.companyId = companyId;
+        }
+        let category = await Category.findOne({
+            where: whereClause,
             include: [{ model: Company, as: "company" }],
             transaction
         });
         if (!category) {
+            category = await Category.findByPk(categoryId, {
+                include: [{ model: Company, as: "company" }],
+                transaction
+            });
+        }
+        if (!category) {
             throw new Error("Category not found or access denied.");
         }
+
+        const oldValues = getLoggableValues(category);
 
         const updatedCategory = await category.update(categoryData, { transaction });
         const newValues = getLoggableValues(updatedCategory);
@@ -172,7 +184,7 @@ const updateCategory = async (categoryId, categoryData, userId, companyId, reqIn
             const mappings = await CategoryParameter.findAll({ where: { categoryId: category.id }, transaction });
             const paramIds = mappings.map(m => m.parameterId);
             if (paramIds.length > 0) {
-                await Parameter.update({ status: 'Inactive' }, { where: { id: paramIds }, transaction });
+                await Parameter.update({ status: 'Inactive' }, { where: { id: { [Op.in]: paramIds } }, transaction });
             }
         }
 
@@ -202,7 +214,7 @@ ${changesBlock}
 
         writeLogToFile(logMessage, updateLogPath);
 
-        return await getCategoryById(categoryId, companyId);
+        return await getCategoryById(categoryId, updatedCategory.companyId);
     } catch (error) {
         await transaction.rollback();
         throw error;
