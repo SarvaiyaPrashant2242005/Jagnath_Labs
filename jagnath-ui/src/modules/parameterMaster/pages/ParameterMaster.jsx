@@ -1038,8 +1038,10 @@ const ParameterMaster = () => {
 
           const res = await apiService.post(PARAMETER_ENDPOINTS.BULK_IMPORT, payload);
           if (res && res.success) {
-            triggerToast(res.message || 'Parameters imported successfully!', 'success');
-            fetchParameters(currentPage, pageSize, searchQuery, statusFilter);
+            const inserted = res.data?.inserted ?? res.data?.createdCount ?? 0;
+            const updated = res.data?.updated ?? res.data?.updatedCount ?? 0;
+            triggerToast(`Bulk Import Complete: ${inserted} created, ${updated} updated!`, 'success');
+            fetchParameters();
           } else {
             throw new Error(res?.message || 'Failed to import parameters.');
           }

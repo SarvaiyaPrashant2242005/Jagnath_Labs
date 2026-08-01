@@ -378,44 +378,53 @@ module.exports = {
 
                 seenCategoriesInFile.set(normName, rowNum);
 
-                // DB Duplicate Check
-                const dbMatch = categoryMap.get(normName);
-                if (dbMatch) {
-                    failedCount++;
-                    rowResults.push({
-                        rowNumber: rowNum,
-                        action: "error",
-                        errors: ["Category already exists for the selected company."],
-                        data: rawData
-                    });
-                    continue;
-                }
-
                 try {
-                    // Insert New Category
-                    const newCat = await Category.create({
-                        companyId,
-                        name: String(categoryName).trim(),
-                        description,
-                        status
-                    }, { transaction });
+                    // If Category exists, update it; otherwise create new
+                    const dbMatch = categoryMap.get(normName);
+                    if (dbMatch) {
+                        const existingInstance = await Category.findByPk(dbMatch.id, { transaction });
+                        if (existingInstance) {
+                            await existingInstance.update({
+                                description: description !== null ? description : existingInstance.description,
+                                status: status || existingInstance.status
+                            }, { transaction });
 
-                    const createdObj = newCat.get ? newCat.get({ plain: true }) : newCat;
-                    categoryMap.set(normName, createdObj);
+                            const updatedObj = existingInstance.get ? existingInstance.get({ plain: true }) : existingInstance;
+                            categoryMap.set(normName, updatedObj);
+                            updatedCount++;
+                            rowResults.push({
+                                rowNumber: rowNum,
+                                action: "updated",
+                                recordId: updatedObj.id,
+                                message: "Category updated successfully"
+                            });
+                        }
+                    } else {
+                        // Insert New Category
+                        const newCat = await Category.create({
+                            companyId,
+                            name: String(categoryName).trim(),
+                            description,
+                            status
+                        }, { transaction });
 
-                    insertedCount++;
-                    rowResults.push({
-                        rowNumber: rowNum,
-                        action: "inserted",
-                        recordId: createdObj.id,
-                        message: "Category created successfully"
-                    });
+                        const createdObj = newCat.get ? newCat.get({ plain: true }) : newCat;
+                        categoryMap.set(normName, createdObj);
+
+                        insertedCount++;
+                        rowResults.push({
+                            rowNumber: rowNum,
+                            action: "inserted",
+                            recordId: createdObj.id,
+                            message: "Category created successfully"
+                        });
+                    }
                 } catch (rowErr) {
                     failedCount++;
                     rowResults.push({
                         rowNumber: rowNum,
                         action: "error",
-                        errors: [rowErr.message || "Failed to create category record."],
+                        errors: [rowErr.message || "Failed to process category record."],
                         data: rawData
                     });
                 }

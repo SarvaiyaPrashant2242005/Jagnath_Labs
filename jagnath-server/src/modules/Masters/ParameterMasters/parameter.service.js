@@ -452,19 +452,6 @@ module.exports = {
 
                 seenParametersInFile.set(normName, rowNum);
 
-                // DB Duplicate Check
-                const dbMatch = parameterMap.get(normName);
-                if (dbMatch) {
-                    failedCount++;
-                    rowResults.push({
-                        rowNumber: rowNum,
-                        action: "error",
-                        errors: ["Parameter already exists for the selected company."],
-                        data: rawData
-                    });
-                    continue;
-                }
-
                 try {
                     // Resolve Category if categoryName provided
                     let categoryId = null;
@@ -486,40 +473,70 @@ module.exports = {
                         categoryId = cat.id;
                     }
 
-                    // Insert New Parameter
-                    const newParam = await Parameter.create({
-                        companyId,
-                        parameterName: String(paramName).trim(),
-                        description,
-                        testMethod,
-                        status
-                    }, { transaction });
+                    const dbMatch = parameterMap.get(normName);
+                    if (dbMatch) {
+                        const existingInstance = await Parameter.findByPk(dbMatch.id, { transaction });
+                        if (existingInstance) {
+                            await existingInstance.update({
+                                description: description !== null ? description : existingInstance.description,
+                                testMethod: testMethod !== null ? testMethod : existingInstance.testMethod,
+                                status: status || existingInstance.status
+                            }, { transaction });
 
-                    if (categoryId) {
-                        await CategoryParameter.create({
+                            if (categoryId) {
+                                await CategoryParameter.findOrCreate({
+                                    where: { companyId, categoryId, parameterId: existingInstance.id },
+                                    defaults: { companyId, categoryId, parameterId: existingInstance.id, status: "Active" },
+                                    transaction
+                                });
+                            }
+
+                            const updatedObj = existingInstance.get ? existingInstance.get({ plain: true }) : existingInstance;
+                            parameterMap.set(normName, updatedObj);
+                            updatedCount++;
+                            rowResults.push({
+                                rowNumber: rowNum,
+                                action: "updated",
+                                recordId: updatedObj.id,
+                                message: "Parameter updated successfully"
+                            });
+                        }
+                    } else {
+                        // Insert New Parameter
+                        const newParam = await Parameter.create({
                             companyId,
-                            categoryId,
-                            parameterId: newParam.id,
-                            status: "Active"
+                            parameterName: String(paramName).trim(),
+                            description,
+                            testMethod,
+                            status
                         }, { transaction });
+
+                        if (categoryId) {
+                            await CategoryParameter.create({
+                                companyId,
+                                categoryId,
+                                parameterId: newParam.id,
+                                status: "Active"
+                            }, { transaction });
+                        }
+
+                        const createdObj = newParam.get ? newParam.get({ plain: true }) : newParam;
+                        parameterMap.set(normName, createdObj);
+
+                        insertedCount++;
+                        rowResults.push({
+                            rowNumber: rowNum,
+                            action: "inserted",
+                            recordId: createdObj.id,
+                            message: "Parameter created successfully"
+                        });
                     }
-
-                    const createdObj = newParam.get ? newParam.get({ plain: true }) : newParam;
-                    parameterMap.set(normName, createdObj);
-
-                    insertedCount++;
-                    rowResults.push({
-                        rowNumber: rowNum,
-                        action: "inserted",
-                        recordId: createdObj.id,
-                        message: "Parameter created successfully"
-                    });
                 } catch (rowErr) {
                     failedCount++;
                     rowResults.push({
                         rowNumber: rowNum,
                         action: "error",
-                        errors: [rowErr.message || "Failed to create parameter record."],
+                        errors: [rowErr.message || "Failed to process parameter record."],
                         data: rawData
                     });
                 }

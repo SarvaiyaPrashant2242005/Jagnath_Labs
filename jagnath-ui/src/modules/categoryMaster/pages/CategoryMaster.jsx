@@ -790,8 +790,10 @@ const CategoryMaster = () => {
 
           const res = await apiService.post(CATEGORY_ENDPOINTS.BULK_IMPORT, payload);
           if (res && res.success) {
-            triggerToast(res.message || 'Categories imported successfully!', 'success');
-            fetchCategories(currentPage, pageSize, searchQuery, statusFilter);
+            const inserted = res.data?.inserted ?? res.data?.createdCount ?? 0;
+            const updated = res.data?.updated ?? res.data?.updatedCount ?? 0;
+            triggerToast(`Bulk Import Complete: ${inserted} created, ${updated} updated!`, 'success');
+            fetchCategories();
           } else {
             throw new Error(res?.message || 'Failed to import categories.');
           }
