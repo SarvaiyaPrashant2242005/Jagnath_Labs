@@ -13,8 +13,8 @@ const { successResponse, errorResponse } = require("../../../utils/response");
  * Resolves the company ID based on body, query parameters or user default.
  * Validates user ownership/membership.
  */
-const resolveCompanyId = async (body, query, userId) => {
-    const companyIdVal = body.companyId || body.company_id || query.companyId || query.company_id;
+const resolveCompanyId = async (body = {}, query = {}, userId, headers = {}) => {
+    const companyIdVal = body.companyId || body.company_id || query.companyId || query.company_id || headers['x-company-id'];
     const companyNameVal = body.x || query.companyName;
 
     if (companyIdVal) {
@@ -65,7 +65,7 @@ const create = async (req, res) => {
 
         let companyId;
         try {
-            companyId = await resolveCompanyId(body, req.query, userId);
+            companyId = await resolveCompanyId(body, req.query, userId, req.headers);
         } catch (e) {
             if (e.message === "UNAUTHORIZED_COMPANY") {
                 return res.status(403).json(errorResponse("FORBIDDEN", "Unauthorized", "Access Denied: You do not own this company."));
@@ -110,7 +110,7 @@ const getAll = async (req, res) => {
 
         let companyId;
         try {
-            companyId = await resolveCompanyId({}, req.query, userId);
+            companyId = await resolveCompanyId({}, req.query, userId, req.headers);
         } catch (e) {
             if (e.message === "UNAUTHORIZED_COMPANY") {
                 return res.status(403).json(errorResponse("FORBIDDEN", "Unauthorized access to this company's categories.", "Unauthorized"));

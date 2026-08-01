@@ -30,6 +30,10 @@ const buildHeaders = (isJson = true) => {
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
+  const selectedCompanyId = localStorage.getItem("selectedCompanyId");
+  if (selectedCompanyId && selectedCompanyId !== "undefined" && selectedCompanyId !== "null") {
+    headers["x-company-id"] = selectedCompanyId;
+  }
   return headers;
 };
 

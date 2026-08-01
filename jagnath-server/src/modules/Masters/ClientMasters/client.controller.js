@@ -334,12 +334,18 @@ const bulkImport = async (req, res) => {
             ));
         }
 
-        // Get user's company
-        let company = await companyService.getCompanyByUserId(userId);
+        let reqCompanyId = req.body?.companyId || req.query?.companyId || req.headers['x-company-id'];
+        let company = null;
+        if (reqCompanyId && reqCompanyId !== 'undefined' && reqCompanyId !== 'null') {
+            company = await Company.findByPk(reqCompanyId);
+        }
         if (!company) {
-            const companies = await companyService.getCompaniesByUser(userId);
-            if (companies && companies.length > 0) {
-                company = companies[0];
+            company = await companyService.getCompanyByUserId(userId);
+            if (!company) {
+                const companies = await companyService.getCompaniesByUser(userId);
+                if (companies && companies.length > 0) {
+                    company = companies[0];
+                }
             }
         }
 
