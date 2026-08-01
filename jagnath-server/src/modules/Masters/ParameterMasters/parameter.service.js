@@ -421,11 +421,11 @@ module.exports = {
                 const rawData = item.data || item;
                 const rowNum = item._originalIndex || (i + 1);
 
-                const paramName = rawData.parameterName || rawData.name;
-                const categoryName = rawData.categoryName || rawData.category;
-                const description = rawData.description || null;
-                const testMethod = rawData.testMethod || null;
-                const status = rawData.status || "Active";
+                const paramName = rawData.parameterName || rawData.name || rawData['Parameter Name'] || rawData['Parameter Name *'] || rawData.Parameter || rawData.parameter;
+                const categoryName = rawData.categoryName || rawData.category || rawData['Category Name'] || rawData.Category;
+                const description = rawData.description || rawData.Description || null;
+                const testMethod = rawData.testMethod || rawData.method || rawData['Test Method'] || rawData.TestMethod || null;
+                const status = rawData.status || rawData.Status || "Active";
 
                 const errors = [];
 

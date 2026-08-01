@@ -349,9 +349,9 @@ module.exports = {
                 const rawData = item.data || item;
                 const rowNum = item._originalIndex || (i + 1);
 
-                const categoryName = rawData.name || rawData.categoryName;
-                const description = rawData.description || null;
-                const status = rawData.status || "Active";
+                const categoryName = rawData.categoryName || rawData.name || rawData['Category Name'] || rawData['Category Name *'] || rawData.Category || rawData.category;
+                const description = rawData.description || rawData.Description || null;
+                const status = rawData.status || rawData.Status || "Active";
 
                 const errors = [];
 

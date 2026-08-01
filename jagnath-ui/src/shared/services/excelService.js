@@ -282,8 +282,39 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
   // Map header labels to internal object keys
   const labelToKeyMap = {};
   schema.headers.forEach(h => {
-    labelToKeyMap[h.label] = h.key;
-    labelToKeyMap[h.label.replace(' *', '').trim()] = h.key;
+    const key = h.key;
+    const label = h.label;
+
+    labelToKeyMap[label.toLowerCase()] = key;
+    labelToKeyMap[label.replace(' *', '').trim().toLowerCase()] = key;
+    labelToKeyMap[key.toLowerCase()] = key;
+    labelToKeyMap[key.replace(/([A-Z])/g, '_$1').toLowerCase()] = key;
+
+    if (key === 'categoryName' || key === 'name') {
+      ['category', 'category name', 'category_name', 'cat name', 'name', 'particulars', 'sample particular'].forEach(alias => {
+        labelToKeyMap[alias] = key;
+      });
+    }
+    if (key === 'parameterName') {
+      ['parameter', 'parameter name', 'parameter_name', 'param name', 'name', 'test parameter', 'test_parameter'].forEach(alias => {
+        labelToKeyMap[alias] = key;
+      });
+    }
+    if (key === 'clientName') {
+      ['client', 'client name', 'client_name', 'name', 'customer', 'customer name'].forEach(alias => {
+        labelToKeyMap[alias] = key;
+      });
+    }
+    if (key === 'contactNumber') {
+      ['contact', 'contact number', 'phone', 'mobile', 'mobile number', 'contact_number', 'phone number'].forEach(alias => {
+        labelToKeyMap[alias] = key;
+      });
+    }
+    if (key === 'testMethod') {
+      ['method', 'test method', 'test_method', 'standard', 'specification'].forEach(alias => {
+        labelToKeyMap[alias] = key;
+      });
+    }
   });
 
   const evaluatedRows = [];
@@ -299,8 +330,9 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
 
     // Map Excel header labels to internal keys
     Object.keys(row).forEach(rawHeader => {
-      const trimmedHeader = rawHeader.trim();
-      const matchedKey = labelToKeyMap[trimmedHeader] || labelToKeyMap[trimmedHeader.replace(' *', '')];
+      const cleanHeader = rawHeader.trim().toLowerCase();
+      const cleanWithoutStar = cleanHeader.replace(' *', '').trim();
+      const matchedKey = labelToKeyMap[cleanHeader] || labelToKeyMap[cleanWithoutStar];
       if (matchedKey) {
         normalizedData[matchedKey] = String(row[rawHeader]).trim();
       }
