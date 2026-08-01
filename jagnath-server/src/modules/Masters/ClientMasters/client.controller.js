@@ -207,7 +207,7 @@ const getById = async (req, res) => {
 const getAll = async (req, res) => {
     try {
         const userId = req.user.user_id;
-        const requestedCompanyId = req.query.companyId || req.query.company_id;
+        const requestedCompanyId = req.query.companyId || req.query.company_id || req.headers['x-company-id'];
 
         let companyIdToUse;
 

@@ -161,10 +161,20 @@ const updateCategory = async (categoryId, categoryData, userId, companyId, reqIn
             throw new Error("Category not found or access denied.");
         }
 
-        const oldValues = getLoggableValues(category);
-
         const updatedCategory = await category.update(categoryData, { transaction });
         const newValues = getLoggableValues(updatedCategory);
+
+        // If category is marked Inactive, mark all mapped parameters as Inactive automatically
+        if (categoryData.status === 'Inactive' || categoryData.status === false) {
+            const CategoryParameter = require("../CategoryParameterMasters/categoryParameter.model");
+            const Parameter = require("../ParameterMasters/parameter.model");
+
+            const mappings = await CategoryParameter.findAll({ where: { categoryId: category.id }, transaction });
+            const paramIds = mappings.map(m => m.parameterId);
+            if (paramIds.length > 0) {
+                await Parameter.update({ status: 'Inactive' }, { where: { id: paramIds }, transaction });
+            }
+        }
 
         const companyName = category.company ? (category.company.companyName || category.company.company_name) : "Unknown";
         const performedBy = await getPerformedBy(userId);
@@ -388,6 +398,16 @@ module.exports = {
                                 description: description !== null ? description : existingInstance.description,
                                 status: status || existingInstance.status
                             }, { transaction });
+
+                            if (status === 'Inactive') {
+                                const CategoryParameter = require("../CategoryParameterMasters/categoryParameter.model");
+                                const Parameter = require("../ParameterMasters/parameter.model");
+                                const mappings = await CategoryParameter.findAll({ where: { categoryId: existingInstance.id }, transaction });
+                                const paramIds = mappings.map(m => m.parameterId);
+                                if (paramIds.length > 0) {
+                                    await Parameter.update({ status: 'Inactive' }, { where: { id: paramIds }, transaction });
+                                }
+                            }
 
                             const updatedObj = existingInstance.get ? existingInstance.get({ plain: true }) : existingInstance;
                             categoryMap.set(normName, updatedObj);
