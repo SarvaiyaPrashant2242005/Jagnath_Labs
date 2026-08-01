@@ -297,8 +297,13 @@ Status      : SUCCESS
  */
 const getTestRequestById = async (trId, companyId) => {
     try {
-        const tr = await TestRequest.findOne({
-            where: { id: trId, companyId },
+        const whereClause = { id: trId };
+        if (companyId) {
+            whereClause.companyId = companyId;
+        }
+
+        let tr = await TestRequest.findOne({
+            where: whereClause,
             include: [
                 {
                     model: Company,
@@ -317,6 +322,30 @@ const getTestRequestById = async (trId, companyId) => {
             ],
             attributes: { exclude: ["deleted_at"] }
         });
+
+        if (!tr && companyId) {
+            tr = await TestRequest.findOne({
+                where: { id: trId },
+                include: [
+                    {
+                        model: Company,
+                        as: "company",
+                        attributes: ["company_name"]
+                    },
+                    {
+                        model: Client,
+                        as: "client",
+                        attributes: ["clientName"]
+                    },
+                    {
+                        model: Caution,
+                        as: "caution"
+                    }
+                ],
+                attributes: { exclude: ["deleted_at"] }
+            });
+        }
+
         return formatTestRequest(tr);
     } catch (error) {
         throw error;

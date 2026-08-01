@@ -167,14 +167,15 @@ const getById = async (req, res) => {
         const { id } = req.params;
         const userId = req.user.user_id;
 
-        let company;
+        let companyId = null;
         try {
-            company = await getUserCompany(userId);
+            const company = await getUserCompany(userId);
+            if (company) companyId = company.id;
         } catch (e) {
-            return res.status(404).json(errorResponse("NOT_FOUND", e.message, e.message));
+            // Ignore company error to allow lookup by test request ID
         }
 
-        const tr = await testRequestService.getTestRequestById(id, company.id);
+        const tr = await testRequestService.getTestRequestById(id, companyId);
         if (!tr) {
             return res.status(404).json(errorResponse(
                 "NOT_FOUND",
