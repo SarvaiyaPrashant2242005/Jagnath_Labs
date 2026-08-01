@@ -43,12 +43,18 @@ const create = async (req, res) => {
             return res.status(404).json(errorResponse("NOT_FOUND", e.message, e.message));
         }
 
-        // Verify that the Test Request exists and belongs to the user's company
-        const tr = await TestRequest.findOne({ where: { id: value.testRequestId, companyId: company.id } });
+        // Verify that the Test Request exists (check company scope first, then PK fallback)
+        let tr = null;
+        if (company && company.id) {
+            tr = await TestRequest.findOne({ where: { id: value.testRequestId, companyId: company.id } });
+        }
+        if (!tr) {
+            tr = await TestRequest.findByPk(value.testRequestId);
+        }
         if (!tr) {
             return res.status(404).json(errorResponse(
                 "NOT_FOUND",
-                "Test Request not found or access denied.",
+                "Test Request not found.",
                 "Test Request not found."
             ));
         }
