@@ -15,7 +15,7 @@ const { successResponse, errorResponse } = require("../../../utils/response");
  */
 const resolveCompanyId = async (body = {}, query = {}, userId, headers = {}) => {
     const companyIdVal = body.companyId || body.company_id || query.companyId || query.company_id || headers['x-company-id'];
-    const companyNameVal = body.x || query.companyName;
+    const companyNameVal = body.companyName || body.company_name || query.companyName;
 
     if (companyIdVal) {
         const isOwner = await companyService.checkOwnership(companyIdVal, userId);
@@ -233,11 +233,11 @@ const update = async (req, res) => {
             ));
         }
 
-        // Resolve target company
+        // Resolve target company only if explicitly changed in body
         let targetCompanyId = category.companyId;
-        if (body.companyId || body.company_id || body.companyName) {
+        if (body.companyId || body.company_id) {
             try {
-                targetCompanyId = await resolveCompanyId(body, {}, userId);
+                targetCompanyId = await resolveCompanyId(body, {}, userId, req.headers);
             } catch (e) {
                 if (e.message === "UNAUTHORIZED_COMPANY") {
                     return res.status(403).json(errorResponse("FORBIDDEN", "Unauthorized", "Access Denied: You do not own the target company."));
