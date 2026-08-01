@@ -135,6 +135,13 @@ const DashboardLayout = ({ children }) => {
     navigate('/login');
   };
 
+  // Close sidebar on mobile item selection (keeps sidebar open on desktop)
+  const handleCloseMobile = () => {
+    if (window.innerWidth <= 991) {
+      setIsSidebarOpen(false);
+    }
+  };
+
   return (
     <div className="dashboard-container" style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden' }}>
       
@@ -330,7 +337,7 @@ const DashboardLayout = ({ children }) => {
           activeTab={activeTab}
           onTabChange={handleTabChange}
           isOpen={isSidebarOpen}
-          onCloseMobile={() => setIsSidebarOpen(false)}
+          onCloseMobile={handleCloseMobile}
         />
       ) : (
         <Sidebar
@@ -338,7 +345,7 @@ const DashboardLayout = ({ children }) => {
           onTabChange={handleTabChange}
           onNewRequest={() => navigate('/test-requests/add')}
           isOpen={isSidebarOpen}
-          onCloseMobile={() => setIsSidebarOpen(false)}
+          onCloseMobile={handleCloseMobile}
         />
       )}
 

@@ -23,14 +23,14 @@ const Dashboard = () => {
         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
         textAlign: 'center'
       }}>
-        <h2 style={{
+        <h3 style={{
           margin: 0,
           fontSize: '1.5rem',
           fontWeight: 700,
-          color: '#0f172a'
+          color: '#838383ff'
         }}>
-          test
-        </h2>
+          Dashboard
+        </h3>
       </div>
     </div>
   );
