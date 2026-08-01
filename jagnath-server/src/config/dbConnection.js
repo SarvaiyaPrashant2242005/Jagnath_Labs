@@ -23,8 +23,8 @@ const connectDB = async () => {
         await sequelize.authenticate();
         console.log("✅ PostgreSQL Connected Successfully");
 
-        // 2. Sync all models with the database (alter: true updates tables without dropping them)
-        await sequelize.sync({ alter: true });
+        // 2. Sync all models with the database (alter: false to prevent PostgreSQL alter conflict crashes)
+        await sequelize.sync({ alter: false });
         console.log('📂 Database & tables synced!');
 
         // 3. Run unique index migration and duplicate report
