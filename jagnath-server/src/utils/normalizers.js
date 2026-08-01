@@ -32,8 +32,8 @@ const normalizePhone = (phone) => {
  * @returns {string}
  */
 const normalizeString = (str) => {
-  if (!str || typeof str !== "string") return "";
-  return str.trim().toLowerCase();
+  if (str === null || str === undefined) return "";
+  return String(str).trim().toLowerCase();
 };
 
 /**

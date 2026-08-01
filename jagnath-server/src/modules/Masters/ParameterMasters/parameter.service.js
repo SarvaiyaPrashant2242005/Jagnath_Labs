@@ -465,55 +465,64 @@ module.exports = {
                     continue;
                 }
 
-                // Resolve Category if categoryName provided
-                let categoryId = null;
-                if (categoryName && String(categoryName).trim() !== "") {
-                    const normCatName = normalizeString(categoryName);
-                    let cat = await Category.findOne({
-                        where: {
+                try {
+                    // Resolve Category if categoryName provided
+                    let categoryId = null;
+                    if (categoryName && String(categoryName).trim() !== "") {
+                        let cat = await Category.findOne({
+                            where: {
+                                companyId,
+                                name: { [Op.iLike]: String(categoryName).trim() }
+                            },
+                            transaction
+                        });
+                        if (!cat) {
+                            cat = await Category.create({
+                                companyId,
+                                name: String(categoryName).trim(),
+                                status: "Active"
+                            }, { transaction });
+                        }
+                        categoryId = cat.id;
+                    }
+
+                    // Insert New Parameter
+                    const newParam = await Parameter.create({
+                        companyId,
+                        parameterName: String(paramName).trim(),
+                        description,
+                        testMethod,
+                        status
+                    }, { transaction });
+
+                    if (categoryId) {
+                        await CategoryParameter.create({
                             companyId,
-                            name: { [Op.iLike]: String(categoryName).trim() }
-                        },
-                        transaction
-                    });
-                    if (!cat) {
-                        cat = await Category.create({
-                            companyId,
-                            name: String(categoryName).trim(),
+                            categoryId,
+                            parameterId: newParam.id,
                             status: "Active"
                         }, { transaction });
                     }
-                    categoryId = cat.id;
+
+                    const createdObj = newParam.get ? newParam.get({ plain: true }) : newParam;
+                    parameterMap.set(normName, createdObj);
+
+                    insertedCount++;
+                    rowResults.push({
+                        rowNumber: rowNum,
+                        action: "inserted",
+                        recordId: createdObj.id,
+                        message: "Parameter created successfully"
+                    });
+                } catch (rowErr) {
+                    failedCount++;
+                    rowResults.push({
+                        rowNumber: rowNum,
+                        action: "error",
+                        errors: [rowErr.message || "Failed to create parameter record."],
+                        data: rawData
+                    });
                 }
-
-                // Insert New Parameter
-                const newParam = await Parameter.create({
-                    companyId,
-                    parameterName: String(paramName).trim(),
-                    description,
-                    testMethod,
-                    status
-                }, { transaction });
-
-                if (categoryId) {
-                    await CategoryParameter.create({
-                        companyId,
-                        categoryId,
-                        parameterId: newParam.id,
-                        status: "Active"
-                    }, { transaction });
-                }
-
-                const createdObj = newParam.get ? newParam.get({ plain: true }) : newParam;
-                parameterMap.set(normName, createdObj);
-
-                insertedCount++;
-                rowResults.push({
-                    rowNumber: rowNum,
-                    action: "inserted",
-                    recordId: createdObj.id,
-                    message: "Parameter created successfully"
-                });
             }
 
             await transaction.commit();

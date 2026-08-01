@@ -391,24 +391,34 @@ module.exports = {
                     continue;
                 }
 
-                // Insert New Category
-                const newCat = await Category.create({
-                    companyId,
-                    name: String(categoryName).trim(),
-                    description,
-                    status
-                }, { transaction });
+                try {
+                    // Insert New Category
+                    const newCat = await Category.create({
+                        companyId,
+                        name: String(categoryName).trim(),
+                        description,
+                        status
+                    }, { transaction });
 
-                const createdObj = newCat.get ? newCat.get({ plain: true }) : newCat;
-                categoryMap.set(normName, createdObj);
+                    const createdObj = newCat.get ? newCat.get({ plain: true }) : newCat;
+                    categoryMap.set(normName, createdObj);
 
-                insertedCount++;
-                rowResults.push({
-                    rowNumber: rowNum,
-                    action: "inserted",
-                    recordId: createdObj.id,
-                    message: "Category created successfully"
-                });
+                    insertedCount++;
+                    rowResults.push({
+                        rowNumber: rowNum,
+                        action: "inserted",
+                        recordId: createdObj.id,
+                        message: "Category created successfully"
+                    });
+                } catch (rowErr) {
+                    failedCount++;
+                    rowResults.push({
+                        rowNumber: rowNum,
+                        action: "error",
+                        errors: [rowErr.message || "Failed to create category record."],
+                        data: rawData
+                    });
+                }
             }
 
             await transaction.commit();
