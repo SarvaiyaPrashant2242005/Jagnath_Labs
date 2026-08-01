@@ -155,15 +155,15 @@ const ParameterMaster = () => {
   };
 
   // Fetch all parameters
-  const fetchParameters = async () => {
+  const fetchParameters = async (page = currentPage, limit = pageSize, search = searchQuery, status = statusFilter) => {
     setLoading(true);
     try {
       const activeCompId = localStorage.getItem('selectedCompanyId') || '';
       const params = new URLSearchParams({
-        page: currentPage,
-        limit: pageSize,
-        search: searchQuery,
-        status: statusFilter
+        page: page,
+        limit: limit,
+        search: search,
+        status: status
       });
       if (activeCompId) {
         params.append('companyId', activeCompId);
