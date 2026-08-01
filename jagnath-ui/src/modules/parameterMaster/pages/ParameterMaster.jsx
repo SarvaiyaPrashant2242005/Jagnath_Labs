@@ -1031,7 +1031,11 @@ const ParameterMaster = () => {
         masterType="parameter"
         existingDbRecords={parameters}
         onImportSuccess={async (validRows) => {
-          const res = await apiService.post(PARAMETER_ENDPOINTS.BULK_IMPORT, { rows: validRows });
+          const selectedCompanyId = localStorage.getItem('selectedCompanyId');
+          const res = await apiService.post(PARAMETER_ENDPOINTS.BULK_IMPORT, {
+            rows: validRows,
+            companyId: selectedCompanyId
+          });
           if (res && res.success) {
             triggerToast(res.message || 'Parameters imported successfully!', 'success');
             fetchParameters(currentPage, pageSize, searchQuery, statusFilter);

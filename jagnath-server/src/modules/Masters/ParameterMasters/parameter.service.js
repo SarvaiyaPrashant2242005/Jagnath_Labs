@@ -470,7 +470,10 @@ module.exports = {
                 if (categoryName && String(categoryName).trim() !== "") {
                     const normCatName = normalizeString(categoryName);
                     let cat = await Category.findOne({
-                        where: sequelize.where(sequelize.fn("LOWER", sequelize.fn("TRIM", sequelize.col("name"))), normCatName),
+                        where: {
+                            companyId,
+                            name: { [Op.iLike]: String(categoryName).trim() }
+                        },
                         transaction
                     });
                     if (!cat) {

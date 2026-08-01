@@ -335,16 +335,29 @@ const bulkImport = async (req, res) => {
             ));
         }
 
-        let company = await companyService.getCompanyByUserId(userId);
-        if (!company) {
-            const companies = await companyService.getCompaniesByUser(userId);
-            if (companies && companies.length > 0) {
-                company = companies[0];
+        const reqCompanyId = req.body?.companyId || req.query?.companyId || req.headers['x-company-id'];
+        let companyId = reqCompanyId;
+
+        if (!companyId) {
+            let company = await companyService.getCompanyByUserId(userId);
+            if (!company) {
+                const companies = await companyService.getCompaniesByUser(userId);
+                if (companies && companies.length > 0) {
+                    company = companies[0];
+                } else {
+                    const allCompanies = await companyService.getAllCompanies();
+                    if (allCompanies && allCompanies.length > 0) {
+                        company = allCompanies[0];
+                    }
+                }
+            }
+            if (company) {
+                companyId = company.id;
             }
         }
 
-        if (!company) {
-            return res.status(404).json(errorResponse("NOT_FOUND", "Company not found for user.", "Company not found."));
+        if (!companyId) {
+            return res.status(400).json(errorResponse("VALIDATION_ERROR", "Company ID is required for category bulk import.", "Company not found."));
         }
 
         const reqInfo = {
@@ -352,7 +365,7 @@ const bulkImport = async (req, res) => {
             userAgent: req.headers["user-agent"]
         };
 
-        const result = await categoryService.bulkImportCategories(rows, company.id, userId, reqInfo);
+        const result = await categoryService.bulkImportCategories(rows, companyId, userId, reqInfo);
 
         return res.status(200).json(successResponse(
             "CATEGORIES_BULK_IMPORTED",
