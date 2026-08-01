@@ -1108,12 +1108,7 @@ const ParameterMaster = () => {
         masterType="parameter"
         existingDbRecords={parameters}
         onImportSuccess={async (validRows) => {
-          const savedId = localStorage.getItem('selectedCompanyId');
-          const selectedCompanyId = (savedId && savedId !== 'undefined' && savedId !== 'null') ? savedId : null;
-          const payload = { rows: validRows };
-          if (selectedCompanyId) payload.companyId = selectedCompanyId;
-
-          const res = await apiService.post(PARAMETER_ENDPOINTS.BULK_IMPORT, payload);
+          const res = await apiService.post(PARAMETER_ENDPOINTS.BULK_IMPORT, { rows: validRows });
           if (res && res.success) {
             const inserted = res.data?.inserted ?? res.data?.createdCount ?? 0;
             const updated = res.data?.updated ?? res.data?.updatedCount ?? 0;
