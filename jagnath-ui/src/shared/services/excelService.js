@@ -432,19 +432,15 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
         const nCatName = normalizeString(normalizedData.categoryName || normalizedData.name);
         const dbCat = existingDbRecords.find(c => normalizeString(c.name || c.categoryName) === nCatName);
         if (dbCat) {
-          const msg = 'Category already exists for the selected company.';
-          cellErrors['categoryName'] = msg;
-          cellErrors['_row'] = msg;
-          isRowValid = false;
+          isDbMatch = true;
+          matchingDbId = dbCat.id;
         }
       } else if (masterType === 'parameter') {
         const nParamName = normalizeString(normalizedData.parameterName || normalizedData.name);
         const dbParam = existingDbRecords.find(p => normalizeString(p.parameterName || p.name) === nParamName);
         if (dbParam) {
-          const msg = 'Parameter already exists for the selected company.';
-          cellErrors['parameterName'] = msg;
-          cellErrors['_row'] = msg;
-          isRowValid = false;
+          isDbMatch = true;
+          matchingDbId = dbParam.id;
         }
       }
     }
