@@ -15,6 +15,45 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
   // Company state
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  // Multi-Select state
+  const [selectedIds, setSelectedIds] = useState([]);
+
+  // Select all / deselect all current page companies
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      const allIds = companies.map(c => c.id);
+      setSelectedIds(allIds);
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  // Toggle single company selection
+  const handleSelectRow = (id, e) => {
+    e.stopPropagation();
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  // Bulk Delete Selected
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} selected companies?`)) return;
+
+    try {
+      setLoading(true);
+      await Promise.all(selectedIds.map(id => apiService.delete(COMPANY_ENDPOINTS.DELETE(id))));
+      triggerToast(`Successfully deleted ${selectedIds.length} companies!`, 'success');
+      setSelectedIds([]);
+      fetchCompanies();
+      if (onCompanyUpdate) onCompanyUpdate();
+    } catch (err) {
+      triggerToast(err.message || 'Failed to delete selected companies.', 'error');
+      setLoading(false);
+    }
+  };
   
   // Location dropdown states (India)
   const [indianStates, setIndianStates] = useState([]);
@@ -917,8 +956,31 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
         
         {/* Table Filters */}
         <div className="master-table-filters" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
-          <div style={{ fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>
-            Total Companies: {totalItems}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div style={{ fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>
+              Total Companies: {totalItems}
+            </div>
+            {selectedIds.length > 0 && (
+              <button
+                onClick={handleBulkDelete}
+                style={{
+                  background: '#ef4444',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '0.4rem 0.85rem',
+                  fontWeight: 600,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  boxShadow: '0 1px 2px rgba(239, 68, 68, 0.2)'
+                }}
+              >
+                <FaTrash size={12} /> Delete Selected ({selectedIds.length})
+              </button>
+            )}
           </div>
           <div className="master-filter-inputs" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             <select
@@ -945,6 +1007,14 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
                 <thead>
                   <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                    <th style={{ padding: '0.75rem 0.75rem', width: '40px', textAlign: 'center' }}>
+                      <input
+                        type="checkbox"
+                        checked={companies.length > 0 && selectedIds.length === companies.length}
+                        onChange={handleSelectAll}
+                        style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                      />
+                    </th>
                     <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ACTIONS</th>
                     <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
                     <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>COMPANY CODE</th>
@@ -958,13 +1028,13 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={10} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                      <td colSpan={9} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                         Loading companies...
                       </td>
                     </tr>
                   ) : companies.length === 0 ? (
                     <tr>
-                      <td colSpan={10} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                      <td colSpan={9} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                         No companies found.
                       </td>
                     </tr>
@@ -976,6 +1046,14 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
                         style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background-color 0.15s' }}
                         className="company-table-row"
                       >
+                        <td style={{ padding: '0.75rem 0.75rem', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(company.id)}
+                            onChange={(e) => handleSelectRow(company.id, e)}
+                            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                          />
+                        </td>
                         <td style={{ padding: '0.75rem 1rem', display: 'flex', gap: '0.5rem' }}>
                           <button 
                             onClick={(e) => { e.stopPropagation(); handleOpenEdit(company); }}

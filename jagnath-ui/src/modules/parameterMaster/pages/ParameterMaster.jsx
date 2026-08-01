@@ -18,6 +18,44 @@ const ParameterMaster = () => {
   const [loading, setLoading] = useState(false);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
 
+  // Multi-Select state
+  const [selectedIds, setSelectedIds] = useState([]);
+
+  // Select all / deselect all current page parameters
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      const allIds = parameters.map(p => p.id);
+      setSelectedIds(allIds);
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  // Toggle single parameter selection
+  const handleSelectRow = (id, e) => {
+    e.stopPropagation();
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  // Bulk Delete Selected
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} selected parameters?`)) return;
+
+    try {
+      setLoading(true);
+      await Promise.all(selectedIds.map(id => apiService.delete(PARAMETER_ENDPOINTS.DELETE(id))));
+      triggerToast(`Successfully deleted ${selectedIds.length} parameters!`, 'success');
+      setSelectedIds([]);
+      fetchParameters();
+    } catch (err) {
+      triggerToast(err.message || 'Failed to delete selected parameters.', 'error');
+      setLoading(false);
+    }
+  };
+
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -758,8 +796,31 @@ const ParameterMaster = () => {
 
         {/* Filters Row */}
         <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.25rem', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>
-            Total Parameters: {totalItems}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div style={{ fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>
+              Total Parameters: {totalItems}
+            </div>
+            {selectedIds.length > 0 && (
+              <button
+                onClick={handleBulkDelete}
+                style={{
+                  background: '#ef4444',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '0.4rem 0.85rem',
+                  fontWeight: 600,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  boxShadow: '0 1px 2px rgba(239, 68, 68, 0.2)'
+                }}
+              >
+                <FaTrash size={12} /> Delete Selected ({selectedIds.length})
+              </button>
+            )}
           </div>
           <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: '6px', padding: '0.25rem' }}>
@@ -803,6 +864,14 @@ const ParameterMaster = () => {
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
                 <thead>
                   <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                    <th style={{ padding: '0.75rem 0.75rem', width: '40px', textAlign: 'center' }}>
+                      <input
+                        type="checkbox"
+                        checked={parameters.length > 0 && selectedIds.length === parameters.length}
+                        onChange={handleSelectAll}
+                        style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                      />
+                    </th>
                     <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ACTIONS</th>
                     <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
                     <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>PARAMETER NAME</th>
@@ -814,13 +883,13 @@ const ParameterMaster = () => {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                      <td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                         Loading parameters...
                       </td>
                     </tr>
                   ) : parameters.length === 0 ? (
                     <tr>
-                      <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                      <td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                         No parameters found.
                       </td>
                     </tr>
@@ -832,6 +901,14 @@ const ParameterMaster = () => {
                         style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background-color 0.15s' }}
                         className="company-table-row"
                       >
+                        <td style={{ padding: '0.75rem 0.75rem', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(param.id)}
+                            onChange={(e) => handleSelectRow(param.id, e)}
+                            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                          />
+                        </td>
                         <td style={{ padding: '0.75rem 1rem', display: 'flex', gap: '0.5rem' }}>
                           <button
                             onClick={(e) => { e.stopPropagation(); handleOpenEdit(param); }}
