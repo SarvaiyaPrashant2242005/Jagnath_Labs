@@ -116,16 +116,14 @@ const getAll = async (req, res) => {
     try {
         const userId = req.user.user_id;
 
-        let company;
-        try {
-            company = await getUserCompany(userId);
-        } catch (e) {
-            return res.status(200).json(successResponse(
-                "TEST_REQUESTS_FETCHED",
-                "Test requests fetched successfully.",
-                "Test requests fetched successfully.",
-                req.query.limit ? { rows: [], total: 0, page: parseInt(req.query.page), totalPages: 0 } : []
-            ));
+        let targetCompanyId = req.query.companyId || req.query.company_id;
+        if (!targetCompanyId) {
+            try {
+                const company = await getUserCompany(userId);
+                if (company) targetCompanyId = company.id;
+            } catch (e) {
+                targetCompanyId = null;
+            }
         }
 
         const options = {
@@ -136,7 +134,7 @@ const getAll = async (req, res) => {
             clientId: req.query.clientId
         };
 
-        const result = await testRequestService.getTestRequestsByCompany(company.id, options);
+        const result = await testRequestService.getTestRequestsByCompany(targetCompanyId, options);
 
         let responseData = result;
         if (options.limit && result.rows) {

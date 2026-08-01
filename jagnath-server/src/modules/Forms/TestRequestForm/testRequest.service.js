@@ -357,8 +357,13 @@ const getTestRequestById = async (trId, companyId) => {
  */
 const getTestRequestsByCompany = async (companyId, options = {}) => {
     try {
+        let whereClause = {};
+        if (companyId && companyId !== 'ALL') {
+            whereClause.companyId = companyId;
+        }
+
         let queryOptions = {
-            where: { companyId },
+            where: whereClause,
             include: [
                 {
                     model: Company,
@@ -371,7 +376,8 @@ const getTestRequestsByCompany = async (companyId, options = {}) => {
                     attributes: ["clientName"]
                 }
             ],
-            attributes: { exclude: ["deleted_at"] }
+            attributes: { exclude: ["deleted_at"] },
+            order: [['created_at', 'DESC']]
         };
 
         if (options.clientId) {
