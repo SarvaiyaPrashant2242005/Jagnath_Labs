@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { apiService } from '../../../shared/services/apiService';
 import { TEST_REQUEST_ENDPOINTS, CATEGORY_ENDPOINTS, CLIENT_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 import Pagination from '../../../shared/components/Pagination';
+import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 
 const TestRequestList = () => {
   const navigate = useNavigate();
@@ -32,7 +33,8 @@ const TestRequestList = () => {
 
   // Download Dropdown toggle
   const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
-  const [deleteModal, setDeleteModal] = useState({ isOpen: false, targetId: null });
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, targetId: null, requestNo: '' });
+  const [deleting, setDeleting] = useState(false);
   const dropdownRef = useRef(null);
 
   useEffect(() => {
@@ -168,20 +170,23 @@ const TestRequestList = () => {
   }, [currentPage, pageSize, searchQuery, statusFilter, selectedClient]);
 
   // Soft delete parameter (trigger confirmation modal)
-  const handleDelete = (id) => {
-    setDeleteModal({ isOpen: true, targetId: id });
+  const handleDelete = (id, requestNo = '') => {
+    setDeleteModal({ isOpen: true, targetId: id, requestNo });
   };
 
   // Perform backend delete on confirmation
   const handleConfirmDelete = async () => {
-    const id = deleteModal.targetId;
-    setDeleteModal({ isOpen: false, targetId: null });
+    if (!deleteModal.targetId) return;
+    setDeleting(true);
     try {
-      await apiService.delete(TEST_REQUEST_ENDPOINTS.DELETE(id));
+      await apiService.delete(TEST_REQUEST_ENDPOINTS.DELETE(deleteModal.targetId));
       triggerToast('Test request deleted successfully.', 'success');
+      setDeleteModal({ isOpen: false, targetId: null, requestNo: '' });
       fetchRequests();
     } catch (err) {
       triggerToast(err?.messageToShow || 'Failed to delete test request.', 'error');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -523,108 +528,24 @@ const TestRequestList = () => {
         />
       </div>
 
-      {/* Delete Confirmation Modal */}
-      {deleteModal.isOpen && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(15, 23, 42, 0.4)',
-          backdropFilter: 'blur(4px)',
-          zIndex: 99999,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          animation: 'fadeIn 0.2s ease-out'
-        }}
-        onClick={() => setDeleteModal({ isOpen: false, targetId: null })}
-        >
-          <div style={{
-            background: '#ffffff',
-            borderRadius: '16px',
-            padding: '2rem',
-            width: '90%',
-            maxWidth: '440px',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-            border: '1px solid #f1f5f9',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '1.5rem',
-            boxSizing: 'border-box'
-          }}
-          onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <div style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: '12px',
-                backgroundColor: '#fee2e2',
-                color: '#ef4444',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0
-              }}>
-                <FaExclamationTriangle size={22} />
-              </div>
-              <div>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Delete Test Request</h3>
-                <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0.2rem 0 0 0' }}>This action cannot be undone.</p>
-              </div>
-            </div>
-
-            {/* Modal Body */}
-            <div style={{ fontSize: '0.9rem', color: '#475569', lineHeight: 1.5 }}>
-              Are you sure you want to delete this test request? All associated parameter analysis records will be permanently removed.
-            </div>
-
-            {/* Modal Footer/Actions */}
-            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
-              <button
-                onClick={() => setDeleteModal({ isOpen: false, targetId: null })}
-                style={{
-                  padding: '0.6rem 1.2rem',
-                  borderRadius: '8px',
-                  border: '1px solid #cbd5e1',
-                  background: '#ffffff',
-                  color: '#475569',
-                  fontWeight: 600,
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                  transition: 'background-color 0.15s'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#ffffff'}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirmDelete}
-                style={{
-                  padding: '0.6rem 1.2rem',
-                  borderRadius: '8px',
-                  border: 'none',
-                  background: '#ef4444',
-                  color: '#ffffff',
-                  fontWeight: 600,
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                  transition: 'background-color 0.15s',
-                  boxShadow: '0 4px 6px -1px rgba(239, 68, 68, 0.2)'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#dc2626'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#ef4444'}
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Reusable Delete Confirmation Modal */}
+      <ConfirmDialog
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, targetId: null, requestNo: '' })}
+        onConfirm={handleConfirmDelete}
+        title="Delete Test Request"
+        message={
+          deleteModal.requestNo ? (
+            <>Are you sure you want to delete test request <strong>{deleteModal.requestNo}</strong>? All associated parameter analysis records will be permanently removed.</>
+          ) : (
+            'Are you sure you want to delete this test request? All associated parameter analysis records will be permanently removed.'
+          )
+        }
+        confirmText="Delete Test Request"
+        cancelText="Cancel"
+        variant="danger"
+        loading={deleting}
+      />
     </div>
   );
 };

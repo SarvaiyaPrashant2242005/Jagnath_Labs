@@ -7,10 +7,15 @@ import {
 import { apiService } from '../../../shared/services/apiService';
 import { CAUTION_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 import Pagination from '../../../shared/components/Pagination';
+import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 
 const CautionMaster = () => {
   const [cautions, setCautions] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  // Delete confirmation modal state
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null, name: '' });
+  const [deleting, setDeleting] = useState(false);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -207,14 +212,22 @@ const CautionMaster = () => {
   };
 
   // Delete Handler
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this Caution record?')) return;
+  const handleDelete = (id, name = '') => {
+    setDeleteModal({ isOpen: true, id, name });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteModal.id) return;
+    setDeleting(true);
     try {
-      await apiService.delete(CAUTION_ENDPOINTS.DELETE(id));
+      await apiService.delete(CAUTION_ENDPOINTS.DELETE(deleteModal.id));
       triggerToast('Caution record deleted successfully.', 'success');
+      setDeleteModal({ isOpen: false, id: null, name: '' });
       fetchCautions();
     } catch (err) {
       triggerToast(err.messageToShow || err.message || 'Failed to delete Caution record.', 'error');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -731,7 +744,7 @@ const CautionMaster = () => {
                             <FaEdit />
                           </button>
                           <button
-                            onClick={() => handleDelete(item.id)}
+                            onClick={() => handleDelete(item.id, item.title)}
                             title="Delete"
                             style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#ef4444' }}
                           >
@@ -757,6 +770,25 @@ const CautionMaster = () => {
           onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
         />
       </div>
+
+      {/* Reusable Delete Confirmation Modal */}
+      <ConfirmDialog
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, id: null, name: '' })}
+        onConfirm={confirmDelete}
+        title="Delete Caution Record"
+        message={
+          deleteModal.name ? (
+            <>Are you sure you want to delete caution record <strong>{deleteModal.name}</strong>? This action cannot be undone.</>
+          ) : (
+            'Are you sure you want to delete this Caution record? This action cannot be undone.'
+          )
+        }
+        confirmText="Delete Caution"
+        cancelText="Cancel"
+        variant="danger"
+        loading={deleting}
+      />
 
     </div>
   );

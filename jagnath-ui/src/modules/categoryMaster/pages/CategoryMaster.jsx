@@ -8,6 +8,7 @@ import { apiService } from '../../../shared/services/apiService';
 import { CATEGORY_ENDPOINTS, COMPANY_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 import Pagination from '../../../shared/components/Pagination';
 import BulkImportModal from '../../../shared/components/BulkImport/BulkImportModal';
+import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 
 const CategoryMaster = () => {
   // Category & Company states
@@ -15,6 +16,10 @@ const CategoryMaster = () => {
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
+
+  // Delete confirmation modal state
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null, name: '' });
+  const [deleting, setDeleting] = useState(false);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -253,14 +258,22 @@ const CategoryMaster = () => {
   };
 
   // Delete Handler
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this category?')) return;
+  const handleDelete = (id, name = '') => {
+    setDeleteModal({ isOpen: true, id, name });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteModal.id) return;
+    setDeleting(true);
     try {
-      await apiService.delete(CATEGORY_ENDPOINTS.DELETE(id));
+      await apiService.delete(CATEGORY_ENDPOINTS.DELETE(deleteModal.id));
       triggerToast('Category deleted successfully.', 'success');
+      setDeleteModal({ isOpen: false, id: null, name: '' });
       fetchCategories();
     } catch (err) {
       triggerToast(err.messageToShow || err.message || 'Failed to delete category.', 'error');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -679,7 +692,7 @@ const CategoryMaster = () => {
                         <FaEdit size={12} />
                       </button>
                       <button 
-                        onClick={(e) => { e.stopPropagation(); handleDelete(category.id); }}
+                        onClick={(e) => { e.stopPropagation(); handleDelete(category.id, category.categoryName || category.name); }}
                         style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                         title="Delete"
                       >
@@ -747,7 +760,7 @@ const CategoryMaster = () => {
                       <FaEdit size={12} /> Edit
                     </button>
                     <button 
-                      onClick={(e) => { e.stopPropagation(); handleDelete(category.id); }}
+                      onClick={(e) => { e.stopPropagation(); handleDelete(category.id, category.categoryName || category.name); }}
                       style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                     >
                       <FaTrash size={12} /> Delete
@@ -788,6 +801,25 @@ const CategoryMaster = () => {
             throw new Error(res?.message || 'Failed to import categories.');
           }
         }}
+      />
+
+      {/* Reusable Delete Confirmation Modal */}
+      <ConfirmDialog
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, id: null, name: '' })}
+        onConfirm={confirmDelete}
+        title="Delete Category"
+        message={
+          deleteModal.name ? (
+            <>Are you sure you want to delete category <strong>{deleteModal.name}</strong>? This action cannot be undone.</>
+          ) : (
+            'Are you sure you want to delete this category? This action cannot be undone.'
+          )
+        }
+        confirmText="Delete Category"
+        cancelText="Cancel"
+        variant="danger"
+        loading={deleting}
       />
 
     </div>

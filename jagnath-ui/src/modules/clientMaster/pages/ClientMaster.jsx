@@ -9,6 +9,7 @@ import { CLIENT_ENDPOINTS, COMPANY_ENDPOINTS } from '../../../shared/services/ap
 import { getIndianStates, getCitiesByStateIso2 } from '../../../shared/services/locationService';
 import Pagination from '../../../shared/components/Pagination';
 import BulkImportModal from '../../../shared/components/BulkImport/BulkImportModal';
+import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 
 const ClientMaster = () => {
   // Client state
@@ -16,6 +17,10 @@ const ClientMaster = () => {
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
+  
+  // Delete confirmation modal state
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null, name: '' });
+  const [deleting, setDeleting] = useState(false);
   
   // Location dropdown states (India)
   const [indianStates, setIndianStates] = useState([]);
@@ -305,14 +310,22 @@ const ClientMaster = () => {
   };
 
   // Delete Handler
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this client?')) return;
+  const handleDelete = (id, name = '') => {
+    setDeleteModal({ isOpen: true, id, name });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteModal.id) return;
+    setDeleting(true);
     try {
-      await apiService.delete(CLIENT_ENDPOINTS.DELETE(id));
+      await apiService.delete(CLIENT_ENDPOINTS.DELETE(deleteModal.id));
       triggerToast('Client deleted successfully.', 'success');
+      setDeleteModal({ isOpen: false, id: null, name: '' });
       fetchClients();
     } catch (err) {
       triggerToast(err.messageToShow || err.message || 'Failed to delete client.', 'error');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -853,7 +866,7 @@ const ClientMaster = () => {
                         <FaEdit size={12} />
                       </button>
                       <button 
-                        onClick={(e) => { e.stopPropagation(); handleDelete(client.id); }}
+                        onClick={(e) => { e.stopPropagation(); handleDelete(client.id, client.clientName); }}
                         style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                         title="Delete"
                       >
@@ -944,7 +957,7 @@ const ClientMaster = () => {
                       <FaEdit size={12} /> Edit
                     </button>
                     <button 
-                      onClick={(e) => { e.stopPropagation(); handleDelete(client.id); }}
+                      onClick={(e) => { e.stopPropagation(); handleDelete(client.id, client.clientName); }}
                       style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                     >
                       <FaTrash size={12} /> Delete
@@ -987,6 +1000,24 @@ const ClientMaster = () => {
         }}
       />
 
+      {/* Reusable Delete Confirmation Modal */}
+      <ConfirmDialog
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, id: null, name: '' })}
+        onConfirm={confirmDelete}
+        title="Delete Client"
+        message={
+          deleteModal.name ? (
+            <>Are you sure you want to delete client <strong>{deleteModal.name}</strong>? This action cannot be undone.</>
+          ) : (
+            'Are you sure you want to delete this client? This action cannot be undone.'
+          )
+        }
+        confirmText="Delete Client"
+        cancelText="Cancel"
+        variant="danger"
+        loading={deleting}
+      />
     </div>
   );
 };

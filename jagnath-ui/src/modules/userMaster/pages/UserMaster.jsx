@@ -7,6 +7,7 @@ import {
 } from 'react-icons/fa';
 import Pagination from '../../../shared/components/Pagination';
 import BulkImportModal from '../../../shared/components/BulkImport/BulkImportModal';
+import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 
 /**
  * @component UserMaster
@@ -39,6 +40,7 @@ const UserMaster = () => {
 
   // Delete Confirmation Modal
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, targetId: null, targetName: '' });
+  const [deleting, setDeleting] = useState(false);
 
   // Toast Notification
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
@@ -134,6 +136,8 @@ const UserMaster = () => {
   };
 
   const confirmDelete = async () => {
+    if (!deleteModal.targetId) return;
+    setDeleting(true);
     try {
       await apiService.delete(USER_ENDPOINTS.DELETE(deleteModal.targetId));
       triggerToast('User deleted successfully');
@@ -142,6 +146,8 @@ const UserMaster = () => {
     } catch (err) {
       console.error(err);
       triggerToast(err.messageToShow || 'Failed to delete user', 'error');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -476,19 +482,24 @@ const UserMaster = () => {
         </div>
       )}
 
-      {/* Delete Modal */}
-      {deleteModal.isOpen && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', maxWidth: '420px', width: '90%', border: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Delete User</h3>
-            <p style={{ fontSize: '0.9rem', color: '#475569', margin: 0 }}>Are you sure you want to delete user <strong>{deleteModal.targetName}</strong>?</p>
-            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-              <button onClick={() => setDeleteModal({ isOpen: false, targetId: null, targetName: '' })} style={{ padding: '0.6rem 1.2rem', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#475569', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
-              <button onClick={confirmDelete} style={{ padding: '0.6rem 1.2rem', borderRadius: '8px', border: 'none', background: '#ef4444', color: '#ffffff', fontWeight: 600, cursor: 'pointer' }}>Delete</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Reusable Delete Confirmation Modal */}
+      <ConfirmDialog
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, targetId: null, targetName: '' })}
+        onConfirm={confirmDelete}
+        title="Delete User"
+        message={
+          deleteModal.targetName ? (
+            <>Are you sure you want to delete user <strong>{deleteModal.targetName}</strong>? This action cannot be undone.</>
+          ) : (
+            'Are you sure you want to delete this user? This action cannot be undone.'
+          )
+        }
+        confirmText="Delete User"
+        cancelText="Cancel"
+        variant="danger"
+        loading={deleting}
+      />
 
       {/* Bulk Excel Import Modal */}
       <BulkImportModal

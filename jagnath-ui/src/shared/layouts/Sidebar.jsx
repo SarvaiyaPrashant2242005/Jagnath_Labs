@@ -310,7 +310,7 @@ const Sidebar = ({ activeTab, onTabChange, onNewRequest, sidebarRef, isOpen = tr
                   { name: 'Categories', key: 'categories', icon: <FaTags size={14} /> },
                   { name: 'Parameters', key: 'parameters', icon: <FaSlidersH size={14} /> },
                   { name: 'Price List', key: 'price-lists', icon: <FaFileInvoiceDollar size={14} /> },
-                  { name: 'Caution Master', key: 'cautions', icon: <FaShieldAlt size={14} /> }
+                  // { name: 'Caution Master', key: 'cautions', icon: <FaShieldAlt size={14} /> }
                 ].map(item => (
                   <div
                     key={item.key}

@@ -8,6 +8,7 @@ import { apiService } from '../../../shared/services/apiService';
 import { PARAMETER_ENDPOINTS, COMPANY_ENDPOINTS, CATEGORY_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 import Pagination from '../../../shared/components/Pagination';
 import BulkImportModal from '../../../shared/components/BulkImport/BulkImportModal';
+import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 
 const ParameterMaster = () => {
   // Parameter, Company & Category states
@@ -16,6 +17,10 @@ const ParameterMaster = () => {
   const [categoriesList, setCategoriesList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
+
+  // Delete confirmation modal state
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null, name: '' });
+  const [deleting, setDeleting] = useState(false);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -338,14 +343,22 @@ const ParameterMaster = () => {
   };
 
   // Delete Handler
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this parameter?')) return;
+  const handleDelete = (id, name = '') => {
+    setDeleteModal({ isOpen: true, id, name });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteModal.id) return;
+    setDeleting(true);
     try {
-      await apiService.delete(PARAMETER_ENDPOINTS.DELETE(id));
+      await apiService.delete(PARAMETER_ENDPOINTS.DELETE(deleteModal.id));
       triggerToast('Parameter deleted successfully.', 'success');
+      setDeleteModal({ isOpen: false, id: null, name: '' });
       fetchParameters();
     } catch (err) {
       triggerToast(err.messageToShow || err.message || 'Failed to delete parameter.', 'error');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -837,7 +850,7 @@ const ParameterMaster = () => {
                           <FaEdit size={12} />
                         </button>
                         <button 
-                          onClick={(e) => { e.stopPropagation(); handleDelete(param.id); }}
+                          onClick={(e) => { e.stopPropagation(); handleDelete(param.id, param.parameterName); }}
                           style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                           title="Delete"
                         >
@@ -914,7 +927,7 @@ const ParameterMaster = () => {
                         <FaEdit size={12} /> Edit
                       </button>
                       <button 
-                        onClick={(e) => { e.stopPropagation(); handleDelete(param.id); }}
+                        onClick={(e) => { e.stopPropagation(); handleDelete(param.id, param.parameterName); }}
                         style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                       >
                         <FaTrash size={12} /> Delete
@@ -1035,6 +1048,25 @@ const ParameterMaster = () => {
             throw new Error(res?.message || 'Failed to import parameters.');
           }
         }}
+      />
+
+      {/* Reusable Delete Confirmation Modal */}
+      <ConfirmDialog
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, id: null, name: '' })}
+        onConfirm={confirmDelete}
+        title="Delete Parameter"
+        message={
+          deleteModal.name ? (
+            <>Are you sure you want to delete parameter <strong>{deleteModal.name}</strong>? This action cannot be undone.</>
+          ) : (
+            'Are you sure you want to delete this parameter? This action cannot be undone.'
+          )
+        }
+        confirmText="Delete Parameter"
+        cancelText="Cancel"
+        variant="danger"
+        loading={deleting}
       />
 
     </div>

@@ -9,6 +9,7 @@ import { apiService } from '../../../shared/services/apiService';
 import { CATEGORY_ENDPOINTS, PARAMETER_ENDPOINTS, PRICE_MASTER_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 import Pagination from '../../../shared/components/Pagination';
 import BulkImportModal from '../../../shared/components/BulkImport/BulkImportModal';
+import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 
 const PriceMasterPage = () => {
   // Data States
@@ -18,6 +19,10 @@ const PriceMasterPage = () => {
   const [filteredParameters, setFilteredParameters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
+
+  // Delete confirmation modal state
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null, name: '' });
+  const [deleting, setDeleting] = useState(false);
 
   // Filters State
   const [searchQuery, setSearchQuery] = useState('');
@@ -299,14 +304,22 @@ const PriceMasterPage = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this parameter price?')) return;
+  const handleDelete = (id, name = '') => {
+    setDeleteModal({ isOpen: true, id, name });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteModal.id) return;
+    setDeleting(true);
     try {
-      await priceMasterService.delete(id);
+      await priceMasterService.delete(deleteModal.id);
       triggerToast('Price deleted successfully.', 'success');
+      setDeleteModal({ isOpen: false, id: null, name: '' });
       fetchPrices();
     } catch (err) {
       triggerToast(err.messageToShow || err.message || 'Failed to delete price.', 'error');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -750,7 +763,7 @@ const PriceMasterPage = () => {
                         <FaEdit size={12} />
                       </button>
                       <button 
-                        onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
+                        onClick={(e) => { e.stopPropagation(); handleDelete(item.id, item.parameter?.parameterName || item.parameter?.name); }}
                         style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                         title="Delete"
                       >
@@ -831,7 +844,7 @@ const PriceMasterPage = () => {
                       <FaEdit size={12} /> Edit
                     </button>
                     <button 
-                      onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
+                      onClick={(e) => { e.stopPropagation(); handleDelete(item.id, item.parameter?.parameterName || item.parameter?.name); }}
                       style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                     >
                       <FaTrash size={12} /> Delete
@@ -972,6 +985,25 @@ const PriceMasterPage = () => {
             throw new Error(res?.message || 'Failed to import price list.');
           }
         }}
+      />
+
+      {/* Reusable Delete Confirmation Modal */}
+      <ConfirmDialog
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, id: null, name: '' })}
+        onConfirm={confirmDelete}
+        title="Delete Price Record"
+        message={
+          deleteModal.name ? (
+            <>Are you sure you want to delete price entry for <strong>{deleteModal.name}</strong>? This action cannot be undone.</>
+          ) : (
+            'Are you sure you want to delete this price record? This action cannot be undone.'
+          )
+        }
+        confirmText="Delete Price"
+        cancelText="Cancel"
+        variant="danger"
+        loading={deleting}
       />
 
     </div>

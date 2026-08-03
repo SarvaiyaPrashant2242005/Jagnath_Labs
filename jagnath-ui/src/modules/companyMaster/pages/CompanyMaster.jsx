@@ -9,11 +9,16 @@ import { COMPANY_ENDPOINTS, USER_ENDPOINTS } from '../../../shared/services/apiE
 import { getStoredUser } from '../../auth/services/authService';
 import { getIndianStates, getCitiesByStateIso2 } from '../../../shared/services/locationService';
 import Pagination from '../../../shared/components/Pagination';
+import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 
 const CompanyMaster = ({ onCompanyUpdate }) => {
   // Company state
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(false);
+  
+  // Delete confirmation modal state
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null, name: '' });
+  const [deleting, setDeleting] = useState(false);
   
   // Location dropdown states (India)
   const [indianStates, setIndianStates] = useState([]);
@@ -327,17 +332,25 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
   };
 
   // Delete Handler
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this company?')) return;
+  const handleDelete = (id, name = '') => {
+    setDeleteModal({ isOpen: true, id, name });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteModal.id) return;
+    setDeleting(true);
     try {
-      await apiService.delete(COMPANY_ENDPOINTS.DELETE(id));
+      await apiService.delete(COMPANY_ENDPOINTS.DELETE(deleteModal.id));
       triggerToast('Company deleted successfully.', 'success');
+      setDeleteModal({ isOpen: false, id: null, name: '' });
       fetchCompanies();
       if (onCompanyUpdate) {
         onCompanyUpdate(null);
       }
     } catch (err) {
       triggerToast(err.messageToShow || err.message || 'Failed to delete company.', 'error');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -986,7 +999,7 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
                             <FaEdit size={12} />
                           </button>
                           <button 
-                            onClick={(e) => { e.stopPropagation(); handleDelete(company.id); }}
+                            onClick={(e) => { e.stopPropagation(); handleDelete(company.id, company.companyName || company.company_name); }}
                             style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                             title="Delete"
                           >
@@ -1073,7 +1086,7 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
                           <FaEdit size={12} /> Edit
                         </button>
                         <button 
-                          onClick={(e) => { e.stopPropagation(); handleDelete(company.id); }}
+                          onClick={(e) => { e.stopPropagation(); handleDelete(company.id, company.companyName || company.company_name); }}
                           style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                         >
                           <FaTrash size={12} /> Delete
@@ -1100,6 +1113,24 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
 
       </div>
 
+      {/* Reusable Delete Confirmation Modal */}
+      <ConfirmDialog
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, id: null, name: '' })}
+        onConfirm={confirmDelete}
+        title="Delete Company"
+        message={
+          deleteModal.name ? (
+            <>Are you sure you want to delete company <strong>{deleteModal.name}</strong>? This action cannot be undone.</>
+          ) : (
+            'Are you sure you want to delete this company? This action cannot be undone.'
+          )
+        }
+        confirmText="Delete Company"
+        cancelText="Cancel"
+        variant="danger"
+        loading={deleting}
+      />
     </div>
   );
 };
