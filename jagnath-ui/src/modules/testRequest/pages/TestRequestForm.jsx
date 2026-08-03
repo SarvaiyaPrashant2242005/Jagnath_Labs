@@ -744,50 +744,104 @@ const TestRequestForm = () => {
 
           {/* Facility & Technical Feasibility Card */}
           <div className="test-request-form-card" style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc' }}>
-              <div style={{ width: '12px', height: '24px', background: 'linear-gradient(to bottom, #f59e0b, #fbbf24)', borderRadius: '6px' }}></div>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Facility & Feasibility</h3>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc', flexWrap: 'wrap', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ width: '12px', height: '24px', background: 'linear-gradient(to bottom, #f59e0b, #fbbf24)', borderRadius: '6px' }}></div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Facility & Feasibility</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setFormData(prev => ({
+                    ...prev,
+                    equipmentAvailability: 'Available',
+                    referenceStandardAvailability: 'Available',
+                    sampleAdequacy: 'Adequate',
+                    testMethodAvailability: 'Available',
+                    trainedPersonAvailability: 'Available'
+                  }));
+                }}
+                style={{ background: '#ecfdf5', color: '#15803d', border: '1px solid #a7f3d0', padding: '0.4rem 0.85rem', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+              >
+                ✓ Quick Set All Available
+              </button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.75rem' }}>
+              
+              {/* Availability of Equipments */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                 <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Availability of Equipments</label>
-                <select name="equipmentAvailability" value={formData.equipmentAvailability} onChange={handleChange} className="premium-input">
-                  <option value="Available">Available</option>
-                  <option value="Not Available">Not Available</option>
-                </select>
+                <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center', background: '#f8fafc', padding: '0.65rem 0.85rem', border: '1px solid #e2e8f0', borderRadius: '8px', minHeight: '42px', boxSizing: 'border-box' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: (formData.equipmentAvailability || 'Available') === 'Available' ? '#166534' : '#475569' }}>
+                    <input type="radio" name="equipmentAvailability" value="Available" checked={(formData.equipmentAvailability || 'Available') === 'Available'} onChange={handleChange} style={{ width: '1.05rem', height: '1.05rem', accentColor: '#22c55e' }} />
+                    Available
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: formData.equipmentAvailability === 'Not Available' ? '#991b1b' : '#475569' }}>
+                    <input type="radio" name="equipmentAvailability" value="Not Available" checked={formData.equipmentAvailability === 'Not Available'} onChange={handleChange} style={{ width: '1.05rem', height: '1.05rem', accentColor: '#ef4444' }} />
+                    Not Available
+                  </label>
+                </div>
               </div>
 
+              {/* Availability of Reference Standards */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                 <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Availability of Reference Standards</label>
-                <select name="referenceStandardAvailability" value={formData.referenceStandardAvailability} onChange={handleChange} className="premium-input">
-                  <option value="Available">Available</option>
-                  <option value="Not Available">Not Available</option>
-                </select>
+                <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center', background: '#f8fafc', padding: '0.65rem 0.85rem', border: '1px solid #e2e8f0', borderRadius: '8px', minHeight: '42px', boxSizing: 'border-box' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: (formData.referenceStandardAvailability || 'Available') === 'Available' ? '#166534' : '#475569' }}>
+                    <input type="radio" name="referenceStandardAvailability" value="Available" checked={(formData.referenceStandardAvailability || 'Available') === 'Available'} onChange={handleChange} style={{ width: '1.05rem', height: '1.05rem', accentColor: '#22c55e' }} />
+                    Available
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: formData.referenceStandardAvailability === 'Not Available' ? '#991b1b' : '#475569' }}>
+                    <input type="radio" name="referenceStandardAvailability" value="Not Available" checked={formData.referenceStandardAvailability === 'Not Available'} onChange={handleChange} style={{ width: '1.05rem', height: '1.05rem', accentColor: '#ef4444' }} />
+                    Not Available
+                  </label>
+                </div>
               </div>
 
+              {/* Adequacy of Sample Quantity */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                 <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Adequacy of Sample Quantity</label>
-                <select name="sampleAdequacy" value={formData.sampleAdequacy} onChange={handleChange} className="premium-input">
-                  <option value="Adequate">Adequate</option>
-                  <option value="Not Adequate">Not Adequate</option>
-                </select>
+                <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center', background: '#f8fafc', padding: '0.65rem 0.85rem', border: '1px solid #e2e8f0', borderRadius: '8px', minHeight: '42px', boxSizing: 'border-box' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: (formData.sampleAdequacy || 'Adequate') === 'Adequate' ? '#166534' : '#475569' }}>
+                    <input type="radio" name="sampleAdequacy" value="Adequate" checked={(formData.sampleAdequacy || 'Adequate') === 'Adequate'} onChange={handleChange} style={{ width: '1.05rem', height: '1.05rem', accentColor: '#22c55e' }} />
+                    Adequate
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: formData.sampleAdequacy === 'Not Adequate' ? '#991b1b' : '#475569' }}>
+                    <input type="radio" name="sampleAdequacy" value="Not Adequate" checked={formData.sampleAdequacy === 'Not Adequate'} onChange={handleChange} style={{ width: '1.05rem', height: '1.05rem', accentColor: '#ef4444' }} />
+                    Not Adequate
+                  </label>
+                </div>
               </div>
 
+              {/* Availability of Test Method */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                 <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Availability of Test Method</label>
-                <select name="testMethodAvailability" value={formData.testMethodAvailability} onChange={handleChange} className="premium-input">
-                  <option value="Available">Available</option>
-                  <option value="Not Available">Not Available</option>
-                </select>
+                <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center', background: '#f8fafc', padding: '0.65rem 0.85rem', border: '1px solid #e2e8f0', borderRadius: '8px', minHeight: '42px', boxSizing: 'border-box' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: (formData.testMethodAvailability || 'Available') === 'Available' ? '#166534' : '#475569' }}>
+                    <input type="radio" name="testMethodAvailability" value="Available" checked={(formData.testMethodAvailability || 'Available') === 'Available'} onChange={handleChange} style={{ width: '1.05rem', height: '1.05rem', accentColor: '#22c55e' }} />
+                    Available
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: formData.testMethodAvailability === 'Not Available' ? '#991b1b' : '#475569' }}>
+                    <input type="radio" name="testMethodAvailability" value="Not Available" checked={formData.testMethodAvailability === 'Not Available'} onChange={handleChange} style={{ width: '1.05rem', height: '1.05rem', accentColor: '#ef4444' }} />
+                    Not Available
+                  </label>
+                </div>
               </div>
 
+              {/* Availability of Trained Person */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                 <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Availability of Trained Person</label>
-                <select name="trainedPersonAvailability" value={formData.trainedPersonAvailability} onChange={handleChange} className="premium-input">
-                  <option value="Available">Available</option>
-                  <option value="Not Available">Not Available</option>
-                </select>
+                <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center', background: '#f8fafc', padding: '0.65rem 0.85rem', border: '1px solid #e2e8f0', borderRadius: '8px', minHeight: '42px', boxSizing: 'border-box' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: (formData.trainedPersonAvailability || 'Available') === 'Available' ? '#166534' : '#475569' }}>
+                    <input type="radio" name="trainedPersonAvailability" value="Available" checked={(formData.trainedPersonAvailability || 'Available') === 'Available'} onChange={handleChange} style={{ width: '1.05rem', height: '1.05rem', accentColor: '#22c55e' }} />
+                    Available
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: formData.trainedPersonAvailability === 'Not Available' ? '#991b1b' : '#475569' }}>
+                    <input type="radio" name="trainedPersonAvailability" value="Not Available" checked={formData.trainedPersonAvailability === 'Not Available'} onChange={handleChange} style={{ width: '1.05rem', height: '1.05rem', accentColor: '#ef4444' }} />
+                    Not Available
+                  </label>
+                </div>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
