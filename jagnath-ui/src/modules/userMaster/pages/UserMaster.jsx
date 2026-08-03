@@ -3,7 +3,7 @@ import { apiService } from '../../../shared/services/apiService';
 import { USER_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 import { 
   FaUserShield, FaPlus, FaSearch, FaEdit, FaTrash, FaCheck, 
-  FaExclamationCircle, FaUserCheck, FaUserTimes, FaKey, FaShieldAlt, FaFileExcel
+  FaExclamationCircle, FaUserCheck, FaUserTimes, FaKey, FaShieldAlt, FaFileExcel, FaEye, FaEyeSlash
 } from 'react-icons/fa';
 import Pagination from '../../../shared/components/Pagination';
 import BulkImportModal from '../../../shared/components/BulkImport/BulkImportModal';
@@ -34,9 +34,12 @@ const UserMaster = () => {
     name: '',
     email: '',
     password: '',
+    confirmPassword: '',
     role: 'User',
     status: 'Active'
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Delete Confirmation Modal
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, targetId: null, targetName: '' });
@@ -83,9 +86,12 @@ const UserMaster = () => {
       name: '',
       email: '',
       password: '',
+      confirmPassword: '',
       role: 'User',
       status: 'Active'
     });
+    setShowPassword(false);
+    setShowConfirmPassword(false);
     setIsEditing(false);
     setEditingId(null);
     setIsModalOpen(true);
@@ -112,6 +118,10 @@ const UserMaster = () => {
     }
     if (!isEditing && !formData.password.trim()) {
       triggerToast('Password is required for new users', 'error');
+      return;
+    }
+    if (!isEditing && formData.password !== formData.confirmPassword) {
+      triggerToast('Confirm password must match password', 'error');
       return;
     }
 
@@ -425,14 +435,45 @@ const UserMaster = () => {
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>
                   Password {isEditing ? '(Leave blank to keep unchanged)' : '*'}
                 </label>
-                <input
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  placeholder="••••••••"
-                  style={{ padding: '0.6rem 0.8rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }}
-                />
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    placeholder="••••••••"
+                    style={{ padding: '0.6rem 2.4rem 0.6rem 0.8rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', width: '100%', boxSizing: 'border-box' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                  >
+                    {showPassword ? <FaEyeSlash size={16} /> : <FaEye size={16} />}
+                  </button>
+                </div>
               </div>
+
+              {!isEditing && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Confirm Password *</label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={formData.confirmPassword || ''}
+                      onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                      placeholder="••••••••"
+                      style={{ padding: '0.6rem 2.4rem 0.6rem 0.8rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', width: '100%', boxSizing: 'border-box' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                    >
+                      {showConfirmPassword ? <FaEyeSlash size={16} /> : <FaEye size={16} />}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>

@@ -34,6 +34,14 @@ const Users = sequelize.define("Users", {
         type: DataTypes.ENUM("Active", "Inactive", "Blocked", "Deleted"),
         defaultValue: "Active",
     },
+    reset_otp: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
+    reset_otp_expires_at: {
+        type: DataTypes.DATE,
+        allowNull: true,
+    },
 }, {
     tableName: "users",
     paranoid: true, // Enables soft delete (deleted_at)

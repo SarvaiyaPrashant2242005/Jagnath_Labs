@@ -31,7 +31,14 @@ const companyBaseSchema = {
     usd_branch: Joi.string().allow('', null),
     einvoice_username: Joi.string().allow('', null),
     einvoice_password: Joi.string().allow('', null),
-    status: Joi.string().valid("Active", "Inactive").default("Active")
+    status: Joi.string().valid("Active", "Inactive").default("Active"),
+    assignUserMode: Joi.string().allow('', null),
+    assignedUserId: Joi.string().allow('', null),
+    createNewUser: Joi.boolean().optional(),
+    newUser: Joi.any().optional(),
+    adminName: Joi.string().allow('', null),
+    adminEmail: Joi.string().allow('', null),
+    adminPassword: Joi.string().allow('', null)
 };
 
 const createCompanySchema = Joi.object(companyBaseSchema);
@@ -54,7 +61,16 @@ const companyNewBaseSchema = {
     address: Joi.string().allow('', null),
     city: Joi.string().allow('', null),
     state: Joi.string().allow('', null),
-    status: Joi.string().valid("Active", "Inactive").default("Active")
+    status: Joi.string().valid("Active", "Inactive").default("Active"),
+    assignUserMode: Joi.string().allow('', null),
+    assignedUserId: Joi.string().allow('', null),
+    createNewUser: Joi.boolean().optional(),
+    newUser: Joi.any().optional(),
+    adminName: Joi.string().allow('', null),
+    adminEmail: Joi.string().allow('', null),
+    adminPassword: Joi.string().allow('', null),
+    companyLogo: Joi.any().optional(),
+    authorizedSignature: Joi.any().optional()
 };
 
 const createCompanyNewSchema = Joi.object(companyNewBaseSchema);
