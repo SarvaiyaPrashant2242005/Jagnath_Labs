@@ -5,7 +5,7 @@ import {
   FaFilePdf, FaPrint, FaChevronDown, FaTimes 
 } from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
-import { PARAMETER_ENDPOINTS, COMPANY_ENDPOINTS, CATEGORY_ENDPOINTS } from '../../../shared/services/apiEndpoints';
+import { PARAMETER_ENDPOINTS, COMPANY_ENDPOINTS, CATEGORY_ENDPOINTS, SUB_CATEGORY_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 import Pagination from '../../../shared/components/Pagination';
 import BulkImportModal from '../../../shared/components/BulkImport/BulkImportModal';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
@@ -15,6 +15,7 @@ const ParameterMaster = () => {
   const [parameters, setParameters] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [categoriesList, setCategoriesList] = useState([]);
+  const [subCategoriesList, setSubCategoriesList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
 
@@ -50,7 +51,8 @@ const ParameterMaster = () => {
     testMethod: '',
     status: 'Active',
     companyName: '',
-    categoryId: ''
+    categoryId: '',
+    subCategoryId: ''
   });
   const [formErrors, setFormErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -158,6 +160,30 @@ const ParameterMaster = () => {
     }
   };
 
+  // Fetch sub categories to populate dropdown options
+  const fetchSubCategoriesForDropdown = async (catId = '') => {
+    try {
+      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
+      const params = new URLSearchParams({ status: 'Active', limit: 100 });
+      if (activeCompId) params.append('companyId', activeCompId);
+      if (catId) params.append('categoryId', catId);
+      
+      const response = await apiService.get(`${SUB_CATEGORY_ENDPOINTS.GET_ALL}?${params.toString()}`);
+      if (response && response.data) {
+        const subs = Array.isArray(response.data) ? response.data : [response.data];
+        setSubCategoriesList(subs.filter(s => s.status === 'Active'));
+      } else {
+        setSubCategoriesList([]);
+      }
+    } catch (err) {
+      setSubCategoriesList([]);
+    }
+  };
+
+  useEffect(() => {
+    fetchSubCategoriesForDropdown(formData.categoryId);
+  }, [formData.categoryId, isFormOpen]);
+
   // Fetch all parameters
   const fetchParameters = async () => {
     setLoading(true);
@@ -247,17 +273,19 @@ const ParameterMaster = () => {
 
   // Open Form for Create
   const handleOpenCreate = () => {
-    const activeCompId = localStorage.getItem('selectedCompanyId');
-    const matchedComp = companies.find(c => c.id === activeCompId);
-    const defaultCompanyName = matchedComp ? (matchedComp.companyName || matchedComp.company_name) : (companies.length > 0 ? (companies[0].companyName || companies[0].company_name) : '');
-
+    const defaultCompanyName = companies.length > 0 ? (companies[0].companyName || companies[0].company_name) : '';
+    const initialCatId = categoriesList.length > 0 ? categoriesList[0].id : '';
+    if (initialCatId) {
+      fetchSubCategoriesForDropdown(initialCatId);
+    }
     setFormData({
       parameterName: '',
       description: '',
       testMethod: '',
       status: 'Active',
       companyName: defaultCompanyName,
-      categoryId: ''
+      categoryId: initialCatId,
+      subCategoryId: ''
     });
     setFormErrors({});
     setEditingId(null);
@@ -266,13 +294,17 @@ const ParameterMaster = () => {
 
   // Open Form for Edit
   const handleOpenEdit = (param) => {
+    if (param.categoryId) {
+      fetchSubCategoriesForDropdown(param.categoryId);
+    }
     setFormData({
       parameterName: param.parameterName || '',
       description: param.description || '',
       testMethod: param.testMethod || '',
       status: param.status || 'Active',
       companyName: param.companyName || (param.company ? (param.company.companyName || param.company.company_name) : ''),
-      categoryId: param.categoryId || ''
+      categoryId: param.categoryId || '',
+      subCategoryId: param.subCategoryId || ''
     });
     setFormErrors({});
     setEditingId(param.id);
@@ -301,7 +333,8 @@ const ParameterMaster = () => {
       testMethod: formData.testMethod,
       status: formData.status,
       companyName: activeCompanyName || formData.companyName,
-      categoryId: formData.categoryId || null
+      categoryId: formData.categoryId || null,
+      subCategoryId: formData.subCategoryId || null
     };
 
     try {
@@ -647,7 +680,10 @@ const ParameterMaster = () => {
                 <select
                   name="categoryId"
                   value={formData.categoryId}
-                  onChange={handleInputChange}
+                  onChange={(e) => {
+                    handleInputChange(e);
+                    fetchSubCategoriesForDropdown(e.target.value);
+                  }}
                   style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.categoryId ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', cursor: 'pointer', outline: 'none', backgroundColor: '#ffffff' }}
                 >
                   <option value="">Select Discipline Group</option>
@@ -658,6 +694,22 @@ const ParameterMaster = () => {
                 {formErrors.categoryId && (
                   <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 500 }}>{formErrors.categoryId}</span>
                 )}
+              </div>
+
+              {/* Sub Category Dropdown */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Sub Category</label>
+                <select
+                  name="subCategoryId"
+                  value={formData.subCategoryId}
+                  onChange={handleInputChange}
+                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', cursor: 'pointer', outline: 'none', backgroundColor: '#ffffff' }}
+                >
+                  <option value="">Select Sub Category</option>
+                  {subCategoriesList.map(sub => (
+                    <option key={sub.id} value={sub.id}>{sub.name}</option>
+                  ))}
+                </select>
               </div>
 
               {/* Parameter Name */}
@@ -676,6 +728,19 @@ const ParameterMaster = () => {
                 )}
               </div>
 
+              {/* Test Method */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Test Method</label>
+                <input 
+                  type="text"
+                  name="testMethod"
+                  value={formData.testMethod}
+                  onChange={handleInputChange}
+                  placeholder="e.g. APHA, 23rd Edition 2017/4500-H-B"
+                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', fontFamily: 'inherit' }}
+                />
+              </div>
+
               {/* Description */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: 'span 2' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Description</label>
@@ -686,19 +751,6 @@ const ParameterMaster = () => {
                   placeholder="Optional description of the test parameter"
                   rows={2}
                   style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
-                />
-              </div>
-
-              {/* Test Method */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: 'span 2' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Test Method</label>
-                <input 
-                  type="text"
-                  name="testMethod"
-                  value={formData.testMethod}
-                  onChange={handleInputChange}
-                  placeholder="e.g. APHA, 23rd Edition 2017/4500-H-B"
-                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', fontFamily: 'inherit' }}
                 />
               </div>
 
@@ -861,6 +913,7 @@ const ParameterMaster = () => {
                       <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
                       <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{param.parameterName}</td>
                       <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.categoryName || (param.category ? param.category.categoryName : 'Unassigned')}</td>
+                      <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.subCategoryName || 'Unassigned'}</td>
                       <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.testMethod || 'N/A'}</td>
                       <td style={{ padding: '0.75rem 1rem' }}>
                         <span style={{ 

@@ -5,6 +5,7 @@
 const Parameter = require("./parameter.model");
 const Company = require("../CompanyMasters/company.model");
 const Category = require("../CategoryMasters/category.model");
+const SubCategory = require("../SubCategoryMasters/subCategory.model");
 const CategoryParameter = require("../CategoryParameterMasters/categoryParameter.model");
 const Users = require("../../Auth/Users/users.model");
 const sequelize = require("../../../config/database");
@@ -60,6 +61,14 @@ const formatParameter = (param) => {
         paramObj.categoryName = null;
     }
     delete paramObj.categoryParameters;
+
+    if (paramObj.subCategory) {
+        paramObj.subCategoryId = paramObj.subCategory.id;
+        paramObj.subCategoryName = paramObj.subCategory.name;
+    } else {
+        paramObj.subCategoryName = null;
+    }
+    delete paramObj.subCategory;
 
     return paramObj;
 };
@@ -310,6 +319,11 @@ const getParameterById = async (parameterId, companyId) => {
                     attributes: ["company_name"]
                 },
                 {
+                    model: SubCategory,
+                    as: "subCategory",
+                    attributes: ["id", "name"]
+                },
+                {
                     model: CategoryParameter,
                     as: "categoryParameters",
                     include: [{
@@ -339,6 +353,11 @@ const getParametersByCompany = async (companyId, options = {}) => {
                     model: Company,
                     as: "company",
                     attributes: ["company_name"]
+                },
+                {
+                    model: SubCategory,
+                    as: "subCategory",
+                    attributes: ["id", "name"]
                 },
                 {
                     model: CategoryParameter,
@@ -402,17 +421,38 @@ module.exports = {
 
                 // Resolve category mapping if categoryName is provided
                 let categoryId = null;
-                if (data.categoryName && data.categoryName.trim() !== '') {
-                    let cat = await Category.findOne({ where: { name: data.categoryName.trim(), companyId }, transaction });
+                const rawCatName = (data.categoryName || data.disciplineGroup || "").trim();
+                if (rawCatName) {
+                    let cat = await Category.findOne({ where: { name: { [Op.iLike]: rawCatName }, companyId }, transaction });
                     if (!cat) {
-                        cat = await Category.create({ name: data.categoryName.trim(), companyId, status: "Active" }, { transaction });
+                        cat = await Category.create({ name: rawCatName, companyId, status: "Active" }, { transaction });
                     }
                     categoryId = cat.id;
+                }
+
+                // Resolve sub category mapping if subCategoryName is provided
+                let subCategoryId = null;
+                const rawSubCatName = (data.subCategoryName || data.subCategory || "").trim();
+                if (rawSubCatName && categoryId) {
+                    let subCat = await SubCategory.findOne({ 
+                        where: { categoryId, name: { [Op.iLike]: rawSubCatName }, companyId }, 
+                        transaction 
+                    });
+                    if (!subCat) {
+                        subCat = await SubCategory.create({ 
+                            categoryId, 
+                            name: rawSubCatName, 
+                            companyId, 
+                            status: "Active" 
+                        }, { transaction });
+                    }
+                    subCategoryId = subCat.id;
                 }
 
                 const paramPayload = {
                     companyId,
                     parameterName: paramName,
+                    subCategoryId: subCategoryId || data.subCategoryId || null,
                     description: data.description || null,
                     testMethod: data.testMethod || null,
                     status: data.status || "Active"

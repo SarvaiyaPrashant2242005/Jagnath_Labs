@@ -82,7 +82,8 @@ const create = async (req, res) => {
             testMethod: value.testMethod,
             status: value.status || "Active",
             companyId,
-            categoryId: value.categoryId
+            categoryId: value.categoryId,
+            subCategoryId: value.subCategoryId || null
         };
 
         const reqInfo = {
@@ -257,7 +258,8 @@ const update = async (req, res) => {
             testMethod: value.testMethod,
             status: value.status,
             companyId: targetCompanyId,
-            categoryId: value.categoryId
+            categoryId: value.categoryId,
+            subCategoryId: value.subCategoryId || null
         };
 
         const reqInfo = {

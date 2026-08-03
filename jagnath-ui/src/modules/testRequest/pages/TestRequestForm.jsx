@@ -9,7 +9,8 @@ import {
   TEST_REQUEST_PARAMETER_ENDPOINTS,
   COMPANY_ENDPOINTS,
   CAUTION_ENDPOINTS,
-  PRICE_MASTER_ENDPOINTS
+  PRICE_MASTER_ENDPOINTS,
+  SUB_CATEGORY_ENDPOINTS
 } from '../../../shared/services/apiEndpoints';
 import { FaPrint, FaSave, FaArrowLeft, FaCheck, FaExclamationCircle, FaEye, FaEyeSlash, FaFilePdf } from 'react-icons/fa';
 
@@ -22,6 +23,8 @@ const TestRequestForm = () => {
   const [companies, setCompanies] = useState([]);
   const [clients, setClients] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [subCategories, setSubCategories] = useState([]);
+  const [selectedSubCategory, setSelectedSubCategory] = useState('');
   const [cautions, setCautions] = useState([]);
   const [priceMasterMap, setPriceMasterMap] = useState({});
   
@@ -243,11 +246,22 @@ const TestRequestForm = () => {
     }
   };
 
+  const fetchSubCategoriesForCategory = async (categoryId) => {
+    try {
+      const res = await apiService.get(`${SUB_CATEGORY_ENDPOINTS.GET_ALL}?categoryId=${categoryId}`);
+      setSubCategories(res?.data || []);
+    } catch {
+      setSubCategories([]);
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     
     if (name === 'sampleParticular' && value) {
+      setSelectedSubCategory('');
+      fetchSubCategoriesForCategory(value);
       fetchParametersForCategory(value);
       // Reset checks when category changes
       setCheckedParameters({});
@@ -641,12 +655,27 @@ const TestRequestForm = () => {
               <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Testing Parameters</h3>
             </div>
             
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginBottom: '2rem', maxWidth: '400px' }}>
-              <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Sample Particular (Category) <span style={{color: '#ef4444'}}>*</span></label>
-              <select name="sampleParticular" value={formData.sampleParticular} onChange={handleChange} className="premium-input">
-                <option value="">Select Category</option>
-                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Discipline Group <span style={{color: '#ef4444'}}>*</span></label>
+                <select name="sampleParticular" value={formData.sampleParticular} onChange={handleChange} className="premium-input">
+                  <option value="">Select Discipline Group</option>
+                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Sub Category</label>
+                <select 
+                  value={selectedSubCategory} 
+                  onChange={(e) => setSelectedSubCategory(e.target.value)} 
+                  className="premium-input"
+                  disabled={!formData.sampleParticular}
+                >
+                  <option value="">All Sub Categories</option>
+                  {subCategories.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
             </div>
 
             {parameters.length > 0 && (
@@ -673,7 +702,9 @@ const TestRequestForm = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {parameters.map(param => {
+                      {parameters
+                        .filter(param => !selectedSubCategory || param.subCategoryId === selectedSubCategory || param.subCategory?.id === selectedSubCategory)
+                        .map(param => {
                         const isChecked = !!checkedParameters[param.id];
                         const paramPrice = priceMasterMap[param.id] || 0;
                         return (

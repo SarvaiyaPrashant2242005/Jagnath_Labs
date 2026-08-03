@@ -17,7 +17,8 @@ const createParameterSchema = Joi.object({
     }),
     companyName: Joi.string().trim().optional(),
     companyId: Joi.string().trim().optional(),
-    categoryId: Joi.string().trim().optional().allow("", null)
+    categoryId: Joi.string().trim().optional().allow("", null),
+    subCategoryId: Joi.string().trim().optional().allow("", null)
 });
 
 const updateParameterSchema = Joi.object({
@@ -31,7 +32,8 @@ const updateParameterSchema = Joi.object({
     }),
     companyName: Joi.string().trim().optional(),
     companyId: Joi.string().trim().optional(),
-    categoryId: Joi.string().trim().optional().allow("", null)
+    categoryId: Joi.string().trim().optional().allow("", null),
+    subCategoryId: Joi.string().trim().optional().allow("", null)
 });
 
 

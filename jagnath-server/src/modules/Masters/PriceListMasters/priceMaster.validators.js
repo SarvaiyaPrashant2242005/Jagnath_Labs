@@ -24,9 +24,11 @@ const createPriceSchema = Joi.object({
 });
 
 const updatePriceSchema = Joi.object({
-    price: Joi.number().min(0).required().messages({
-        "number.min": "Price cannot be negative.",
-        "any.required": "Price is required."
+    categoryId: Joi.string().uuid().optional(),
+    subCategoryId: Joi.string().uuid().optional().allow("", null),
+    parameterId: Joi.string().uuid().optional(),
+    price: Joi.number().min(0).optional().messages({
+        "number.min": "Price cannot be negative."
     }),
     status: Joi.string().valid("Active", "Inactive").optional(),
     companyId: Joi.string().uuid().optional(),

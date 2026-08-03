@@ -93,4 +93,7 @@ db.SubCategory.belongsTo(db.Category, { foreignKey: "categoryId", as: "category"
 db.Company.hasMany(db.SubCategory, { foreignKey: "companyId", as: "subCategories" });
 db.SubCategory.belongsTo(db.Company, { foreignKey: "companyId", as: "company" });
 
+db.SubCategory.hasMany(db.Parameter, { foreignKey: "subCategoryId", as: "parameters" });
+db.Parameter.belongsTo(db.SubCategory, { foreignKey: "subCategoryId", as: "subCategory" });
+
 module.exports = db;

@@ -61,7 +61,16 @@ const getAllSubCategories = async (query, companyId) => {
     }
 
     if (query.categoryId) {
-        whereClause.categoryId = query.categoryId;
+        const cat = await db.Category.findOne({ where: { id: query.categoryId } });
+        if (cat) {
+            const sameNameCats = await db.Category.findAll({
+                where: { name: { [Op.iLike]: cat.name.trim() } }
+            });
+            const catIds = sameNameCats.map(c => c.id);
+            whereClause.categoryId = { [Op.in]: catIds };
+        } else {
+            whereClause.categoryId = query.categoryId;
+        }
     }
 
     if (query.status && query.status !== "ALL") {

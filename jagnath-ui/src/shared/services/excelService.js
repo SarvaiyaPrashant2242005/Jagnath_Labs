@@ -100,25 +100,28 @@ export const MASTER_SCHEMAS = {
     filename: 'Parameter_Master_Template.xlsx',
     uniqueKeys: ['parameterName'],
     headers: [
-      { key: 'categoryName', label: 'Category', required: false, type: 'string' },
+      { key: 'categoryName', label: 'Discipline Group *', required: true, type: 'string' },
+      { key: 'subCategoryName', label: 'Sub Category', required: false, type: 'string' },
       { key: 'parameterName', label: 'Parameter Name *', required: true, type: 'string' },
-      { key: 'description', label: 'Description', required: false, type: 'string' },
       { key: 'testMethod', label: 'Test Method', required: false, type: 'string' },
+      { key: 'description', label: 'Description', required: false, type: 'string' },
       { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'] }
     ],
     sampleData: [
       {
-        'Category': 'Drinking Water',
+        'Discipline Group *': 'Drinking Water',
+        'Sub Category': 'Physical Parameters',
         'Parameter Name *': 'pH Level',
-        'Description': 'Acidity or alkalinity measure of water',
         'Test Method': 'APHA, 23rd Edition 2017/4500-H-B',
+        'Description': 'Acidity or alkalinity measure of water',
         'Status': 'Active'
       },
       {
-        'Category': 'Drinking Water',
+        'Discipline Group *': 'Drinking Water',
+        'Sub Category': 'Physical Parameters',
         'Parameter Name *': 'Total Dissolved Solids (TDS)',
-        'Description': 'Inorganic salts and small amounts of organic matter dissolved in water',
         'Test Method': 'IS 3025 (Part 16)',
+        'Description': 'Inorganic salts and small amounts of organic matter dissolved in water',
         'Status': 'Active'
       }
     ]
@@ -129,20 +132,23 @@ export const MASTER_SCHEMAS = {
     filename: 'Price_List_Template.xlsx',
     uniqueKeys: ['categoryName', 'parameterName'],
     headers: [
-      { key: 'categoryName', label: 'Category Name *', required: true, type: 'string' },
+      { key: 'categoryName', label: 'Discipline Group *', required: true, type: 'string' },
+      { key: 'subCategoryName', label: 'Sub Category', required: false, type: 'string' },
       { key: 'parameterName', label: 'Parameter Name *', required: true, type: 'string' },
       { key: 'price', label: 'Price *', required: true, type: 'number' },
       { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'] }
     ],
     sampleData: [
       {
-        'Category Name *': 'Drinking Water',
+        'Discipline Group *': 'Drinking Water',
+        'Sub Category': 'Physical Parameters',
         'Parameter Name *': 'pH Value',
         'Price *': 250,
         'Status': 'Active'
       },
       {
-        'Category Name *': 'Drinking Water',
+        'Discipline Group *': 'Drinking Water',
+        'Sub Category': 'Physical Parameters',
         'Parameter Name *': 'Total Dissolved Solids (TDS)',
         'Price *': 350,
         'Status': 'Active'

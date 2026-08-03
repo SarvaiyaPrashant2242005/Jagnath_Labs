@@ -51,7 +51,12 @@ const createPrice = async (data, userId) => {
     return await PriceMaster.findByPk(newRecord.id, {
         include: [
             { model: Category, as: "category", attributes: ["id", "name"] },
-            { model: Parameter, as: "parameter", attributes: ["id", "parameterName", "testMethod"] }
+            { 
+                model: Parameter, 
+                as: "parameter", 
+                attributes: ["id", "parameterName", "testMethod", "subCategoryId"],
+                include: [{ model: db.SubCategory, as: "subCategory", attributes: ["id", "name"] }]
+            }
         ]
     });
 };
@@ -80,7 +85,8 @@ const getPricesByCompany = async (companyId, options = {}) => {
         {
             model: Parameter,
             as: "parameter",
-            attributes: ["id", "parameterName", "testMethod"]
+            attributes: ["id", "parameterName", "testMethod", "subCategoryId"],
+            include: [{ model: db.SubCategory, as: "subCategory", attributes: ["id", "name"] }]
         }
     ];
 
@@ -125,7 +131,12 @@ const getPriceById = async (id, companyId) => {
         where: { id, companyId },
         include: [
             { model: Category, as: "category", attributes: ["id", "name"] },
-            { model: Parameter, as: "parameter", attributes: ["id", "parameterName", "testMethod"] }
+            { 
+                model: Parameter, 
+                as: "parameter", 
+                attributes: ["id", "parameterName", "testMethod", "subCategoryId"],
+                include: [{ model: db.SubCategory, as: "subCategory", attributes: ["id", "name"] }]
+            }
         ]
     });
 
@@ -142,6 +153,8 @@ const updatePrice = async (id, data, userId, companyId) => {
     }
 
     await price.update({
+        categoryId: data.categoryId || price.categoryId,
+        parameterId: data.parameterId || price.parameterId,
         price: data.price !== undefined ? data.price : price.price,
         status: data.status !== undefined ? data.status : price.status,
         updatedBy: userId
