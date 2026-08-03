@@ -173,13 +173,20 @@ const QuotationPrint = () => {
             size: A4 portrait;
             margin: 8mm 10mm;
           }
-          body {
-            margin: 0;
-            background: #fff;
+          html, body {
+            width: 100% !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           .paper-quotation-container {
             width: 100% !important;
+            max-width: 100% !important;
             padding: 0 !important;
+            margin: 0 !important;
             box-shadow: none !important;
           }
         }

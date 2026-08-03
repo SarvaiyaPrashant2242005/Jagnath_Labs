@@ -39,6 +39,9 @@ const ParameterMaster = () => {
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [subCategoryFilter, setSubCategoryFilter] = useState('');
+  const [subCategoriesFilterList, setSubCategoriesFilterList] = useState([]);
 
   // Download Dropdown toggle
   const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
@@ -189,14 +192,21 @@ const ParameterMaster = () => {
     setLoading(true);
     try {
       const activeCompId = localStorage.getItem('selectedCompanyId') || '';
+      const isCards = viewMode === 'cards';
       const params = new URLSearchParams({
-        page: currentPage,
-        limit: pageSize,
+        page: isCards ? 1 : currentPage,
+        limit: isCards ? 1000 : pageSize,
         search: searchQuery,
         status: statusFilter
       });
       if (activeCompId) {
         params.append('companyId', activeCompId);
+      }
+      if (categoryFilter) {
+        params.append('categoryId', categoryFilter);
+      }
+      if (subCategoryFilter) {
+        params.append('subCategoryId', subCategoryFilter);
       }
       
       const url = `${PARAMETER_ENDPOINTS.GET_ALL}?${params.toString()}`;
@@ -230,9 +240,22 @@ const ParameterMaster = () => {
     }
   };
 
+  const fetchSubCategoriesForToolbarFilter = async (catId) => {
+    if (!catId) {
+      setSubCategoriesFilterList([]);
+      return;
+    }
+    try {
+      const response = await apiService.get(`${SUB_CATEGORY_ENDPOINTS.GET_ALL}?categoryId=${catId}&status=Active`);
+      setSubCategoriesFilterList(response?.data || []);
+    } catch {
+      setSubCategoriesFilterList([]);
+    }
+  };
+
   useEffect(() => {
     fetchParameters();
-  }, [currentPage, pageSize, searchQuery, statusFilter]);
+  }, [currentPage, pageSize, searchQuery, statusFilter, categoryFilter, subCategoryFilter, viewMode]);
 
   useEffect(() => {
     const initializeData = async () => {
@@ -837,6 +860,40 @@ const ParameterMaster = () => {
                 Cards
               </button>
             </div>
+            {/* Discipline Group Filter */}
+            <select
+              value={categoryFilter}
+              onChange={(e) => {
+                const catId = e.target.value;
+                setCategoryFilter(catId);
+                setSubCategoryFilter('');
+                fetchSubCategoriesForToolbarFilter(catId);
+                setCurrentPage(1);
+              }}
+              style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem' }}
+            >
+              <option value="">ALL DISCIPLINE GROUPS</option>
+              {categoriesList.map(cat => (
+                <option key={cat.id} value={cat.id}>{cat.name}</option>
+              ))}
+            </select>
+
+            {/* Sub Category Filter */}
+            <select
+              value={subCategoryFilter}
+              onChange={(e) => {
+                setSubCategoryFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              disabled={!categoryFilter}
+              style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', backgroundColor: !categoryFilter ? '#f1f5f9' : '#ffffff' }}
+            >
+              <option value="">ALL SUB CATEGORIES</option>
+              {subCategoriesFilterList.map(sub => (
+                <option key={sub.id} value={sub.id}>{sub.name}</option>
+              ))}
+            </select>
+
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -1031,17 +1088,19 @@ const ParameterMaster = () => {
         )}
         
         {/* Pagination Controls */}
-        <Pagination 
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalItems={totalItems}
-          pageSize={pageSize}
-          onPageChange={setCurrentPage}
-          onPageSizeChange={(size) => {
-            setPageSize(size);
-            setCurrentPage(1);
-          }}
-        />
+        {viewMode === 'table' && (
+          <Pagination 
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setCurrentPage(1);
+            }}
+          />
+        )}
       </div>
 
       {/* Quick Add Category Modal */}

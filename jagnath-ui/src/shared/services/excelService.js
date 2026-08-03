@@ -245,6 +245,8 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
     labelToKeyMap[h.label] = h.key;
     // Also support label without asterisk or spaces
     labelToKeyMap[h.label.replace(' *', '').trim()] = h.key;
+    // Support internal key name directly (for re-validating edited/deleted rows)
+    labelToKeyMap[h.key] = h.key;
   });
 
   const evaluatedRows = [];

@@ -572,24 +572,36 @@ const TestRequestPrint = () => {
 
         @media print {
           @page {
-            size: A4;
-            margin: 0;
+            size: A4 portrait;
+            margin: 8mm 10mm;
           }
-          body, html { 
-            margin: 0;
-            padding: 0;
-            background: transparent; 
+          html, body { 
+            width: 100% !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff !important; 
+            overflow: visible !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .print-container { 
+            width: 100% !important; 
+            max-width: 100% !important;
+            margin: 0 !important; 
+            padding: 0 !important; 
           }
           .print-page { 
-            width: 210mm; 
-            height: 296mm; 
-            padding: 10mm; 
-            margin: 0; 
-            box-sizing: border-box;
+            width: 100% !important; 
+            max-width: 100% !important;
+            min-height: auto !important;
+            height: auto !important;
+            padding: 0 !important; 
+            margin: 0 !important; 
+            box-sizing: border-box !important;
             page-break-after: always;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
+            overflow: visible !important;
+            display: block !important;
           }
           .print-page:last-child {
             page-break-after: auto;

@@ -378,14 +378,19 @@ const getParametersByCompany = async (companyId, options = {}) => {
             queryOptions.offset = (parseInt(options.page) - 1) * queryOptions.limit;
 
             if (options.search) {
-                queryOptions.where = {
-                    ...queryOptions.where,
-                    parameterName: { [Op.iLike]: `%${options.search}%` }
-                };
+                queryOptions.where.parameterName = { [Op.iLike]: `%${options.search}%` };
             }
 
             if (options.status && options.status !== 'ALL') {
                 queryOptions.where.status = options.status;
+            }
+
+            if (options.subCategoryId) {
+                queryOptions.where.subCategoryId = options.subCategoryId;
+            }
+
+            if (options.categoryId) {
+                queryOptions.include[2].where = { categoryId: options.categoryId };
             }
 
             const result = await Parameter.findAndCountAll(queryOptions);

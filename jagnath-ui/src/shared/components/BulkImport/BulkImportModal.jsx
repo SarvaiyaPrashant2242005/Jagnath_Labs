@@ -541,22 +541,32 @@ const BulkImportModal = ({
                           {r._originalIndex}
                         </td>
                         <td>
-                          <span className={`status-badge ${r._status}`}>
+                          <span className={`status-badge ${r._status}`} title={r._errors ? Object.values(r._errors).join('\n') : ''}>
                             {r._status === 'NEW' && '✨ New'}
                             {r._status === 'UPDATE' && '⚠️ Update'}
                             {r._status === 'ERROR' && '❌ Error'}
                           </span>
+                          {r._status === 'ERROR' && r._errors && Object.keys(r._errors).length > 0 && (
+                            <div style={{ fontSize: '0.725rem', color: '#dc2626', fontWeight: 600, marginTop: '0.25rem', maxWidth: '180px', lineHeight: '1.2' }}>
+                              {Object.values(r._errors).join(', ')}
+                            </div>
+                          )}
                         </td>
                         {schema.headers.map(h => {
-                          const cellErr = r._errors[h.key] || r._errors['_row'];
+                          const cellErr = r._errors ? r._errors[h.key] : null;
                           return (
-                            <td key={h.key}>
+                            <td key={h.key} style={{ position: 'relative' }}>
                               <input
                                 className={`cell-input ${cellErr ? 'has-error' : ''}`}
                                 value={r.data[h.key] || ''}
                                 title={cellErr || ''}
                                 onChange={(e) => handleCellEdit(r._id, h.key, e.target.value)}
                               />
+                              {cellErr && (
+                                <div style={{ fontSize: '0.7rem', color: '#dc2626', fontWeight: 600, marginTop: '2px' }}>
+                                  {cellErr}
+                                </div>
+                              )}
                             </td>
                           );
                         })}
