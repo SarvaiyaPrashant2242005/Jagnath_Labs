@@ -632,16 +632,16 @@ const ParameterMaster = () => {
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
               
-              {/* Category Dropdown & Quick Add Link */}
+              {/* Discipline Group Dropdown & Quick Add Link */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Category *</label>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Discipline Group *</label>
                   <button
                     type="button"
                     onClick={() => setIsAddCatModalOpen(true)}
                     style={{ background: 'none', border: 'none', color: '#22c55e', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}
                   >
-                    <FaPlus size={10} /> Add New Category
+                    <FaPlus size={10} /> Add New Group
                   </button>
                 </div>
                 <select
@@ -650,7 +650,7 @@ const ParameterMaster = () => {
                   onChange={handleInputChange}
                   style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.categoryId ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', cursor: 'pointer', outline: 'none', backgroundColor: '#ffffff' }}
                 >
-                  <option value="">Select Category</option>
+                  <option value="">Select Discipline Group</option>
                   {categoriesList.map(cat => (
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
@@ -815,7 +815,8 @@ const ParameterMaster = () => {
                   <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ACTIONS</th>
                   <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
                   <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>PARAMETER NAME</th>
-                  <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CATEGORY</th>
+                  <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>DISCIPLINE GROUP</th>
+                  <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SUB CATEGORY</th>
                   <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>TEST METHOD</th>
                   <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATUS</th>
                 </tr>

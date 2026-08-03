@@ -47,23 +47,49 @@ export const MASTER_SCHEMAS = {
   },
 
   category: {
-    title: 'Category Master',
-    filename: 'Category_Master_Template.xlsx',
+    title: 'Discipline Group Master',
+    filename: 'Discipline_Group_Master_Template.xlsx',
     uniqueKeys: ['categoryName'],
     headers: [
-      { key: 'categoryName', label: 'Category Name *', required: true, type: 'string' },
+      { key: 'categoryName', label: 'Discipline Group Name *', required: true, type: 'string' },
       { key: 'description', label: 'Description', required: false, type: 'string' },
       { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'] }
     ],
     sampleData: [
       {
-        'Category Name *': 'Drinking Water',
+        'Discipline Group Name *': 'Drinking Water',
         'Description': 'Packaged and municipal drinking water quality testing',
         'Status': 'Active'
       },
       {
-        'Category Name *': 'Industrial Effluent',
+        'Discipline Group Name *': 'Industrial Effluent',
         'Description': 'Chemical and biological testing of industrial discharge water',
+        'Status': 'Active'
+      }
+    ]
+  },
+
+  subCategory: {
+    title: 'Sub Category Master',
+    filename: 'Sub_Category_Master_Template.xlsx',
+    uniqueKeys: ['categoryName', 'name'],
+    headers: [
+      { key: 'categoryName', label: 'Discipline Group *', required: true, type: 'string' },
+      { key: 'name', label: 'Sub Category Name *', required: true, type: 'string' },
+      { key: 'description', label: 'Description', required: false, type: 'string' },
+      { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'] }
+    ],
+    sampleData: [
+      {
+        'Discipline Group *': 'Drinking Water',
+        'Sub Category Name *': 'Physical Parameters',
+        'Description': 'Color, Odor, pH and Physical attributes',
+        'Status': 'Active'
+      },
+      {
+        'Discipline Group *': 'Drinking Water',
+        'Sub Category Name *': 'Chemical Parameters',
+        'Description': 'Hardness, Chlorides, Nitrates and Heavy metals',
         'Status': 'Active'
       }
     ]

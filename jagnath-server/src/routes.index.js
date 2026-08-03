@@ -11,6 +11,7 @@ const categoryParameterRoutes = require('./modules/Masters/CategoryParameterMast
 const testRequestParameterRoutes = require('./modules/Transactions/TestRequestParameters/testRequestParameter.routes');
 const priceMasterRoutes = require('./modules/Masters/PriceListMasters/priceMaster.routes');
 const cautionRoutes = require('./modules/Masters/CautionMasters/caution.routes');
+const subCategoryRoutes = require('./modules/Masters/SubCategoryMasters/subCategory.routes');
 
 // Mount routes
 router.use('/auth', authRoutes);
@@ -18,6 +19,7 @@ router.use('/company', companyRoutes);
 router.use('/client', clientRoutes);
 router.use('/parameter', parameterRoutes);
 router.use('/category', categoryRoutes);
+router.use('/sub-category', subCategoryRoutes);
 router.use('/test-request', testRequestRoutes);
 router.use('/category-parameter', categoryParameterRoutes);
 router.use('/test-request-parameter', testRequestParameterRoutes);
