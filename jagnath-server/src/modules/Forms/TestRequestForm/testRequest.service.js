@@ -295,25 +295,22 @@ Status      : SUCCESS
 /**
  * Get TestRequest by ID.
  */
-const getTestRequestById = async (trId, companyId) => {
+const getTestRequestById = async (trId, companyId = null) => {
     try {
         const whereClause = { id: trId };
         if (companyId) {
             whereClause.companyId = companyId;
         }
-
-        let tr = await TestRequest.findOne({
+        const tr = await TestRequest.findOne({
             where: whereClause,
             include: [
                 {
                     model: Company,
-                    as: "company",
-                    attributes: ["company_name"]
+                    as: "company"
                 },
                 {
                     model: Client,
-                    as: "client",
-                    attributes: ["clientName"]
+                    as: "client"
                 },
                 {
                     model: Caution,

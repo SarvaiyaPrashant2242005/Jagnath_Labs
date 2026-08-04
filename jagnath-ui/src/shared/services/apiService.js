@@ -30,9 +30,9 @@ const buildHeaders = (isJson = true) => {
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
-  const selectedCompanyId = localStorage.getItem("selectedCompanyId");
-  if (selectedCompanyId && selectedCompanyId !== "undefined" && selectedCompanyId !== "null") {
-    headers["x-company-id"] = selectedCompanyId;
+  const companyId = localStorage.getItem("selectedCompanyId");
+  if (companyId) {
+    headers["x-company-id"] = companyId;
   }
   return headers;
 };
@@ -78,9 +78,9 @@ const request = async (url, options = {}) => {
       message: `HTTP ${response.status}: ${response.statusText}`,
     };
 
-    // Handle Token Expiry & Unauthorized Access (401 only)
+    // Handle Token Expiry (401 Unauthorized only)
     if (response.status === 401) {
-      const refreshToken = sessionStorage.getItem("refreshToken") || localStorage.getItem("refreshToken");
+      const refreshToken = sessionStorage.getItem("refreshToken");
 
       // Prevent infinite loops for the refresh endpoint itself or missing refresh token
       if (url === AUTH_ENDPOINTS.REFRESH_TOKEN || !refreshToken) {
@@ -119,8 +119,8 @@ const request = async (url, options = {}) => {
               localStorage.setItem("accessToken", newAccessToken);
 
               if (refreshData.data.refreshToken) {
-                 sessionStorage.setItem("refreshToken", refreshData.data.refreshToken);
-                 localStorage.setItem("refreshToken", refreshData.data.refreshToken);
+                sessionStorage.setItem("refreshToken", refreshData.data.refreshToken);
+                localStorage.setItem("refreshToken", refreshData.data.refreshToken);
               }
               processQueue(null, newAccessToken);
               resolve(request(url, options));

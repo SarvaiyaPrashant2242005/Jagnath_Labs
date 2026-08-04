@@ -7,6 +7,7 @@ import SuperAdminDashboard from './modules/superAdmin/pages/SuperAdminDashboard'
 import CompanyMaster from './modules/companyMaster/pages/CompanyMaster';
 import ClientMaster from './modules/clientMaster/pages/ClientMaster';
 import CategoryMaster from './modules/categoryMaster/pages/CategoryMaster';
+import SubCategoryMaster from './modules/subCategoryMaster/pages/SubCategoryMaster';
 import ParameterMaster from './modules/parameterMaster/pages/ParameterMaster';
 import UserMaster from './modules/userMaster/pages/UserMaster';
 import DashboardLayout from './shared/layouts/DashboardLayout';
@@ -125,6 +126,7 @@ function App() {
         {/* Dynamic Placeholder pages for all LIMS routes in sidebar */}
         <Route path="/clients" element={<ProtectedRoute><ClientMaster /></ProtectedRoute>} />
         <Route path="/categories" element={<ProtectedRoute><CategoryMaster /></ProtectedRoute>} />
+        <Route path="/sub-categories" element={<ProtectedRoute><SubCategoryMaster /></ProtectedRoute>} />
         <Route path="/parameters" element={<ProtectedRoute><ParameterMaster /></ProtectedRoute>} />
         <Route path="/users" element={<ProtectedRoute><UserMaster /></ProtectedRoute>} />
         <Route path="/price-lists" element={<ProtectedRoute><PriceList /></ProtectedRoute>} />

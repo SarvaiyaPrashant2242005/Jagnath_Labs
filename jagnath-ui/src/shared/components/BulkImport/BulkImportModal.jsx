@@ -19,6 +19,12 @@ const BulkImportModal = ({
 }) => {
   const schema = MASTER_SCHEMAS[masterType] || {};
   const fileInputRef = useRef(null);
+  const tableContainerRef = useRef(null);
+
+  // Drag-to-scroll state refs
+  const isMouseDownRef = useRef(false);
+  const startXRef = useRef(0);
+  const scrollLeftRef = useRef(0);
 
   // Flow State
   const [step, setStep] = useState(1); // 1: Upload, 2: Preview & Edit
@@ -28,6 +34,7 @@ const BulkImportModal = ({
   const [filter, setFilter] = useState('ALL'); // 'ALL' | 'ERRORS' | 'NEW' | 'UPDATE'
   const [submitting, setSubmitting] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const [retainedErrorIds, setRetainedErrorIds] = useState(new Set());
 
   // Reset modal state when closed/opened
   useEffect(() => {
@@ -37,10 +44,32 @@ const BulkImportModal = ({
       setRows([]);
       setFilter('ALL');
       setUploadError('');
+      setRetainedErrorIds(new Set());
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
+
+  // Mouse Drag-to-Scroll handlers (scroll from anywhere in table)
+  const handleMouseDown = (e) => {
+    if (['INPUT', 'BUTTON', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
+    if (!tableContainerRef.current) return;
+    isMouseDownRef.current = true;
+    startXRef.current = e.pageX - tableContainerRef.current.offsetLeft;
+    scrollLeftRef.current = tableContainerRef.current.scrollLeft;
+  };
+
+  const handleMouseLeaveOrUp = () => {
+    isMouseDownRef.current = false;
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isMouseDownRef.current || !tableContainerRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - tableContainerRef.current.offsetLeft;
+    const walk = (x - startXRef.current) * 1.5;
+    tableContainerRef.current.scrollLeft = scrollLeftRef.current - walk;
+  };
 
   // Handle File selection or drop
   const handleFileChange = async (selectedFile) => {
@@ -74,6 +103,15 @@ const BulkImportModal = ({
     } finally {
       setLoading(false);
     }
+  };
+
+  // Handle filter selection and retain active error row IDs so editing an error row doesn't disappear mid-edit
+  const handleSetFilter = (newFilter) => {
+    if (newFilter === 'ERRORS') {
+      const currentErrorIds = new Set(rows.filter(r => r._status === 'ERROR').map(r => r._id));
+      setRetainedErrorIds(currentErrorIds);
+    }
+    setFilter(newFilter);
   };
 
   // Re-run validation whenever a row cell is edited
@@ -117,6 +155,27 @@ const BulkImportModal = ({
     });
   };
 
+  // Handle removal of all errored rows at once
+  const handleRemoveAllErrors = () => {
+    if (errorCount === 0) return;
+    setRows(prevRows => {
+      const validOnly = prevRows.filter(r => r._status !== 'ERROR');
+      if (validOnly.length === 0) {
+        setStep(1);
+        setFile(null);
+        return [];
+      }
+      const rawDataArray = validOnly.map(r => r.data);
+      const reEvaluated = validateMasterRows(masterType, rawDataArray, existingDbRecords);
+      return validOnly.map((r, i) => ({
+        ...reEvaluated[i],
+        _id: r._id
+      }));
+    });
+    setRetainedErrorIds(new Set());
+    setFilter('ALL');
+  };
+
   // Summary counts
   const totalCount = rows.length;
   const errorCount = rows.filter(r => r._status === 'ERROR').length;
@@ -129,11 +188,7 @@ const BulkImportModal = ({
 
   // Filtered rows for preview table
   const displayedRows = rows.filter(r => {
-    if (filter === 'ERRORS') return r._status === 'ERROR';
-    if (filter === 'DUPLICATES') {
-      const errStr = Object.values(r._errors || {}).join(' ').toLowerCase();
-      return errStr.includes('duplicate') || errStr.includes('exists');
-    }
+    if (filter === 'ERRORS') return r._status === 'ERROR' || retainedErrorIds.has(r._id);
     if (filter === 'NEW') return r._status === 'NEW';
     if (filter === 'UPDATE') return r._status === 'UPDATE';
     return true;
@@ -164,6 +219,23 @@ const BulkImportModal = ({
     }
   };
 
+  const getColumnMinWidth = (key) => {
+    switch (key) {
+      case 'clientName': return '190px';
+      case 'email': return '210px';
+      case 'contactNumber': return '150px';
+      case 'address': return '200px';
+      case 'city': return '130px';
+      case 'state': return '130px';
+      case 'categoryName': return '200px';
+      case 'parameterName': return '200px';
+      case 'description': return '220px';
+      case 'gender': return '110px';
+      case 'status': return '110px';
+      default: return '140px';
+    }
+  };
+
   return (
     <div className="bulk-modal-overlay">
       <style>{`
@@ -184,8 +256,8 @@ const BulkImportModal = ({
           background: #ffffff;
           border-radius: 16px;
           box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-          width: 100%;
-          max-width: 1050px;
+          width: 95vw;
+          max-width: 1400px;
           max-height: 90vh;
           display: flex;
           flex-direction: column;
@@ -307,14 +379,20 @@ const BulkImportModal = ({
         }
 
         .preview-table-container {
-          border: 1px solid #e2e8f0;
+          border: 1px solid #cbd5e1;
           border-radius: 12px;
-          overflow-x: auto;
-          max-height: 400px;
+          overflow: auto;
+          max-height: 420px;
+          width: 100%;
+          scroll-behavior: smooth;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: thin;
+          scrollbar-color: #94a3b8 #f1f5f9;
         }
 
         .preview-table {
           width: 100%;
+          min-width: max-content;
           border-collapse: collapse;
           font-size: 0.85rem;
         }
@@ -323,27 +401,52 @@ const BulkImportModal = ({
           background: #f8fafc;
           padding: 0.75rem 0.85rem;
           text-align: left;
-          font-weight: 600;
+          font-weight: 700;
           color: #334155;
-          border-bottom: 1px solid #e2e8f0;
+          border-bottom: 2px solid #cbd5e1;
           position: sticky;
           top: 0;
           z-index: 10;
+          white-space: nowrap;
         }
 
         .preview-table td {
           padding: 0.5rem 0.65rem;
           border-bottom: 1px solid #f1f5f9;
+          white-space: nowrap;
+        }
+
+        .preview-table-container::-webkit-scrollbar {
+          height: 8px;
+          width: 8px;
+        }
+
+        .preview-table-container::-webkit-scrollbar-track {
+          background: #f1f5f9;
+          border-radius: 999px;
+          margin: 4px;
+        }
+
+        .preview-table-container::-webkit-scrollbar-thumb {
+          background: #94a3b8;
+          border-radius: 999px;
+          border: 2px solid #f1f5f9;
+          transition: background-color 0.2s ease-in-out;
+        }
+
+        .preview-table-container::-webkit-scrollbar-thumb:hover {
+          background: #2563eb;
         }
 
         .cell-input {
           width: 100%;
-          border: 1px solid transparent;
+          border: 1px solid #cbd5e1;
           border-radius: 6px;
-          padding: 0.35rem 0.5rem;
-          font-size: 0.825rem;
+          padding: 0.4rem 0.6rem;
+          font-size: 0.85rem;
           outline: none;
-          transition: border-color 0.2s;
+          background: #ffffff;
+          transition: all 0.2s;
         }
 
         .cell-input:focus {
@@ -505,16 +608,21 @@ const BulkImportModal = ({
                 </div>
               </div>
 
-              {/* Filter Pills */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                <div className="filter-pills">
-                  <button className={`pill-btn ${filter === 'ALL' ? 'active' : ''}`} onClick={() => setFilter('ALL')}>
+              {/* Filter Pills & Actions */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <div className="filter-pills" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <button className={`pill-btn ${filter === 'ALL' ? 'active' : ''}`} onClick={() => handleSetFilter('ALL')}>
                     All Rows ({totalCount})
                   </button>
-                  <button className={`pill-btn ${filter === 'NEW' ? 'active' : ''}`} onClick={() => setFilter('NEW')}>
+                  {errorCount > 0 && (
+                    <button className={`pill-btn ${filter === 'ERRORS' ? 'active' : ''}`} onClick={() => handleSetFilter('ERRORS')} style={{ color: filter === 'ERRORS' ? '#ffffff' : '#ef4444', backgroundColor: filter === 'ERRORS' ? '#ef4444' : 'transparent', borderColor: '#ef4444' }}>
+                      Errors Only ({errorCount})
+                    </button>
+                  )}
+                  <button className={`pill-btn ${filter === 'NEW' ? 'active' : ''}`} onClick={() => handleSetFilter('NEW')}>
                     New ({newCount})
                   </button>
-                  <button className={`pill-btn ${filter === 'UPDATE' ? 'active' : ''}`} onClick={() => setFilter('UPDATE')}>
+                  <button className={`pill-btn ${filter === 'UPDATE' ? 'active' : ''}`} onClick={() => handleSetFilter('UPDATE')}>
                     Updates ({updateCount})
                   </button>
                   {duplicateCount > 0 && (
@@ -529,99 +637,122 @@ const BulkImportModal = ({
                   )}
                 </div>
 
-                <button className="btn-secondary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }} onClick={() => { setStep(1); setFile(null); }}>
-                  <FaSyncAlt /> Upload Different File
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  {errorCount > 0 && (
+                    <button
+                      onClick={handleRemoveAllErrors}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        background: '#fef2f2',
+                        color: '#dc2626',
+                        border: '1px solid #fecaca',
+                        padding: '0.35rem 0.85rem',
+                        borderRadius: '20px',
+                        fontSize: '0.825rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                      title="Remove all rows with validation errors"
+                    >
+                      <FaTrash /> Remove All {errorCount} Error Rows
+                    </button>
+                  )}
+                  <button className="btn-secondary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }} onClick={() => { setStep(1); setFile(null); }}>
+                    <FaSyncAlt /> Upload Different File
+                  </button>
+                </div>
               </div>
 
               {/* Preview & Interactive Grid */}
-              <div className="preview-table-container">
+              <div
+                className="preview-table-container"
+                ref={tableContainerRef}
+                onMouseDown={handleMouseDown}
+                onMouseLeave={handleMouseLeaveOrUp}
+                onMouseUp={handleMouseLeaveOrUp}
+                onMouseMove={handleMouseMove}
+                style={{ cursor: 'grab' }}
+              >
                 <table className="preview-table">
                   <thead>
                     <tr>
                       <th style={{ width: '45px', textAlign: 'center' }}>#</th>
-                      <th style={{ width: '90px' }}>Status</th>
-                      <th style={{ minWidth: '180px' }}>Validation Note / Duplicate Info</th>
+                      <th style={{ minWidth: errorCount > 0 ? '260px' : '120px' }}>Status</th>
                       {schema.headers.map(h => (
-                        <th key={h.key}>{h.label}</th>
+                        <th key={h.key} style={{ minWidth: getColumnMinWidth(h.key) }}>{h.label}</th>
                       ))}
                       <th style={{ width: '60px', textAlign: 'center' }}>Action</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {displayedRows.map((r, idx) => {
-                      const rowError = Object.values(r._errors || {}).join(' | ');
-
-                      // Compute short tag for note column
-                      let noteBadge = null;
-                      if (r._status === 'ERROR') {
-                        let shortText = 'Validation Error';
-                        if (rowError.toLowerCase().includes('duplicate email')) shortText = 'Duplicate Email (File)';
-                        else if (rowError.toLowerCase().includes('duplicate phone')) shortText = 'Duplicate Phone (File)';
-                        else if (rowError.toLowerCase().includes('duplicate category') || rowError.toLowerCase().includes('category already exists')) shortText = 'Duplicate Category';
-                        else if (rowError.toLowerCase().includes('duplicate parameter') || rowError.toLowerCase().includes('parameter already exists')) shortText = 'Duplicate Parameter';
-                        else if (rowError.toLowerCase().includes('belong to')) shortText = 'Email/Phone Conflict';
-
-                        noteBadge = (
-                          <div style={{ color: '#b91c1c', fontSize: '0.78rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap' }} title={rowError}>
-                            <FaExclamationTriangle color="#ef4444" /> {shortText}
-                          </div>
-                        );
-                      } else if (r._status === 'UPDATE') {
-                        noteBadge = (
-                          <div style={{ color: '#b45309', fontSize: '0.78rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap' }} title={`Matches existing client ID ${r._dbId}`}>
-                            <FaInfoCircle color="#f59e0b" /> Will Update (ID: {r._dbId})
-                          </div>
-                        );
-                      } else {
-                        noteBadge = (
-                          <span style={{ color: '#166534', fontSize: '0.78rem', fontWeight: 500 }}>
-                            Ready to insert
-                          </span>
-                        );
-                      }
-
-                      return (
-                        <tr key={r._id} style={{ background: r._status === 'ERROR' ? '#fff1f2' : 'transparent' }}>
-                          <td style={{ textAlign: 'center', fontWeight: 600, color: '#64748b' }}>
-                            {r._originalIndex}
-                          </td>
-                          <td>
+                    {displayedRows.map((r, idx) => (
+                      <tr key={r._id} style={{ background: r._status === 'ERROR' ? '#fff1f2' : 'transparent' }}>
+                        <td style={{ textAlign: 'center', fontWeight: 600, color: '#64748b', verticalAlign: 'top', paddingTop: '0.75rem' }}>
+                          {r._originalIndex}
+                        </td>
+                        <td style={{ minWidth: errorCount > 0 ? '260px' : '120px', verticalAlign: 'top', paddingTop: '0.6rem' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', alignItems: 'flex-start' }}>
                             <span className={`status-badge ${r._status}`}>
                               {r._status === 'NEW' && '✨ New'}
                               {r._status === 'UPDATE' && '⚠️ Update'}
                               {r._status === 'ERROR' && '❌ Error'}
                             </span>
-                          </td>
-                          <td>
-                            {noteBadge}
-                          </td>
-                          {schema.headers.map(h => {
-                            const fieldErr = r._errors[h.key];
-                            const cellErr = fieldErr || r._errors['_row'];
-                            return (
-                              <td key={h.key}>
-                                <input
-                                  className={`cell-input ${cellErr ? 'has-error' : ''}`}
-                                  value={r.data[h.key] || ''}
-                                  title={cellErr || ''}
-                                  onChange={(e) => handleCellEdit(r._id, h.key, e.target.value)}
-                                />
-                              </td>
-                            );
-                          })}
-                          <td style={{ textAlign: 'center' }}>
-                            <button
-                              style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '0.3rem' }}
-                              title="Remove Row"
-                              onClick={() => handleRemoveRow(r._id)}
-                            >
-                              <FaTrash />
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                            {r._status === 'ERROR' && r._errors && Object.keys(r._errors).length > 0 && (
+                              <div
+                                style={{
+                                  fontSize: '0.725rem',
+                                  color: '#991b1b',
+                                  fontWeight: 600,
+                                  background: '#fef2f2',
+                                  border: '1px solid #fecaca',
+                                  borderRadius: '6px',
+                                  padding: '0.35rem 0.5rem',
+                                  whiteSpace: 'normal',
+                                  wordBreak: 'break-word',
+                                  lineHeight: '1.3',
+                                  maxWidth: '250px',
+                                  marginTop: '0.2rem'
+                                }}
+                              >
+                                {Object.values(r._errors).join(' • ')}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        {schema.headers.map(h => {
+                          const cellErr = r._errors ? r._errors[h.key] : null;
+                          const width = getColumnMinWidth(h.key);
+                          return (
+                            <td key={h.key} style={{ position: 'relative', minWidth: width, verticalAlign: 'top', paddingTop: '0.6rem' }}>
+                              <input
+                                className={`cell-input ${cellErr ? 'has-error' : ''}`}
+                                style={{ minWidth: width }}
+                                value={r.data[h.key] || ''}
+                                title={cellErr || ''}
+                                onChange={(e) => handleCellEdit(r._id, h.key, e.target.value)}
+                              />
+                              {cellErr && (
+                                <div style={{ fontSize: '0.7rem', color: '#dc2626', fontWeight: 600, marginTop: '4px', whiteSpace: 'normal', wordBreak: 'break-word', maxWidth: width }}>
+                                  {cellErr}
+                                </div>
+                              )}
+                            </td>
+                          );
+                        })}
+                        <td style={{ textAlign: 'center', verticalAlign: 'top', paddingTop: '0.75rem' }}>
+                          <button
+                            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '0.3rem' }}
+                            title="Remove Row"
+                            onClick={() => handleRemoveRow(r._id)}
+                          >
+                            <FaTrash />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>

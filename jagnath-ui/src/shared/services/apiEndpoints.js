@@ -19,6 +19,9 @@ export const AUTH_ENDPOINTS = {
   REFRESH_TOKEN: `${API_BASE_URL}/auth/refresh-token`,
   ME: `${API_BASE_URL}/auth/me`,
   LOGOUT: `${API_BASE_URL}/auth/logout`,
+  FORGOT_PASSWORD: `${API_BASE_URL}/auth/forgot-password`,
+  VERIFY_OTP: `${API_BASE_URL}/auth/verify-otp`,
+  RESET_PASSWORD: `${API_BASE_URL}/auth/reset-password`,
 };
 
 // ─── User Endpoints ─────────────────────────────────────────────────────────────
@@ -58,7 +61,7 @@ export const PARAMETER_ENDPOINTS = {
   BULK_IMPORT: `${API_BASE_URL}/parameter/bulk-import`,
 };
 
-// ─── Category Endpoints ─────────────────────────────────────────────────────────
+// ─── Category (Discipline Group) Endpoints ─────────────────────────────────────
 export const CATEGORY_ENDPOINTS = {
   CREATE: `${API_BASE_URL}/category`,
   GET_ALL: `${API_BASE_URL}/category`,
@@ -66,6 +69,16 @@ export const CATEGORY_ENDPOINTS = {
   UPDATE: (id) => `${API_BASE_URL}/category/${id}`,
   DELETE: (id) => `${API_BASE_URL}/category/${id}`,
   BULK_IMPORT: `${API_BASE_URL}/category/bulk-import`,
+};
+
+// ─── Sub Category Endpoints ───────────────────────────────────────────────────
+export const SUB_CATEGORY_ENDPOINTS = {
+  CREATE: `${API_BASE_URL}/sub-category`,
+  GET_ALL: `${API_BASE_URL}/sub-category`,
+  GET_BY_ID: (id) => `${API_BASE_URL}/sub-category/${id}`,
+  UPDATE: (id) => `${API_BASE_URL}/sub-category/${id}`,
+  DELETE: (id) => `${API_BASE_URL}/sub-category/${id}`,
+  BULK_IMPORT: `${API_BASE_URL}/sub-category/bulk-import`,
 };
 
 // ─── Category-Parameter Mapping Endpoints ───────────────────────────────────────

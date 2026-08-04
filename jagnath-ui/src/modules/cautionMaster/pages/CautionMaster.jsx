@@ -1,68 +1,35 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  FaShieldAlt, FaPlus, FaDownload, FaEdit, FaTrash, FaCheck, 
-  FaExclamationCircle, FaFileExcel, FaCopy, FaFileCsv, 
-  FaFilePdf, FaPrint, FaChevronDown, FaToggleOn, FaToggleOff 
+import {
+  FaShieldAlt, FaPlus, FaDownload, FaEdit, FaTrash, FaCheck,
+  FaExclamationCircle, FaFileExcel, FaCopy, FaFileCsv,
+  FaFilePdf, FaPrint, FaChevronDown, FaToggleOn, FaToggleOff
 } from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
 import { CAUTION_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 import Pagination from '../../../shared/components/Pagination';
+import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 
 const CautionMaster = () => {
   const [cautions, setCautions] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Multi-Select state
-  const [selectedIds, setSelectedIds] = useState([]);
-
-  // Select all / deselect all current page cautions
-  const handleSelectAll = (e) => {
-    if (e.target.checked) {
-      const allIds = cautions.map(c => c.id);
-      setSelectedIds(allIds);
-    } else {
-      setSelectedIds([]);
-    }
-  };
-
-  // Toggle single caution selection
-  const handleSelectRow = (id, e) => {
-    e.stopPropagation();
-    setSelectedIds(prev =>
-      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
-    );
-  };
-
-  // Bulk Delete Selected
-  const handleBulkDelete = async () => {
-    if (selectedIds.length === 0) return;
-    if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} selected caution records?`)) return;
-
-    try {
-      setLoading(true);
-      await Promise.all(selectedIds.map(id => apiService.delete(CAUTION_ENDPOINTS.DELETE(id))));
-      triggerToast(`Successfully deleted ${selectedIds.length} caution records!`, 'success');
-      setSelectedIds([]);
-      fetchCautions();
-    } catch (err) {
-      triggerToast(err.message || 'Failed to delete selected caution records.', 'error');
-      setLoading(false);
-    }
-  };
+  // Delete confirmation modal state
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null, name: '' });
+  const [deleting, setDeleting] = useState(false);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-  
+
   // Toast notifications state
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
   // Form visibility and editing state
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  
+
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -115,10 +82,10 @@ const CautionMaster = () => {
       if (activeCompId) {
         params.append('companyId', activeCompId);
       }
-      
+
       const url = `${CAUTION_ENDPOINTS.GET_ALL}?${params.toString()}`;
       const response = await apiService.get(url);
-      
+
       if (response && response.data) {
         if (response.data.rows !== undefined) {
           setCautions(response.data.rows);
@@ -245,14 +212,22 @@ const CautionMaster = () => {
   };
 
   // Delete Handler
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this Caution record?')) return;
+  const handleDelete = (id, name = '') => {
+    setDeleteModal({ isOpen: true, id, name });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteModal.id) return;
+    setDeleting(true);
     try {
-      await apiService.delete(CAUTION_ENDPOINTS.DELETE(id));
+      await apiService.delete(CAUTION_ENDPOINTS.DELETE(deleteModal.id));
       triggerToast('Caution record deleted successfully.', 'success');
+      setDeleteModal({ isOpen: false, id: null, name: '' });
       fetchCautions();
     } catch (err) {
       triggerToast(err.messageToShow || err.message || 'Failed to delete Caution record.', 'error');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -267,7 +242,7 @@ const CautionMaster = () => {
       (c.status === true || c.status === 'Active') ? 'Active' : 'Inactive'
     ]);
 
-    const csvContent = "data:text/csv;charset=utf-8," 
+    const csvContent = "data:text/csv;charset=utf-8,"
       + [headers.join(','), ...rows.map(e => e.map(val => `"${val}"`).join(","))].join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
@@ -288,7 +263,7 @@ const CautionMaster = () => {
       c.reportType || c.report_type || 'BOTH',
       (c.status === true || c.status === 'Active') ? 'Active' : 'Inactive'
     ]);
-    
+
     const htmlTable = `
       <table border="1">
         <thead>
@@ -373,7 +348,7 @@ const CautionMaster = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      
+
       {/* Toast Notification Container */}
       {toast.show && (
         <div style={{
@@ -406,8 +381,8 @@ const CautionMaster = () => {
         </h2>
         <div className="master-top-bar-actions" style={{ display: 'flex', gap: '0.75rem', position: 'relative' }} ref={dropdownRef}>
           {!isFormOpen && (
-            <button 
-              onClick={handleOpenCreate} 
+            <button
+              onClick={handleOpenCreate}
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1rem', fontWeight: 600, cursor: 'pointer' }}
             >
               <FaPlus />
@@ -416,20 +391,20 @@ const CautionMaster = () => {
           )}
 
           {/* Premium Download Button */}
-          <button 
-            onClick={() => setShowDownloadDropdown(!showDownloadDropdown)} 
+          <button
+            onClick={() => setShowDownloadDropdown(!showDownloadDropdown)}
             disabled={cautions.length === 0}
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '0.5rem', 
-              backgroundColor: '#22c55e', 
-              color: '#ffffff', 
-              border: 'none', 
-              borderRadius: '8px', 
-              padding: '0.5rem 1.25rem', 
-              fontWeight: 600, 
-              cursor: 'pointer', 
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              backgroundColor: '#22c55e',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '0.5rem 1.25rem',
+              fontWeight: 600,
+              cursor: 'pointer',
               opacity: cautions.length === 0 ? 0.6 : 1,
               boxShadow: '0 2px 4px rgba(34, 197, 94, 0.2)'
             }}
@@ -497,9 +472,9 @@ const CautionMaster = () => {
           <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '1.25rem', color: '#1e293b' }}>
             {editingId ? 'Edit Caution Record' : 'Add New Caution Record'}
           </h3>
-          
+
           <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
-            
+
             {/* Caution Title */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
               <label style={{ fontSize: '0.875rem', fontWeight: 600, color: '#334155' }}>
@@ -806,7 +781,7 @@ const CautionMaster = () => {
                             <FaEdit />
                           </button>
                           <button
-                            onClick={() => handleDelete(item.id)}
+                            onClick={() => handleDelete(item.id, item.title)}
                             title="Delete"
                             style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#ef4444' }}
                           >
@@ -832,6 +807,25 @@ const CautionMaster = () => {
           onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
         />
       </div>
+
+      {/* Reusable Delete Confirmation Modal */}
+      <ConfirmDialog
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, id: null, name: '' })}
+        onConfirm={confirmDelete}
+        title="Delete Caution Record"
+        message={
+          deleteModal.name ? (
+            <>Are you sure you want to delete caution record <strong>{deleteModal.name}</strong>? This action cannot be undone.</>
+          ) : (
+            'Are you sure you want to delete this Caution record? This action cannot be undone.'
+          )
+        }
+        confirmText="Delete Caution"
+        cancelText="Cancel"
+        variant="danger"
+        loading={deleting}
+      />
 
     </div>
   );

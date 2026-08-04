@@ -361,12 +361,12 @@ const getCompaniesByUser = async (userId, options = {}) => {
             where: { user_id: userId }
         });
 
-        if (!mappings.length) {
-            return options.limit ? { rows: [], count: 0 } : [];
-        }
-
         const companyIds = mappings.map(m => m.company_id);
-        whereClause.id = companyIds;
+
+        whereClause[Op.or] = [
+            { userId: userId },
+            ...(companyIds.length > 0 ? [{ id: companyIds }] : [])
+        ];
     }
 
     if (options.search) {
@@ -413,16 +413,12 @@ const getCompanyByUserId = async (userId) => {
 const checkOwnership = async (companyId, userId, isSuperAdmin = false) => {
     if (!companyId) return true;
     try {
-        if (!userId) return true;
-
-        const user = await Users.findByPk(userId);
-        if (!user) return false;
-
-        // SuperAdmin & Admin roles have full operational permissions for company data
-        if (['SuperAdmin', 'superadmin', 'Admin', 'admin'].includes(user.role) || isSuperAdmin) {
-            return true;
+        if (userId) {
+            const user = await Users.findByPk(userId);
+            if (user && (user.role === "SuperAdmin" || user.role === "SUPER_ADMIN" || user.email === "admin@jagnath.com")) {
+                return true;
+            }
         }
-
         const company = await Company.findByPk(companyId);
         if (!company) {
             // If company does not exist in database, allow query to complete with empty dataset (200 OK)

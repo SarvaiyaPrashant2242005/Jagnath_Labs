@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  FaBuilding, FaPlus, FaDownload, FaEdit, FaTrash, FaCheck, 
-  FaExclamationCircle, FaFileExcel, FaCopy, FaFileCsv, 
+import {
+  FaBuilding, FaPlus, FaDownload, FaEdit, FaTrash, FaCheck,
+  FaExclamationCircle, FaFileExcel, FaCopy, FaFileCsv,
   FaFilePdf, FaPrint, FaChevronDown, FaUserShield
 } from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
@@ -9,7 +9,7 @@ import { COMPANY_ENDPOINTS, USER_ENDPOINTS } from '../../../shared/services/apiE
 import { getStoredUser } from '../../auth/services/authService';
 import { getIndianStates, getCitiesByStateIso2 } from '../../../shared/services/locationService';
 import Pagination from '../../../shared/components/Pagination';
-import { copyTextToClipboard, downloadCSV, downloadExcel } from '../../../shared/utils/exportUtils';
+import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 
 const CompanyMaster = ({ onCompanyUpdate }) => {
   // Company state
@@ -54,7 +54,11 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
       setLoading(false);
     }
   };
-  
+
+  // Delete confirmation modal state
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null, name: '' });
+  const [deleting, setDeleting] = useState(false);
+
   // Location dropdown states (India)
   const [indianStates, setIndianStates] = useState([]);
   const [availableCities, setAvailableCities] = useState([]);
@@ -71,7 +75,7 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
   // Form visibility and editing state
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  
+
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -183,24 +187,24 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
         status: statusFilter
       });
       const response = await apiService.get(`${COMPANY_ENDPOINTS.GET_MY}?${params.toString()}`);
-      
+
       if (response && response.data) {
         if (response.data.rows !== undefined) {
-           setCompanies(response.data.rows);
-           setTotalItems(response.data.total);
-           setTotalPages(response.data.totalPages);
-           if (response.data.rows.length > 0 && onCompanyUpdate) {
-              onCompanyUpdate(response.data.rows[0].companyName || response.data.rows[0].company_name);
-           }
+          setCompanies(response.data.rows);
+          setTotalItems(response.data.total);
+          setTotalPages(response.data.totalPages);
+          if (response.data.rows.length > 0 && onCompanyUpdate) {
+            onCompanyUpdate(response.data.rows[0].companyName || response.data.rows[0].company_name);
+          }
         } else {
-           const companyList = Array.isArray(response.data) ? response.data : [response.data];
-           setCompanies(companyList);
-           setTotalItems(companyList.length);
-           setTotalPages(1);
-           
-           if (companyList.length > 0 && onCompanyUpdate) {
-             onCompanyUpdate(companyList[0].companyName || companyList[0].company_name);
-           }
+          const companyList = Array.isArray(response.data) ? response.data : [response.data];
+          setCompanies(companyList);
+          setTotalItems(companyList.length);
+          setTotalPages(1);
+
+          if (companyList.length > 0 && onCompanyUpdate) {
+            onCompanyUpdate(companyList[0].companyName || companyList[0].company_name);
+          }
         }
       } else {
         setCompanies([]);
@@ -237,7 +241,7 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
     } else if (!emailRegex.test(formData.companyEmail)) {
       errors.companyEmail = 'Please enter a valid email address.';
     }
-    
+
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -367,17 +371,25 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
   };
 
   // Delete Handler
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this company?')) return;
+  const handleDelete = (id, name = '') => {
+    setDeleteModal({ isOpen: true, id, name });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteModal.id) return;
+    setDeleting(true);
     try {
-      await apiService.delete(COMPANY_ENDPOINTS.DELETE(id));
+      await apiService.delete(COMPANY_ENDPOINTS.DELETE(deleteModal.id));
       triggerToast('Company deleted successfully.', 'success');
+      setDeleteModal({ isOpen: false, id: null, name: '' });
       fetchCompanies();
       if (onCompanyUpdate) {
         onCompanyUpdate(null);
       }
     } catch (err) {
       triggerToast(err.messageToShow || err.message || 'Failed to delete company.', 'error');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -450,7 +462,7 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
       c.status
     ]);
     const text = [headers.join('\t'), ...rows.map(r => r.join('\t'))].join('\n');
-    copyTextToClipboard(text, 
+    copyTextToClipboard(text,
       () => triggerToast('Copied to clipboard successfully.', 'success'),
       () => triggerToast('Failed to copy text.', 'error')
     );
@@ -516,7 +528,7 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      
+
       {/* Toast Notification Container in Top Right Corner */}
       {toast.show && (
         <div style={{
@@ -549,8 +561,8 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
         </h2>
         <div className="master-top-bar-actions" style={{ display: 'flex', gap: '0.75rem', position: 'relative' }} ref={dropdownRef}>
           {!isFormOpen && (
-            <button 
-              onClick={handleOpenCreate} 
+            <button
+              onClick={handleOpenCreate}
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1rem', fontWeight: 600, cursor: 'pointer' }}
             >
               <FaPlus />
@@ -559,20 +571,20 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
           )}
 
           {/* Redesigned Premium Download Button matching Screenshot */}
-          <button 
-            onClick={() => setShowDownloadDropdown(!showDownloadDropdown)} 
+          <button
+            onClick={() => setShowDownloadDropdown(!showDownloadDropdown)}
             disabled={companies.length === 0}
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '0.5rem', 
-              backgroundColor: '#22c55e', 
-              color: '#ffffff', 
-              border: 'none', 
-              borderRadius: '8px', 
-              padding: '0.5rem 1.25rem', 
-              fontWeight: 600, 
-              cursor: 'pointer', 
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              backgroundColor: '#22c55e',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '0.5rem 1.25rem',
+              fontWeight: 600,
+              cursor: 'pointer',
               opacity: companies.length === 0 ? 0.6 : 1,
               boxShadow: '0 2px 4px rgba(34, 197, 94, 0.2)'
             }}
@@ -640,10 +652,10 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
           <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '1.25rem', color: '#1e293b' }}>
             {editingId ? 'Edit Company Master' : 'Add Company Master'}
           </h3>
-          
+
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
-              
+
               {/* Company Name */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>
@@ -732,12 +744,12 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
                   value={formData.city || ''}
                   onChange={handleInputChange}
                   disabled={!formData.state}
-                  style={{ 
-                    padding: '0.625rem', 
-                    border: '1px solid #cbd5e1', 
-                    borderRadius: '6px', 
-                    outline: 'none', 
-                    backgroundColor: !formData.state ? '#f8fafc' : '#ffffff', 
+                  style={{
+                    padding: '0.625rem',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '6px',
+                    outline: 'none',
+                    backgroundColor: !formData.state ? '#f8fafc' : '#ffffff',
                     height: '42px',
                     fontSize: '0.85rem',
                     cursor: !formData.state ? 'not-allowed' : 'pointer'
@@ -801,14 +813,14 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
                   type="file"
                   accept=".png,.jpg,.jpeg"
                   onChange={(e) => handleFileChange(e, setLogoFile)}
-                  style={{ 
-                    padding: '0.5rem', 
-                    border: '1px dashed #cbd5e1', 
-                    borderRadius: '6px', 
-                    fontSize: '0.85rem', 
-                    color: '#475569', 
+                  style={{
+                    padding: '0.5rem',
+                    border: '1px dashed #cbd5e1',
+                    borderRadius: '6px',
+                    fontSize: '0.85rem',
+                    color: '#475569',
                     backgroundColor: '#f8fafc',
-                    cursor: 'pointer' 
+                    cursor: 'pointer'
                   }}
                 />
               </div>
@@ -820,14 +832,14 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
                   type="file"
                   accept=".png,.jpg,.jpeg"
                   onChange={(e) => handleFileChange(e, setSignatureFile)}
-                  style={{ 
-                    padding: '0.5rem', 
-                    border: '1px dashed #cbd5e1', 
-                    borderRadius: '6px', 
-                    fontSize: '0.85rem', 
-                    color: '#475569', 
+                  style={{
+                    padding: '0.5rem',
+                    border: '1px dashed #cbd5e1',
+                    borderRadius: '6px',
+                    fontSize: '0.85rem',
+                    color: '#475569',
                     backgroundColor: '#f8fafc',
-                    cursor: 'pointer' 
+                    cursor: 'pointer'
                   }}
                 />
               </div>
@@ -857,23 +869,23 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
 
                 <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 600, color: '#334155', cursor: 'pointer' }}>
-                    <input 
-                      type="radio" 
-                      name="assignUserMode" 
-                      value="existing" 
-                      checked={assignMode === 'existing'} 
-                      onChange={() => setAssignMode('existing')} 
+                    <input
+                      type="radio"
+                      name="assignUserMode"
+                      value="existing"
+                      checked={assignMode === 'existing'}
+                      onChange={() => setAssignMode('existing')}
                     />
                     <span>Assign Existing Platform User</span>
                   </label>
 
                   <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 600, color: '#334155', cursor: 'pointer' }}>
-                    <input 
-                      type="radio" 
-                      name="assignUserMode" 
-                      value="new" 
-                      checked={assignMode === 'new'} 
-                      onChange={() => setAssignMode('new')} 
+                    <input
+                      type="radio"
+                      name="assignUserMode"
+                      value="new"
+                      checked={assignMode === 'new'}
+                      onChange={() => setAssignMode('new')}
                     />
                     <span>Create & Assign New Admin User</span>
                   </label>
@@ -953,7 +965,7 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
 
       {/* Filter and Table view matching Screenshot 2 */}
       <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-        
+
         {/* Table Filters */}
         <div className="master-table-filters" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -1002,168 +1014,168 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
           </div>
         </div>
 
-            {/* Desktop Table View */}
-            <div className="show-on-desktop master-table-responsive" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
-                <thead>
-                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                    <th style={{ padding: '0.75rem 0.75rem', width: '40px', textAlign: 'center' }}>
+        {/* Desktop Table View */}
+        <div className="show-on-desktop master-table-responsive" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+            <thead>
+              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                <th style={{ padding: '0.75rem 0.75rem', width: '40px', textAlign: 'center' }}>
+                  <input
+                    type="checkbox"
+                    checked={companies.length > 0 && selectedIds.length === companies.length}
+                    onChange={handleSelectAll}
+                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                  />
+                </th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ACTIONS</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>COMPANY CODE</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>COMPANY NAME</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>EMAIL</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>PHONE</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ADDRESS</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATUS</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={9} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                    Loading companies...
+                  </td>
+                </tr>
+              ) : companies.length === 0 ? (
+                <tr>
+                  <td colSpan={9} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                    No companies found.
+                  </td>
+                </tr>
+              ) : (
+                companies.map((company, index) => (
+                  <tr
+                    key={company.id}
+                    onClick={() => handleOpenEdit(company)}
+                    style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background-color 0.15s' }}
+                    className="company-table-row"
+                  >
+                    <td style={{ padding: '0.75rem 0.75rem', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
-                        checked={companies.length > 0 && selectedIds.length === companies.length}
-                        onChange={handleSelectAll}
+                        checked={selectedIds.includes(company.id)}
+                        onChange={(e) => handleSelectRow(company.id, e)}
                         style={{ width: '16px', height: '16px', cursor: 'pointer' }}
                       />
-                    </th>
-                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ACTIONS</th>
-                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
-                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>COMPANY CODE</th>
-                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>COMPANY NAME</th>
-                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>EMAIL</th>
-                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>PHONE</th>
-                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ADDRESS</th>
-                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATUS</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <tr>
-                      <td colSpan={9} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-                        Loading companies...
-                      </td>
-                    </tr>
-                  ) : companies.length === 0 ? (
-                    <tr>
-                      <td colSpan={9} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-                        No companies found.
-                      </td>
-                    </tr>
-                  ) : (
-                    companies.map((company, index) => (
-                      <tr 
-                        key={company.id} 
-                        onClick={() => handleOpenEdit(company)}
-                        style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background-color 0.15s' }}
-                        className="company-table-row"
+                    </td>
+                    <td style={{ padding: '0.75rem 1rem', display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleOpenEdit(company); }}
+                        style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
+                        title="Edit"
                       >
-                        <td style={{ padding: '0.75rem 0.75rem', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.includes(company.id)}
-                            onChange={(e) => handleSelectRow(company.id, e)}
-                            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                          />
-                        </td>
-                        <td style={{ padding: '0.75rem 1rem', display: 'flex', gap: '0.5rem' }}>
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); handleOpenEdit(company); }}
-                            style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
-                            title="Edit"
-                          >
-                            <FaEdit size={12} />
-                          </button>
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); handleDelete(company.id); }}
-                            style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
-                            title="Delete"
-                          >
-                            <FaTrash size={12} />
-                          </button>
-                        </td>
-                        <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
-                        <td style={{ padding: '0.75rem 1rem', color: '#2563eb', fontWeight: 700 }}>{company.companyCode || 'N/A'}</td>
-                        <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{company.companyName || company.company_name}</td>
-                        <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{company.companyEmail || company.email || 'N/A'}</td>
-                        <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{company.contactNumber || company.phone || 'N/A'}</td>
-                        <td style={{ padding: '0.75rem 1rem', color: '#334155', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{company.address || 'N/A'}</td>
-                        <td style={{ padding: '0.75rem 1rem' }}>
-                          <span style={{ 
-                            display: 'inline-block',
-                            padding: '0.125rem 0.5rem',
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
-                            borderRadius: '12px',
-                            backgroundColor: company.status === 'Active' ? '#dcfce7' : '#fee2e2',
-                            color: company.status === 'Active' ? '#15803d' : '#991b1b'
-                          }}>
-                            {company.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile Cards View */}
-            <div className="show-on-mobile">
-              {loading ? (
-                <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-                  Loading companies...
-                </div>
-              ) : companies.length === 0 ? (
-                <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-                  No companies found.
-                </div>
-              ) : (
-                <div className="master-card-grid">
-                  {companies.map((company, index) => (
-                    <div key={company.id} className="master-record-card" onClick={() => handleOpenEdit(company)}>
-                      <div className="master-record-card-header">
-                        <div>
-                          <div className="master-record-title">{company.companyName || company.company_name}</div>
-                          <div className="master-record-subtitle">Code: <span style={{ color: '#2563eb', fontWeight: 700 }}>{company.companyCode || 'N/A'}</span></div>
-                        </div>
-                        <span style={{ 
-                          padding: '0.2rem 0.6rem',
-                          fontSize: '0.75rem',
-                          fontWeight: 700,
-                          borderRadius: '12px',
-                          backgroundColor: company.status === 'Active' ? '#dcfce7' : '#fee2e2',
-                          color: company.status === 'Active' ? '#15803d' : '#991b1b'
-                        }}>
-                          {company.status}
-                        </span>
-                      </div>
-
-                      <div className="master-record-details">
-                        <div className="master-record-detail-item">
-                          <span className="master-record-label">Email</span>
-                          <span className="master-record-value">{company.companyEmail || company.email || 'N/A'}</span>
-                        </div>
-                        <div className="master-record-detail-item">
-                          <span className="master-record-label">Phone</span>
-                          <span className="master-record-value">{company.contactNumber || company.phone || 'N/A'}</span>
-                        </div>
-                        <div className="master-record-detail-item" style={{ gridColumn: '1 / -1' }}>
-                          <span className="master-record-label">Address</span>
-                          <span className="master-record-value">{company.address || 'N/A'}</span>
-                        </div>
-                      </div>
-
-                      <div className="master-record-actions">
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); handleOpenEdit(company); }}
-                          style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-                        >
-                          <FaEdit size={12} /> Edit
-                        </button>
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); handleDelete(company.id); }}
-                          style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-                        >
-                          <FaTrash size={12} /> Delete
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                        <FaEdit size={12} />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDelete(company.id, company.companyName || company.company_name); }}
+                        style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
+                        title="Delete"
+                      >
+                        <FaTrash size={12} />
+                      </button>
+                    </td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#2563eb', fontWeight: 700 }}>{company.companyCode || 'N/A'}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{company.companyName || company.company_name}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{company.companyEmail || company.email || 'N/A'}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{company.contactNumber || company.phone || 'N/A'}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#334155', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{company.address || 'N/A'}</td>
+                    <td style={{ padding: '0.75rem 1rem' }}>
+                      <span style={{
+                        display: 'inline-block',
+                        padding: '0.125rem 0.5rem',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        borderRadius: '12px',
+                        backgroundColor: company.status === 'Active' ? '#dcfce7' : '#fee2e2',
+                        color: company.status === 'Active' ? '#15803d' : '#991b1b'
+                      }}>
+                        {company.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))
               )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile Cards View */}
+        <div className="show-on-mobile">
+          {loading ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+              Loading companies...
             </div>
+          ) : companies.length === 0 ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+              No companies found.
+            </div>
+          ) : (
+            <div className="master-card-grid">
+              {companies.map((company, index) => (
+                <div key={company.id} className="master-record-card" onClick={() => handleOpenEdit(company)}>
+                  <div className="master-record-card-header">
+                    <div>
+                      <div className="master-record-title">{company.companyName || company.company_name}</div>
+                      <div className="master-record-subtitle">Code: <span style={{ color: '#2563eb', fontWeight: 700 }}>{company.companyCode || 'N/A'}</span></div>
+                    </div>
+                    <span style={{
+                      padding: '0.2rem 0.6rem',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      borderRadius: '12px',
+                      backgroundColor: company.status === 'Active' ? '#dcfce7' : '#fee2e2',
+                      color: company.status === 'Active' ? '#15803d' : '#991b1b'
+                    }}>
+                      {company.status}
+                    </span>
+                  </div>
+
+                  <div className="master-record-details">
+                    <div className="master-record-detail-item">
+                      <span className="master-record-label">Email</span>
+                      <span className="master-record-value">{company.companyEmail || company.email || 'N/A'}</span>
+                    </div>
+                    <div className="master-record-detail-item">
+                      <span className="master-record-label">Phone</span>
+                      <span className="master-record-value">{company.contactNumber || company.phone || 'N/A'}</span>
+                    </div>
+                    <div className="master-record-detail-item" style={{ gridColumn: '1 / -1' }}>
+                      <span className="master-record-label">Address</span>
+                      <span className="master-record-value">{company.address || 'N/A'}</span>
+                    </div>
+                  </div>
+
+                  <div className="master-record-actions">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleOpenEdit(company); }}
+                      style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                    >
+                      <FaEdit size={12} /> Edit
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDelete(company.id, company.companyName || company.company_name); }}
+                      style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                    >
+                      <FaTrash size={12} /> Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Pagination Controls */}
-        <Pagination 
+        <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
           totalItems={totalItems}
@@ -1177,6 +1189,24 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
 
       </div>
 
+      {/* Reusable Delete Confirmation Modal */}
+      <ConfirmDialog
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, id: null, name: '' })}
+        onConfirm={confirmDelete}
+        title="Delete Company"
+        message={
+          deleteModal.name ? (
+            <>Are you sure you want to delete company <strong>{deleteModal.name}</strong>? This action cannot be undone.</>
+          ) : (
+            'Are you sure you want to delete this company? This action cannot be undone.'
+          )
+        }
+        confirmText="Delete Company"
+        cancelText="Cancel"
+        variant="danger"
+        loading={deleting}
+      />
     </div>
   );
 };

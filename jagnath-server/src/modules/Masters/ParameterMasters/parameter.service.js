@@ -5,13 +5,13 @@
 const Parameter = require("./parameter.model");
 const Company = require("../CompanyMasters/company.model");
 const Category = require("../CategoryMasters/category.model");
+const SubCategory = require("../SubCategoryMasters/subCategory.model");
 const CategoryParameter = require("../CategoryParameterMasters/categoryParameter.model");
 const Users = require("../../Auth/Users/users.model");
 const sequelize = require("../../../config/database");
 const { Op } = require("sequelize");
 const path = require("path");
 const { writeLogToFile } = require("../../../services/loggerService");
-const { normalizeString } = require("../../../utils/normalizers");
 
 const createLogPath = path.join(__dirname, "../../../../logs/Parameter/Create.txt");
 const updateLogPath = path.join(__dirname, "../../../../logs/Parameter/Update.txt");
@@ -61,6 +61,14 @@ const formatParameter = (param) => {
         paramObj.categoryName = null;
     }
     delete paramObj.categoryParameters;
+
+    if (paramObj.subCategory) {
+        paramObj.subCategoryId = paramObj.subCategory.id;
+        paramObj.subCategoryName = paramObj.subCategory.name;
+    } else {
+        paramObj.subCategoryName = null;
+    }
+    delete paramObj.subCategory;
 
     return paramObj;
 };
@@ -311,6 +319,11 @@ const getParameterById = async (parameterId, companyId) => {
                     attributes: ["company_name"]
                 },
                 {
+                    model: SubCategory,
+                    as: "subCategory",
+                    attributes: ["id", "name"]
+                },
+                {
                     model: CategoryParameter,
                     as: "categoryParameters",
                     include: [{
@@ -342,6 +355,11 @@ const getParametersByCompany = async (companyId, options = {}) => {
                     attributes: ["company_name"]
                 },
                 {
+                    model: SubCategory,
+                    as: "subCategory",
+                    attributes: ["id", "name"]
+                },
+                {
                     model: CategoryParameter,
                     as: "categoryParameters",
                     include: [{
@@ -360,14 +378,19 @@ const getParametersByCompany = async (companyId, options = {}) => {
             queryOptions.offset = (parseInt(options.page) - 1) * queryOptions.limit;
 
             if (options.search) {
-                queryOptions.where = {
-                    ...queryOptions.where,
-                    parameterName: { [Op.iLike]: `%${options.search}%` }
-                };
+                queryOptions.where.parameterName = { [Op.iLike]: `%${options.search}%` };
             }
 
             if (options.status && options.status !== 'ALL') {
                 queryOptions.where.status = options.status;
+            }
+
+            if (options.subCategoryId) {
+                queryOptions.where.subCategoryId = options.subCategoryId;
+            }
+
+            if (options.categoryId) {
+                queryOptions.include[2].where = { categoryId: options.categoryId };
             }
 
             const result = await Parameter.findAndCountAll(queryOptions);
@@ -393,172 +416,87 @@ module.exports = {
     bulkImportParameters: async (records, companyId, userId, reqInfo) => {
         const transaction = await sequelize.transaction();
         try {
-            // Batch fetch existing parameters for companyId
-            const existingParams = await Parameter.findAll({
-                where: { companyId },
-                transaction
-            });
-
-            // Map normalized parameter name -> Parameter DB record
-            const parameterMap = new Map();
-            existingParams.forEach(p => {
-                const plain = p.get ? p.get({ plain: true }) : p;
-                const normName = normalizeString(plain.parameterName);
-                if (normName) parameterMap.set(normName, plain);
-            });
-
-            const seenParametersInFile = new Map(); // normName -> rowNumber
-
-            let insertedCount = 0;
+            let createdCount = 0;
             let updatedCount = 0;
-            let failedCount = 0;
-            let skippedCount = 0;
 
-            const rowResults = [];
+            for (const item of records) {
+                const data = item.data;
+                const paramName = data.parameterName || data.name;
+                if (!paramName) continue;
 
-            for (let i = 0; i < records.length; i++) {
-                const item = records[i];
-                const rawData = item.data || item;
-                const rowNum = item._originalIndex || (i + 1);
-
-                const paramName = rawData.parameterName || rawData.name || rawData['Parameter Name'] || rawData['Parameter Name *'] || rawData.Parameter || rawData.parameter;
-                const categoryName = rawData.categoryName || rawData.category || rawData['Category Name'] || rawData.Category;
-                const description = rawData.description || rawData.Description || null;
-                const testMethod = rawData.testMethod || rawData.method || rawData['Test Method'] || rawData.TestMethod || null;
-                const status = rawData.status || rawData.Status || "Active";
-
-                const errors = [];
-
-                if (!paramName || !String(paramName).trim()) {
-                    errors.push("Parameter Name is required.");
-                }
-
-                const normName = normalizeString(paramName);
-
-                if (seenParametersInFile.has(normName)) {
-                    errors.push(`Duplicate parameter in uploaded file. First found at row ${seenParametersInFile.get(normName)}.`);
-                }
-
-                if (errors.length > 0) {
-                    failedCount++;
-                    rowResults.push({
-                        rowNumber: rowNum,
-                        action: "error",
-                        errors,
-                        data: rawData
-                    });
-                    continue;
-                }
-
-                seenParametersInFile.set(normName, rowNum);
-
-                try {
-                    // Resolve Category if categoryName provided
-                    let categoryId = null;
-                    if (categoryName && String(categoryName).trim() !== "") {
-                        let cat = await Category.findOne({
-                            where: {
-                                companyId,
-                                name: { [Op.iLike]: String(categoryName).trim() }
-                            },
-                            transaction
-                        });
-                        if (!cat) {
-                            cat = await Category.create({
-                                companyId,
-                                name: String(categoryName).trim(),
-                                status: "Active"
-                            }, { transaction });
-                        }
-                        categoryId = cat.id;
+                // Resolve category mapping if categoryName is provided
+                let categoryId = null;
+                const rawCatName = (data.categoryName || data.disciplineGroup || "").trim();
+                if (rawCatName) {
+                    let cat = await Category.findOne({ where: { name: { [Op.iLike]: rawCatName }, companyId }, transaction });
+                    if (!cat) {
+                        cat = await Category.create({ name: rawCatName, companyId, status: "Active" }, { transaction });
                     }
+                    categoryId = cat.id;
+                }
 
-                    const dbMatch = parameterMap.get(normName);
-                    if (dbMatch) {
-                        const existingInstance = await Parameter.findByPk(dbMatch.id, { transaction });
-                        if (existingInstance) {
-                            await existingInstance.update({
-                                description: description !== null ? description : existingInstance.description,
-                                testMethod: testMethod !== null ? testMethod : existingInstance.testMethod,
-                                status: status || existingInstance.status
-                            }, { transaction });
-
-                            if (categoryId) {
-                                await CategoryParameter.findOrCreate({
-                                    where: { companyId, categoryId, parameterId: existingInstance.id },
-                                    defaults: { companyId, categoryId, parameterId: existingInstance.id, status: "Active" },
-                                    transaction
-                                });
-                            }
-
-                            const updatedObj = existingInstance.get ? existingInstance.get({ plain: true }) : existingInstance;
-                            parameterMap.set(normName, updatedObj);
-                            updatedCount++;
-                            rowResults.push({
-                                rowNumber: rowNum,
-                                action: "updated",
-                                recordId: updatedObj.id,
-                                message: "Parameter updated successfully"
-                            });
-                        }
-                    } else {
-                        // Insert New Parameter
-                        const newParam = await Parameter.create({
+                // Resolve sub category mapping if subCategoryName is provided
+                let subCategoryId = null;
+                const rawSubCatName = (data.subCategoryName || data.subCategory || "").trim();
+                if (rawSubCatName && categoryId) {
+                    let subCat = await SubCategory.findOne({
+                        where: { categoryId, name: { [Op.iLike]: rawSubCatName }, companyId },
+                        transaction
+                    });
+                    if (!subCat) {
+                        subCat = await SubCategory.create({
+                            categoryId,
+                            name: rawSubCatName,
                             companyId,
-                            parameterName: String(paramName).trim(),
-                            description,
-                            testMethod,
-                            status
+                            status: "Active"
                         }, { transaction });
-
-                        if (categoryId) {
-                            await CategoryParameter.create({
-                                companyId,
-                                categoryId,
-                                parameterId: newParam.id,
-                                status: "Active"
-                            }, { transaction });
-                        }
-
-                        const createdObj = newParam.get ? newParam.get({ plain: true }) : newParam;
-                        parameterMap.set(normName, createdObj);
-
-                        insertedCount++;
-                        rowResults.push({
-                            rowNumber: rowNum,
-                            action: "inserted",
-                            recordId: createdObj.id,
-                            message: "Parameter created successfully"
-                        });
                     }
-                } catch (rowErr) {
-                    failedCount++;
-                    rowResults.push({
-                        rowNumber: rowNum,
-                        action: "error",
-                        errors: [rowErr.message || "Failed to process parameter record."],
-                        data: rawData
-                    });
+                    subCategoryId = subCat.id;
+                }
+
+                const paramPayload = {
+                    companyId,
+                    parameterName: paramName,
+                    subCategoryId: subCategoryId || data.subCategoryId || null,
+                    description: data.description || null,
+                    testMethod: data.testMethod || null,
+                    status: (data.status && ['Active', 'Inactive'].includes(String(data.status).trim())) ? String(data.status).trim() : 'Active'
+                };
+
+                let existing = null;
+                if (item._dbId) {
+                    existing = await Parameter.findOne({ where: { id: item._dbId, companyId }, transaction });
+                } else {
+                    existing = await Parameter.findOne({ where: { parameterName: paramName, companyId }, transaction });
+                }
+
+                if (existing) {
+                    await existing.update(paramPayload, { transaction });
+                    updatedCount++;
+
+                    if (categoryId) {
+                        const rel = await CategoryParameter.findOne({ where: { parameterId: existing.id, companyId }, transaction });
+                        if (rel) {
+                            await rel.update({ categoryId }, { transaction });
+                        } else {
+                            await CategoryParameter.create({ companyId, categoryId, parameterId: existing.id, status: "Active" }, { transaction });
+                        }
+                    }
+                } else {
+                    const newParam = await Parameter.create(paramPayload, { transaction });
+                    createdCount++;
+
+                    if (categoryId) {
+                        await CategoryParameter.create({ companyId, categoryId, parameterId: newParam.id, status: "Active" }, { transaction });
+                    }
                 }
             }
 
             await transaction.commit();
-
-            return {
-                totalRows: records.length,
-                inserted: insertedCount,
-                updated: updatedCount,
-                failed: failedCount,
-                skipped: skippedCount,
-                createdCount: insertedCount,
-                updatedCount: updatedCount,
-                totalProcessed: records.length,
-                rows: rowResults
-            };
+            return { createdCount, updatedCount, totalProcessed: records.length };
         } catch (error) {
             await transaction.rollback();
             throw error;
         }
     }
 };
-

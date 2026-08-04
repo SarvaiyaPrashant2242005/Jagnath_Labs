@@ -47,23 +47,49 @@ export const MASTER_SCHEMAS = {
   },
 
   category: {
-    title: 'Category Master',
-    filename: 'Category_Master_Template.xlsx',
+    title: 'Discipline Group Master',
+    filename: 'Discipline_Group_Master_Template.xlsx',
     uniqueKeys: ['categoryName'],
     headers: [
-      { key: 'categoryName', label: 'Category Name *', required: true, type: 'string' },
+      { key: 'categoryName', label: 'Discipline Group Name *', required: true, type: 'string' },
       { key: 'description', label: 'Description', required: false, type: 'string' },
       { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'] }
     ],
     sampleData: [
       {
-        'Category Name *': 'Drinking Water',
+        'Discipline Group Name *': 'Drinking Water',
         'Description': 'Packaged and municipal drinking water quality testing',
         'Status': 'Active'
       },
       {
-        'Category Name *': 'Industrial Effluent',
+        'Discipline Group Name *': 'Industrial Effluent',
         'Description': 'Chemical and biological testing of industrial discharge water',
+        'Status': 'Active'
+      }
+    ]
+  },
+
+  subCategory: {
+    title: 'Sub Category Master',
+    filename: 'Sub_Category_Master_Template.xlsx',
+    uniqueKeys: ['categoryName', 'name'],
+    headers: [
+      { key: 'categoryName', label: 'Discipline Group *', required: true, type: 'string' },
+      { key: 'name', label: 'Sub Category Name *', required: true, type: 'string' },
+      { key: 'description', label: 'Description', required: false, type: 'string' },
+      { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'] }
+    ],
+    sampleData: [
+      {
+        'Discipline Group *': 'Drinking Water',
+        'Sub Category Name *': 'Physical Parameters',
+        'Description': 'Color, Odor, pH and Physical attributes',
+        'Status': 'Active'
+      },
+      {
+        'Discipline Group *': 'Drinking Water',
+        'Sub Category Name *': 'Chemical Parameters',
+        'Description': 'Hardness, Chlorides, Nitrates and Heavy metals',
         'Status': 'Active'
       }
     ]
@@ -74,25 +100,28 @@ export const MASTER_SCHEMAS = {
     filename: 'Parameter_Master_Template.xlsx',
     uniqueKeys: ['parameterName'],
     headers: [
-      { key: 'categoryName', label: 'Category', required: false, type: 'string' },
+      { key: 'categoryName', label: 'Discipline Group *', required: true, type: 'string' },
+      { key: 'subCategoryName', label: 'Sub Category', required: false, type: 'string' },
       { key: 'parameterName', label: 'Parameter Name *', required: true, type: 'string' },
-      { key: 'description', label: 'Description', required: false, type: 'string' },
       { key: 'testMethod', label: 'Test Method', required: false, type: 'string' },
+      { key: 'description', label: 'Description', required: false, type: 'string' },
       { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'] }
     ],
     sampleData: [
       {
-        'Category': 'Drinking Water',
+        'Discipline Group *': 'Drinking Water',
+        'Sub Category': 'Physical Parameters',
         'Parameter Name *': 'pH Level',
-        'Description': 'Acidity or alkalinity measure of water',
         'Test Method': 'APHA, 23rd Edition 2017/4500-H-B',
+        'Description': 'Acidity or alkalinity measure of water',
         'Status': 'Active'
       },
       {
-        'Category': 'Drinking Water',
+        'Discipline Group *': 'Drinking Water',
+        'Sub Category': 'Physical Parameters',
         'Parameter Name *': 'Total Dissolved Solids (TDS)',
-        'Description': 'Inorganic salts and small amounts of organic matter dissolved in water',
         'Test Method': 'IS 3025 (Part 16)',
+        'Description': 'Inorganic salts and small amounts of organic matter dissolved in water',
         'Status': 'Active'
       }
     ]
@@ -103,20 +132,23 @@ export const MASTER_SCHEMAS = {
     filename: 'Price_List_Template.xlsx',
     uniqueKeys: ['categoryName', 'parameterName'],
     headers: [
-      { key: 'categoryName', label: 'Category Name *', required: true, type: 'string' },
+      { key: 'categoryName', label: 'Discipline Group *', required: true, type: 'string' },
+      { key: 'subCategoryName', label: 'Sub Category', required: false, type: 'string' },
       { key: 'parameterName', label: 'Parameter Name *', required: true, type: 'string' },
       { key: 'price', label: 'Price *', required: true, type: 'number' },
       { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'] }
     ],
     sampleData: [
       {
-        'Category Name *': 'Drinking Water',
+        'Discipline Group *': 'Drinking Water',
+        'Sub Category': 'Physical Parameters',
         'Parameter Name *': 'pH Value',
         'Price *': 250,
         'Status': 'Active'
       },
       {
-        'Category Name *': 'Drinking Water',
+        'Discipline Group *': 'Drinking Water',
+        'Sub Category': 'Physical Parameters',
         'Parameter Name *': 'Total Dissolved Solids (TDS)',
         'Price *': 350,
         'Status': 'Active'
@@ -285,39 +317,11 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
   // Map header labels to internal object keys
   const labelToKeyMap = {};
   schema.headers.forEach(h => {
-    const key = h.key;
-    const label = h.label;
-
-    labelToKeyMap[label.toLowerCase()] = key;
-    labelToKeyMap[label.replace(' *', '').trim().toLowerCase()] = key;
-    labelToKeyMap[key.toLowerCase()] = key;
-    labelToKeyMap[key.replace(/([A-Z])/g, '_$1').toLowerCase()] = key;
-
-    if (key === 'categoryName' || key === 'name') {
-      ['category', 'category name', 'category_name', 'cat name', 'name', 'particulars', 'sample particular'].forEach(alias => {
-        labelToKeyMap[alias] = key;
-      });
-    }
-    if (key === 'parameterName') {
-      ['parameter', 'parameter name', 'parameter_name', 'param name', 'name', 'test parameter', 'test_parameter'].forEach(alias => {
-        labelToKeyMap[alias] = key;
-      });
-    }
-    if (key === 'clientName') {
-      ['client', 'client name', 'client_name', 'name', 'customer', 'customer name'].forEach(alias => {
-        labelToKeyMap[alias] = key;
-      });
-    }
-    if (key === 'contactNumber') {
-      ['contact', 'contact number', 'phone', 'mobile', 'mobile number', 'contact_number', 'phone number'].forEach(alias => {
-        labelToKeyMap[alias] = key;
-      });
-    }
-    if (key === 'testMethod') {
-      ['method', 'test method', 'test_method', 'standard', 'specification'].forEach(alias => {
-        labelToKeyMap[alias] = key;
-      });
-    }
+    labelToKeyMap[h.label] = h.key;
+    // Also support label without asterisk or spaces
+    labelToKeyMap[h.label.replace(' *', '').trim()] = h.key;
+    // Support internal key name directly (for re-validating edited/deleted rows)
+    labelToKeyMap[h.key] = h.key;
   });
 
   const evaluatedRows = [];
@@ -337,13 +341,14 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
       const cleanWithoutStar = cleanHeader.replace(' *', '').trim();
       const matchedKey = labelToKeyMap[cleanHeader] || labelToKeyMap[cleanWithoutStar];
       if (matchedKey) {
-        normalizedData[matchedKey] = String(row[rawHeader]).trim();
+        normalizedData[matchedKey] = row[rawHeader] !== undefined && row[rawHeader] !== null ? String(row[rawHeader]) : '';
       }
     });
 
     // Run schema validations per field
     schema.headers.forEach(h => {
-      const val = normalizedData[h.key] || '';
+      const rawVal = normalizedData[h.key] !== undefined && normalizedData[h.key] !== null ? String(normalizedData[h.key]) : '';
+      const val = rawVal.trim();
 
       if (h.required && (!val || val === '')) {
         cellErrors[h.key] = `${h.label} is required.`;
@@ -383,7 +388,7 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
         cellErrors['_row'] = msg;
         isRowValid = false;
       }
-      
+
       if (nPhone && seenPhonesInFile.has(nPhone)) {
         const msg = `Duplicate phone number in uploaded file. First found at row ${seenPhonesInFile.get(nPhone)}.`;
         cellErrors['contactNumber'] = msg;

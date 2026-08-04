@@ -13,12 +13,13 @@ const { successResponse, errorResponse } = require("../../../utils/response");
  * Resolves the company ID based on body, query parameters or user default.
  * Validates user ownership/membership.
  */
-const resolveCompanyId = async (body = {}, query = {}, userId, headers = {}) => {
-    const companyIdVal = body.companyId || body.company_id || query.companyId || query.company_id || headers['x-company-id'];
-    const companyNameVal = body.companyName || query.companyName;
+const resolveCompanyId = async (body, query, userId, headers = {}, reqUser = {}) => {
+    const isSuperAdmin = reqUser?.role === "SuperAdmin" || reqUser?.role === "SUPER_ADMIN" || reqUser?.role === "SUPERADMIN" || reqUser?.role === "Super Admin" || reqUser?.email === "admin@jagnath.com";
+    const companyIdVal = body?.companyId || body?.company_id || query?.companyId || query?.company_id || headers?.["x-company-id"];
+    const companyNameVal = body?.companyName || query?.companyName;
 
     if (companyIdVal) {
-        const isOwner = await companyService.checkOwnership(companyIdVal, userId);
+        const isOwner = await companyService.checkOwnership(companyIdVal, userId, isSuperAdmin);
         if (!isOwner) {
             throw new Error("UNAUTHORIZED_COMPANY");
         }
@@ -28,7 +29,7 @@ const resolveCompanyId = async (body = {}, query = {}, userId, headers = {}) => 
         if (!company) {
             throw new Error("COMPANY_NOT_FOUND");
         }
-        const isOwner = await companyService.checkOwnership(company.id, userId);
+        const isOwner = await companyService.checkOwnership(company.id, userId, isSuperAdmin);
         if (!isOwner) {
             throw new Error("UNAUTHORIZED_COMPANY");
         }
@@ -38,7 +39,7 @@ const resolveCompanyId = async (body = {}, query = {}, userId, headers = {}) => 
         if (company) {
             return company.id;
         }
-        const companies = await companyService.getCompaniesByUser(userId);
+        const companies = await companyService.getCompaniesByUser(userId, { isSuperAdmin });
         if (companies && companies.length > 0) {
             return companies[0].id;
         }
@@ -65,7 +66,7 @@ const create = async (req, res) => {
 
         let companyId;
         try {
-            companyId = await resolveCompanyId(body, req.query, userId, req.headers);
+            companyId = await resolveCompanyId(body, req.query, userId, req.headers, req.user);
         } catch (e) {
             if (e.message === "UNAUTHORIZED_COMPANY") {
                 return res.status(403).json(errorResponse("FORBIDDEN", "Unauthorized", "Access Denied: You do not own this company."));
@@ -76,13 +77,14 @@ const create = async (req, res) => {
             return res.status(404).json(errorResponse("NOT_FOUND", e.message, e.message));
         }
 
-        const parameterData = { 
+        const parameterData = {
             parameterName: value.parameterName,
             description: value.description,
             testMethod: value.testMethod,
             status: value.status || "Active",
             companyId,
-            categoryId: value.categoryId
+            categoryId: value.categoryId,
+            subCategoryId: value.subCategoryId || null
         };
 
         const reqInfo = {
@@ -112,7 +114,7 @@ const getAll = async (req, res) => {
 
         let companyId;
         try {
-            companyId = await resolveCompanyId({}, req.query, userId, req.headers);
+            companyId = await resolveCompanyId({}, req.query, userId, req.headers, req.user);
         } catch (e) {
             if (e.message === "UNAUTHORIZED_COMPANY") {
                 return res.status(403).json(errorResponse("FORBIDDEN", "Unauthorized access to this company's parameters.", "Unauthorized"));
@@ -132,7 +134,9 @@ const getAll = async (req, res) => {
             page: req.query.page,
             limit: req.query.limit,
             search: req.query.search,
-            status: req.query.status
+            status: req.query.status,
+            categoryId: req.query.categoryId,
+            subCategoryId: req.query.subCategoryId
         };
 
         const result = await parameterService.getParametersByCompany(companyId, options);
@@ -257,7 +261,8 @@ const update = async (req, res) => {
             testMethod: value.testMethod,
             status: value.status,
             companyId: targetCompanyId,
-            categoryId: value.categoryId
+            categoryId: value.categoryId,
+            subCategoryId: value.subCategoryId || null
         };
 
         const reqInfo = {
@@ -329,7 +334,9 @@ const remove = async (req, res) => {
 const bulkImport = async (req, res) => {
     try {
         const userId = req.user.user_id;
+        const isSuperAdmin = req.user.role === "SuperAdmin" || req.user.role === "SUPER_ADMIN" || req.user.email === "admin@jagnath.com";
         const { rows } = req.body || {};
+        const requestedCompanyId = req.headers["x-company-id"] || req.query.companyId || req.query.company_id || req.body?.companyId;
 
         if (!Array.isArray(rows) || rows.length === 0) {
             return res.status(400).json(errorResponse(
@@ -339,32 +346,26 @@ const bulkImport = async (req, res) => {
             ));
         }
 
-        let reqCompanyId = req.body?.companyId || req.query?.companyId || req.headers['x-company-id'];
-        if (reqCompanyId === 'undefined' || reqCompanyId === 'null' || !reqCompanyId) {
-            reqCompanyId = null;
-        }
-        let companyId = reqCompanyId;
-
-        if (!companyId) {
+        let companyIdToUse;
+        if (requestedCompanyId) {
+            const isOwner = await companyService.checkOwnership(requestedCompanyId, userId, isSuperAdmin);
+            if (!isOwner) {
+                return res.status(403).json(errorResponse("FORBIDDEN", "Unauthorized company access.", "Unauthorized"));
+            }
+            companyIdToUse = requestedCompanyId;
+        } else {
             let company = await companyService.getCompanyByUserId(userId);
             if (!company) {
-                const companies = await companyService.getCompaniesByUser(userId);
+                const companies = await companyService.getCompaniesByUser(userId, { isSuperAdmin });
                 if (companies && companies.length > 0) {
                     company = companies[0];
-                } else {
-                    const allCompanies = await companyService.getAllCompanies();
-                    if (allCompanies && allCompanies.length > 0) {
-                        company = allCompanies[0];
-                    }
                 }
             }
-            if (company) {
-                companyId = company.id;
-            }
-        }
 
-        if (!companyId) {
-            return res.status(400).json(errorResponse("VALIDATION_ERROR", "Company ID is required for parameter bulk import.", "Company not found."));
+            if (!company) {
+                return res.status(404).json(errorResponse("NOT_FOUND", "Company not found for user.", "Company not found."));
+            }
+            companyIdToUse = company.id;
         }
 
         const reqInfo = {
@@ -372,7 +373,7 @@ const bulkImport = async (req, res) => {
             userAgent: req.headers["user-agent"]
         };
 
-        const result = await parameterService.bulkImportParameters(rows, companyId, userId, reqInfo);
+        const result = await parameterService.bulkImportParameters(rows, companyIdToUse, userId, reqInfo);
 
         return res.status(200).json(successResponse(
             "PARAMETERS_BULK_IMPORTED",
@@ -381,7 +382,7 @@ const bulkImport = async (req, res) => {
             result
         ));
     } catch (err) {
-        console.error("PARAMETER BULK IMPORT ERROR:", err);
+        console.error("Bulk Import Parameter Error:", err);
         return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Bulk import failed."));
     }
 };

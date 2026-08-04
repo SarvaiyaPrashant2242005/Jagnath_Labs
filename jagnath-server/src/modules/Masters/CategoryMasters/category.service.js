@@ -364,22 +364,17 @@ module.exports = {
             let failedCount = 0;
             let skippedCount = 0;
 
-            const rowResults = [];
+            for (const item of records) {
+                const raw = item.data || item;
+                const catName = (raw.name || raw.categoryName || '').trim();
+                const statusVal = (raw.status && ['Active', 'Inactive'].includes(String(raw.status).trim())) ? String(raw.status).trim() : 'Active';
 
-            for (let i = 0; i < records.length; i++) {
-                const item = records[i];
-                const rawData = item.data || item;
-                const rowNum = item._originalIndex || (i + 1);
-
-                const categoryName = rawData.categoryName || rawData.name || rawData['Category Name'] || rawData['Category Name *'] || rawData.Category || rawData.category;
-                const description = rawData.description || rawData.Description || null;
-                const status = rawData.status || rawData.Status || "Active";
-
-                const errors = [];
-
-                if (!categoryName || !String(categoryName).trim()) {
-                    errors.push("Category Name is required.");
-                }
+                const data = {
+                    name: catName || 'Unnamed Group',
+                    description: raw.description || '',
+                    status: statusVal,
+                    companyId
+                };
 
                 const normName = normalizeString(categoryName);
 
@@ -477,6 +472,7 @@ module.exports = {
             };
         } catch (error) {
             await transaction.rollback();
+            console.error("Error in bulkImportCategories service:", error);
             throw error;
         }
     }

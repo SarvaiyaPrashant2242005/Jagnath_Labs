@@ -5,56 +5,23 @@ import {
   FaFilePdf, FaPrint, FaChevronDown, FaTimes
 } from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
-import { PARAMETER_ENDPOINTS, COMPANY_ENDPOINTS, CATEGORY_ENDPOINTS } from '../../../shared/services/apiEndpoints';
+import { PARAMETER_ENDPOINTS, COMPANY_ENDPOINTS, CATEGORY_ENDPOINTS, SUB_CATEGORY_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 import Pagination from '../../../shared/components/Pagination';
 import BulkImportModal from '../../../shared/components/BulkImport/BulkImportModal';
-import { downloadCSV, downloadExcel, copyTextToClipboard } from '../../../shared/utils/exportUtils';
+import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 
 const ParameterMaster = () => {
   // Parameter, Company & Category states
   const [parameters, setParameters] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [categoriesList, setCategoriesList] = useState([]);
+  const [subCategoriesList, setSubCategoriesList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
 
-  // Multi-Select state
-  const [selectedIds, setSelectedIds] = useState([]);
-
-  // Select all / deselect all current page parameters
-  const handleSelectAll = (e) => {
-    if (e.target.checked) {
-      const allIds = parameters.map(p => p.id);
-      setSelectedIds(allIds);
-    } else {
-      setSelectedIds([]);
-    }
-  };
-
-  // Toggle single parameter selection
-  const handleSelectRow = (id, e) => {
-    e.stopPropagation();
-    setSelectedIds(prev =>
-      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
-    );
-  };
-
-  // Bulk Delete Selected
-  const handleBulkDelete = async () => {
-    if (selectedIds.length === 0) return;
-    if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} selected parameters?`)) return;
-
-    try {
-      setLoading(true);
-      await Promise.all(selectedIds.map(id => apiService.delete(PARAMETER_ENDPOINTS.DELETE(id))));
-      triggerToast(`Successfully deleted ${selectedIds.length} parameters!`, 'success');
-      setSelectedIds([]);
-      fetchParameters();
-    } catch (err) {
-      triggerToast(err.message || 'Failed to delete selected parameters.', 'error');
-      setLoading(false);
-    }
-  };
+  // Delete confirmation modal state
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null, name: '' });
+  const [deleting, setDeleting] = useState(false);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -72,6 +39,9 @@ const ParameterMaster = () => {
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [subCategoryFilter, setSubCategoryFilter] = useState('');
+  const [subCategoriesFilterList, setSubCategoriesFilterList] = useState([]);
 
   // Download Dropdown toggle
   const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
@@ -84,7 +54,8 @@ const ParameterMaster = () => {
     testMethod: '',
     status: 'Active',
     companyName: '',
-    categoryId: ''
+    categoryId: '',
+    subCategoryId: ''
   });
   const [formErrors, setFormErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -192,19 +163,50 @@ const ParameterMaster = () => {
     }
   };
 
+  // Fetch sub categories to populate dropdown options
+  const fetchSubCategoriesForDropdown = async (catId = '') => {
+    try {
+      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
+      const params = new URLSearchParams({ status: 'Active', limit: 100 });
+      if (activeCompId) params.append('companyId', activeCompId);
+      if (catId) params.append('categoryId', catId);
+
+      const response = await apiService.get(`${SUB_CATEGORY_ENDPOINTS.GET_ALL}?${params.toString()}`);
+      if (response && response.data) {
+        const subs = Array.isArray(response.data) ? response.data : [response.data];
+        setSubCategoriesList(subs.filter(s => s.status === 'Active'));
+      } else {
+        setSubCategoriesList([]);
+      }
+    } catch (err) {
+      setSubCategoriesList([]);
+    }
+  };
+
+  useEffect(() => {
+    fetchSubCategoriesForDropdown(formData.categoryId);
+  }, [formData.categoryId, isFormOpen]);
+
   // Fetch all parameters
-  const fetchParameters = async (page = currentPage, limit = pageSize, search = searchQuery, status = statusFilter) => {
+  const fetchParameters = async () => {
     setLoading(true);
     try {
       const activeCompId = localStorage.getItem('selectedCompanyId') || '';
+      const isCards = viewMode === 'cards';
       const params = new URLSearchParams({
-        page: page,
-        limit: limit,
-        search: search,
-        status: status
+        page: isCards ? 1 : currentPage,
+        limit: isCards ? 1000 : pageSize,
+        search: searchQuery,
+        status: statusFilter
       });
       if (activeCompId) {
         params.append('companyId', activeCompId);
+      }
+      if (categoryFilter) {
+        params.append('categoryId', categoryFilter);
+      }
+      if (subCategoryFilter) {
+        params.append('subCategoryId', subCategoryFilter);
       }
 
       const url = `${PARAMETER_ENDPOINTS.GET_ALL}?${params.toString()}`;
@@ -238,9 +240,22 @@ const ParameterMaster = () => {
     }
   };
 
+  const fetchSubCategoriesForToolbarFilter = async (catId) => {
+    if (!catId) {
+      setSubCategoriesFilterList([]);
+      return;
+    }
+    try {
+      const response = await apiService.get(`${SUB_CATEGORY_ENDPOINTS.GET_ALL}?categoryId=${catId}&status=Active`);
+      setSubCategoriesFilterList(response?.data || []);
+    } catch {
+      setSubCategoriesFilterList([]);
+    }
+  };
+
   useEffect(() => {
     fetchParameters();
-  }, [currentPage, pageSize, searchQuery, statusFilter]);
+  }, [currentPage, pageSize, searchQuery, statusFilter, categoryFilter, subCategoryFilter, viewMode]);
 
   useEffect(() => {
     const initializeData = async () => {
@@ -281,17 +296,19 @@ const ParameterMaster = () => {
 
   // Open Form for Create
   const handleOpenCreate = () => {
-    const activeCompId = localStorage.getItem('selectedCompanyId');
-    const matchedComp = companies.find(c => c.id === activeCompId);
-    const defaultCompanyName = matchedComp ? (matchedComp.companyName || matchedComp.company_name) : (companies.length > 0 ? (companies[0].companyName || companies[0].company_name) : '');
-
+    const defaultCompanyName = companies.length > 0 ? (companies[0].companyName || companies[0].company_name) : '';
+    const initialCatId = categoriesList.length > 0 ? categoriesList[0].id : '';
+    if (initialCatId) {
+      fetchSubCategoriesForDropdown(initialCatId);
+    }
     setFormData({
       parameterName: '',
       description: '',
       testMethod: '',
       status: 'Active',
       companyName: defaultCompanyName,
-      categoryId: ''
+      categoryId: initialCatId,
+      subCategoryId: ''
     });
     setFormErrors({});
     setEditingId(null);
@@ -300,13 +317,17 @@ const ParameterMaster = () => {
 
   // Open Form for Edit
   const handleOpenEdit = (param) => {
+    if (param.categoryId) {
+      fetchSubCategoriesForDropdown(param.categoryId);
+    }
     setFormData({
       parameterName: param.parameterName || '',
       description: param.description || '',
       testMethod: param.testMethod || '',
       status: param.status || 'Active',
       companyName: param.companyName || (param.company ? (param.company.companyName || param.company.company_name) : ''),
-      categoryId: param.categoryId || ''
+      categoryId: param.categoryId || '',
+      subCategoryId: param.subCategoryId || ''
     });
     setFormErrors({});
     setEditingId(param.id);
@@ -335,7 +356,8 @@ const ParameterMaster = () => {
       testMethod: formData.testMethod,
       status: formData.status,
       companyName: activeCompanyName || formData.companyName,
-      categoryId: formData.categoryId || null
+      categoryId: formData.categoryId || null,
+      subCategoryId: formData.subCategoryId || null
     };
 
     try {
@@ -377,81 +399,89 @@ const ParameterMaster = () => {
   };
 
   // Delete Handler
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this parameter?')) return;
+  const handleDelete = (id, name = '') => {
+    setDeleteModal({ isOpen: true, id, name });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteModal.id) return;
+    setDeleting(true);
     try {
-      await apiService.delete(PARAMETER_ENDPOINTS.DELETE(id));
+      await apiService.delete(PARAMETER_ENDPOINTS.DELETE(deleteModal.id));
       triggerToast('Parameter deleted successfully.', 'success');
+      setDeleteModal({ isOpen: false, id: null, name: '' });
       fetchParameters();
     } catch (err) {
       triggerToast(err.messageToShow || err.message || 'Failed to delete parameter.', 'error');
-    }
-  };
-
-  // Helper to fetch all records matching active filter (no pagination limit)
-  const fetchAllExportData = async () => {
-    try {
-      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
-      const params = new URLSearchParams({
-        page: 1,
-        limit: 100000,
-        search: searchQuery,
-        status: statusFilter,
-        categoryId: categoryFilter
-      });
-      if (activeCompId) {
-        params.append('companyId', activeCompId);
-      }
-
-      const url = `${PARAMETER_ENDPOINTS.GET_ALL}?${params.toString()}`;
-      const response = await apiService.get(url);
-      if (response && response.data) {
-        return Array.isArray(response.data) ? response.data : (response.data.rows || []);
-      }
-      return parameters;
-    } catch (err) {
-      return parameters;
+    } finally {
+      setDeleting(false);
     }
   };
 
   // CSV Export
-  const handleDownloadCSV = async () => {
-    const allData = await fetchAllExportData();
-    if (!allData || allData.length === 0) return;
+  const handleDownloadCSV = () => {
+    if (parameters.length === 0) return;
     const headers = ['Parameter Name', 'Category', 'Test Method', 'Description', 'Status'];
-    const rows = allData.map(p => [
+    const rows = parameters.map(p => [
       p.parameterName,
       p.categoryName || 'Unassigned',
       p.testMethod || 'N/A',
       p.description || 'None',
       p.status
     ]);
-    downloadCSV(headers, rows, 'Parameters_Report.csv');
+
+    const csvContent = "data:text/csv;charset=utf-8,"
+      + [headers.join(','), ...rows.map(e => e.map(val => `"${val}"`).join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "Parameters_Report.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
     setShowDownloadDropdown(false);
   };
 
   // Excel Export
-  const handleDownloadExcel = async () => {
-    const allData = await fetchAllExportData();
-    if (!allData || allData.length === 0) return;
+  const handleDownloadExcel = () => {
+    if (parameters.length === 0) return;
     const headers = ['Parameter Name', 'Category', 'Test Method', 'Description', 'Status'];
-    const rows = allData.map(p => [
+    const rows = parameters.map(p => [
       p.parameterName,
       p.categoryName || 'Unassigned',
       p.testMethod || 'N/A',
       p.description || 'None',
       p.status
     ]);
-    downloadExcel(headers, rows, 'Parameters_Report.xlsx');
+
+    const htmlTable = `
+      <table border="1">
+        <thead>
+          <tr style="background-color: #f8fafc; font-weight: bold;">
+            ${headers.map(h => `<th>${h}</th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(r => `<tr>${r.map(val => `<td>${val}</td>`).join('')}</tr>`).join('')}
+        </tbody>
+      </table>
+    `;
+    const excelBlob = new Blob([htmlTable], { type: 'application/vnd.ms-excel' });
+    const excelUrl = URL.createObjectURL(excelBlob);
+    const link = document.createElement("a");
+    link.setAttribute("href", excelUrl);
+    link.setAttribute("download", "Parameters_Report.xls");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
     setShowDownloadDropdown(false);
   };
 
   // Copy to Clipboard
-  const handleCopy = async () => {
-    const allData = await fetchAllExportData();
-    if (!allData || allData.length === 0) return;
+  const handleCopy = () => {
+    if (parameters.length === 0) return;
     const headers = ['Parameter Name', 'Category', 'Test Method', 'Description', 'Status'];
-    const rows = allData.map(p => [
+    const rows = parameters.map(p => [
       p.parameterName,
       p.categoryName || 'Unassigned',
       p.testMethod || 'N/A',
@@ -459,20 +489,17 @@ const ParameterMaster = () => {
       p.status
     ]);
     const text = [headers.join('\t'), ...rows.map(r => r.join('\t'))].join('\n');
-    copyTextToClipboard(text,
-      () => triggerToast('Copied to clipboard successfully.', 'success'),
-      () => triggerToast('Failed to copy text.', 'error')
-    );
+    navigator.clipboard.writeText(text);
+    triggerToast('Copied to clipboard successfully.', 'success');
     setShowDownloadDropdown(false);
   };
 
   // PDF Export
-  const handlePrintPDF = async () => {
-    const allData = await fetchAllExportData();
-    if (!allData || allData.length === 0) return;
+  const handlePrintPDF = () => {
+    if (parameters.length === 0) return;
     const printWindow = window.open('', '_blank');
     const headers = ['Parameter Name', 'Category', 'Test Method', 'Description', 'Status'];
-    const rows = allData.map(p => `
+    const rows = parameters.map(p => `
       <tr>
         <td>${p.parameterName}</td>
         <td>${p.categoryName || 'Unassigned'}</td>
@@ -661,25 +688,28 @@ const ParameterMaster = () => {
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
 
-              {/* Category Dropdown & Quick Add Link */}
+              {/* Discipline Group Dropdown & Quick Add Link */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Category *</label>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Discipline Group *</label>
                   <button
                     type="button"
                     onClick={() => setIsAddCatModalOpen(true)}
                     style={{ background: 'none', border: 'none', color: '#22c55e', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}
                   >
-                    <FaPlus size={10} /> Add New Category
+                    <FaPlus size={10} /> Add New Group
                   </button>
                 </div>
                 <select
                   name="categoryId"
                   value={formData.categoryId}
-                  onChange={handleInputChange}
+                  onChange={(e) => {
+                    handleInputChange(e);
+                    fetchSubCategoriesForDropdown(e.target.value);
+                  }}
                   style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.categoryId ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', cursor: 'pointer', outline: 'none', backgroundColor: '#ffffff' }}
                 >
-                  <option value="">Select Category</option>
+                  <option value="">Select Discipline Group</option>
                   {categoriesList.map(cat => (
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
@@ -687,6 +717,22 @@ const ParameterMaster = () => {
                 {formErrors.categoryId && (
                   <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 500 }}>{formErrors.categoryId}</span>
                 )}
+              </div>
+
+              {/* Sub Category Dropdown */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Sub Category</label>
+                <select
+                  name="subCategoryId"
+                  value={formData.subCategoryId}
+                  onChange={handleInputChange}
+                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', cursor: 'pointer', outline: 'none', backgroundColor: '#ffffff' }}
+                >
+                  <option value="">Select Sub Category</option>
+                  {subCategoriesList.map(sub => (
+                    <option key={sub.id} value={sub.id}>{sub.name}</option>
+                  ))}
+                </select>
               </div>
 
               {/* Parameter Name */}
@@ -705,6 +751,19 @@ const ParameterMaster = () => {
                 )}
               </div>
 
+              {/* Test Method */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Test Method</label>
+                <input
+                  type="text"
+                  name="testMethod"
+                  value={formData.testMethod}
+                  onChange={handleInputChange}
+                  placeholder="e.g. APHA, 23rd Edition 2017/4500-H-B"
+                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', fontFamily: 'inherit' }}
+                />
+              </div>
+
               {/* Description */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: 'span 2' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Description</label>
@@ -715,19 +774,6 @@ const ParameterMaster = () => {
                   placeholder="Optional description of the test parameter"
                   rows={2}
                   style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
-                />
-              </div>
-
-              {/* Test Method */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: 'span 2' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Test Method</label>
-                <input
-                  type="text"
-                  name="testMethod"
-                  value={formData.testMethod}
-                  onChange={handleInputChange}
-                  placeholder="e.g. APHA, 23rd Edition 2017/4500-H-B"
-                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', fontFamily: 'inherit' }}
                 />
               </div>
 
@@ -796,31 +842,8 @@ const ParameterMaster = () => {
 
         {/* Filters Row */}
         <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.25rem', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{ fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>
-              Total Parameters: {totalItems}
-            </div>
-            {selectedIds.length > 0 && (
-              <button
-                onClick={handleBulkDelete}
-                style={{
-                  background: '#ef4444',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '6px',
-                  padding: '0.4rem 0.85rem',
-                  fontWeight: 600,
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  boxShadow: '0 1px 2px rgba(239, 68, 68, 0.2)'
-                }}
-              >
-                <FaTrash size={12} /> Delete Selected ({selectedIds.length})
-              </button>
-            )}
+          <div style={{ fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>
+            Total Parameters: {totalItems}
           </div>
           <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: '6px', padding: '0.25rem' }}>
@@ -837,6 +860,40 @@ const ParameterMaster = () => {
                 Cards
               </button>
             </div>
+            {/* Discipline Group Filter */}
+            <select
+              value={categoryFilter}
+              onChange={(e) => {
+                const catId = e.target.value;
+                setCategoryFilter(catId);
+                setSubCategoryFilter('');
+                fetchSubCategoriesForToolbarFilter(catId);
+                setCurrentPage(1);
+              }}
+              style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem' }}
+            >
+              <option value="">ALL DISCIPLINE GROUPS</option>
+              {categoriesList.map(cat => (
+                <option key={cat.id} value={cat.id}>{cat.name}</option>
+              ))}
+            </select>
+
+            {/* Sub Category Filter */}
+            <select
+              value={subCategoryFilter}
+              onChange={(e) => {
+                setSubCategoryFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              disabled={!categoryFilter}
+              style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', backgroundColor: !categoryFilter ? '#f1f5f9' : '#ffffff' }}
+            >
+              <option value="">ALL SUB CATEGORIES</option>
+              {subCategoriesFilterList.map(sub => (
+                <option key={sub.id} value={sub.id}>{sub.name}</option>
+              ))}
+            </select>
+
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -864,18 +921,11 @@ const ParameterMaster = () => {
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
                 <thead>
                   <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                    <th style={{ padding: '0.75rem 0.75rem', width: '40px', textAlign: 'center' }}>
-                      <input
-                        type="checkbox"
-                        checked={parameters.length > 0 && selectedIds.length === parameters.length}
-                        onChange={handleSelectAll}
-                        style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                      />
-                    </th>
                     <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ACTIONS</th>
                     <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
                     <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>PARAMETER NAME</th>
-                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CATEGORY</th>
+                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>DISCIPLINE GROUP</th>
+                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SUB CATEGORY</th>
                     <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>TEST METHOD</th>
                     <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATUS</th>
                   </tr>
@@ -883,13 +933,13 @@ const ParameterMaster = () => {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                      <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                         Loading parameters...
                       </td>
                     </tr>
                   ) : parameters.length === 0 ? (
                     <tr>
-                      <td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                      <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                         No parameters found.
                       </td>
                     </tr>
@@ -901,14 +951,6 @@ const ParameterMaster = () => {
                         style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background-color 0.15s' }}
                         className="company-table-row"
                       >
-                        <td style={{ padding: '0.75rem 0.75rem', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.includes(param.id)}
-                            onChange={(e) => handleSelectRow(param.id, e)}
-                            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                          />
-                        </td>
                         <td style={{ padding: '0.75rem 1rem', display: 'flex', gap: '0.5rem' }}>
                           <button
                             onClick={(e) => { e.stopPropagation(); handleOpenEdit(param); }}
@@ -918,7 +960,7 @@ const ParameterMaster = () => {
                             <FaEdit size={12} />
                           </button>
                           <button
-                            onClick={(e) => { e.stopPropagation(); handleDelete(param.id); }}
+                            onClick={(e) => { e.stopPropagation(); handleDelete(param.id, param.parameterName); }}
                             style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                             title="Delete"
                           >
@@ -928,6 +970,7 @@ const ParameterMaster = () => {
                         <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
                         <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{param.parameterName}</td>
                         <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.categoryName || (param.category ? param.category.categoryName : 'Unassigned')}</td>
+                        <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.subCategoryName || 'Unassigned'}</td>
                         <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.testMethod || 'N/A'}</td>
                         <td style={{ padding: '0.75rem 1rem' }}>
                           <span style={{
@@ -995,7 +1038,7 @@ const ParameterMaster = () => {
                           <FaEdit size={12} /> Edit
                         </button>
                         <button
-                          onClick={(e) => { e.stopPropagation(); handleDelete(param.id); }}
+                          onClick={(e) => { e.stopPropagation(); handleDelete(param.id, param.parameterName); }}
                           style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                         >
                           <FaTrash size={12} /> Delete
@@ -1045,17 +1088,19 @@ const ParameterMaster = () => {
         )}
 
         {/* Pagination Controls */}
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalItems={totalItems}
-          pageSize={pageSize}
-          onPageChange={setCurrentPage}
-          onPageSizeChange={(size) => {
-            setPageSize(size);
-            setCurrentPage(1);
-          }}
-        />
+        {viewMode === 'table' && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setCurrentPage(1);
+            }}
+          />
+        )}
       </div>
 
       {/* Quick Add Category Modal */}
@@ -1110,14 +1155,31 @@ const ParameterMaster = () => {
         onImportSuccess={async (validRows) => {
           const res = await apiService.post(PARAMETER_ENDPOINTS.BULK_IMPORT, { rows: validRows });
           if (res && res.success) {
-            const inserted = res.data?.inserted ?? res.data?.createdCount ?? 0;
-            const updated = res.data?.updated ?? res.data?.updatedCount ?? 0;
-            triggerToast(`Bulk Import Complete: ${inserted} created, ${updated} updated!`, 'success');
-            fetchParameters();
+            triggerToast(res.message || 'Parameters imported successfully!', 'success');
+            fetchParameters(currentPage, pageSize, searchQuery, statusFilter);
           } else {
             throw new Error(res?.message || 'Failed to import parameters.');
           }
         }}
+      />
+
+      {/* Reusable Delete Confirmation Modal */}
+      <ConfirmDialog
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, id: null, name: '' })}
+        onConfirm={confirmDelete}
+        title="Delete Parameter"
+        message={
+          deleteModal.name ? (
+            <>Are you sure you want to delete parameter <strong>{deleteModal.name}</strong>? This action cannot be undone.</>
+          ) : (
+            'Are you sure you want to delete this parameter? This action cannot be undone.'
+          )
+        }
+        confirmText="Delete Parameter"
+        cancelText="Cancel"
+        variant="danger"
+        loading={deleting}
       />
 
     </div>

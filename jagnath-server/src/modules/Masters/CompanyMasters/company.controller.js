@@ -59,7 +59,7 @@ const update = async (req, res) => {
     try {
         const { id } = req.params;
         const userId = req.user.user_id;
-        const isSuperAdmin = req.user.role === "SuperAdmin" || req.user.email === "admin@jagnath.com";
+        const isSuperAdmin = req.user.role === "SuperAdmin" || req.user.role === "SUPER_ADMIN" || req.user.role === "SUPERADMIN" || req.user.role === "Super Admin" || req.user.email === "admin@jagnath.com";
 
         // Verify ownership before update
         const isOwner = await companyService.checkOwnership(id, userId, isSuperAdmin);
@@ -112,7 +112,7 @@ const update = async (req, res) => {
 const getMyCompanies = async (req, res) => {
     try {
         const userId = req.user.user_id;
-        const isSuperAdmin = req.user.role === "SuperAdmin" || req.user.email === "admin@jagnath.com";
+        const isSuperAdmin = req.user.role === "SuperAdmin" || req.user.role === "SUPER_ADMIN" || req.user.role === "SUPERADMIN" || req.user.role === "Super Admin" || req.user.email === "admin@jagnath.com";
         
         const options = {
             page: req.query.page,
@@ -158,7 +158,7 @@ const remove = async (req, res) => {
     try {
         const { id } = req.params;
         const userId = req.user.user_id;
-        const isSuperAdmin = req.user.role === "SuperAdmin" || req.user.email === "admin@jagnath.com";
+        const isSuperAdmin = req.user.role === "SuperAdmin" || req.user.role === "SUPER_ADMIN" || req.user.role === "SUPERADMIN" || req.user.role === "Super Admin" || req.user.email === "admin@jagnath.com";
 
         // Verify ownership before delete
         const isOwner = await companyService.checkOwnership(id, userId, isSuperAdmin);

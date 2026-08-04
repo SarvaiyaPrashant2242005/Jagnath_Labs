@@ -6,57 +6,24 @@ import {
 } from 'react-icons/fa';
 import { priceMasterService } from '../services/priceMasterService';
 import { apiService } from '../../../shared/services/apiService';
-import { CATEGORY_ENDPOINTS, PARAMETER_ENDPOINTS, PRICE_MASTER_ENDPOINTS } from '../../../shared/services/apiEndpoints';
+import { CATEGORY_ENDPOINTS, PARAMETER_ENDPOINTS, PRICE_MASTER_ENDPOINTS, SUB_CATEGORY_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 import Pagination from '../../../shared/components/Pagination';
 import BulkImportModal from '../../../shared/components/BulkImport/BulkImportModal';
-import { downloadCSV, downloadExcel, copyTextToClipboard } from '../../../shared/utils/exportUtils';
+import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 
 const PriceMasterPage = () => {
   // Data States
   const [prices, setPrices] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [subCategories, setSubCategories] = useState([]);
   const [parameters, setParameters] = useState([]);
   const [filteredParameters, setFilteredParameters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
 
-  // Multi-Select state
-  const [selectedIds, setSelectedIds] = useState([]);
-
-  // Select all / deselect all current page prices
-  const handleSelectAll = (e) => {
-    if (e.target.checked) {
-      const allIds = prices.map(p => p.id);
-      setSelectedIds(allIds);
-    } else {
-      setSelectedIds([]);
-    }
-  };
-
-  // Toggle single price selection
-  const handleSelectRow = (id, e) => {
-    e.stopPropagation();
-    setSelectedIds(prev =>
-      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
-    );
-  };
-
-  // Bulk Delete Selected
-  const handleBulkDelete = async () => {
-    if (selectedIds.length === 0) return;
-    if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} selected price list items?`)) return;
-
-    try {
-      setLoading(true);
-      await Promise.all(selectedIds.map(id => apiService.delete(PRICE_MASTER_ENDPOINTS.DELETE(id))));
-      triggerToast(`Successfully deleted ${selectedIds.length} price list items!`, 'success');
-      setSelectedIds([]);
-      fetchPriceMaster();
-    } catch (err) {
-      triggerToast(err.message || 'Failed to delete selected price list items.', 'error');
-      setLoading(false);
-    }
-  };
+  // Delete confirmation modal state
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null, name: '' });
+  const [deleting, setDeleting] = useState(false);
 
   // Filters State
   const [searchQuery, setSearchQuery] = useState('');
@@ -78,6 +45,7 @@ const PriceMasterPage = () => {
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
     categoryId: '',
+    subCategoryId: '',
     parameterId: '',
     price: '',
     status: 'Active'
@@ -115,6 +83,24 @@ const PriceMasterPage = () => {
       setFilteredParameters([]);
     }
   }, [formData.categoryId, parameters]);
+
+  // Fetch Sub Categories when form opens or category changes
+  useEffect(() => {
+    const fetchSubCats = async () => {
+      try {
+        const url = formData.categoryId
+          ? `${SUB_CATEGORY_ENDPOINTS.GET_ALL}?categoryId=${formData.categoryId}`
+          : SUB_CATEGORY_ENDPOINTS.GET_ALL;
+        const res = await apiService.get(url);
+        setSubCategories(res?.data || []);
+      } catch {
+        setSubCategories([]);
+      }
+    };
+    if (isFormOpen) {
+      fetchSubCats();
+    }
+  }, [formData.categoryId, isFormOpen]);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -283,8 +269,11 @@ const PriceMasterPage = () => {
   // Open Edit Form
   const handleOpenEdit = (item) => {
     setEditingId(item.id);
+    const catId = item.categoryId || (item.category ? item.category.id : '');
+    const subCatId = item.parameter?.subCategoryId || item.subCategoryId || '';
     setFormData({
-      categoryId: item.categoryId || (item.category ? item.category.id : ''),
+      categoryId: catId,
+      subCategoryId: subCatId,
       parameterId: item.parameterId || (item.parameter ? item.parameter.id : ''),
       price: item.price !== undefined ? item.price : '',
       status: item.status || 'Active'
@@ -297,10 +286,10 @@ const PriceMasterPage = () => {
     e.preventDefault();
     const errors = {};
 
-    if (!editingId && !formData.categoryId) {
-      errors.categoryId = 'Category is required.';
+    if (!formData.categoryId) {
+      errors.categoryId = 'Discipline Group is required.';
     }
-    if (!editingId && !formData.parameterId) {
+    if (!formData.parameterId) {
       errors.parameterId = 'Parameter is required.';
     }
     if (formData.price === '' || isNaN(formData.price) || Number(formData.price) < 0) {
@@ -316,6 +305,9 @@ const PriceMasterPage = () => {
       setSubmitting(true);
       if (editingId) {
         await priceMasterService.update(editingId, {
+          categoryId: formData.categoryId,
+          subCategoryId: formData.subCategoryId,
+          parameterId: formData.parameterId,
           price: Number(formData.price),
           status: formData.status
         });
@@ -338,14 +330,22 @@ const PriceMasterPage = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this parameter price?')) return;
+  const handleDelete = (id, name = '') => {
+    setDeleteModal({ isOpen: true, id, name });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteModal.id) return;
+    setDeleting(true);
     try {
-      await priceMasterService.delete(id);
+      await priceMasterService.delete(deleteModal.id);
       triggerToast('Price deleted successfully.', 'success');
+      setDeleteModal({ isOpen: false, id: null, name: '' });
       fetchPrices();
     } catch (err) {
       triggerToast(err.messageToShow || err.message || 'Failed to delete price.', 'error');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -567,27 +567,35 @@ const PriceMasterPage = () => {
           <form onSubmit={handleFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
 
-              {/* Category Dropdown & Quick Add Link */}
+              {/* Discipline Group Dropdown & Quick Add Link */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Category *</label>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Discipline Group *</label>
                   {!editingId && (
                     <button
                       type="button"
                       onClick={() => setIsAddCatModalOpen(true)}
                       style={{ background: 'none', border: 'none', color: '#22c55e', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}
                     >
-                      <FaPlus size={10} /> Add New Category
+                      <FaPlus size={10} /> Add New Group
                     </button>
                   )}
                 </div>
                 <select
                   value={formData.categoryId}
-                  disabled={Boolean(editingId)}
-                  onChange={(e) => setFormData({ ...formData, categoryId: e.target.value, parameterId: '' })}
-                  style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.categoryId ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none', backgroundColor: editingId ? '#f1f5f9' : '#ffffff' }}
+                  onChange={async (e) => {
+                    const catId = e.target.value;
+                    setFormData({ ...formData, categoryId: catId, subCategoryId: '', parameterId: '' });
+                    if (catId) {
+                      try {
+                        const res = await apiService.get(`${SUB_CATEGORY_ENDPOINTS.GET_ALL}?categoryId=${catId}`);
+                        setSubCategories(res?.data || []);
+                      } catch { setSubCategories([]); }
+                    } else { setSubCategories([]); }
+                  }}
+                  style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.categoryId ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none', backgroundColor: '#ffffff' }}
                 >
-                  <option value="">-- Select Category --</option>
+                  <option value="">-- Select Discipline Group --</option>
                   {categories.map((c) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
@@ -595,6 +603,22 @@ const PriceMasterPage = () => {
                 {formErrors.categoryId && (
                   <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 500 }}>{formErrors.categoryId}</span>
                 )}
+              </div>
+
+              {/* Sub Category Dropdown */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Sub Category</label>
+                <select
+                  value={formData.subCategoryId}
+                  disabled={!formData.categoryId}
+                  onChange={(e) => setFormData({ ...formData, subCategoryId: e.target.value })}
+                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', backgroundColor: !formData.categoryId ? '#f1f5f9' : '#ffffff' }}
+                >
+                  <option value="">-- Select Sub Category --</option>
+                  {subCategories.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
               </div>
 
               {/* Parameter Dropdown & Quick Add Link */}
@@ -613,9 +637,9 @@ const PriceMasterPage = () => {
                 </div>
                 <select
                   value={formData.parameterId}
-                  disabled={Boolean(editingId) || !formData.categoryId}
+                  disabled={!formData.categoryId}
                   onChange={(e) => setFormData({ ...formData, parameterId: e.target.value })}
-                  style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.parameterId ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none', backgroundColor: (editingId || !formData.categoryId) ? '#f1f5f9' : '#ffffff' }}
+                  style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.parameterId ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none', backgroundColor: !formData.categoryId ? '#f1f5f9' : '#ffffff' }}
                 >
                   <option value="">-- Select Parameter --</option>
                   {filteredParameters.map((p) => (
@@ -793,7 +817,8 @@ const PriceMasterPage = () => {
                 </th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ACTIONS</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CATEGORY</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>DISCIPLINE GROUP</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SUB CATEGORY</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>PARAMETER</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600, textAlign: 'right' }}>PRICE (₹)</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600, textAlign: 'center' }}>STATUS</th>
@@ -837,7 +862,7 @@ const PriceMasterPage = () => {
                         <FaEdit size={12} />
                       </button>
                       <button
-                        onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
+                        onClick={(e) => { e.stopPropagation(); handleDelete(item.id, item.parameter?.parameterName || item.parameter?.name); }}
                         style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                         title="Delete"
                       >
@@ -847,6 +872,9 @@ const PriceMasterPage = () => {
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 500 }}>
                       {item.category ? item.category.name : '-'}
+                    </td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>
+                      {item.parameter?.subCategory ? item.parameter.subCategory.name : (item.subCategoryName || 'Unassigned')}
                     </td>
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>
                       {item.parameter ? (item.parameter.parameterName || item.parameter.name) : '-'}
@@ -896,7 +924,9 @@ const PriceMasterPage = () => {
                   <div className="master-record-card-header">
                     <div>
                       <div className="master-record-title">{item.parameter?.name || item.parameter?.parameterName || 'Parameter'}</div>
-                      <div className="master-record-subtitle">{item.category?.name} • ₹{Number(item.price || 0).toFixed(2)}</div>
+                      <div className="master-record-subtitle">
+                        {item.category?.name} {item.parameter?.subCategory ? `• ${item.parameter.subCategory.name}` : ''} • ₹{Number(item.price || 0).toFixed(2)}
+                      </div>
                     </div>
                     <span style={{
                       padding: '0.2rem 0.6rem',
@@ -918,7 +948,7 @@ const PriceMasterPage = () => {
                       <FaEdit size={12} /> Edit
                     </button>
                     <button
-                      onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
+                      onClick={(e) => { e.stopPropagation(); handleDelete(item.id, item.parameter?.parameterName || item.parameter?.name); }}
                       style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                     >
                       <FaTrash size={12} /> Delete
@@ -1059,6 +1089,25 @@ const PriceMasterPage = () => {
             throw new Error(res?.message || 'Failed to import price list.');
           }
         }}
+      />
+
+      {/* Reusable Delete Confirmation Modal */}
+      <ConfirmDialog
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, id: null, name: '' })}
+        onConfirm={confirmDelete}
+        title="Delete Price Record"
+        message={
+          deleteModal.name ? (
+            <>Are you sure you want to delete price entry for <strong>{deleteModal.name}</strong>? This action cannot be undone.</>
+          ) : (
+            'Are you sure you want to delete this price record? This action cannot be undone.'
+          )
+        }
+        confirmText="Delete Price"
+        cancelText="Cancel"
+        variant="danger"
+        loading={deleting}
       />
 
     </div>

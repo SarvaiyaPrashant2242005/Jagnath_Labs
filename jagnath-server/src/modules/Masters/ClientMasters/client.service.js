@@ -355,32 +355,27 @@ module.exports = {
             let failedCount = 0;
             let skippedCount = 0;
 
-            const rowResults = [];
+            for (const item of records) {
+                const raw = item.data || item;
+                const data = {
+                    clientName: raw.clientName || 'Unnamed Client',
+                    contactNumber: raw.contactNumber || 'N/A',
+                    address: raw.address || 'N/A',
+                    city: raw.city || 'N/A',
+                    state: raw.state || 'N/A',
+                    email: raw.email && String(raw.email).trim() !== '' ? String(raw.email).trim() : null,
+                    gender: raw.gender || 'Male',
+                    status: (raw.status && ['Active', 'Inactive'].includes(String(raw.status).trim())) ? String(raw.status).trim() : 'Active',
+                    companyId
+                };
 
-            for (let i = 0; i < records.length; i++) {
-                const item = records[i];
-                const rawData = item.data || item;
-                const rowNum = item._originalIndex || (i + 1);
-
-                const clientName = rawData.clientName ? String(rawData.clientName).trim() : "";
-                const contactNumber = rawData.contactNumber !== undefined && rawData.contactNumber !== null ? String(rawData.contactNumber).trim() : "";
-                const email = rawData.email ? String(rawData.email).trim() : "";
-                const gender = rawData.gender ? String(rawData.gender).trim() : "Male";
-                const address = rawData.address ? String(rawData.address).trim() : "";
-                const city = rawData.city ? String(rawData.city).trim() : "";
-                const state = rawData.state ? String(rawData.state).trim() : "";
-                const status = rawData.status || "Active";
-
-                const errors = [];
-
-                // Field validations
-                if (!clientName) errors.push("Client Name is required.");
-                if (!contactNumber) errors.push("Contact Number is required.");
-                if (email) {
-                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                    if (!emailRegex.test(email)) {
-                        errors.push("Invalid email format.");
-                    }
+                let existing = null;
+                if (item._dbId) {
+                    existing = await Client.findOne({ where: { id: item._dbId, companyId }, transaction });
+                } else if (data.email) {
+                    existing = await Client.findOne({ where: { email: data.email, companyId }, transaction });
+                } else if (data.clientName) {
+                    existing = await Client.findOne({ where: { clientName: data.clientName, companyId }, transaction });
                 }
 
                 const normEmail = normalizeEmail(email);
@@ -511,6 +506,7 @@ module.exports = {
             };
         } catch (error) {
             await transaction.rollback();
+            console.error("Error in bulkImportClients service:", error);
             throw error;
         }
     }

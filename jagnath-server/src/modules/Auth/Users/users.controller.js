@@ -193,9 +193,42 @@ const bulkImport = async (req, res) => {
     }
 };
 
+const forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body || {};
+        const result = await usersService.requestPasswordReset(email);
+        return res.status(200).json(successResponse("OTP_SENT", result.message, result.message));
+    } catch (err) {
+        return res.status(400).json(errorResponse("FORGOT_PASSWORD_ERROR", err.message, err.message));
+    }
+};
+
+const verifyOtp = async (req, res) => {
+    try {
+        const { email, otp } = req.body || {};
+        const result = await usersService.verifyResetOtp(email, otp);
+        return res.status(200).json(successResponse("OTP_VERIFIED", result.message, result.message));
+    } catch (err) {
+        return res.status(400).json(errorResponse("VERIFY_OTP_ERROR", err.message, err.message));
+    }
+};
+
+const resetPassword = async (req, res) => {
+    try {
+        const { email, otp, newPassword } = req.body || {};
+        const result = await usersService.resetPasswordWithOtp(email, otp, newPassword);
+        return res.status(200).json(successResponse("PASSWORD_RESET_SUCCESS", result.message, result.message));
+    } catch (err) {
+        return res.status(400).json(errorResponse("RESET_PASSWORD_ERROR", err.message, err.message));
+    }
+};
+
 module.exports = {
     register,
     login,
+    forgotPassword,
+    verifyOtp,
+    resetPassword,
     rotateToken,
     getMe,
     logout,

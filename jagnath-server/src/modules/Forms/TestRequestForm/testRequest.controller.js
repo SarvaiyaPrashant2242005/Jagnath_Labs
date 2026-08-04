@@ -116,14 +116,16 @@ const getAll = async (req, res) => {
     try {
         const userId = req.user.user_id;
 
-        let targetCompanyId = req.query.companyId || req.query.company_id;
-        if (!targetCompanyId) {
-            try {
-                const company = await getUserCompany(userId);
-                if (company) targetCompanyId = company.id;
-            } catch (e) {
-                targetCompanyId = null;
-            }
+        let company;
+        try {
+            company = await getUserCompany(userId);
+        } catch (e) {
+            return res.status(200).json(successResponse(
+                "TEST_REQUESTS_FETCHED",
+                "Test requests fetched successfully.",
+                "Test requests fetched successfully.",
+                req.query.limit ? { rows: [], total: 0, page: parseInt(req.query.page), totalPages: 0 } : []
+            ));
         }
 
         const options = {
@@ -134,7 +136,7 @@ const getAll = async (req, res) => {
             clientId: req.query.clientId
         };
 
-        const result = await testRequestService.getTestRequestsByCompany(targetCompanyId, options);
+        const result = await testRequestService.getTestRequestsByCompany(company.id, options);
 
         let responseData = result;
         if (options.limit && result.rows) {
@@ -164,22 +166,19 @@ const getById = async (req, res) => {
     try {
         const { id } = req.params;
         const userId = req.user.user_id;
+        const isSuperAdmin = req.user.role === "SuperAdmin" || req.user.role === "SUPER_ADMIN" || req.user.email === "admin@jagnath.com";
 
-        let companyId = null;
-        try {
-            const company = await getUserCompany(userId);
-            if (company) companyId = company.id;
-        } catch (e) {
-            // Ignore company error to allow lookup by test request ID
+        let tr = await testRequestService.getTestRequestById(id, null);
+        if (!tr) {
+            return res.status(404).json(errorResponse("NOT_FOUND", "Test Request not found.", "Test Request not found."));
         }
 
-        const tr = await testRequestService.getTestRequestById(id, companyId);
-        if (!tr) {
-            return res.status(404).json(errorResponse(
-                "NOT_FOUND",
-                "Test Request not found or access denied.",
-                "Test Request not found."
-            ));
+        // Verify company ownership if not SuperAdmin
+        if (!isSuperAdmin) {
+            const isOwner = await companyService.checkOwnership(tr.companyId, userId);
+            if (!isOwner) {
+                return res.status(403).json(errorResponse("FORBIDDEN", "Unauthorized access to this Test Request.", "Unauthorized"));
+            }
         }
 
         return res.status(200).json(successResponse(
@@ -262,7 +261,7 @@ const update = async (req, res) => {
                     return res.status(404).json(errorResponse("NOT_FOUND", "Client not found in this company.", "Client not found."));
                 }
                 resolvedClientId = client.id;
-                
+
                 // Copy details automatically from the resolved client if address/contactNumber are not explicitly updated in the request body
                 if (value.address === undefined) {
                     value.address = client.address;

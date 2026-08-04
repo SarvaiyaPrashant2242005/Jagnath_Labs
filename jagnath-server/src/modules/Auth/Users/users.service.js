@@ -15,6 +15,8 @@ const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "fallback_refresh_secre
 const ACCESS_TOKEN_EXPIRES = process.env.JWT_EXPIRE || process.env.ACCESS_TOKEN_EXPIRES || "7d";
 const REFRESH_TOKEN_EXPIRES_DAYS = 30;
 
+const { sendWelcomeEmail, sendOtpEmail } = require("../../../shared/services/email.service");
+
 const registerLogPath = path.join(__dirname, "../../../../logs/Auth/Register.txt");
 const loginLogPath = path.join(__dirname, "../../../../logs/Auth/Login.txt");
 
@@ -36,6 +38,15 @@ const register = async (userData, reqInfo) => {
             status: userData.status || "Active"
         });
 
+        // Trigger welcome email asynchronously
+        sendWelcomeEmail({
+            to: newUser.email,
+            name: newUser.name,
+            email: newUser.email,
+            password: userData.password,
+            role: newUser.role
+        }).catch(err => console.error("Error triggering welcome email:", err));
+
         // Omit password from response
         const userResponse = newUser.toJSON();
         delete userResponse.password;
@@ -46,6 +57,74 @@ const register = async (userData, reqInfo) => {
     } catch (error) {
         throw error;
     }
+};
+
+const requestPasswordReset = async (email) => {
+    if (!email) throw new Error("Email address is required.");
+
+    const user = await Users.findOne({ where: { email } });
+    if (!user) {
+        throw new Error("No account found with this email address.");
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
+
+    await user.update({
+        reset_otp: otp,
+        reset_otp_expires_at: expiresAt
+    });
+
+    await sendOtpEmail({
+        to: user.email,
+        name: user.name,
+        otp
+    });
+
+    return { message: "Verification OTP code has been sent to your email address." };
+};
+
+const verifyResetOtp = async (email, otp) => {
+    if (!email || !otp) throw new Error("Email and OTP code are required.");
+
+    const user = await Users.findOne({ where: { email } });
+    if (!user) throw new Error("User account not found.");
+
+    if (!user.reset_otp || user.reset_otp !== String(otp).trim()) {
+        throw new Error("Invalid OTP code. Please check and try again.");
+    }
+
+    if (new Date() > new Date(user.reset_otp_expires_at)) {
+        throw new Error("OTP code has expired. Please request a new OTP.");
+    }
+
+    return { message: "OTP code verified successfully." };
+};
+
+const resetPasswordWithOtp = async (email, otp, newPassword) => {
+    if (!email || !otp || !newPassword) throw new Error("All fields are required.");
+    if (newPassword.length < 6) throw new Error("New password must be at least 6 characters long.");
+
+    const user = await Users.findOne({ where: { email } });
+    if (!user) throw new Error("User account not found.");
+
+    if (!user.reset_otp || user.reset_otp !== String(otp).trim()) {
+        throw new Error("Invalid OTP code.");
+    }
+
+    if (new Date() > new Date(user.reset_otp_expires_at)) {
+        throw new Error("OTP code has expired.");
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await user.update({
+        password: hashedPassword,
+        reset_otp: null,
+        reset_otp_expires_at: null
+    });
+
+    return { message: "Password reset successfully. You can now log in with your new password." };
 };
 
 const login = async (credentials, reqInfo) => {
@@ -234,6 +313,9 @@ const rotateToken = async (rawRefreshToken) => {
 module.exports = {
     register,
     login,
+    requestPasswordReset,
+    verifyResetOtp,
+    resetPasswordWithOtp,
     rotateToken,
     getUserById,
     getAllUsers,

@@ -38,36 +38,47 @@ const TestRequestPrint = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [compRes, clientRes, catRes, trRes] = await Promise.all([
-        apiService.get(COMPANY_ENDPOINTS.GET_MY),
-        apiService.get(CLIENT_ENDPOINTS.GET_ALL),
-        apiService.get(CATEGORY_ENDPOINTS.GET_ALL),
-        apiService.get(TEST_REQUEST_ENDPOINTS.GET_BY_ID(id))
-      ]);
+      setError(false);
 
+      const trRes = await apiService.get(TEST_REQUEST_ENDPOINTS.GET_BY_ID(id));
       if (!trRes?.data) {
         setError(true);
+        setLoading(false);
         return;
       }
 
       const tr = trRes.data;
       setFormData(tr);
 
-      const cList = Array.isArray(compRes?.data) ? compRes.data : [compRes?.data];
-      const clList = Array.isArray(clientRes?.data) ? clientRes.data : [clientRes?.data];
-      const catList = Array.isArray(catRes?.data) ? catRes.data : [catRes?.data];
+      // Primary objects from populated TR associations
+      if (tr.company) setSelCompany(tr.company);
+      if (tr.client) setSelClient(tr.client);
+      if (tr.caution) setSelCaution(tr.caution);
 
-      const matchingComp = cList.find(c => c.id === tr.companyId || (c.companyName || c.company_name) === tr.companyName) || {};
-      const matchingClient = clList.find(c => c.id === tr.clientId || c.clientName === tr.clientName) || {};
-      const matchingCat = catList.find(c => c.id === tr.sampleParticular) || {};
+      // Fetch secondary lists gracefully using Promise.allSettled
+      const [compRes, clientRes, catRes] = await Promise.allSettled([
+        apiService.get(COMPANY_ENDPOINTS.GET_MY),
+        apiService.get(CLIENT_ENDPOINTS.GET_ALL),
+        apiService.get(CATEGORY_ENDPOINTS.GET_ALL)
+      ]);
+
+      const compData = compRes.status === 'fulfilled' ? compRes.value?.data : null;
+      const clientData = clientRes.status === 'fulfilled' ? clientRes.value?.data : null;
+      const catData = catRes.status === 'fulfilled' ? catRes.value?.data : null;
+
+      const cList = Array.isArray(compData) ? compData : (compData ? [compData] : []);
+      const clList = Array.isArray(clientData) ? clientData : (clientData?.rows ? clientData.rows : (clientData ? [clientData] : []));
+      const catList = Array.isArray(catData) ? catData : (catData?.rows ? catData.rows : (catData ? [catData] : []));
+
+      const matchingComp = cList.find(c => c.id === tr.companyId || (c.companyName || c.company_name) === tr.companyName) || tr.company || {};
+      const matchingClient = clList.find(c => c.id === tr.clientId || c.clientName === tr.clientName) || tr.client || {};
+      const matchingCat = catList.find(c => c.id === tr.sampleParticular || c.name === tr.sampleParticularName) || {};
 
       setSelCompany(matchingComp);
       setSelClient(matchingClient);
-      setSelCategory(matchingCat);
+      if (matchingCat.id) setSelCategory(matchingCat);
 
-      if (tr.caution) {
-        setSelCaution(tr.caution);
-      } else if (tr.cautionId) {
+      if (!tr.caution && tr.cautionId) {
         try {
           const cautionRes = await apiService.get(CAUTION_ENDPOINTS.GET_BY_ID(tr.cautionId));
           if (cautionRes?.data) setSelCaution(cautionRes.data);
@@ -78,36 +89,42 @@ const TestRequestPrint = () => {
 
       let allCategoryParams = [];
       if (tr.sampleParticular) {
-        const paramRes = await apiService.get(CATEGORY_PARAMETER_ENDPOINTS.GET_BY_CATEGORY(tr.sampleParticular));
-        if (paramRes?.data) {
-          allCategoryParams = Array.isArray(paramRes.data) ? paramRes.data : [paramRes.data];
+        try {
+          const paramRes = await apiService.get(CATEGORY_PARAMETER_ENDPOINTS.GET_BY_CATEGORY(tr.sampleParticular));
+          if (paramRes?.data) {
+            allCategoryParams = Array.isArray(paramRes.data) ? paramRes.data : [paramRes.data];
+          }
+        } catch (e) {
+          console.error("Error fetching category parameters:", e);
         }
       }
 
-      const trpRes = await apiService.get(TEST_REQUEST_PARAMETER_ENDPOINTS.GET_ALL);
-      if (trpRes?.data) {
-        const trps = Array.isArray(trpRes.data) ? trpRes.data : [trpRes.data];
-        const matchingTrps = trps.filter(t => t.testRequestId === id);
-        const checks = {};
-        matchingTrps.forEach(t => {
-          if (t.parameterId) checks[t.parameterId] = true;
-        });
-        setCheckedParameters(checks);
+      try {
+        const trpRes = await apiService.get(TEST_REQUEST_PARAMETER_ENDPOINTS.GET_ALL);
+        if (trpRes?.data) {
+          const trps = Array.isArray(trpRes.data) ? trpRes.data : (trpRes.data?.rows || [trpRes.data]);
+          const matchingTrps = trps.filter(t => t.testRequestId === id);
+          const checks = {};
+          matchingTrps.forEach(t => {
+            if (t.parameterId) checks[t.parameterId] = true;
+          });
+          setCheckedParameters(checks);
 
-        // Filter allCategoryParams to include only selected parameters
-        const selectedParamsOnly = allCategoryParams.filter(p => checks[p.id]);
-        setParameters(selectedParamsOnly);
-      } else {
-        setParameters([]);
+          const selectedParamsOnly = allCategoryParams.filter(p => checks[p.id]);
+          setParameters(selectedParamsOnly.length > 0 ? selectedParamsOnly : allCategoryParams);
+        } else {
+          setParameters(allCategoryParams);
+        }
+      } catch (e) {
+        setParameters(allCategoryParams);
       }
 
-      // Small delay to ensure render is complete before popping the print dialog
       setTimeout(() => {
         window.print();
       }, 500);
 
     } catch (err) {
-      console.error(err);
+      console.error("Error in TestRequestPrint fetchData:", err);
       setError(true);
     } finally {
       setLoading(false);
@@ -572,24 +589,36 @@ const TestRequestPrint = () => {
 
         @media print {
           @page {
-            size: A4;
-            margin: 0;
+            size: A4 portrait;
+            margin: 8mm 10mm;
           }
-          body, html { 
-            margin: 0;
-            padding: 0;
-            background: transparent; 
+          html, body { 
+            width: 100% !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff !important; 
+            overflow: visible !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .print-container { 
+            width: 100% !important; 
+            max-width: 100% !important;
+            margin: 0 !important; 
+            padding: 0 !important; 
           }
           .print-page { 
-            width: 210mm; 
-            height: 296mm; 
-            padding: 10mm; 
-            margin: 0; 
-            box-sizing: border-box;
+            width: 100% !important; 
+            max-width: 100% !important;
+            min-height: auto !important;
+            height: auto !important;
+            padding: 0 !important; 
+            margin: 0 !important; 
+            box-sizing: border-box !important;
             page-break-after: always;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
+            overflow: visible !important;
+            display: block !important;
           }
           .print-page:last-child {
             page-break-after: auto;

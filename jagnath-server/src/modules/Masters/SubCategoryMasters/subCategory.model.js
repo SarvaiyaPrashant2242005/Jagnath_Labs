@@ -1,12 +1,12 @@
 /**
- * @file parameter.model.js
- * @description Sequelize model for Parameters.
+ * @file subCategory.model.js
+ * @description Sequelize model for SubCategories (linked to Category / Discipline Group).
  */
 
 const { DataTypes } = require("sequelize");
 const sequelize = require("../../../config/database");
 
-const Parameter = sequelize.define("Parameter", {
+const SubCategory = sequelize.define("SubCategory", {
     id: {
         type: DataTypes.UUID,
         defaultValue: DataTypes.UUIDV4,
@@ -20,24 +20,20 @@ const Parameter = sequelize.define("Parameter", {
             key: "id",
         }
     },
-    subCategoryId: {
+    categoryId: {
         type: DataTypes.UUID,
-        allowNull: true,
+        allowNull: false,
         references: {
-            model: "sub_categories",
+            model: "categories",
             key: "id",
         }
     },
-    parameterName: {
+    name: {
         type: DataTypes.STRING,
         allowNull: false,
     },
     description: {
         type: DataTypes.TEXT,
-        allowNull: true,
-    },
-    testMethod: {
-        type: DataTypes.STRING,
         allowNull: true,
     },
     status: {
@@ -46,7 +42,7 @@ const Parameter = sequelize.define("Parameter", {
         allowNull: false,
     }
 }, {
-    tableName: "parameters",
+    tableName: "sub_categories",
     paranoid: true,
     timestamps: true,
     createdAt: "created_at",
@@ -54,4 +50,4 @@ const Parameter = sequelize.define("Parameter", {
     deletedAt: "deleted_at",
 });
 
-module.exports = Parameter;
+module.exports = SubCategory;

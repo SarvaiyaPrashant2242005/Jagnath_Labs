@@ -1,85 +1,46 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  FaFolder, FaPlus, FaDownload, FaEdit, FaTrash, FaCheck,
-  FaExclamationCircle, FaFileExcel, FaCopy, FaFileCsv,
-  FaFilePdf, FaPrint, FaChevronDown
+import { 
+  FaFolder, FaPlus, FaDownload, FaEdit, FaTrash, FaCheck, 
+  FaExclamationCircle, FaFileExcel, FaCopy, FaFileCsv, 
+  FaFilePdf, FaPrint, FaChevronDown 
 } from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
-import { CATEGORY_ENDPOINTS, COMPANY_ENDPOINTS } from '../../../shared/services/apiEndpoints';
+import { SUB_CATEGORY_ENDPOINTS, CATEGORY_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 import Pagination from '../../../shared/components/Pagination';
 import BulkImportModal from '../../../shared/components/BulkImport/BulkImportModal';
-<<<<<<< HEAD
-import { downloadCSV, downloadExcel, copyTextToClipboard } from '../../../shared/utils/exportUtils';
-=======
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
->>>>>>> Test
 
-const CategoryMaster = () => {
-  // Category & Company states
+/**
+ * @component SubCategoryMaster
+ * @description Master management UI for Sub Categories. Matches exact UI/UX color schemes & structure of Discipline Group Master.
+ */
+const SubCategoryMaster = () => {
+  // State
+  const [subCategories, setSubCategories] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
 
-<<<<<<< HEAD
-  // Multi-Select state
-  const [selectedIds, setSelectedIds] = useState([]);
-
-  // Select all / deselect all current page categories
-  const handleSelectAll = (e) => {
-    if (e.target.checked) {
-      const allIds = categories.map(c => c.id);
-      setSelectedIds(allIds);
-    } else {
-      setSelectedIds([]);
-    }
-  };
-
-  // Toggle single category selection
-  const handleSelectRow = (id, e) => {
-    e.stopPropagation();
-    setSelectedIds(prev =>
-      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
-    );
-  };
-
-  // Bulk Delete Selected
-  const handleBulkDelete = async () => {
-    if (selectedIds.length === 0) return;
-    if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} selected categories?`)) return;
-
-    try {
-      setLoading(true);
-      await Promise.all(selectedIds.map(id => apiService.delete(CATEGORY_ENDPOINTS.DELETE(id))));
-      triggerToast(`Successfully deleted ${selectedIds.length} categories!`, 'success');
-      setSelectedIds([]);
-      fetchCategories();
-    } catch (err) {
-      triggerToast(err.message || 'Failed to delete selected categories.', 'error');
-      setLoading(false);
-    }
-  };
-=======
   // Delete confirmation modal state
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null, name: '' });
   const [deleting, setDeleting] = useState(false);
->>>>>>> Test
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-
+  
   // Toast notifications state
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
   // Form visibility and editing state
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
-
+  
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
 
   // Download Dropdown toggle
@@ -88,10 +49,10 @@ const CategoryMaster = () => {
 
   // Form inputs state
   const [formData, setFormData] = useState({
+    categoryId: '',
     name: '',
     description: '',
-    status: 'Active',
-    companyName: ''
+    status: 'Active'
   });
   const [formErrors, setFormErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -115,62 +76,50 @@ const CategoryMaster = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Fetch all companies associated with user
-  const fetchCompanies = async () => {
+  // Fetch parent Discipline Groups (Categories)
+  const fetchCategories = async () => {
     try {
-      const response = await apiService.get(COMPANY_ENDPOINTS.GET_MY);
+      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
+      const params = new URLSearchParams({ limit: 100, status: 'Active' });
+      if (activeCompId) params.append('companyId', activeCompId);
+      
+      const response = await apiService.get(`${CATEGORY_ENDPOINTS.GET_ALL}?${params.toString()}`);
       if (response && response.data) {
-        const companyList = Array.isArray(response.data) ? response.data : [response.data];
-        setCompanies(companyList);
-        return companyList;
+        setCategories(response.data);
       }
-      return [];
     } catch (err) {
-      return [];
+      setCategories([]);
     }
   };
 
-  // Fetch all categories
-  const fetchCategories = async (page = currentPage, limit = pageSize, search = searchQuery, status = statusFilter) => {
+  // Fetch Sub Categories
+  const fetchSubCategories = async () => {
     setLoading(true);
     try {
       const activeCompId = localStorage.getItem('selectedCompanyId') || '';
       const params = new URLSearchParams({
-        page: page,
-        limit: limit,
-        search: search,
-        status: status
+        page: currentPage,
+        limit: pageSize,
+        search: searchQuery,
+        status: statusFilter
       });
-      if (activeCompId) {
-        params.append('companyId', activeCompId);
-      }
-
-      const url = `${CATEGORY_ENDPOINTS.GET_ALL}?${params.toString()}`;
+      if (activeCompId) params.append('companyId', activeCompId);
+      if (categoryFilter) params.append('categoryId', categoryFilter);
+      
+      const url = `${SUB_CATEGORY_ENDPOINTS.GET_ALL}?${params.toString()}`;
       const response = await apiService.get(url);
+      
       if (response && response.data) {
-        if (response.data.rows !== undefined) {
-          setCategories(response.data.rows);
-          setTotalItems(response.data.total);
-          setTotalPages(response.data.totalPages);
-        } else {
-          const categoryList = Array.isArray(response.data) ? response.data : [response.data];
-          setCategories(categoryList);
-          setTotalItems(categoryList.length);
-          setTotalPages(1);
+        setSubCategories(response.data);
+        if (response.meta) {
+          setTotalItems(response.meta.totalItems || response.data.length);
+          setTotalPages(response.meta.totalPages || 1);
         }
       } else {
-        setCategories([]);
-        setTotalItems(0);
-        setTotalPages(0);
+        setSubCategories([]);
       }
     } catch (err) {
-      if (err.status !== 404 && err.errorCode !== 'NOT_FOUND') {
-        triggerToast(err.messageToShow || err.message || 'Failed to fetch categories.', 'error');
-      } else {
-        setCategories([]);
-        setTotalItems(0);
-        setTotalPages(0);
-      }
+      triggerToast('Failed to fetch sub categories.', 'error');
     } finally {
       setLoading(false);
     }
@@ -178,30 +127,45 @@ const CategoryMaster = () => {
 
   useEffect(() => {
     fetchCategories();
-  }, [currentPage, pageSize, searchQuery, statusFilter]);
-
-  useEffect(() => {
-    const initializeData = async () => {
-      await fetchCompanies();
-      await fetchCategories();
-    };
-    initializeData();
-
-    const handleCompanyChange = () => {
-      fetchCategories();
-    };
-    window.addEventListener('companyChanged', handleCompanyChange);
-    return () => window.removeEventListener('companyChanged', handleCompanyChange);
   }, []);
 
-  // Form validation
-  const validateForm = () => {
-    const errors = {};
-    if (!formData.name.trim()) {
-      errors.name = 'Category Name is required.';
-    }
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
+  useEffect(() => {
+    fetchSubCategories();
+  }, [currentPage, pageSize, searchQuery, categoryFilter, statusFilter]);
+
+  // Listen to company switch
+  useEffect(() => {
+    const handleCompanySwitch = () => {
+      setCurrentPage(1);
+      fetchCategories();
+      fetchSubCategories();
+    };
+    window.addEventListener('companyChanged', handleCompanySwitch);
+    return () => window.removeEventListener('companyChanged', handleCompanySwitch);
+  }, []);
+
+  const handleOpenCreate = () => {
+    setEditingId(null);
+    setFormData({
+      categoryId: categories.length > 0 ? categories[0].id : '',
+      name: '',
+      description: '',
+      status: 'Active'
+    });
+    setFormErrors({});
+    setIsFormOpen(true);
+  };
+
+  const handleOpenEdit = (item) => {
+    setEditingId(item.id);
+    setFormData({
+      categoryId: item.categoryId || (item.category ? item.category.id : ''),
+      name: item.name || '',
+      description: item.description || '',
+      status: item.status || 'Active'
+    });
+    setFormErrors({});
+    setIsFormOpen(true);
   };
 
   const handleInputChange = (e) => {
@@ -212,69 +176,39 @@ const CategoryMaster = () => {
     }
   };
 
-  // Open Form for Create
-  const handleOpenCreate = () => {
-    const activeCompId = localStorage.getItem('selectedCompanyId');
-    const matchedComp = companies.find(c => c.id === activeCompId);
-    const defaultCompanyName = matchedComp ? (matchedComp.companyName || matchedComp.company_name) : (companies.length > 0 ? (companies[0].companyName || companies[0].company_name) : '');
-
-    setFormData({
-      name: '',
-      description: '',
-      status: 'Active',
-      companyName: defaultCompanyName
-    });
-    setFormErrors({});
-    setEditingId(null);
-    setIsFormOpen(true);
+  const validateForm = () => {
+    const errors = {};
+    if (!formData.categoryId) errors.categoryId = 'Discipline Group is required';
+    if (!formData.name.trim()) errors.name = 'Sub Category Name is required';
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
-  // Open Form for Edit
-  const handleOpenEdit = (category) => {
-    setFormData({
-      name: category.name || '',
-      description: category.description || '',
-      status: category.status || 'Active',
-      companyName: category.companyName || (category.company ? (category.company.companyName || category.company.company_name) : '')
-    });
-    setFormErrors({});
-    setEditingId(category.id);
-    setIsFormOpen(true);
-  };
-
-  // Submit Handler
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
+
     setSubmitting(true);
-
-    const activeCompId = localStorage.getItem('selectedCompanyId');
-    const matchedComp = companies.find(c => c.id === activeCompId);
-    const activeCompanyName = matchedComp ? (matchedComp.companyName || matchedComp.company_name) : '';
-
-    if (!activeCompanyName && !formData.companyName) {
-      triggerToast('Please select a company in the top header first.', 'error');
-      setSubmitting(false);
-      return;
-    }
-
-    const payload = {
-      name: formData.name,
-      description: formData.description,
-      status: formData.status,
-      companyName: activeCompanyName || formData.companyName
-    };
-
     try {
+      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
+      const payload = {
+        categoryId: formData.categoryId,
+        name: formData.name.trim(),
+        description: formData.description ? formData.description.trim() : null,
+        status: formData.status,
+        companyId: activeCompId
+      };
+
       if (editingId) {
-        await apiService.put(CATEGORY_ENDPOINTS.UPDATE(editingId), payload);
-        triggerToast('Category updated successfully.', 'success');
+        await apiService.put(SUB_CATEGORY_ENDPOINTS.UPDATE(editingId), payload);
+        triggerToast('Sub Category updated successfully.', 'success');
       } else {
-        await apiService.post(CATEGORY_ENDPOINTS.CREATE, payload);
-        triggerToast('Category created successfully.', 'success');
+        await apiService.post(SUB_CATEGORY_ENDPOINTS.CREATE, payload);
+        triggerToast('Sub Category created successfully.', 'success');
       }
+
       setIsFormOpen(false);
-      fetchCategories();
+      fetchSubCategories();
     } catch (err) {
       triggerToast(err.messageToShow || err.message || 'Operation failed. Please try again.', 'error');
     } finally {
@@ -282,26 +216,6 @@ const CategoryMaster = () => {
     }
   };
 
-  // Toggle status inline
-  const handleToggleStatus = async (cat, e) => {
-    e.stopPropagation();
-    const newStatus = cat.status === 'Active' ? 'Inactive' : 'Active';
-    try {
-      const payload = {
-        name: cat.name,
-        description: cat.description,
-        status: newStatus,
-        companyName: cat.companyName
-      };
-      await apiService.put(CATEGORY_ENDPOINTS.UPDATE(cat.id), payload);
-      triggerToast(`Status changed to ${newStatus}.`, 'success');
-      fetchCategories();
-    } catch (err) {
-      triggerToast(err.messageToShow || err.message || 'Failed to toggle status.', 'error');
-    }
-  };
-
-  // Delete Handler
   const handleDelete = (id, name = '') => {
     setDeleteModal({ isOpen: true, id, name });
   };
@@ -310,101 +224,105 @@ const CategoryMaster = () => {
     if (!deleteModal.id) return;
     setDeleting(true);
     try {
-      await apiService.delete(CATEGORY_ENDPOINTS.DELETE(deleteModal.id));
-      triggerToast('Category deleted successfully.', 'success');
+      await apiService.delete(SUB_CATEGORY_ENDPOINTS.DELETE(deleteModal.id));
+      triggerToast('Sub Category deleted successfully.', 'success');
       setDeleteModal({ isOpen: false, id: null, name: '' });
-      fetchCategories();
+      fetchSubCategories();
     } catch (err) {
-      triggerToast(err.messageToShow || err.message || 'Failed to delete category.', 'error');
+      triggerToast(err.messageToShow || err.message || 'Failed to delete sub category.', 'error');
     } finally {
       setDeleting(false);
     }
   };
 
-  // Helper to fetch all records matching active filter (no pagination limit)
-  const fetchAllExportData = async () => {
-    try {
-      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
-      const params = new URLSearchParams({
-        page: 1,
-        limit: 100000,
-        search: searchQuery,
-        status: statusFilter
-      });
-      if (activeCompId) {
-        params.append('companyId', activeCompId);
-      }
-
-      const url = `${CATEGORY_ENDPOINTS.GET_ALL}?${params.toString()}`;
-      const response = await apiService.get(url);
-      if (response && response.data) {
-        return Array.isArray(response.data) ? response.data : (response.data.rows || []);
-      }
-      return categories;
-    } catch (err) {
-      return categories;
-    }
-  };
-
-  const handleDownloadCSV = async () => {
-    const allData = await fetchAllExportData();
-    if (!allData || allData.length === 0) return;
-    const headers = ['Category Name', 'Description', 'Status'];
-    const rows = allData.map(c => [
-      c.name,
-      c.description || 'None',
-      c.status
+  // Export handlers matching CategoryMaster
+  const handleDownloadExcel = () => {
+    if (subCategories.length === 0) return;
+    const headers = ['Discipline Group', 'Sub Category Name', 'Description', 'Status'];
+    const rows = subCategories.map(sc => [
+      sc.category ? sc.category.name : 'N/A',
+      sc.name,
+      sc.description || 'None',
+      sc.status
     ]);
-    downloadCSV(headers, rows, 'Categories_Report.csv');
+    
+    let htmlTable = `
+      <table border="1">
+        <thead>
+          <tr style="background-color: #f8fafc; font-weight: bold;">
+            ${headers.map(h => `<th>${h}</th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(r => `<tr>${r.map(val => `<td>${val}</td>`).join('')}</tr>`).join('')}
+        </tbody>
+      </table>
+    `;
+    const excelBlob = new Blob([htmlTable], { type: 'application/vnd.ms-excel' });
+    const excelUrl = URL.createObjectURL(excelBlob);
+    const link = document.createElement("a");
+    link.setAttribute("href", excelUrl);
+    link.setAttribute("download", "Sub_Categories_Report.xls");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
     setShowDownloadDropdown(false);
   };
 
-  const handleDownloadExcel = async () => {
-    const allData = await fetchAllExportData();
-    if (!allData || allData.length === 0) return;
-    const headers = ['Category Name', 'Description', 'Status'];
-    const rows = allData.map(c => [
-      c.name,
-      c.description || 'None',
-      c.status
+  const handleDownloadCSV = () => {
+    if (subCategories.length === 0) return;
+    const headers = ['Discipline Group', 'Sub Category Name', 'Description', 'Status'];
+    const rows = subCategories.map(sc => [
+      sc.category ? sc.category.name : 'N/A',
+      sc.name,
+      sc.description || 'None',
+      sc.status
     ]);
-    downloadExcel(headers, rows, 'Categories_Report.xlsx');
+
+    let csvContent = 'data:text/csv;charset=utf-8,' 
+      + [headers.join(','), ...rows.map(e => e.map(val => `"${val}"`).join(','))].join('\n');
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `Sub_Categories_Export_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
     setShowDownloadDropdown(false);
   };
 
-  const handleCopy = async () => {
-    const allData = await fetchAllExportData();
-    if (!allData || allData.length === 0) return;
-    const headers = ['Category Name', 'Description', 'Status'];
-    const rows = allData.map(c => [
-      c.name,
-      c.description || 'None',
-      c.status
+  const handleCopy = () => {
+    if (subCategories.length === 0) return;
+    const headers = ['Discipline Group', 'Sub Category Name', 'Description', 'Status'];
+    const rows = subCategories.map(sc => [
+      sc.category ? sc.category.name : 'N/A',
+      sc.name,
+      sc.description || 'None',
+      sc.status
     ]);
     const text = [headers.join('\t'), ...rows.map(r => r.join('\t'))].join('\n');
-    copyTextToClipboard(text,
-      () => triggerToast('Copied to clipboard successfully.', 'success'),
-      () => triggerToast('Failed to copy text.', 'error')
-    );
+    navigator.clipboard.writeText(text);
+    triggerToast('Copied to clipboard successfully.', 'success');
     setShowDownloadDropdown(false);
   };
 
-  const handlePrintPDF = async () => {
-    const allData = await fetchAllExportData();
-    if (!allData || allData.length === 0) return;
+  const handlePrintPDF = () => {
+    if (subCategories.length === 0) return;
     const printWindow = window.open('', '_blank');
-    const rows = allData.map(c => `
+    const rows = subCategories.map(sc => `
       <tr>
-        <td>${c.name}</td>
-        <td>${c.description || 'None'}</td>
-        <td>${c.status}</td>
+        <td>${sc.category ? sc.category.name : 'N/A'}</td>
+        <td>${sc.name}</td>
+        <td>${sc.description || 'None'}</td>
+        <td>${sc.status}</td>
       </tr>
     `).join('');
 
     printWindow.document.write(`
       <html>
         <head>
-          <title>Categories Report</title>
+          <title>Sub Categories Report</title>
           <style>
             body { font-family: sans-serif; padding: 20px; }
             table { width: 100%; border-collapse: collapse; margin-top: 20px; }
@@ -413,10 +331,10 @@ const CategoryMaster = () => {
           </style>
         </head>
         <body>
-          <h2>Categories Report</h2>
+          <h2>Sub Categories Report</h2>
           <table>
             <thead>
-              <tr><th>Category Name</th><th>Description</th><th>Status</th></tr>
+              <tr><th>Discipline Group</th><th>Sub Category Name</th><th>Description</th><th>Status</th></tr>
             </thead>
             <tbody>
               ${rows}
@@ -435,7 +353,6 @@ const CategoryMaster = () => {
     setShowDownloadDropdown(false);
   };
 
-  // Print trigger
   const handlePrint = () => {
     window.print();
     setShowDownloadDropdown(false);
@@ -443,7 +360,7 @@ const CategoryMaster = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-
+      
       {/* Toast Notification Container */}
       {toast.show && (
         <div style={{
@@ -472,17 +389,17 @@ const CategoryMaster = () => {
       <div className="master-top-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' }}>
         <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
           <FaFolder style={{ color: '#22c55e' }} />
-          <span>Discipline Group Master</span>
+          <span>Sub Category Master</span>
         </h2>
         <div className="master-top-bar-actions" style={{ display: 'flex', gap: '0.75rem', position: 'relative' }} ref={dropdownRef}>
           {!isFormOpen && (
             <>
-              <button
-                onClick={handleOpenCreate}
+              <button 
+                onClick={handleOpenCreate} 
                 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1rem', fontWeight: 600, cursor: 'pointer' }}
               >
                 <FaPlus />
-                <span>Discipline Group</span>
+                <span>Sub Category</span>
               </button>
               <button
                 onClick={() => setIsBulkImportOpen(true)}
@@ -495,21 +412,21 @@ const CategoryMaster = () => {
           )}
 
           {/* Premium Download Button */}
-          <button
-            onClick={() => setShowDownloadDropdown(!showDownloadDropdown)}
-            disabled={categories.length === 0}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              backgroundColor: '#22c55e',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: '8px',
-              padding: '0.5rem 1.25rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              opacity: categories.length === 0 ? 0.6 : 1,
+          <button 
+            onClick={() => setShowDownloadDropdown(!showDownloadDropdown)} 
+            disabled={subCategories.length === 0}
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '0.5rem', 
+              backgroundColor: '#22c55e', 
+              color: '#ffffff', 
+              border: 'none', 
+              borderRadius: '8px', 
+              padding: '0.5rem 1.25rem', 
+              fontWeight: 600, 
+              cursor: 'pointer', 
+              opacity: subCategories.length === 0 ? 0.6 : 1,
               boxShadow: '0 2px 4px rgba(34, 197, 94, 0.2)'
             }}
           >
@@ -570,31 +487,44 @@ const CategoryMaster = () => {
         </div>
       </div>
 
-      {/* Form Container */}
+      {/* Form Container (Below buttons, identical UX to Category/Discipline Group Master) */}
       {isFormOpen && (
         <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
           <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '1.25rem', color: '#1e293b' }}>
-            {editingId ? 'Edit Discipline Group' : 'Add New Discipline Group'}
+            {editingId ? 'Edit Sub Category' : 'Add New Sub Category'}
           </h3>
-
+          
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
-
-              {/* Category Name */}
+              
+              {/* Discipline Group Dropdown */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-<<<<<<< HEAD
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Category Name *</label>
-                <input
-                  type="text"
-=======
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Discipline Group Name *</label>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Discipline Group *</label>
+                <select
+                  name="categoryId"
+                  value={formData.categoryId}
+                  onChange={handleInputChange}
+                  style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.categoryId ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none', backgroundColor: '#ffffff' }}
+                >
+                  <option value="">Select Discipline Group</option>
+                  {categories.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </select>
+                {formErrors.categoryId && (
+                  <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 500 }}>{formErrors.categoryId}</span>
+                )}
+              </div>
+
+              {/* Sub Category Name */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Sub Category Name *</label>
                 <input 
                   type="text" 
->>>>>>> Test
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
-                  placeholder="e.g. Chemical Parameters"
+                  placeholder="e.g. Physical Parameters"
                   style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.name ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none' }}
                 />
                 {formErrors.name && (
@@ -605,11 +535,11 @@ const CategoryMaster = () => {
               {/* Description */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: 'span 2' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Description</label>
-                <textarea
+                <textarea 
                   name="description"
                   value={formData.description}
                   onChange={handleInputChange}
-                  placeholder="Optional description of tests under this category"
+                  placeholder="Optional description"
                   rows={2}
                   style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
                 />
@@ -655,15 +585,15 @@ const CategoryMaster = () => {
 
             {/* Action Buttons */}
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
-              <button
-                type="button"
+              <button 
+                type="button" 
                 onClick={() => setIsFormOpen(false)}
                 style={{ padding: '0.5rem 1.25rem', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', backgroundColor: '#ffffff', color: '#475569', fontWeight: 600 }}
               >
                 Cancel
               </button>
-              <button
-                type="submit"
+              <button 
+                type="submit" 
                 disabled={submitting}
                 style={{ padding: '0.5rem 1.25rem', border: 'none', borderRadius: '6px', cursor: 'pointer', backgroundColor: '#22c55e', color: '#ffffff', fontWeight: 600, opacity: submitting ? 0.7 : 1 }}
               >
@@ -677,41 +607,23 @@ const CategoryMaster = () => {
 
       {/* Main Table view */}
       <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
-
+        
         {/* Table Filters */}
         <div className="master-table-filters" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
-<<<<<<< HEAD
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{ fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>
-              Total Categories: {totalItems}
-            </div>
-            {selectedIds.length > 0 && (
-              <button
-                onClick={handleBulkDelete}
-                style={{
-                  background: '#ef4444',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '6px',
-                  padding: '0.4rem 0.85rem',
-                  fontWeight: 600,
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  boxShadow: '0 1px 2px rgba(239, 68, 68, 0.2)'
-                }}
-              >
-                <FaTrash size={12} /> Delete Selected ({selectedIds.length})
-              </button>
-            )}
-=======
           <div style={{ fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>
-            Total Discipline Groups: {totalItems}
->>>>>>> Test
+            Total Sub Categories: {totalItems}
           </div>
           <div className="master-filter-inputs" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <select
+              value={categoryFilter}
+              onChange={(e) => { setCategoryFilter(e.target.value); setCurrentPage(1); }}
+              style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem' }}
+            >
+              <option value="">ALL DISCIPLINE GROUPS</option>
+              {categories.map(cat => (
+                <option key={cat.id} value={cat.id}>{cat.name}</option>
+              ))}
+            </select>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -732,21 +644,14 @@ const CategoryMaster = () => {
         </div>
 
         {/* Desktop Table View */}
-        <div className="show-on-desktop master-table-responsive" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        <div className="show-on-desktop master-table-responsive" style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                <th style={{ padding: '0.75rem 0.75rem', width: '40px', textAlign: 'center' }}>
-                  <input
-                    type="checkbox"
-                    checked={categories.length > 0 && selectedIds.length === categories.length}
-                    onChange={handleSelectAll}
-                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                  />
-                </th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ACTIONS</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CATEGORY NAME</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>DISCIPLINE GROUP</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SUB CATEGORY NAME</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATUS</th>
               </tr>
             </thead>
@@ -754,46 +659,33 @@ const CategoryMaster = () => {
               {loading ? (
                 <tr>
                   <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-                    Loading categories...
+                    Loading Sub Categories...
                   </td>
                 </tr>
-              ) : categories.length === 0 ? (
+              ) : subCategories.length === 0 ? (
                 <tr>
                   <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-                    No categories found.
+                    No Sub Categories found.
                   </td>
                 </tr>
               ) : (
-                categories.map((category, index) => (
-                  <tr
-                    key={category.id}
-                    onClick={() => handleOpenEdit(category)}
+                subCategories.map((item, index) => (
+                  <tr 
+                    key={item.id} 
+                    onClick={() => handleOpenEdit(item)}
                     style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background-color 0.15s' }}
                     className="company-table-row"
                   >
-                    <td style={{ padding: '0.75rem 0.75rem', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.includes(category.id)}
-                        onChange={(e) => handleSelectRow(category.id, e)}
-                        style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                      />
-                    </td>
                     <td style={{ padding: '0.75rem 1rem', display: 'flex', gap: '0.5rem' }}>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleOpenEdit(category); }}
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handleOpenEdit(item); }}
                         style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                         title="Edit"
                       >
                         <FaEdit size={12} />
                       </button>
-<<<<<<< HEAD
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleDelete(category.id); }}
-=======
                       <button 
-                        onClick={(e) => { e.stopPropagation(); handleDelete(category.id, category.categoryName || category.name); }}
->>>>>>> Test
+                        onClick={(e) => { e.stopPropagation(); handleDelete(item.id, item.name); }}
                         style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                         title="Delete"
                       >
@@ -801,18 +693,19 @@ const CategoryMaster = () => {
                       </button>
                     </td>
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{category.categoryName || category.name}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#2563eb', fontWeight: 600 }}>{item.category ? item.category.name : 'N/A'}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{item.name}</td>
                     <td style={{ padding: '0.75rem 1rem' }}>
-                      <span style={{
+                      <span style={{ 
                         display: 'inline-block',
                         padding: '0.125rem 0.5rem',
                         fontSize: '0.75rem',
                         fontWeight: 600,
                         borderRadius: '12px',
-                        backgroundColor: category.status === 'Active' ? '#dcfce7' : '#fee2e2',
-                        color: category.status === 'Active' ? '#15803d' : '#991b1b'
+                        backgroundColor: item.status === 'Active' ? '#dcfce7' : '#fee2e2',
+                        color: item.status === 'Active' ? '#15803d' : '#991b1b'
                       }}>
-                        {category.status}
+                        {item.status}
                       </span>
                     </td>
                   </tr>
@@ -825,48 +718,39 @@ const CategoryMaster = () => {
         {/* Mobile Cards View */}
         <div className="show-on-mobile">
           {loading ? (
-            <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-              Loading categories...
-            </div>
-          ) : categories.length === 0 ? (
-            <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-              No categories found.
-            </div>
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>Loading Sub Categories...</div>
+          ) : subCategories.length === 0 ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>No Sub Categories found.</div>
           ) : (
             <div className="master-card-grid">
-              {categories.map((category, index) => (
-                <div key={category.id} className="master-record-card" onClick={() => handleOpenEdit(category)}>
+              {subCategories.map((item, index) => (
+                <div key={item.id} className="master-record-card" onClick={() => handleOpenEdit(item)}>
                   <div className="master-record-card-header">
                     <div>
-                      <div className="master-record-title">{category.categoryName || category.name}</div>
-                      <div className="master-record-subtitle">#{(currentPage - 1) * pageSize + index + 1}</div>
+                      <div className="master-record-title">{item.name}</div>
+                      <div className="master-record-subtitle">{item.category?.name || 'N/A'} • #{ (currentPage - 1) * pageSize + index + 1 }</div>
                     </div>
-                    <span style={{
+                    <span style={{ 
                       padding: '0.2rem 0.6rem',
                       fontSize: '0.75rem',
                       fontWeight: 700,
                       borderRadius: '12px',
-                      backgroundColor: category.status === 'Active' ? '#dcfce7' : '#fee2e2',
-                      color: category.status === 'Active' ? '#15803d' : '#991b1b'
+                      backgroundColor: item.status === 'Active' ? '#dcfce7' : '#fee2e2',
+                      color: item.status === 'Active' ? '#15803d' : '#991b1b'
                     }}>
-                      {category.status}
+                      {item.status}
                     </span>
                   </div>
 
                   <div className="master-record-actions">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleOpenEdit(category); }}
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleOpenEdit(item); }}
                       style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                     >
                       <FaEdit size={12} /> Edit
                     </button>
-<<<<<<< HEAD
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleDelete(category.id); }}
-=======
                     <button 
-                      onClick={(e) => { e.stopPropagation(); handleDelete(category.id, category.categoryName || category.name); }}
->>>>>>> Test
+                      onClick={(e) => { e.stopPropagation(); handleDelete(item.id, item.name); }}
                       style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                     >
                       <FaTrash size={12} /> Delete
@@ -879,7 +763,7 @@ const CategoryMaster = () => {
         </div>
 
         {/* Pagination Controls */}
-        <Pagination
+        <Pagination 
           currentPage={currentPage}
           totalPages={totalPages}
           totalItems={totalItems}
@@ -890,48 +774,48 @@ const CategoryMaster = () => {
             setCurrentPage(1);
           }}
         />
-      </div>
 
-      {/* Bulk Excel Import Modal */}
-      <BulkImportModal
-        isOpen={isBulkImportOpen}
-        onClose={() => setIsBulkImportOpen(false)}
-        masterType="category"
-        existingDbRecords={categories}
-        onImportSuccess={async (validRows) => {
-          const res = await apiService.post(CATEGORY_ENDPOINTS.BULK_IMPORT, { rows: validRows });
-          if (res && res.success) {
-            const inserted = res.data?.inserted ?? res.data?.createdCount ?? 0;
-            const updated = res.data?.updated ?? res.data?.updatedCount ?? 0;
-            triggerToast(`Bulk Import Complete: ${inserted} created, ${updated} updated!`, 'success');
-            fetchCategories();
-          } else {
-            throw new Error(res?.message || 'Failed to import categories.');
-          }
-        }}
-      />
+      </div>
 
       {/* Reusable Delete Confirmation Modal */}
       <ConfirmDialog
         isOpen={deleteModal.isOpen}
         onClose={() => setDeleteModal({ isOpen: false, id: null, name: '' })}
         onConfirm={confirmDelete}
-        title="Delete Category"
+        title="Delete Sub Category"
         message={
           deleteModal.name ? (
-            <>Are you sure you want to delete category <strong>{deleteModal.name}</strong>? This action cannot be undone.</>
+            <>Are you sure you want to delete sub category <strong>{deleteModal.name}</strong>? This action cannot be undone.</>
           ) : (
-            'Are you sure you want to delete this category? This action cannot be undone.'
+            'Are you sure you want to delete this sub category? This action cannot be undone.'
           )
         }
-        confirmText="Delete Category"
+        confirmText="Delete Sub Category"
         cancelText="Cancel"
         variant="danger"
         loading={deleting}
+      />
+
+      {/* Bulk Excel Import Modal */}
+      <BulkImportModal
+        isOpen={isBulkImportOpen}
+        onClose={() => setIsBulkImportOpen(false)}
+        masterType="subCategory"
+        existingDbRecords={subCategories}
+        onImportSuccess={async (validRows) => {
+          const activeCompId = localStorage.getItem('selectedCompanyId') || '';
+          const res = await apiService.post(SUB_CATEGORY_ENDPOINTS.BULK_IMPORT, { rows: validRows, companyId: activeCompId });
+          if (res && res.success) {
+            triggerToast(res.message || 'Sub Categories imported successfully!', 'success');
+            fetchSubCategories();
+          } else {
+            throw new Error(res?.message || 'Failed to import sub categories.');
+          }
+        }}
       />
 
     </div>
   );
 };
 
-export default CategoryMaster;
+export default SubCategoryMaster;

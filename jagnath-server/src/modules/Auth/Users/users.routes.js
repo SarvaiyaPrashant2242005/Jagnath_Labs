@@ -9,6 +9,9 @@ const { authenticateToken } = require("../../../middlewares/auth.middleware");
 
 router.post("/register", usersController.register);
 router.post("/login", usersController.login);
+router.post("/forgot-password", usersController.forgotPassword);
+router.post("/verify-otp", usersController.verifyOtp);
+router.post("/reset-password", usersController.resetPassword);
 router.post("/refresh-token", usersController.rotateToken);
 router.get("/me", authenticateToken, usersController.getMe);
 router.post("/logout", authenticateToken, usersController.logout);

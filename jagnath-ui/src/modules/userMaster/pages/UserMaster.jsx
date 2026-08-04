@@ -3,10 +3,11 @@ import { apiService } from '../../../shared/services/apiService';
 import { USER_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 import { 
   FaUserShield, FaPlus, FaSearch, FaEdit, FaTrash, FaCheck, 
-  FaExclamationCircle, FaUserCheck, FaUserTimes, FaKey, FaShieldAlt, FaFileExcel
+  FaExclamationCircle, FaUserCheck, FaUserTimes, FaKey, FaShieldAlt, FaFileExcel, FaEye, FaEyeSlash
 } from 'react-icons/fa';
 import Pagination from '../../../shared/components/Pagination';
 import BulkImportModal from '../../../shared/components/BulkImport/BulkImportModal';
+import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 
 /**
  * @component UserMaster
@@ -33,12 +34,16 @@ const UserMaster = () => {
     name: '',
     email: '',
     password: '',
+    confirmPassword: '',
     role: 'User',
     status: 'Active'
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Delete Confirmation Modal
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, targetId: null, targetName: '' });
+  const [deleting, setDeleting] = useState(false);
 
   // Toast Notification
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
@@ -81,9 +86,12 @@ const UserMaster = () => {
       name: '',
       email: '',
       password: '',
+      confirmPassword: '',
       role: 'User',
       status: 'Active'
     });
+    setShowPassword(false);
+    setShowConfirmPassword(false);
     setIsEditing(false);
     setEditingId(null);
     setIsModalOpen(true);
@@ -112,6 +120,10 @@ const UserMaster = () => {
       triggerToast('Password is required for new users', 'error');
       return;
     }
+    if (!isEditing && formData.password !== formData.confirmPassword) {
+      triggerToast('Confirm password must match password', 'error');
+      return;
+    }
 
     try {
       if (isEditing) {
@@ -134,6 +146,8 @@ const UserMaster = () => {
   };
 
   const confirmDelete = async () => {
+    if (!deleteModal.targetId) return;
+    setDeleting(true);
     try {
       await apiService.delete(USER_ENDPOINTS.DELETE(deleteModal.targetId));
       triggerToast('User deleted successfully');
@@ -142,6 +156,8 @@ const UserMaster = () => {
     } catch (err) {
       console.error(err);
       triggerToast(err.messageToShow || 'Failed to delete user', 'error');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -419,14 +435,45 @@ const UserMaster = () => {
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>
                   Password {isEditing ? '(Leave blank to keep unchanged)' : '*'}
                 </label>
-                <input
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  placeholder="••••••••"
-                  style={{ padding: '0.6rem 0.8rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }}
-                />
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    placeholder="••••••••"
+                    style={{ padding: '0.6rem 2.4rem 0.6rem 0.8rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', width: '100%', boxSizing: 'border-box' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                  >
+                    {showPassword ? <FaEyeSlash size={16} /> : <FaEye size={16} />}
+                  </button>
+                </div>
               </div>
+
+              {!isEditing && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Confirm Password *</label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={formData.confirmPassword || ''}
+                      onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                      placeholder="••••••••"
+                      style={{ padding: '0.6rem 2.4rem 0.6rem 0.8rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', width: '100%', boxSizing: 'border-box' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                    >
+                      {showConfirmPassword ? <FaEyeSlash size={16} /> : <FaEye size={16} />}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
@@ -476,19 +523,24 @@ const UserMaster = () => {
         </div>
       )}
 
-      {/* Delete Modal */}
-      {deleteModal.isOpen && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', maxWidth: '420px', width: '90%', border: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Delete User</h3>
-            <p style={{ fontSize: '0.9rem', color: '#475569', margin: 0 }}>Are you sure you want to delete user <strong>{deleteModal.targetName}</strong>?</p>
-            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-              <button onClick={() => setDeleteModal({ isOpen: false, targetId: null, targetName: '' })} style={{ padding: '0.6rem 1.2rem', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#475569', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
-              <button onClick={confirmDelete} style={{ padding: '0.6rem 1.2rem', borderRadius: '8px', border: 'none', background: '#ef4444', color: '#ffffff', fontWeight: 600, cursor: 'pointer' }}>Delete</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Reusable Delete Confirmation Modal */}
+      <ConfirmDialog
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, targetId: null, targetName: '' })}
+        onConfirm={confirmDelete}
+        title="Delete User"
+        message={
+          deleteModal.targetName ? (
+            <>Are you sure you want to delete user <strong>{deleteModal.targetName}</strong>? This action cannot be undone.</>
+          ) : (
+            'Are you sure you want to delete this user? This action cannot be undone.'
+          )
+        }
+        confirmText="Delete User"
+        cancelText="Cancel"
+        variant="danger"
+        loading={deleting}
+      />
 
       {/* Bulk Excel Import Modal */}
       <BulkImportModal
