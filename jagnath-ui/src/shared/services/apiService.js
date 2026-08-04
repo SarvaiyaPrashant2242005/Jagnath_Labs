@@ -11,7 +11,10 @@
  * Retrieve the stored access token.
  * @returns {string|null}
  */
-const getAccessToken = () => sessionStorage.getItem("accessToken");
+const getAccessToken = () =>
+  sessionStorage.getItem("accessToken") ||
+  localStorage.getItem("accessToken") ||
+  localStorage.getItem("token");
 
 /**
  * Build default request headers.
@@ -79,8 +82,12 @@ const request = async (url, options = {}) => {
     if (response.status === 401) {
       const refreshToken = sessionStorage.getItem("refreshToken");
 
-      // Prevent infinite loops for the refresh endpoint itself
+      // Prevent infinite loops for the refresh endpoint itself or missing refresh token
       if (url === AUTH_ENDPOINTS.REFRESH_TOKEN || !refreshToken) {
+        sessionStorage.clear();
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
         throw error;
       }
 
@@ -88,9 +95,6 @@ const request = async (url, options = {}) => {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         }).then(token => {
-          if (options.headers && options.headers["Authorization"]) {
-            options.headers["Authorization"] = `Bearer ${token}`;
-          }
           return request(url, options);
         }).catch(err => {
           throw err;
@@ -107,32 +111,35 @@ const request = async (url, options = {}) => {
         })
           .then(res => res.json())
           .then(refreshData => {
-            if (refreshData?.success && refreshData?.data?.accessToken) {
-              const newAccessToken = refreshData.data.accessToken;
+            if (refreshData?.success && (refreshData?.data?.accessToken || refreshData?.data?.token)) {
+              const newAccessToken = refreshData.data.accessToken || refreshData.data.token;
               sessionStorage.setItem("accessToken", newAccessToken);
+              sessionStorage.setItem("token", newAccessToken);
+              localStorage.setItem("token", newAccessToken);
+              localStorage.setItem("accessToken", newAccessToken);
+
               if (refreshData.data.refreshToken) {
-                 sessionStorage.setItem("refreshToken", refreshData.data.refreshToken);
+                sessionStorage.setItem("refreshToken", refreshData.data.refreshToken);
+                localStorage.setItem("refreshToken", refreshData.data.refreshToken);
               }
               processQueue(null, newAccessToken);
-              
-              if (options.headers && options.headers["Authorization"]) {
-                options.headers["Authorization"] = `Bearer ${newAccessToken}`;
-              }
               resolve(request(url, options));
             } else {
-              sessionStorage.removeItem("accessToken");
-              sessionStorage.removeItem("refreshToken");
-              sessionStorage.removeItem("user");
-              window.location.href = "/login";
+              sessionStorage.clear();
+              localStorage.removeItem("accessToken");
+              localStorage.removeItem("token");
+              localStorage.removeItem("user");
+              window.location.hash = '#/login';
               processQueue(error, null);
               reject(error);
             }
           })
           .catch(err => {
-            sessionStorage.removeItem("accessToken");
-            sessionStorage.removeItem("refreshToken");
-            sessionStorage.removeItem("user");
-            window.location.href = "/login";
+            sessionStorage.clear();
+            localStorage.removeItem("accessToken");
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            window.location.hash = '#/login';
             processQueue(err, null);
             reject(err);
           })

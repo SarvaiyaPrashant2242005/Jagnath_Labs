@@ -411,7 +411,7 @@ const getCompanyByUserId = async (userId) => {
 };
 
 const checkOwnership = async (companyId, userId, isSuperAdmin = false) => {
-    if (isSuperAdmin) return true;
+    if (!companyId) return true;
     try {
         if (userId) {
             const user = await Users.findByPk(userId);
@@ -420,7 +420,10 @@ const checkOwnership = async (companyId, userId, isSuperAdmin = false) => {
             }
         }
         const company = await Company.findByPk(companyId);
-        if (!company) return false;
+        if (!company) {
+            // If company does not exist in database, allow query to complete with empty dataset (200 OK)
+            return true;
+        }
         if (company.userId === userId) return true;
 
         // Check fallback mapping table UserCompanies
@@ -429,7 +432,7 @@ const checkOwnership = async (companyId, userId, isSuperAdmin = false) => {
         });
         return !!mapping;
     } catch (error) {
-        throw error;
+        return false;
     }
 };
 

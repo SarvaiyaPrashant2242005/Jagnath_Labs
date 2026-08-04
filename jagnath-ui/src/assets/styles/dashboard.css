@@ -958,6 +958,16 @@
 }
 
 /* RESPONSIVE DASHBOARD LAYOUTS */
+.dashboard-sidebar-toggle-btn {
+  display: none;
+}
+.sidebar-close-btn {
+  display: none;
+}
+.sidebar-overlay {
+  display: none;
+}
+
 @media (max-width: 1200px) {
   .metrics-grid {
     grid-template-columns: repeat(2, 1fr);

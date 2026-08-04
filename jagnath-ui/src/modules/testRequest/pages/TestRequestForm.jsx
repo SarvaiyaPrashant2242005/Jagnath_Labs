@@ -4,6 +4,7 @@ import { apiService } from '../../../shared/services/apiService';
 import {
   CLIENT_ENDPOINTS,
   CATEGORY_ENDPOINTS,
+  PARAMETER_ENDPOINTS,
   CATEGORY_PARAMETER_ENDPOINTS,
   TEST_REQUEST_ENDPOINTS,
   TEST_REQUEST_PARAMETER_ENDPOINTS,
@@ -12,7 +13,7 @@ import {
   PRICE_MASTER_ENDPOINTS,
   SUB_CATEGORY_ENDPOINTS
 } from '../../../shared/services/apiEndpoints';
-import { FaPrint, FaSave, FaArrowLeft, FaCheck, FaExclamationCircle, FaEye, FaEyeSlash, FaFilePdf } from 'react-icons/fa';
+import { FaPrint, FaSave, FaArrowLeft, FaCheck, FaExclamationCircle, FaEye, FaEyeSlash, FaFilePdf, FaChevronLeft, FaChevronRight, FaSearch } from 'react-icons/fa';
 
 const TestRequestForm = () => {
   const { id } = useParams();
@@ -27,10 +28,15 @@ const TestRequestForm = () => {
   const [selectedSubCategory, setSelectedSubCategory] = useState('');
   const [cautions, setCautions] = useState([]);
   const [priceMasterMap, setPriceMasterMap] = useState({});
-  
-  // State for dynamic parameter checklist
+
+  // State for dynamic parameter checklist & pagination
   const [parameters, setParameters] = useState([]);
   const [checkedParameters, setCheckedParameters] = useState({});
+  const [subCategoriesLoading, setSubCategoriesLoading] = useState(false);
+  const [parametersLoading, setParametersLoading] = useState(false);
+  const [paramPage, setParamPage] = useState(1);
+  const [paramSearch, setParamSearch] = useState('');
+  const [paramPageSize, setParamPageSize] = useState(10);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -50,6 +56,7 @@ const TestRequestForm = () => {
     sampleIdNumber: '',
     reportNumber: '',
     sampleParticular: '', // This will hold categoryId
+    subCategoryId: '',
     equipmentAvailability: 'Available',
     referenceStandardAvailability: 'Available',
     sampleAdequacy: 'Adequate',
@@ -93,7 +100,7 @@ const TestRequestForm = () => {
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      
+
       // 1. Fetch companies, categories, cautions, and price master first
       const [compRes, catRes, cautionRes, priceRes] = await Promise.all([
         apiService.get(COMPANY_ENDPOINTS.GET_MY),
@@ -150,7 +157,7 @@ const TestRequestForm = () => {
 
       // 3. Fetch clients for that target company (not the system default company)
       const clientRes = await apiService.get(
-        targetCompanyId 
+        targetCompanyId
           ? `${CLIENT_ENDPOINTS.GET_ALL}?companyId=${targetCompanyId}`
           : CLIENT_ENDPOINTS.GET_ALL
       );
@@ -163,6 +170,8 @@ const TestRequestForm = () => {
       if (isEditing && tr) {
         const matchingComp = cList.find(c => c.id === tr.companyId || (c.companyName || c.company_name) === tr.companyName) || {};
         const matchingClient = clList.find(c => c.id === tr.clientId || c.clientName === tr.clientName) || {};
+
+        const savedSubCatId = tr.subCategoryId || tr.sub_category_id || '';
 
         setFormData({
           companyId: matchingComp.id || tr.companyId || '',
@@ -181,6 +190,7 @@ const TestRequestForm = () => {
           sampleIdNumber: tr.sampleIdNumber || '',
           reportNumber: tr.reportNumber || '',
           sampleParticular: tr.sampleParticular || '',
+          subCategoryId: savedSubCatId,
           equipmentAvailability: tr.equipmentAvailability || 'Available',
           referenceStandardAvailability: tr.referenceStandardAvailability || 'Available',
           sampleAdequacy: tr.sampleAdequacy || 'Adequate',
@@ -198,8 +208,17 @@ const TestRequestForm = () => {
           cautionId: tr.cautionId || ''
         });
 
+        if (savedSubCatId) {
+          setSelectedSubCategory(savedSubCatId);
+        }
+
         if (tr.sampleParticular) {
-          fetchParametersForCategory(tr.sampleParticular);
+          fetchSubCategoriesForCategory(tr.sampleParticular);
+          if (savedSubCatId) {
+            fetchParameters(savedSubCatId);
+          } else {
+            setParameters([]);
+          }
         }
 
         // Fetch checked parameters
@@ -232,49 +251,111 @@ const TestRequestForm = () => {
     }
   };
 
-  const fetchParametersForCategory = async (categoryId) => {
+  const fetchSubCategoriesForCategory = async (categoryId) => {
+    if (!categoryId) {
+      setSubCategories([]);
+      return;
+    }
+    setSubCategoriesLoading(true);
     try {
-      const res = await apiService.get(CATEGORY_PARAMETER_ENDPOINTS.GET_BY_CATEGORY(categoryId));
-      if (res?.data) {
-        const paramList = Array.isArray(res.data) ? res.data : [res.data];
-        setParameters(paramList.filter(param => param.status === 'Active'));
-      } else {
-        setParameters([]);
-      }
+      const res = await apiService.get(`${SUB_CATEGORY_ENDPOINTS.GET_ALL}?categoryId=${categoryId}&status=Active&all=true`);
+      const list = res?.data?.subCategories || res?.data || [];
+      const subCatList = Array.isArray(list) ? list : [list];
+      setSubCategories(subCatList.filter(s => s.status === 'Active' || s.status === true || !s.status));
     } catch (e) {
+      console.error("Error fetching subcategories", e);
+      setSubCategories([]);
+    } finally {
+      setSubCategoriesLoading(false);
+    }
+  };
+
+  const fetchParameters = async (subCategoryId) => {
+    if (!subCategoryId) {
+      setParameters([]);
+      setParametersLoading(false);
+      return;
+    }
+    setParametersLoading(true);
+    try {
+      const url = `${PARAMETER_ENDPOINTS.GET_ALL}?status=Active&all=true&subCategoryId=${subCategoryId}`;
+      const res = await apiService.get(url);
+      let list = [];
+      if (res?.data?.rows) {
+        list = res.data.rows;
+      } else if (Array.isArray(res?.data)) {
+        list = res.data;
+      } else if (res?.data) {
+        list = [res.data];
+      }
+      setParameters(list.filter(p => p.status === 'Active' || p.status === true || !p.status));
+      setParamPage(1);
+    } catch (e) {
+      console.error("Error fetching parameters", e);
+      setParameters([]);
+    } finally {
+      setParametersLoading(false);
+    }
+  };
+
+  const handleSubCategoryChange = (e) => {
+    const subId = e.target.value;
+    setSelectedSubCategory(subId);
+    setFormData(prev => ({ ...prev, subCategoryId: subId }));
+    setParamPage(1);
+    setCheckedParameters({});
+    if (subId) {
+      fetchParameters(subId);
+    } else {
       setParameters([]);
     }
   };
 
-  const fetchSubCategoriesForCategory = async (categoryId) => {
-    try {
-      const res = await apiService.get(`${SUB_CATEGORY_ENDPOINTS.GET_ALL}?categoryId=${categoryId}`);
-      setSubCategories(res?.data || []);
-    } catch {
-      setSubCategories([]);
-    }
+  const handleToggleSelectAllParameters = () => {
+    const displayedParams = parameters.filter(param => !selectedSubCategory || param.subCategoryId === selectedSubCategory || param.subCategory?.id === selectedSubCategory);
+    if (displayedParams.length === 0) return;
+
+    const allChecked = displayedParams.every(p => !!checkedParameters[p.id]);
+    setCheckedParameters(prev => {
+      const next = { ...prev };
+      displayedParams.forEach(p => {
+        if (allChecked) {
+          delete next[p.id];
+        } else {
+          next[p.id] = true;
+        }
+      });
+      return next;
+    });
   };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    
-    if (name === 'sampleParticular' && value) {
+
+    if (name === 'sampleParticular') {
       setSelectedSubCategory('');
-      fetchSubCategoriesForCategory(value);
-      fetchParametersForCategory(value);
-      // Reset checks when category changes
+      setFormData(prev => ({ ...prev, subCategoryId: '' }));
+      setParameters([]);
       setCheckedParameters({});
+      setParamPage(1);
+      setParamSearch('');
+      if (value) {
+        fetchSubCategoriesForCategory(value);
+        fetchParameters('', value);
+      } else {
+        setSubCategories([]);
+      }
     }
 
     if (name === 'clientId' && value) {
       // Auto-fill client details
       const selectedClient = clients.find(c => c.id === value);
       if (selectedClient) {
-        setFormData(prev => ({ 
-          ...prev, 
-          email: selectedClient.email || '', 
-          contactNumber: selectedClient.contactNumber || prev.contactNumber 
+        setFormData(prev => ({
+          ...prev,
+          email: selectedClient.email || '',
+          contactNumber: selectedClient.contactNumber || prev.contactNumber
         }));
       }
     }
@@ -296,6 +377,14 @@ const TestRequestForm = () => {
       triggerToast('Please select a Client.', 'error');
       return false;
     }
+    if (!formData.sampleParticular) {
+      triggerToast('Please select a Discipline Group.', 'error');
+      return false;
+    }
+    if (!selectedSubCategory && !formData.subCategoryId) {
+      triggerToast('Please select a Sub Category.', 'error');
+      return false;
+    }
     return true;
   };
 
@@ -304,19 +393,20 @@ const TestRequestForm = () => {
   const handleSave = async () => {
     if (!validateForm()) return false;
     setSubmitting(true);
-    
+
     try {
       // 1. Save Test Request
-      const payload = { 
-        ...formData, 
+      const payload = {
+        ...formData,
+        subCategoryId: selectedSubCategory || formData.subCategoryId || null,
         includeCaution: Boolean(formData.includeCaution),
         cautionId: formData.includeCaution && formData.cautionId ? formData.cautionId : null,
-        reportIssueDays: formData.tentativeDays, 
-        reviewedBy: formData.sampleTestingFacilityReviewedBy 
+        reportIssueDays: formData.tentativeDays,
+        reviewedBy: formData.sampleTestingFacilityReviewedBy
       };
       delete payload.tentativeDays;
       delete payload.sampleTestingFacilityReviewedBy;
-      
+
       const targetId = savedRequestId || id;
       let savedTrId = targetId;
       if (targetId) {
@@ -340,7 +430,7 @@ const TestRequestForm = () => {
 
       // 2. Save Parameters Checklist
       const currentParamIds = Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]);
-      
+
       for (const pId of currentParamIds) {
         if (!checkedParameters[`_id_${pId}`]) {
           const targetParam = parameters.find(p => p.id === pId);
@@ -386,7 +476,7 @@ const TestRequestForm = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', position: 'relative' }}>
-      
+
       {toast.show && (
         <div style={{
           position: 'fixed',
@@ -421,23 +511,23 @@ const TestRequestForm = () => {
           </h2>
         </div>
         <div className="master-top-bar-actions" style={{ display: 'flex', gap: '0.75rem' }}>
-          <button 
+          <button
             onClick={() => setShowLivePreview(!showLivePreview)}
             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#ffffff', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.5rem 1.25rem', fontWeight: 600, cursor: 'pointer' }}
           >
             {showLivePreview ? <FaEyeSlash /> : <FaEye />}
             <span>{showLivePreview ? 'Hide Preview' : 'Live Preview'}</span>
           </button>
-          <button 
-            onClick={handleSave} 
+          <button
+            onClick={handleSave}
             disabled={submitting}
             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1.25rem', fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer' }}
           >
             <FaSave />
             <span>{submitting ? 'Saving...' : 'Save'}</span>
           </button>
-          <button 
-            onClick={handleSaveAndPrint} 
+          <button
+            onClick={handleSaveAndPrint}
             disabled={submitting}
             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1.25rem', fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer' }}
           >
@@ -449,66 +539,66 @@ const TestRequestForm = () => {
 
       {/* Main Split Screen Area (Screen Only) */}
       <div className="premium-ui-form test-request-split-container hide-on-print" style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
-        
+
         {/* Left Column: Form Inputs */}
         <div style={{ flex: '1', minWidth: '0', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-          
+
           {/* General Information Card */}
           <div className="test-request-form-card" style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc' }}>
               <div style={{ width: '12px', height: '24px', background: 'linear-gradient(to bottom, #3b82f6, #60a5fa)', borderRadius: '6px' }}></div>
               <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>General Information</h3>
             </div>
-            
+
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.75rem' }}>
-              
+
               {/* Document Title Input */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', gridColumn: '1 / -1' }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Document Title Postfix <span style={{color: '#ef4444'}}>*</span></label>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Document Title Postfix <span style={{ color: '#ef4444' }}>*</span></label>
                 <div className="test-request-title-prefix" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#475569', whiteSpace: 'nowrap' }}>TEST REQUEST FORM FOR </span>
-                  <input 
-                    type="text" 
-                    name="formTitle" 
-                    value={formData.formTitle} 
-                    onChange={handleChange} 
-                    className="premium-input" 
-                    placeholder="e.g. WATER & WASTE WATER" 
+                  <input
+                    type="text"
+                    name="formTitle"
+                    value={formData.formTitle}
+                    onChange={handleChange}
+                    className="premium-input"
+                    placeholder="e.g. WATER & WASTE WATER"
                     style={{ flex: 1 }}
                   />
                 </div>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Customer / Client <span style={{color: '#ef4444'}}>*</span></label>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Customer / Client <span style={{ color: '#ef4444' }}>*</span></label>
                 <select name="clientId" value={formData.clientId} onChange={handleChange} className="premium-input">
                   <option value="">Select Client</option>
-                  {clients.map(c => <option key={c.id} value={c.id}>{c.clientName}</option>)}
+                  {[...clients].sort((a, b) => (a.clientName || '').localeCompare(b.clientName || '')).map(c => <option key={c.id} value={c.id}>{c.clientName}</option>)}
                 </select>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Form Type <span style={{color: '#ef4444'}}>*</span></label>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Form Type <span style={{ color: '#ef4444' }}>*</span></label>
                 <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', background: '#f8fafc', padding: '0.75rem 1rem', border: '1px solid #e2e8f0', borderRadius: '8px', height: '42px', boxSizing: 'border-box' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500, color: '#1e293b' }}>
-                    <input 
-                      type="radio" 
-                      name="formType" 
-                      value="Regular" 
-                      checked={formData.formType === 'Regular'} 
-                      onChange={handleChange} 
-                      style={{ width: '1.1rem', height: '1.1rem', accentColor: '#3b82f6' }} 
+                    <input
+                      type="radio"
+                      name="formType"
+                      value="Regular"
+                      checked={formData.formType === 'Regular'}
+                      onChange={handleChange}
+                      style={{ width: '1.1rem', height: '1.1rem', accentColor: '#3b82f6' }}
                     />
                     Regular
                   </label>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500, color: '#1e293b' }}>
-                    <input 
-                      type="radio" 
-                      name="formType" 
-                      value="NABL" 
-                      checked={formData.formType === 'NABL'} 
-                      onChange={handleChange} 
-                      style={{ width: '1.1rem', height: '1.1rem', accentColor: '#3b82f6' }} 
+                    <input
+                      type="radio"
+                      name="formType"
+                      value="NABL"
+                      checked={formData.formType === 'NABL'}
+                      onChange={handleChange}
+                      style={{ width: '1.1rem', height: '1.1rem', accentColor: '#3b82f6' }}
                     />
                     NABL
                   </label>
@@ -520,24 +610,24 @@ const TestRequestForm = () => {
                 <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Include Caution</label>
                 <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', background: '#f8fafc', padding: '0.75rem 1rem', border: '1px solid #e2e8f0', borderRadius: '8px', height: '42px', boxSizing: 'border-box' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500, color: '#1e293b' }}>
-                    <input 
-                      type="radio" 
-                      name="includeCaution" 
-                      value="false" 
-                      checked={!formData.includeCaution} 
-                      onChange={() => setFormData(prev => ({ ...prev, includeCaution: false, cautionId: '' }))} 
-                      style={{ width: '1.1rem', height: '1.1rem', accentColor: '#3b82f6' }} 
+                    <input
+                      type="radio"
+                      name="includeCaution"
+                      value="false"
+                      checked={!formData.includeCaution}
+                      onChange={() => setFormData(prev => ({ ...prev, includeCaution: false, cautionId: '' }))}
+                      style={{ width: '1.1rem', height: '1.1rem', accentColor: '#3b82f6' }}
                     />
                     No
                   </label>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500, color: '#1e293b' }}>
-                    <input 
-                      type="radio" 
-                      name="includeCaution" 
-                      value="true" 
-                      checked={formData.includeCaution} 
-                      onChange={() => setFormData(prev => ({ ...prev, includeCaution: true }))} 
-                      style={{ width: '1.1rem', height: '1.1rem', accentColor: '#3b82f6' }} 
+                    <input
+                      type="radio"
+                      name="includeCaution"
+                      value="true"
+                      checked={formData.includeCaution}
+                      onChange={() => setFormData(prev => ({ ...prev, includeCaution: true }))}
+                      style={{ width: '1.1rem', height: '1.1rem', accentColor: '#3b82f6' }}
                     />
                     Yes
                   </label>
@@ -547,11 +637,11 @@ const TestRequestForm = () => {
               {/* Select Caution Dropdown */}
               {formData.includeCaution && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                  <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Select Caution <span style={{color: '#ef4444'}}>*</span></label>
-                  <select 
-                    name="cautionId" 
-                    value={formData.cautionId} 
-                    onChange={handleChange} 
+                  <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Select Caution <span style={{ color: '#ef4444' }}>*</span></label>
+                  <select
+                    name="cautionId"
+                    value={formData.cautionId}
+                    onChange={handleChange}
                     className="premium-input"
                   >
                     <option value="">Select Caution</option>
@@ -635,7 +725,7 @@ const TestRequestForm = () => {
                 <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Packing details</label>
                 <input type="text" name="packingDetails" value={formData.packingDetails} onChange={handleChange} className="premium-input" placeholder="e.g. Sealed glass bottle" />
               </div>
-              
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                 <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Sample ID No.</label>
                 <input type="text" name="sampleIdNumber" value={formData.sampleIdNumber} onChange={handleChange} className="premium-input" placeholder="e.g. SPL-1002" />
@@ -654,92 +744,314 @@ const TestRequestForm = () => {
               <div style={{ width: '12px', height: '24px', background: 'linear-gradient(to bottom, #8b5cf6, #a78bfa)', borderRadius: '6px' }}></div>
               <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Testing Parameters</h3>
             </div>
-            
+
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Discipline Group <span style={{color: '#ef4444'}}>*</span></label>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Discipline Group <span style={{ color: '#ef4444' }}>*</span></label>
                 <select name="sampleParticular" value={formData.sampleParticular} onChange={handleChange} className="premium-input">
                   <option value="">Select Discipline Group</option>
-                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  {[...categories].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Sub Category</label>
-                <select 
-                  value={selectedSubCategory} 
-                  onChange={(e) => setSelectedSubCategory(e.target.value)} 
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>
+                  Sub Category <span style={{ color: '#ef4444' }}>*</span> {subCategoriesLoading && <span style={{ fontSize: '0.75rem', color: '#64748b' }}>(Loading...)</span>}
+                </label>
+                <select
+                  value={selectedSubCategory || formData.subCategoryId || ''}
+                  onChange={handleSubCategoryChange}
                   className="premium-input"
-                  disabled={!formData.sampleParticular}
+                  disabled={!formData.sampleParticular || subCategoriesLoading}
                 >
-                  <option value="">All Sub Categories</option>
-                  {subCategories.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  <option value="">Select Sub Category</option>
+                  {[...subCategories].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
+                {formData.sampleParticular && !subCategoriesLoading && subCategories.length === 0 && (
+                  <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                    No subcategories available for this discipline group
+                  </span>
+                )}
               </div>
             </div>
 
-            {parameters.length > 0 && (
-              <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                <div style={{ padding: '1.25rem', borderBottom: '1px solid #e2e8f0', background: 'linear-gradient(to right, #f8fafc, #ffffff)', fontWeight: 700, color: '#1e293b', fontSize: '1.05rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                  <span>Select Test Parameters to be Analyzed</span>
-                  <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.85rem', background: '#dcfce7', color: '#166534', padding: '0.25rem 0.75rem', borderRadius: '999px', fontWeight: 700 }}>
-                      Total: ₹{parameters.reduce((sum, param) => sum + (checkedParameters[param.id] ? (priceMasterMap[param.id] || 0) : 0), 0).toFixed(2)}
-                    </span>
-                    <span style={{ fontSize: '0.8rem', background: '#e0e7ff', color: '#4338ca', padding: '0.2rem 0.6rem', borderRadius: '999px' }}>
-                      {Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]).length} Selected
-                    </span>
-                  </div>
-                </div>
-                <div className="master-table-responsive" style={{ maxHeight: '250px', overflowY: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.95rem' }}>
-                    <thead style={{ position: 'sticky', top: 0, background: '#f8fafc', zIndex: 1, boxShadow: '0 1px 0 #e2e8f0' }}>
-                      <tr>
-                        <th style={{ padding: '0.75rem 1rem', textAlign: 'center', width: '80px', color: '#64748b', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Select</th>
-                        <th style={{ padding: '0.75rem 1rem', textAlign: 'left', color: '#64748b', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Parameter Name</th>
-                        <th style={{ padding: '0.75rem 1rem', textAlign: 'left', color: '#64748b', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Test Method</th>
-                        <th style={{ padding: '0.75rem 1rem', textAlign: 'right', color: '#64748b', fontWeight: 600, borderBottom: '2px solid #e2e8f0', width: '120px' }}>Price (₹)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {parameters
-                        .filter(param => !selectedSubCategory || param.subCategoryId === selectedSubCategory || param.subCategory?.id === selectedSubCategory)
-                        .map(param => {
-                        const isChecked = !!checkedParameters[param.id];
-                        const paramPrice = priceMasterMap[param.id] || 0;
-                        return (
-                          <tr 
-                            key={param.id} 
-                            onClick={() => handleParameterCheck(param.id)} 
-                            style={{ 
-                              borderBottom: '1px solid #f1f5f9', 
-                              cursor: 'pointer', 
-                              transition: 'all 0.2s ease',
-                              backgroundColor: isChecked ? '#f0fdf4' : '#ffffff' 
-                            }} 
-                            onMouseEnter={(e) => { if(!isChecked) e.currentTarget.style.backgroundColor = '#f8fafc' }} 
-                            onMouseLeave={(e) => { if(!isChecked) e.currentTarget.style.backgroundColor = '#ffffff' }}
+            {!formData.sampleParticular ? (
+              <div style={{ padding: '2.5rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1', fontWeight: 500 }}>
+                Please select a Discipline Group to begin.
+              </div>
+            ) : (!selectedSubCategory && !formData.subCategoryId) ? (
+              <div style={{ padding: '2.5rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1', fontWeight: 500 }}>
+                Please select a Sub Category to view test parameters.
+              </div>
+            ) : parametersLoading ? (
+              <div style={{ padding: '2.5rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
+                Loading parameters...
+              </div>
+            ) : parameters.length === 0 ? (
+              <div style={{ padding: '2.5rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
+                No parameters mapped to this subcategory
+              </div>
+            ) : (() => {
+              const categoryFilteredParams = parameters.filter(param => !selectedSubCategory || param.subCategoryId === selectedSubCategory || param.subCategory?.id === selectedSubCategory);
+              const searchFilteredParams = categoryFilteredParams
+                .filter(param => {
+                  if (!paramSearch.trim()) return true;
+                  const q = paramSearch.toLowerCase();
+                  return (param.parameterName || '').toLowerCase().includes(q) ||
+                    (param.testMethod || '').toLowerCase().includes(q);
+                })
+                .sort((a, b) => (a.parameterName || '').localeCompare(b.parameterName || ''));
+
+              const totalParamItems = searchFilteredParams.length;
+              const totalParamPages = Math.ceil(totalParamItems / paramPageSize) || 1;
+              const safeParamPage = Math.min(Math.max(1, paramPage), totalParamPages);
+              const startParamItem = totalParamItems === 0 ? 0 : (safeParamPage - 1) * paramPageSize + 1;
+              const endParamItem = Math.min(safeParamPage * paramPageSize, totalParamItems);
+
+              const paginatedParams = searchFilteredParams.slice(
+                (safeParamPage - 1) * paramPageSize,
+                safeParamPage * paramPageSize
+              );
+
+              return categoryFilteredParams.length > 0 && (
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+                  {/* Top Bar / Header */}
+                  <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #e2e8f0', background: 'linear-gradient(to right, #f8fafc, #ffffff)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+                    <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '1rem' }}>
+                      Select Test Parameters to be Analyzed
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                      {/* Search box */}
+                      <div style={{ position: 'relative', width: '220px' }}>
+                        <input
+                          type="text"
+                          placeholder="Search parameters..."
+                          value={paramSearch}
+                          onChange={(e) => {
+                            setParamSearch(e.target.value);
+                            setParamPage(1);
+                          }}
+                          style={{
+                            padding: '0.35rem 0.65rem 0.35rem 2rem',
+                            borderRadius: '8px',
+                            border: '1px solid #cbd5e1',
+                            fontSize: '0.85rem',
+                            width: '100%',
+                            outline: 'none',
+                            backgroundColor: '#ffffff'
+                          }}
+                        />
+                        <FaSearch size={12} style={{ position: 'absolute', left: '0.7rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                        {paramSearch && (
+                          <button
+                            type="button"
+                            onClick={() => setParamSearch('')}
+                            style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', color: '#94a3b8', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold' }}
                           >
-                            <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
-                              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                                <div style={{ width: '22px', height: '22px', borderRadius: '6px', border: isChecked ? 'none' : '2px solid #cbd5e1', background: isChecked ? '#22c55e' : 'transparent', display: 'flex', justifyContent: 'center', alignItems: 'center', transition: 'all 0.2s' }}>
-                                  {isChecked && <span style={{ color: 'white', fontSize: '14px', fontWeight: 'bold' }}>✓</span>}
-                                </div>
-                              </div>
-                            </td>
-                            <td style={{ padding: '0.75rem 1rem', color: isChecked ? '#166534' : '#1e293b', fontWeight: isChecked ? 600 : 500 }}>{param.parameterName}</td>
-                            <td style={{ padding: '0.75rem 1rem', color: isChecked ? '#15803d' : '#64748b' }}>{param.testMethod || 'N/A'}</td>
-                            <td style={{ padding: '0.75rem 1rem', textAlign: 'right', color: isChecked ? '#15803d' : '#334155', fontWeight: 600 }}>
-                              ₹{paramPrice.toFixed(2)}
+                            ✕
+                          </button>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleToggleSelectAllParameters}
+                        style={{
+                          background: '#e0e7ff',
+                          color: '#4338ca',
+                          border: 'none',
+                          borderRadius: '8px',
+                          padding: '0.35rem 0.75rem',
+                          fontSize: '0.8rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        {categoryFilteredParams.length > 0 && categoryFilteredParams.every(p => !!checkedParameters[p.id])
+                          ? 'Deselect All' : 'Select All'}
+                      </button>
+
+                      <span style={{ fontSize: '0.85rem', background: '#dcfce7', color: '#166534', padding: '0.3rem 0.75rem', borderRadius: '999px', fontWeight: 700 }}>
+                        Total: ₹{parameters.reduce((sum, param) => sum + (checkedParameters[param.id] ? (priceMasterMap[param.id] || 0) : 0), 0).toFixed(2)}
+                      </span>
+
+                      <span style={{ fontSize: '0.8rem', background: '#e0e7ff', color: '#4338ca', padding: '0.25rem 0.65rem', borderRadius: '999px', fontWeight: 600 }}>
+                        {Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]).length} Selected
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Clean Parameters Table */}
+                  <div style={{ width: '100%', overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.925rem' }}>
+                      <thead>
+                        <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                          <th style={{ padding: '0.75rem 1rem', textAlign: 'center', width: '70px', color: '#64748b', fontWeight: 600 }}>Select</th>
+                          <th style={{ padding: '0.75rem 1rem', textAlign: 'left', color: '#64748b', fontWeight: 600 }}>Parameter Name</th>
+                          <th style={{ padding: '0.75rem 1rem', textAlign: 'left', color: '#64748b', fontWeight: 600 }}>Test Method</th>
+                          <th style={{ padding: '0.75rem 1rem', textAlign: 'right', color: '#64748b', fontWeight: 600, width: '130px' }}>Price (₹)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paginatedParams.length === 0 ? (
+                          <tr>
+                            <td colSpan={4} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                              No parameters match your search criteria.
                             </td>
                           </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                        ) : (
+                          paginatedParams.map(param => {
+                            const isChecked = !!checkedParameters[param.id];
+                            const paramPrice = priceMasterMap[param.id] || 0;
+                            return (
+                              <tr
+                                key={param.id}
+                                onClick={() => handleParameterCheck(param.id)}
+                                style={{
+                                  borderBottom: '1px solid #f1f5f9',
+                                  cursor: 'pointer',
+                                  transition: 'background-color 0.15s ease',
+                                  backgroundColor: isChecked ? '#f0fdf4' : '#ffffff'
+                                }}
+                                onMouseEnter={(e) => { if (!isChecked) e.currentTarget.style.backgroundColor = '#f8fafc' }}
+                                onMouseLeave={(e) => { if (!isChecked) e.currentTarget.style.backgroundColor = '#ffffff' }}
+                              >
+                                <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                    <div style={{ width: '22px', height: '22px', borderRadius: '6px', border: isChecked ? 'none' : '2px solid #cbd5e1', background: isChecked ? '#22c55e' : 'transparent', display: 'flex', justifyContent: 'center', alignItems: 'center', transition: 'all 0.15s ease' }}>
+                                      {isChecked && <span style={{ color: 'white', fontSize: '13px', fontWeight: 'bold' }}>✓</span>}
+                                    </div>
+                                  </div>
+                                </td>
+                                <td style={{ padding: '0.75rem 1rem', color: isChecked ? '#166534' : '#1e293b', fontWeight: isChecked ? 600 : 500 }}>
+                                  {param.parameterName}
+                                </td>
+                                <td style={{ padding: '0.75rem 1rem', color: isChecked ? '#15803d' : '#64748b' }}>
+                                  {param.testMethod || 'N/A'}
+                                </td>
+                                <td style={{ padding: '0.75rem 1rem', textAlign: 'right', color: isChecked ? '#15803d' : '#334155', fontWeight: 600 }}>
+                                  ₹{paramPrice.toFixed(2)}
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Clean Pagination Footer */}
+                  <div style={{
+                    padding: '0.85rem 1.25rem',
+                    borderTop: '1px solid #e2e8f0',
+                    background: '#f8fafc',
+                    display: 'flex',
+                    justify: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '0.75rem'
+                  }}>
+                    <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                      Showing <strong style={{ color: '#0f172a' }}>{startParamItem}</strong> to <strong style={{ color: '#0f172a' }}>{endParamItem}</strong> of <strong style={{ color: '#0f172a' }}>{totalParamItems}</strong> parameters
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', color: '#64748b' }}>
+                        <span>Rows per page:</span>
+                        <select
+                          value={paramPageSize}
+                          onChange={(e) => {
+                            setParamPageSize(Number(e.target.value));
+                            setParamPage(1);
+                          }}
+                          style={{ padding: '0.25rem 0.4rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.8rem', backgroundColor: '#ffffff', outline: 'none' }}
+                        >
+                          <option value={10}>10</option>
+                          <option value={20}>20</option>
+                          <option value={50}>50</option>
+                        </select>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                        <button
+                          type="button"
+                          onClick={() => setParamPage(p => Math.max(1, p - 1))}
+                          disabled={safeParamPage <= 1}
+                          style={{
+                            padding: '0.35rem 0.65rem',
+                            borderRadius: '6px',
+                            border: '1px solid #cbd5e1',
+                            backgroundColor: safeParamPage <= 1 ? '#f1f5f9' : '#ffffff',
+                            color: safeParamPage <= 1 ? '#94a3b8' : '#334155',
+                            cursor: safeParamPage <= 1 ? 'not-allowed' : 'pointer',
+                            fontWeight: 600,
+                            fontSize: '0.8rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.3rem'
+                          }}
+                        >
+                          <FaChevronLeft size={10} /> Prev
+                        </button>
+
+                        {/* Smart Page Pill Buttons */}
+                        {Array.from({ length: totalParamPages }, (_, i) => i + 1)
+                          .filter(page => page === 1 || page === totalParamPages || Math.abs(page - safeParamPage) <= 1)
+                          .map((page, idx, arr) => {
+                            const prevPage = arr[idx - 1];
+                            const showEllipsis = prevPage && page - prevPage > 1;
+                            return (
+                              <React.Fragment key={page}>
+                                {showEllipsis && <span style={{ color: '#94a3b8', fontSize: '0.8rem', padding: '0 0.15rem' }}>...</span>}
+                                <button
+                                  type="button"
+                                  onClick={() => setParamPage(page)}
+                                  style={{
+                                    padding: '0.35rem 0.6rem',
+                                    borderRadius: '6px',
+                                    border: page === safeParamPage ? '1px solid #8b5cf6' : '1px solid #cbd5e1',
+                                    backgroundColor: page === safeParamPage ? '#8b5cf6' : '#ffffff',
+                                    color: page === safeParamPage ? '#ffffff' : '#334155',
+                                    fontWeight: page === safeParamPage ? 700 : 500,
+                                    cursor: 'pointer',
+                                    fontSize: '0.8rem',
+                                    minWidth: '28px'
+                                  }}
+                                >
+                                  {page}
+                                </button>
+                              </React.Fragment>
+                            );
+                          })}
+
+                        <button
+                          type="button"
+                          onClick={() => setParamPage(p => Math.min(totalParamPages, p + 1))}
+                          disabled={safeParamPage >= totalParamPages}
+                          style={{
+                            padding: '0.35rem 0.65rem',
+                            borderRadius: '6px',
+                            border: '1px solid #cbd5e1',
+                            backgroundColor: safeParamPage >= totalParamPages ? '#f1f5f9' : '#ffffff',
+                            color: safeParamPage >= totalParamPages ? '#94a3b8' : '#334155',
+                            cursor: safeParamPage >= totalParamPages ? 'not-allowed' : 'pointer',
+                            fontWeight: 600,
+                            fontSize: '0.8rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.3rem'
+                          }}
+                        >
+                          Next <FaChevronRight size={10} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
 
           {/* Facility & Technical Feasibility Card */}
@@ -768,7 +1080,7 @@ const TestRequestForm = () => {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.75rem' }}>
-              
+
               {/* Availability of Equipments */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                 <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Availability of Equipments</label>
@@ -887,19 +1199,19 @@ const TestRequestForm = () => {
           </div>
 
           {/* Bottom Action Bar */}
-          <div className="test-request-bottom-actions hide-on-print" style={{ 
-            display: 'flex', 
-            justifyContent: 'flex-end', 
-            alignItems: 'center', 
-            gap: '0.75rem', 
-            background: '#ffffff', 
-            borderRadius: '16px', 
-            padding: '1.25rem 2rem', 
-            boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', 
+          <div className="test-request-bottom-actions hide-on-print" style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            alignItems: 'center',
+            gap: '0.75rem',
+            background: '#ffffff',
+            borderRadius: '16px',
+            padding: '1.25rem 2rem',
+            boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
             border: '1px solid #f1f5f9',
             flexWrap: 'wrap'
           }}>
-            <button 
+            <button
               type="button"
               onClick={() => setShowLivePreview(!showLivePreview)}
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#ffffff', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.6rem 1.25rem', fontWeight: 600, cursor: 'pointer' }}
@@ -907,27 +1219,27 @@ const TestRequestForm = () => {
               {showLivePreview ? <FaEyeSlash /> : <FaEye />}
               <span>{showLivePreview ? 'Hide Preview' : 'Live Preview'}</span>
             </button>
-            <button 
+            <button
               type="button"
-              onClick={handleSave} 
+              onClick={handleSave}
               disabled={submitting}
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.6rem 1.25rem', fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer' }}
             >
               <FaSave />
               <span>{submitting ? 'Saving...' : 'Save'}</span>
             </button>
-            <button 
+            <button
               type="button"
-              onClick={handleSaveAndPrint} 
+              onClick={handleSaveAndPrint}
               disabled={submitting}
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.6rem 1.25rem', fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer' }}
             >
               <FaPrint />
               <span>Save & TRF PDF</span>
             </button>
-            <button 
+            <button
               type="button"
-              onClick={handleSaveAndQuotation} 
+              onClick={handleSaveAndQuotation}
               disabled={submitting}
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.6rem 1.25rem', fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer' }}
             >
@@ -939,12 +1251,12 @@ const TestRequestForm = () => {
 
         {/* Right Column: Sticky Live Preview Simulator */}
         {showLivePreview && (
-          <div className="live-preview-container hide-on-mobile" style={{ 
-            width: '460px', 
-            flexShrink: 0, 
-            position: 'sticky', 
-            top: '24px', 
-            maxHeight: 'calc(100vh - 120px)', 
+          <div className="live-preview-container hide-on-mobile" style={{
+            width: '460px',
+            flexShrink: 0,
+            position: 'sticky',
+            top: '24px',
+            maxHeight: 'calc(100vh - 120px)',
             overflowY: 'auto',
             background: '#f8fafc',
             borderRadius: '16px',
@@ -1074,7 +1386,7 @@ const TestRequestForm = () => {
                     <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Sample Particular (Cat)</td>
                     <td style={{ padding: '3px 4px' }}>{selCategory.name || 'N/A'}</td>
                   </tr>
-                  
+
                   {/* Feasibility table inner block */}
                   <tr style={{ borderBottom: '1px solid #000000' }}>
                     <td style={{ padding: '0', fontWeight: '600' }} colSpan={2}>
@@ -1149,7 +1461,7 @@ const TestRequestForm = () => {
                   </tr>
                 </tbody>
               </table>
-              
+
               {/* Selected Parameters Checklist */}
               {Object.values(checkedParameters).some(Boolean) && (
                 <div style={{ marginTop: '8px', border: '1px solid #000000', padding: '4px' }}>

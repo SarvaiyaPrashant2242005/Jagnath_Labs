@@ -5,6 +5,61 @@
 import * as XLSX from 'xlsx';
 
 /**
+ * Normalizes an Excel header for comparison.
+ * Trims whitespace, lowercases, removes asterisks, and strips special characters (dots, underscores, hyphens, slashes, spaces).
+ */
+export const normalizeExcelHeader = (header) => {
+  if (!header || typeof header !== 'string') return '';
+  return header
+    .trim()
+    .toLowerCase()
+    .replace(/\*/g, '')
+    .replace(/[._\-/\s]+/g, '');
+};
+
+/**
+ * Normalizes email address.
+ */
+export const normalizeEmail = (email) => {
+  if (!email || typeof email !== 'string') return '';
+  return email.trim().toLowerCase();
+};
+
+/**
+ * Normalizes phone numbers: converts numbers to strings, trims, and strips formatting.
+ */
+export const normalizePhone = (phone) => {
+  if (phone === null || phone === undefined) return '';
+  let str = String(phone).trim();
+  if (typeof phone === 'number') {
+    if (Number.isInteger(phone)) {
+      str = String(phone);
+    } else {
+      str = phone.toFixed(0);
+    }
+  }
+  return str.replace(/[\s\-\(\)\+]/g, '');
+};
+
+/**
+ * Normalizes general strings for case-insensitive comparisons.
+ */
+export const normalizeString = (str) => {
+  if (str === null || str === undefined) return '';
+  return String(str).trim().toLowerCase();
+};
+
+/**
+ * Sanitizes cell text to protect against formula injection when exporting Excel / CSV.
+ */
+export const sanitizeSpreadsheetValue = (val) => {
+  if (typeof val === 'string' && /^[=\+\-@]/.test(val)) {
+    return `'${val}`;
+  }
+  return val;
+};
+
+/**
  * Master Schema definitions for Excel templates and validation.
  */
 export const MASTER_SCHEMAS = {
@@ -13,14 +68,14 @@ export const MASTER_SCHEMAS = {
     filename: 'Client_Master_Template.xlsx',
     uniqueKeys: ['email', 'clientName'],
     headers: [
-      { key: 'clientName', label: 'Client Name *', required: true, type: 'string' },
-      { key: 'contactNumber', label: 'Contact Number *', required: true, type: 'string' },
-      { key: 'email', label: 'Email', required: false, type: 'email' },
-      { key: 'gender', label: 'Gender', required: false, type: 'select', options: ['Male', 'Female', 'Other'] },
-      { key: 'address', label: 'Address', required: false, type: 'string' },
-      { key: 'city', label: 'City', required: false, type: 'string' },
-      { key: 'state', label: 'State', required: false, type: 'string' },
-      { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'] }
+      { key: 'clientName', label: 'Client Name *', required: true, type: 'string', aliases: ['clientname', 'clientname*', 'name', 'client_name', 'client Name', 'Client Name *'] },
+      { key: 'contactNumber', label: 'Contact Number *', required: true, type: 'string', aliases: ['contactnumber', 'contactnumber*', 'contactno', 'contactno.', 'mobilenumber', 'mobile', 'phone', 'contact_number', 'Contact Number *', 'Contact No'] },
+      { key: 'email', label: 'Email', required: false, type: 'email', aliases: ['email', 'emailaddress', 'email_address', 'Email Address'] },
+      { key: 'gender', label: 'Gender', required: false, type: 'select', options: ['Male', 'Female', 'Other'], aliases: ['gender', 'Gender'] },
+      { key: 'address', label: 'Address', required: false, type: 'string', aliases: ['address', 'communicationaddress', 'communication_address', 'Address', 'Communication Address'] },
+      { key: 'city', label: 'City', required: false, type: 'string', aliases: ['city', 'City'] },
+      { key: 'state', label: 'State', required: false, type: 'string', aliases: ['state', 'State'] },
+      { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'], aliases: ['status', 'Status'] }
     ],
     sampleData: [
       {
@@ -51,9 +106,9 @@ export const MASTER_SCHEMAS = {
     filename: 'Discipline_Group_Master_Template.xlsx',
     uniqueKeys: ['categoryName'],
     headers: [
-      { key: 'categoryName', label: 'Discipline Group Name *', required: true, type: 'string' },
-      { key: 'description', label: 'Description', required: false, type: 'string' },
-      { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'] }
+      { key: 'categoryName', label: 'Discipline Group Name *', required: true, type: 'string', aliases: ['disciplinegroupname', 'disciplinegroupname*', 'disciplinegroup', 'discipline_group', 'groupname', 'name', 'categoryname', 'categoryname*', 'category', 'Discipline Group Name *', 'Category Name'] },
+      { key: 'description', label: 'Description', required: false, type: 'string', aliases: ['description', 'Description'] },
+      { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'], aliases: ['status', 'Status'] }
     ],
     sampleData: [
       {
@@ -74,10 +129,10 @@ export const MASTER_SCHEMAS = {
     filename: 'Sub_Category_Master_Template.xlsx',
     uniqueKeys: ['categoryName', 'name'],
     headers: [
-      { key: 'categoryName', label: 'Discipline Group *', required: true, type: 'string' },
-      { key: 'name', label: 'Sub Category Name *', required: true, type: 'string' },
-      { key: 'description', label: 'Description', required: false, type: 'string' },
-      { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'] }
+      { key: 'categoryName', label: 'Discipline Group *', required: true, type: 'string', aliases: ['disciplinegroup', 'disciplinegroup*', 'disciplinegroupname', 'groupname', 'category', 'categoryname', 'Discipline Group *', 'Discipline Group'] },
+      { key: 'name', label: 'Sub Category Name *', required: true, type: 'string', aliases: ['subcategoryname', 'subcategoryname*', 'subcategory', 'subcategory_name', 'name', 'Sub Category Name *'] },
+      { key: 'description', label: 'Description', required: false, type: 'string', aliases: ['description', 'Description'] },
+      { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'], aliases: ['status', 'Status'] }
     ],
     sampleData: [
       {
@@ -100,12 +155,12 @@ export const MASTER_SCHEMAS = {
     filename: 'Parameter_Master_Template.xlsx',
     uniqueKeys: ['parameterName'],
     headers: [
-      { key: 'categoryName', label: 'Discipline Group *', required: true, type: 'string' },
-      { key: 'subCategoryName', label: 'Sub Category', required: false, type: 'string' },
-      { key: 'parameterName', label: 'Parameter Name *', required: true, type: 'string' },
-      { key: 'testMethod', label: 'Test Method', required: false, type: 'string' },
-      { key: 'description', label: 'Description', required: false, type: 'string' },
-      { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'] }
+      { key: 'categoryName', label: 'Discipline Group *', required: true, type: 'string', aliases: ['disciplinegroup', 'disciplinegroup*', 'disciplinegroupname', 'groupname', 'category', 'categoryname', 'Discipline Group *'] },
+      { key: 'subCategoryName', label: 'Sub Category', required: false, type: 'string', aliases: ['subcategory', 'subcategoryname', 'subcategory_name', 'Sub Category'] },
+      { key: 'parameterName', label: 'Parameter Name *', required: true, type: 'string', aliases: ['parametername', 'parametername*', 'name', 'parameter', 'Parameter Name *'] },
+      { key: 'testMethod', label: 'Test Method', required: false, type: 'string', aliases: ['testmethod', 'test_method', 'Test Method'] },
+      { key: 'description', label: 'Description', required: false, type: 'string', aliases: ['description', 'Description'] },
+      { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'], aliases: ['status', 'Status'] }
     ],
     sampleData: [
       {
@@ -132,11 +187,11 @@ export const MASTER_SCHEMAS = {
     filename: 'Price_List_Template.xlsx',
     uniqueKeys: ['categoryName', 'parameterName'],
     headers: [
-      { key: 'categoryName', label: 'Discipline Group *', required: true, type: 'string' },
-      { key: 'subCategoryName', label: 'Sub Category', required: false, type: 'string' },
-      { key: 'parameterName', label: 'Parameter Name *', required: true, type: 'string' },
-      { key: 'price', label: 'Price *', required: true, type: 'number' },
-      { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'] }
+      { key: 'categoryName', label: 'Discipline Group *', required: true, type: 'string', aliases: ['disciplinegroup', 'disciplinegroup*', 'disciplinegroupname', 'groupname', 'category', 'categoryname', 'Discipline Group *'] },
+      { key: 'subCategoryName', label: 'Sub Category', required: false, type: 'string', aliases: ['subcategory', 'subcategoryname', 'subcategory_name', 'Sub Category'] },
+      { key: 'parameterName', label: 'Parameter Name *', required: true, type: 'string', aliases: ['parametername', 'parametername*', 'name', 'parameter', 'Parameter Name *'] },
+      { key: 'price', label: 'Price *', required: true, type: 'number', aliases: ['price', 'price*', 'rate', 'Price *'] },
+      { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'], aliases: ['status', 'Status'] }
     ],
     sampleData: [
       {
@@ -161,11 +216,11 @@ export const MASTER_SCHEMAS = {
     filename: 'User_Master_Template.xlsx',
     uniqueKeys: ['email'],
     headers: [
-      { key: 'name', label: 'Full Name *', required: true, type: 'string' },
-      { key: 'email', label: 'Email *', required: true, type: 'email' },
-      { key: 'password', label: 'Initial Password', required: false, type: 'string' },
-      { key: 'role', label: 'Role', required: false, type: 'select', options: ['Admin', 'Technician', 'Sampler', 'User'] },
-      { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'] }
+      { key: 'name', label: 'Full Name *', required: true, type: 'string', aliases: ['fullname', 'fullname*', 'name', 'Full Name *'] },
+      { key: 'email', label: 'Email *', required: true, type: 'email', aliases: ['email', 'email*', 'emailaddress', 'Email *'] },
+      { key: 'password', label: 'Initial Password', required: false, type: 'string', aliases: ['password', 'initialpassword', 'Initial Password'] },
+      { key: 'role', label: 'Role', required: false, type: 'select', options: ['Admin', 'Technician', 'Sampler', 'User'], aliases: ['role', 'Role'] },
+      { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'], aliases: ['status', 'Status'] }
     ],
     sampleData: [
       {
@@ -188,7 +243,7 @@ export const MASTER_SCHEMAS = {
 
 /**
  * Downloads pre-structured Excel template file for specified Master.
- * @param {string} masterType - 'client' | 'category' | 'parameter' | 'pricelist' | 'user'
+ * @param {string} masterType
  */
 export const downloadTemplate = (masterType) => {
   const schema = MASTER_SCHEMAS[masterType];
@@ -198,7 +253,6 @@ export const downloadTemplate = (masterType) => {
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Template');
 
-  // Generate Excel file and trigger download
   XLSX.writeFile(workbook, schema.filename);
 };
 
@@ -228,6 +282,33 @@ export const parseExcelFile = (file) => {
 };
 
 /**
+ * Exports failed rows into a downloadable Excel file.
+ */
+export const exportFailedRowsToExcel = (masterType, failedRows) => {
+  const schema = MASTER_SCHEMAS[masterType];
+  if (!schema || !failedRows || failedRows.length === 0) return;
+
+  const exportData = failedRows.map(r => {
+    const rowObj = {
+      'Row Number': r._originalIndex,
+      'Error Messages': Object.values(r._errors || {}).join(' | ')
+    };
+
+    schema.headers.forEach(h => {
+      rowObj[h.label] = sanitizeSpreadsheetValue(r.data[h.key] || '');
+    });
+
+    return rowObj;
+  });
+
+  const worksheet = XLSX.utils.json_to_sheet(exportData);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Failed Rows');
+
+  XLSX.writeFile(workbook, `${masterType}_Failed_Rows_${Date.now()}.xlsx`);
+};
+
+/**
  * Validates parsed Excel rows against master schema rules and existing database records.
  *
  * @param {string} masterType
@@ -239,45 +320,67 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
   const schema = MASTER_SCHEMAS[masterType];
   if (!schema) return [];
 
-  // Map header labels to internal object keys
-  const labelToKeyMap = {};
-  schema.headers.forEach(h => {
-    labelToKeyMap[h.label] = h.key;
-    // Also support label without asterisk or spaces
-    labelToKeyMap[h.label.replace(' *', '').trim()] = h.key;
-    // Support internal key name directly (for re-validating edited/deleted rows)
-    labelToKeyMap[h.key] = h.key;
-  });
-
   const evaluatedRows = [];
-  const seenKeys = new Set(); // To track internal file duplicates
+  const seenEmailsInFile = new Map();
+  const seenPhonesInFile = new Map();
+  const seenNamesInFile = new Map();
 
-  rawRows.forEach((row, index) => {
+  let validRowNum = 0;
+
+  rawRows.forEach((row) => {
+    // 14. Ignore completely empty Excel rows
+    const isRowEmpty = Object.values(row).every(val => val === null || val === undefined || String(val).trim() === '');
+    if (isRowEmpty) {
+      return;
+    }
+
+    validRowNum++;
     const normalizedData = {};
     const cellErrors = {};
     let isRowValid = true;
 
-    // Normalize keys from Excel labels
+    // Initialize all schema fields with empty strings
+    schema.headers.forEach(h => {
+      normalizedData[h.key] = '';
+    });
+
+    // Map Excel header labels to internal keys using central header normalization & aliases
     Object.keys(row).forEach(rawHeader => {
-      const trimmedHeader = rawHeader.trim();
-      const matchedKey = labelToKeyMap[trimmedHeader] || labelToKeyMap[trimmedHeader.replace(' *', '')];
-      if (matchedKey) {
-        normalizedData[matchedKey] = row[rawHeader] !== undefined && row[rawHeader] !== null ? String(row[rawHeader]) : '';
+      const normRaw = normalizeExcelHeader(rawHeader);
+
+      // Look for a matching schema header field
+      const matchedField = schema.headers.find(h => {
+        if (normalizeExcelHeader(h.key) === normRaw) return true;
+        if (normalizeExcelHeader(h.label) === normRaw) return true;
+        if (h.aliases && h.aliases.some(alias => normalizeExcelHeader(alias) === normRaw)) return true;
+        return false;
+      });
+
+      if (matchedField) {
+        const rawVal = row[rawHeader];
+        let cleanedVal = '';
+        if (rawVal !== undefined && rawVal !== null) {
+          if (matchedField.key === 'contactNumber') {
+            cleanedVal = normalizePhone(rawVal);
+          } else {
+            cleanedVal = String(rawVal).trim();
+          }
+        }
+        normalizedData[matchedField.key] = cleanedVal;
       }
     });
 
     // Run schema validations per field
     schema.headers.forEach(h => {
-      const rawVal = normalizedData[h.key] !== undefined && normalizedData[h.key] !== null ? String(normalizedData[h.key]) : '';
-      const val = rawVal.trim();
+      const val = (normalizedData[h.key] || '').trim();
 
-      // 1. Required check
+      // Required field check
       if (h.required && (!val || val === '')) {
         cellErrors[h.key] = `${h.label} is required.`;
         isRowValid = false;
       }
 
-      // 2. Email format check
+      // Email format check
       if (h.type === 'email' && val && val !== '') {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(val)) {
@@ -286,91 +389,111 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
         }
       }
 
-      // 3. Numeric format check
+      // Number validation (e.g. Price)
       if (h.type === 'number' && val && val !== '') {
-        if (isNaN(Number(val))) {
+        const num = Number(val);
+        if (isNaN(num)) {
           cellErrors[h.key] = 'Must be a valid number.';
+          isRowValid = false;
+        } else if (num < 0) {
+          cellErrors[h.key] = 'Cannot be a negative number.';
           isRowValid = false;
         }
       }
 
-      // 4. Default values for status/role/gender
+      // Case-insensitive matching for select options (Status / Gender)
+      if (h.type === 'select' && val && val !== '') {
+        const matchedOption = h.options.find(opt => opt.trim().toLowerCase() === val.toLowerCase());
+        if (matchedOption) {
+          normalizedData[h.key] = matchedOption;
+        } else {
+          cellErrors[h.key] = `Invalid value. Choose from: ${h.options.join(', ')}`;
+          isRowValid = false;
+        }
+      }
+
+      // Default Status to Active if not provided
       if (h.key === 'status' && !normalizedData['status']) {
         normalizedData['status'] = 'Active';
       }
     });
 
     // Check for internal file duplicates
-    let fileDuplicate = false;
-    let duplicateKeyVal = '';
+    if (masterType === 'client') {
+      const nEmail = normalizeEmail(normalizedData.email);
+      const nPhone = normalizePhone(normalizedData.contactNumber);
 
-    if (schema.uniqueKeys.length > 1) {
-      // Composite unique key check (e.g. Category + Parameter for Price List)
-      if (schema.uniqueKeys.every(uk => normalizedData[uk] && normalizedData[uk] !== '')) {
-        const compositeKeyStr = schema.uniqueKeys
-          .map(uk => normalizedData[uk].toLowerCase())
-          .join('___');
-        if (seenKeys.has(compositeKeyStr)) {
-          fileDuplicate = true;
-          duplicateKeyVal = schema.uniqueKeys.map(uk => normalizedData[uk]).join(' / ');
-        } else {
-          seenKeys.add(compositeKeyStr);
-        }
+      if (nEmail && seenEmailsInFile.has(nEmail)) {
+        const msg = `Duplicate email in uploaded file. First found at row ${seenEmailsInFile.get(nEmail)}.`;
+        cellErrors['email'] = msg;
+        cellErrors['_row'] = msg;
+        isRowValid = false;
       }
-    } else {
-      // Single unique key check (e.g. email or categoryName)
-      schema.uniqueKeys.forEach(uk => {
-        if (normalizedData[uk] && normalizedData[uk] !== '') {
-          const checkStr = `${uk}:${normalizedData[uk].toLowerCase()}`;
-          if (seenKeys.has(checkStr)) {
-            fileDuplicate = true;
-            duplicateKeyVal = normalizedData[uk];
-          } else {
-            seenKeys.add(checkStr);
-          }
-        }
-      });
+
+      if (nPhone && seenPhonesInFile.has(nPhone)) {
+        const msg = `Duplicate phone number in uploaded file. First found at row ${seenPhonesInFile.get(nPhone)}.`;
+        cellErrors['contactNumber'] = msg;
+        cellErrors['_row'] = cellErrors['_row'] ? `${cellErrors['_row']} | ${msg}` : msg;
+        isRowValid = false;
+      }
+
+      if (isRowValid) {
+        if (nEmail) seenEmailsInFile.set(nEmail, validRowNum);
+        if (nPhone) seenPhonesInFile.set(nPhone, validRowNum);
+      }
+    } else if (masterType === 'category' || masterType === 'parameter') {
+      const fieldKey = masterType === 'category' ? 'categoryName' : 'parameterName';
+      const nName = normalizeString(normalizedData[fieldKey]);
+
+      if (nName && seenNamesInFile.has(nName)) {
+        const msg = `Duplicate ${masterType === 'category' ? 'discipline group' : 'parameter'} in uploaded file. First found at row ${seenNamesInFile.get(nName)}.`;
+        cellErrors[fieldKey] = msg;
+        cellErrors['_row'] = msg;
+        isRowValid = false;
+      } else if (nName) {
+        seenNamesInFile.set(nName, validRowNum);
+      }
     }
 
-    if (fileDuplicate) {
-      cellErrors['_row'] = `Duplicate entry in Excel file (${duplicateKeyVal}).`;
-      isRowValid = false;
-    }
-
-    // Check for database existing match (Insert vs Update detection)
+    // Check for database existing match (Insert vs Update vs Duplicate Error)
     let isDbMatch = false;
     let matchingDbId = null;
 
     if (existingDbRecords && existingDbRecords.length > 0) {
-      const dbMatch = existingDbRecords.find(record => {
-        // Compare unique keys
-        if (masterType === 'client') {
-          return (record.email && normalizedData.email && record.email.toLowerCase() === normalizedData.email.toLowerCase()) ||
-                 (record.clientName && normalizedData.clientName && record.clientName.toLowerCase() === normalizedData.clientName.toLowerCase());
-        }
-        if (masterType === 'category') {
-          return record.categoryName && normalizedData.categoryName && record.categoryName.toLowerCase() === normalizedData.categoryName.toLowerCase();
-        }
-        if (masterType === 'parameter') {
-          return record.parameterName && normalizedData.parameterName && record.parameterName.toLowerCase() === normalizedData.parameterName.toLowerCase();
-        }
-        if (masterType === 'user') {
-          return record.email && normalizedData.email && record.email.toLowerCase() === normalizedData.email.toLowerCase();
-        }
-        if (masterType === 'pricelist') {
-          return record.categoryName && normalizedData.categoryName && record.categoryName.toLowerCase() === normalizedData.categoryName.toLowerCase() &&
-                 record.parameterName && normalizedData.parameterName && record.parameterName.toLowerCase() === normalizedData.parameterName.toLowerCase();
-        }
-        return false;
-      });
+      if (masterType === 'client') {
+        const nEmail = normalizeEmail(normalizedData.email);
+        const nPhone = normalizePhone(normalizedData.contactNumber);
 
-      if (dbMatch) {
-        isDbMatch = true;
-        matchingDbId = dbMatch.id;
+        const emailClient = nEmail ? existingDbRecords.find(c => normalizeEmail(c.email) === nEmail) : null;
+        const phoneClient = nPhone ? existingDbRecords.find(c => normalizePhone(c.contactNumber) === nPhone) : null;
+
+        if (emailClient && phoneClient && emailClient.id !== phoneClient.id) {
+          const msg = `Email belongs to client ID ${emailClient.id}, but phone number belongs to client ID ${phoneClient.id}.`;
+          cellErrors['email'] = msg;
+          cellErrors['contactNumber'] = msg;
+          cellErrors['_row'] = msg;
+          isRowValid = false;
+        } else if (emailClient || phoneClient) {
+          isDbMatch = true;
+          matchingDbId = (emailClient || phoneClient).id;
+        }
+      } else if (masterType === 'category') {
+        const nCatName = normalizeString(normalizedData.categoryName);
+        const dbCat = existingDbRecords.find(c => normalizeString(c.name || c.categoryName) === nCatName);
+        if (dbCat) {
+          isDbMatch = true;
+          matchingDbId = dbCat.id;
+        }
+      } else if (masterType === 'parameter') {
+        const nParamName = normalizeString(normalizedData.parameterName);
+        const dbParam = existingDbRecords.find(p => normalizeString(p.parameterName || p.name) === nParamName);
+        if (dbParam) {
+          isDbMatch = true;
+          matchingDbId = dbParam.id;
+        }
       }
     }
 
-    // Determine row overall status tag
     let statusTag = 'NEW';
     if (!isRowValid) {
       statusTag = 'ERROR';
@@ -379,9 +502,9 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
     }
 
     evaluatedRows.push({
-      _id: `row_${index}_${Date.now()}`,
-      _originalIndex: index + 1,
-      _status: statusTag, // 'NEW' | 'UPDATE' | 'ERROR'
+      _id: `row_${validRowNum}_${Date.now()}`,
+      _originalIndex: validRowNum,
+      _status: statusTag,
       _errors: cellErrors,
       _dbId: matchingDbId,
       data: normalizedData

@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  FaFolder, FaPlus, FaDownload, FaEdit, FaTrash, FaCheck, 
-  FaExclamationCircle, FaFileExcel, FaCopy, FaFileCsv, 
-  FaFilePdf, FaPrint, FaChevronDown 
+import {
+  FaFolder, FaPlus, FaDownload, FaEdit, FaTrash, FaCheck,
+  FaExclamationCircle, FaFileExcel, FaCopy, FaFileCsv,
+  FaFilePdf, FaPrint, FaChevronDown
 } from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
 import { SUB_CATEGORY_ENDPOINTS, CATEGORY_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 import Pagination from '../../../shared/components/Pagination';
 import BulkImportModal from '../../../shared/components/BulkImport/BulkImportModal';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
+import { downloadCSV, downloadExcel } from '../../../shared/utils/exportUtils';
 
 /**
  * @component SubCategoryMaster
@@ -30,14 +31,14 @@ const SubCategoryMaster = () => {
   const [pageSize, setPageSize] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-  
+
   // Toast notifications state
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
   // Form visibility and editing state
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  
+
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -82,7 +83,7 @@ const SubCategoryMaster = () => {
       const activeCompId = localStorage.getItem('selectedCompanyId') || '';
       const params = new URLSearchParams({ limit: 100, status: 'Active' });
       if (activeCompId) params.append('companyId', activeCompId);
-      
+
       const response = await apiService.get(`${CATEGORY_ENDPOINTS.GET_ALL}?${params.toString()}`);
       if (response && response.data) {
         setCategories(response.data);
@@ -105,10 +106,10 @@ const SubCategoryMaster = () => {
       });
       if (activeCompId) params.append('companyId', activeCompId);
       if (categoryFilter) params.append('categoryId', categoryFilter);
-      
+
       const url = `${SUB_CATEGORY_ENDPOINTS.GET_ALL}?${params.toString()}`;
       const response = await apiService.get(url);
-      
+
       if (response && response.data) {
         setSubCategories(response.data);
         if (response.meta) {
@@ -245,27 +246,7 @@ const SubCategoryMaster = () => {
       sc.description || 'None',
       sc.status
     ]);
-    
-    let htmlTable = `
-      <table border="1">
-        <thead>
-          <tr style="background-color: #f8fafc; font-weight: bold;">
-            ${headers.map(h => `<th>${h}</th>`).join('')}
-          </tr>
-        </thead>
-        <tbody>
-          ${rows.map(r => `<tr>${r.map(val => `<td>${val}</td>`).join('')}</tr>`).join('')}
-        </tbody>
-      </table>
-    `;
-    const excelBlob = new Blob([htmlTable], { type: 'application/vnd.ms-excel' });
-    const excelUrl = URL.createObjectURL(excelBlob);
-    const link = document.createElement("a");
-    link.setAttribute("href", excelUrl);
-    link.setAttribute("download", "Sub_Categories_Report.xls");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadExcel(headers, rows, 'Sub_Categories_Report.xlsx');
     setShowDownloadDropdown(false);
   };
 
@@ -278,17 +259,7 @@ const SubCategoryMaster = () => {
       sc.description || 'None',
       sc.status
     ]);
-
-    let csvContent = 'data:text/csv;charset=utf-8,' 
-      + [headers.join(','), ...rows.map(e => e.map(val => `"${val}"`).join(','))].join('\n');
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Sub_Categories_Export_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadCSV(headers, rows, 'Sub_Categories_Report.csv');
     setShowDownloadDropdown(false);
   };
 
@@ -360,7 +331,7 @@ const SubCategoryMaster = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      
+
       {/* Toast Notification Container */}
       {toast.show && (
         <div style={{
@@ -394,8 +365,8 @@ const SubCategoryMaster = () => {
         <div className="master-top-bar-actions" style={{ display: 'flex', gap: '0.75rem', position: 'relative' }} ref={dropdownRef}>
           {!isFormOpen && (
             <>
-              <button 
-                onClick={handleOpenCreate} 
+              <button
+                onClick={handleOpenCreate}
                 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1rem', fontWeight: 600, cursor: 'pointer' }}
               >
                 <FaPlus />
@@ -412,20 +383,20 @@ const SubCategoryMaster = () => {
           )}
 
           {/* Premium Download Button */}
-          <button 
-            onClick={() => setShowDownloadDropdown(!showDownloadDropdown)} 
+          <button
+            onClick={() => setShowDownloadDropdown(!showDownloadDropdown)}
             disabled={subCategories.length === 0}
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '0.5rem', 
-              backgroundColor: '#22c55e', 
-              color: '#ffffff', 
-              border: 'none', 
-              borderRadius: '8px', 
-              padding: '0.5rem 1.25rem', 
-              fontWeight: 600, 
-              cursor: 'pointer', 
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              backgroundColor: '#22c55e',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '0.5rem 1.25rem',
+              fontWeight: 600,
+              cursor: 'pointer',
               opacity: subCategories.length === 0 ? 0.6 : 1,
               boxShadow: '0 2px 4px rgba(34, 197, 94, 0.2)'
             }}
@@ -493,10 +464,10 @@ const SubCategoryMaster = () => {
           <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '1.25rem', color: '#1e293b' }}>
             {editingId ? 'Edit Sub Category' : 'Add New Sub Category'}
           </h3>
-          
+
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
-              
+
               {/* Discipline Group Dropdown */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Discipline Group *</label>
@@ -519,8 +490,8 @@ const SubCategoryMaster = () => {
               {/* Sub Category Name */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Sub Category Name *</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
@@ -535,7 +506,7 @@ const SubCategoryMaster = () => {
               {/* Description */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: 'span 2' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Description</label>
-                <textarea 
+                <textarea
                   name="description"
                   value={formData.description}
                   onChange={handleInputChange}
@@ -585,15 +556,15 @@ const SubCategoryMaster = () => {
 
             {/* Action Buttons */}
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => setIsFormOpen(false)}
                 style={{ padding: '0.5rem 1.25rem', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', backgroundColor: '#ffffff', color: '#475569', fontWeight: 600 }}
               >
                 Cancel
               </button>
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 disabled={submitting}
                 style={{ padding: '0.5rem 1.25rem', border: 'none', borderRadius: '6px', cursor: 'pointer', backgroundColor: '#22c55e', color: '#ffffff', fontWeight: 600, opacity: submitting ? 0.7 : 1 }}
               >
@@ -607,7 +578,7 @@ const SubCategoryMaster = () => {
 
       {/* Main Table view */}
       <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
-        
+
         {/* Table Filters */}
         <div className="master-table-filters" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
           <div style={{ fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>
@@ -670,21 +641,21 @@ const SubCategoryMaster = () => {
                 </tr>
               ) : (
                 subCategories.map((item, index) => (
-                  <tr 
-                    key={item.id} 
+                  <tr
+                    key={item.id}
                     onClick={() => handleOpenEdit(item)}
                     style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background-color 0.15s' }}
                     className="company-table-row"
                   >
                     <td style={{ padding: '0.75rem 1rem', display: 'flex', gap: '0.5rem' }}>
-                      <button 
+                      <button
                         onClick={(e) => { e.stopPropagation(); handleOpenEdit(item); }}
                         style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                         title="Edit"
                       >
                         <FaEdit size={12} />
                       </button>
-                      <button 
+                      <button
                         onClick={(e) => { e.stopPropagation(); handleDelete(item.id, item.name); }}
                         style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                         title="Delete"
@@ -696,7 +667,7 @@ const SubCategoryMaster = () => {
                     <td style={{ padding: '0.75rem 1rem', color: '#2563eb', fontWeight: 600 }}>{item.category ? item.category.name : 'N/A'}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{item.name}</td>
                     <td style={{ padding: '0.75rem 1rem' }}>
-                      <span style={{ 
+                      <span style={{
                         display: 'inline-block',
                         padding: '0.125rem 0.5rem',
                         fontSize: '0.75rem',
@@ -728,9 +699,9 @@ const SubCategoryMaster = () => {
                   <div className="master-record-card-header">
                     <div>
                       <div className="master-record-title">{item.name}</div>
-                      <div className="master-record-subtitle">{item.category?.name || 'N/A'} • #{ (currentPage - 1) * pageSize + index + 1 }</div>
+                      <div className="master-record-subtitle">{item.category?.name || 'N/A'} • #{(currentPage - 1) * pageSize + index + 1}</div>
                     </div>
-                    <span style={{ 
+                    <span style={{
                       padding: '0.2rem 0.6rem',
                       fontSize: '0.75rem',
                       fontWeight: 700,
@@ -743,13 +714,13 @@ const SubCategoryMaster = () => {
                   </div>
 
                   <div className="master-record-actions">
-                    <button 
+                    <button
                       onClick={(e) => { e.stopPropagation(); handleOpenEdit(item); }}
                       style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                     >
                       <FaEdit size={12} /> Edit
                     </button>
-                    <button 
+                    <button
                       onClick={(e) => { e.stopPropagation(); handleDelete(item.id, item.name); }}
                       style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                     >
@@ -763,7 +734,7 @@ const SubCategoryMaster = () => {
         </div>
 
         {/* Pagination Controls */}
-        <Pagination 
+        <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
           totalItems={totalItems}

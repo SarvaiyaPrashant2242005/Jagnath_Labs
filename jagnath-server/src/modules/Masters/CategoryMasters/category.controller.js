@@ -234,11 +234,11 @@ const update = async (req, res) => {
             ));
         }
 
-        // Resolve target company
+        // Resolve target company only if explicitly changed in body
         let targetCompanyId = category.companyId;
-        if (body.companyId || body.company_id || body.companyName) {
+        if (body.companyId || body.company_id) {
             try {
-                targetCompanyId = await resolveCompanyId(body, {}, userId);
+                targetCompanyId = await resolveCompanyId(body, {}, userId, req.headers);
             } catch (e) {
                 if (e.message === "UNAUTHORIZED_COMPANY") {
                     return res.status(403).json(errorResponse("FORBIDDEN", "Unauthorized", "Access Denied: You do not own the target company."));
@@ -375,7 +375,7 @@ const bulkImport = async (req, res) => {
         ));
     } catch (err) {
         console.error("Bulk Import Category Error:", err);
-        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Bulk import failed."));
+        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, err.message || "Bulk import failed."));
     }
 };
 

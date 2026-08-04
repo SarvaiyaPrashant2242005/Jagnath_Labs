@@ -9,6 +9,7 @@ const sequelize = require("../../../config/database");
 const { Op } = require("sequelize");
 const path = require("path");
 const { writeLogToFile } = require("../../../services/loggerService");
+const { normalizeEmail, normalizePhone, normalizeString } = require("../../../utils/normalizers");
 
 const createLogPath = path.join(__dirname, "../../../../logs/Client/Create.txt");
 const updateLogPath = path.join(__dirname, "../../../../logs/Client/Update.txt");
@@ -17,6 +18,8 @@ const deleteLogPath = path.join(__dirname, "../../../../logs/Client/Delete.txt")
 const fieldLabels = {
     clientName: "Client Name",
     contactNumber: "Contact Number",
+    officeAddress: "Office Address",
+    plantAddress: "Plant / Industry Address",
     address: "Address",
     city: "City",
     gender: "Gender",
@@ -46,6 +49,12 @@ const getLoggableValues = (instance) => {
 const formatClient = (client) => {
     if (!client) return null;
     const clientObj = client.toJSON ? client.toJSON() : { ...client };
+    if (!clientObj.officeAddress) {
+        clientObj.officeAddress = clientObj.address || 'N/A';
+    }
+    if (!clientObj.plantAddress) {
+        clientObj.plantAddress = clientObj.address || 'N/A';
+    }
     if (clientObj.company) {
         clientObj.companyName = clientObj.company.companyName || clientObj.company.company_name;
     } else {
@@ -326,8 +335,34 @@ module.exports = {
     bulkImportClients: async (records, companyId, userId, reqInfo) => {
         const transaction = await sequelize.transaction();
         try {
-            let createdCount = 0;
+            // Fetch all existing active/paranoid clients for this company once (batch)
+            const existingClients = await Client.findAll({
+                where: { companyId },
+                transaction
+            });
+
+            // Build lookup maps for fast batch matching
+            const clientByEmail = new Map();
+            const clientByPhone = new Map();
+
+            existingClients.forEach(c => {
+                const plain = c.get ? c.get({ plain: true }) : c;
+                const nEmail = normalizeEmail(plain.email);
+                const nPhone = normalizePhone(plain.contactNumber);
+                if (nEmail) clientByEmail.set(nEmail, plain);
+                if (nPhone) clientByPhone.set(nPhone, plain);
+            });
+
+            // Track internal file duplicates across rows
+            const seenEmailsInFile = new Map(); // normEmail -> rowNumber
+            const seenPhonesInFile = new Map(); // normPhone -> rowNumber
+            const seenRowsInFile = new Set();
+
+            let insertedCount = 0;
             let updatedCount = 0;
+            let failedCount = 0;
+            let skippedCount = 0;
+            const rowResults = [];
 
             for (const item of records) {
                 const raw = item.data || item;
@@ -343,26 +378,137 @@ module.exports = {
                     companyId
                 };
 
-                let existing = null;
-                if (item._dbId) {
-                    existing = await Client.findOne({ where: { id: item._dbId, companyId }, transaction });
-                } else if (data.email) {
-                    existing = await Client.findOne({ where: { email: data.email, companyId }, transaction });
-                } else if (data.clientName) {
-                    existing = await Client.findOne({ where: { clientName: data.clientName, companyId }, transaction });
+                const { clientName, contactNumber, email, gender, address, city, state, status } = data;
+                const rawData = raw;
+                const rowNum = item._originalIndex || (records.indexOf(item) + 1);
+                const errors = [];
+
+                const normEmail = normalizeEmail(email);
+                const normPhone = normalizePhone(contactNumber);
+
+                // File duplicate validations (Case 6)
+                const rowSignature = `${normEmail}___${normPhone}___${normalizeString(clientName)}`;
+                if (seenRowsInFile.has(rowSignature)) {
+                    errors.push("Duplicate client row in uploaded file.");
+                } else if (normEmail && seenEmailsInFile.has(normEmail)) {
+                    errors.push(`Duplicate email in uploaded file. First found at row ${seenEmailsInFile.get(normEmail)}.`);
+                } else if (normPhone && seenPhonesInFile.has(normPhone)) {
+                    errors.push(`Duplicate phone number in uploaded file. First found at row ${seenPhonesInFile.get(normPhone)}.`);
                 }
 
-                if (existing) {
-                    await existing.update(data, { transaction });
+                if (errors.length > 0) {
+                    failedCount++;
+                    rowResults.push({
+                        rowNumber: rowNum,
+                        action: "error",
+                        errors,
+                        data: rawData
+                    });
+                    continue;
+                }
+
+                // Track in file maps
+                if (normEmail) seenEmailsInFile.set(normEmail, rowNum);
+                if (normPhone) seenPhonesInFile.set(normPhone, rowNum);
+                seenRowsInFile.add(rowSignature);
+
+                // DB Match Lookup
+                const emailMatch = normEmail ? clientByEmail.get(normEmail) : null;
+                const phoneMatch = normPhone ? clientByPhone.get(normPhone) : null;
+
+                const clientPayload = {
+                    companyId,
+                    clientName,
+                    contactNumber,
+                    email: email || null,
+                    gender,
+                    address,
+                    city,
+                    state,
+                    status
+                };
+
+                // Case 1: Neither email nor phone exist -> Insert new client
+                if (!emailMatch && !phoneMatch) {
+                    const newClient = await Client.create(clientPayload, { transaction });
+                    const createdObj = newClient.get ? newClient.get({ plain: true }) : newClient;
+                    if (normEmail) clientByEmail.set(normEmail, createdObj);
+                    if (normPhone) clientByPhone.set(normPhone, createdObj);
+                    insertedCount++;
+                    rowResults.push({
+                        rowNumber: rowNum,
+                        action: "inserted",
+                        recordId: createdObj.id,
+                        message: "Client created successfully"
+                    });
+                }
+                // Case 2: Both email and phone match the SAME existing client
+                else if (emailMatch && phoneMatch && emailMatch.id === phoneMatch.id) {
+                    await Client.update(clientPayload, { where: { id: emailMatch.id }, transaction });
+                    const updatedObj = { ...emailMatch, ...clientPayload };
+                    if (normEmail) clientByEmail.set(normEmail, updatedObj);
+                    if (normPhone) clientByPhone.set(normPhone, updatedObj);
                     updatedCount++;
-                } else {
-                    await Client.create(data, { transaction });
-                    createdCount++;
+                    rowResults.push({
+                        rowNumber: rowNum,
+                        action: "updated",
+                        recordId: emailMatch.id,
+                        message: `Existing client ID ${emailMatch.id} updated`
+                    });
+                }
+                // Case 3: Only email matches an existing client
+                else if (emailMatch && !phoneMatch) {
+                    await Client.update(clientPayload, { where: { id: emailMatch.id }, transaction });
+                    const updatedObj = { ...emailMatch, ...clientPayload };
+                    if (normEmail) clientByEmail.set(normEmail, updatedObj);
+                    if (normPhone) clientByPhone.set(normPhone, updatedObj);
+                    updatedCount++;
+                    rowResults.push({
+                        rowNumber: rowNum,
+                        action: "updated",
+                        recordId: emailMatch.id,
+                        message: `Existing client ID ${emailMatch.id} updated using matching email`
+                    });
+                }
+                // Case 4: Only phone matches an existing client
+                else if (!emailMatch && phoneMatch) {
+                    await Client.update(clientPayload, { where: { id: phoneMatch.id }, transaction });
+                    const updatedObj = { ...phoneMatch, ...clientPayload };
+                    if (normEmail) clientByEmail.set(normEmail, updatedObj);
+                    if (normPhone) clientByPhone.set(normPhone, updatedObj);
+                    updatedCount++;
+                    rowResults.push({
+                        rowNumber: rowNum,
+                        action: "updated",
+                        recordId: phoneMatch.id,
+                        message: `Existing client ID ${phoneMatch.id} updated using matching phone`
+                    });
+                }
+                // Case 5: Email and phone belong to two DIFFERENT existing clients -> Reject conflict
+                else {
+                    failedCount++;
+                    rowResults.push({
+                        rowNumber: rowNum,
+                        action: "error",
+                        errors: [`Email belongs to client ID ${emailMatch.id}, but phone number belongs to client ID ${phoneMatch.id}.`],
+                        data: rawData
+                    });
                 }
             }
 
             await transaction.commit();
-            return { createdCount, updatedCount, totalProcessed: records.length };
+
+            return {
+                totalRows: records.length,
+                inserted: insertedCount,
+                updated: updatedCount,
+                failed: failedCount,
+                skipped: skippedCount,
+                createdCount: insertedCount,
+                updatedCount: updatedCount,
+                totalProcessed: records.length,
+                rows: rowResults
+            };
         } catch (error) {
             await transaction.rollback();
             console.error("Error in bulkImportClients service:", error);

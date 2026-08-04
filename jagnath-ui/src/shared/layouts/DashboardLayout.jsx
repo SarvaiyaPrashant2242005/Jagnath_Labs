@@ -64,7 +64,7 @@ const DashboardLayout = ({ children }) => {
         
         if (companyList.length > 0) {
           const savedSelectedId = localStorage.getItem('selectedCompanyId');
-          const found = companyList.find(c => c.id === savedSelectedId);
+          const found = companyList.find(c => String(c.id) === String(savedSelectedId));
           if (found) {
             setSelectedCompany(found.companyName || found.company_name);
           } else {
@@ -134,6 +134,13 @@ const DashboardLayout = ({ children }) => {
     setShowLogoutModal(false);
     logoutUser();
     navigate('/login');
+  };
+
+  // Close sidebar on mobile item selection (keeps sidebar open on desktop)
+  const handleCloseMobile = () => {
+    if (window.innerWidth <= 991) {
+      setIsSidebarOpen(false);
+    }
   };
 
   return (
@@ -331,7 +338,7 @@ const DashboardLayout = ({ children }) => {
           activeTab={activeTab}
           onTabChange={handleTabChange}
           isOpen={isSidebarOpen}
-          onCloseMobile={() => setIsSidebarOpen(false)}
+          onCloseMobile={handleCloseMobile}
         />
       ) : (
         <Sidebar
@@ -339,7 +346,7 @@ const DashboardLayout = ({ children }) => {
           onTabChange={handleTabChange}
           onNewRequest={() => navigate('/test-requests/add')}
           isOpen={isSidebarOpen}
-          onCloseMobile={() => setIsSidebarOpen(false)}
+          onCloseMobile={handleCloseMobile}
         />
       )}
 

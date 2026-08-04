@@ -61,7 +61,13 @@ const Sidebar = ({ activeTab, onTabChange, onNewRequest, sidebarRef, isOpen = tr
             flex-shrink: 0;
             z-index: 1005;
             height: 100%;
-            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), width 0.3s ease;
+            transition: margin-left 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+          }
+
+          @media (min-width: 992px) {
+            .dashboard-sidebar:not(.open) {
+              margin-left: -260px !important;
+            }
           }
 
           .sidebar-backdrop {
@@ -89,6 +95,7 @@ const Sidebar = ({ activeTab, onTabChange, onNewRequest, sidebarRef, isOpen = tr
               max-width: 85vw;
               transform: translateX(-100%);
               box-shadow: 10px 0 30px rgba(0, 0, 0, 0.3);
+              margin-left: 0 !important;
             }
 
             .dashboard-sidebar.open {

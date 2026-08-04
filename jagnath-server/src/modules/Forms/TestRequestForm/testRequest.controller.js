@@ -261,7 +261,7 @@ const update = async (req, res) => {
                     return res.status(404).json(errorResponse("NOT_FOUND", "Client not found in this company.", "Client not found."));
                 }
                 resolvedClientId = client.id;
-                
+
                 // Copy details automatically from the resolved client if address/contactNumber are not explicitly updated in the request body
                 if (value.address === undefined) {
                     value.address = client.address;

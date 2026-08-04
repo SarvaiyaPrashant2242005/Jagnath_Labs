@@ -77,7 +77,7 @@ const create = async (req, res) => {
             return res.status(404).json(errorResponse("NOT_FOUND", e.message, e.message));
         }
 
-        const parameterData = { 
+        const parameterData = {
             parameterName: value.parameterName,
             description: value.description,
             testMethod: value.testMethod,
@@ -383,7 +383,7 @@ const bulkImport = async (req, res) => {
         ));
     } catch (err) {
         console.error("Bulk Import Parameter Error:", err);
-        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Bulk import failed."));
+        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, err.message || "Bulk import failed."));
     }
 };
 

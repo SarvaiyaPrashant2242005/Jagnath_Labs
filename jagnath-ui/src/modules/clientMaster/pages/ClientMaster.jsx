@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  FaUserFriends, FaPlus, FaDownload, FaEdit, FaTrash, FaCheck, 
-  FaExclamationCircle, FaFileExcel, FaCopy, FaFileCsv, 
-  FaFilePdf, FaPrint, FaChevronDown 
+import {
+  FaUserFriends, FaPlus, FaDownload, FaEdit, FaTrash, FaCheck,
+  FaExclamationCircle, FaFileExcel, FaCopy, FaFileCsv,
+  FaFilePdf, FaPrint, FaChevronDown
 } from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
 import { CLIENT_ENDPOINTS, COMPANY_ENDPOINTS } from '../../../shared/services/apiEndpoints';
@@ -10,6 +10,7 @@ import { getIndianStates, getCitiesByStateIso2 } from '../../../shared/services/
 import Pagination from '../../../shared/components/Pagination';
 import BulkImportModal from '../../../shared/components/BulkImport/BulkImportModal';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
+import { downloadCSV, downloadExcel } from '../../../shared/utils/exportUtils';
 
 const ClientMaster = () => {
   // Client state
@@ -17,11 +18,50 @@ const ClientMaster = () => {
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
-  
+
+  // Multi-Select state
+  const [selectedIds, setSelectedIds] = useState([]);
+
   // Delete confirmation modal state
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null, name: '' });
   const [deleting, setDeleting] = useState(false);
-  
+
+  // Select all / deselect all current page clients
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      const allIds = clients.map(c => c.id);
+      setSelectedIds(allIds);
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  // Toggle single client selection
+  const handleSelectRow = (id, e) => {
+    e.stopPropagation();
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  // Bulk Delete Selected
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} selected client(s)?`)) return;
+
+    try {
+      setLoading(true);
+      await Promise.all(selectedIds.map(id => apiService.delete(`${CLIENT_ENDPOINTS.DELETE}/${id}`)));
+      triggerToast(`${selectedIds.length} clients deleted successfully!`, 'success');
+      setSelectedIds([]);
+      fetchClients();
+    } catch (err) {
+      triggerToast(err.message || 'Failed to delete selected clients.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Location dropdown states (India)
   const [indianStates, setIndianStates] = useState([]);
   const [availableCities, setAvailableCities] = useState([]);
@@ -31,14 +71,14 @@ const ClientMaster = () => {
   const [pageSize, setPageSize] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-  
+
   // Toast notifications state
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
   // Form visibility and editing state
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  
+
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -53,7 +93,8 @@ const ClientMaster = () => {
     contactNumber: '',
     companyName: '',
     gender: 'Male',
-    address: '',
+    officeAddress: '',
+    plantAddress: '',
     city: '',
     state: '',
     email: '',
@@ -147,19 +188,19 @@ const ClientMaster = () => {
       if (activeCompId) {
         params.append('companyId', activeCompId);
       }
-      
+
       const url = `${CLIENT_ENDPOINTS.GET_ALL}?${params.toString()}`;
       const response = await apiService.get(url);
       if (response && response.data) {
         if (response.data.rows !== undefined) {
-           setClients(response.data.rows);
-           setTotalItems(response.data.total);
-           setTotalPages(response.data.totalPages);
+          setClients(response.data.rows);
+          setTotalItems(response.data.total);
+          setTotalPages(response.data.totalPages);
         } else {
-           const clientList = Array.isArray(response.data) ? response.data : [response.data];
-           setClients(clientList);
-           setTotalItems(clientList.length);
-           setTotalPages(1);
+          const clientList = Array.isArray(response.data) ? response.data : [response.data];
+          setClients(clientList);
+          setTotalItems(clientList.length);
+          setTotalPages(1);
         }
       } else {
         setClients([]);
@@ -211,8 +252,11 @@ const ClientMaster = () => {
     } else if (!phoneRegex.test(formData.contactNumber)) {
       errors.contactNumber = 'Contact Number must contain only digits.';
     }
-    if (!formData.address.trim()) {
-      errors.address = 'Address is required.';
+    if (!formData.officeAddress || !formData.officeAddress.trim()) {
+      errors.officeAddress = 'Office Address is required.';
+    }
+    if (!formData.plantAddress || !formData.plantAddress.trim()) {
+      errors.plantAddress = 'Plant / Industry Address is required.';
     }
     if (!formData.city.trim()) {
       errors.city = 'City is required.';
@@ -234,7 +278,7 @@ const ClientMaster = () => {
   const handleOpenCreate = () => {
     // Default to currently selected company from localStorage if available
     const activeCompId = localStorage.getItem('selectedCompanyId');
-    const matchedComp = companies.find(c => c.id === activeCompId);
+    const matchedComp = companies.find(c => String(c.id) === String(activeCompId));
     const defaultCompanyName = matchedComp ? (matchedComp.companyName || matchedComp.company_name) : (companies.length > 0 ? (companies[0].companyName || companies[0].company_name) : '');
 
     setFormData({
@@ -242,7 +286,8 @@ const ClientMaster = () => {
       contactNumber: '',
       companyName: defaultCompanyName,
       gender: 'Male',
-      address: '',
+      officeAddress: '',
+      plantAddress: '',
       city: '',
       state: '',
       email: '',
@@ -260,7 +305,8 @@ const ClientMaster = () => {
       contactNumber: client.contactNumber || '',
       companyName: client.companyName || client.company_name || (client.company ? (client.company.companyName || client.company.company_name) : ''),
       gender: client.gender || 'Male',
-      address: client.address || '',
+      officeAddress: client.officeAddress || client.address || '',
+      plantAddress: client.plantAddress || client.address || '',
       city: client.city || '',
       state: client.state || '',
       email: client.email || '',
@@ -278,8 +324,8 @@ const ClientMaster = () => {
     setSubmitting(true);
 
     const activeCompId = localStorage.getItem('selectedCompanyId');
-    const matchedComp = companies.find(c => c.id === activeCompId);
-    const activeCompanyName = matchedComp ? (matchedComp.companyName || matchedComp.company_name) : '';
+    const matchedComp = companies.find(c => String(c.id) === String(activeCompId));
+    const activeCompanyName = matchedComp ? (matchedComp.companyName || matchedComp.company_name) : (companies.length > 0 ? (companies[0].companyName || companies[0].company_name) : '');
 
     if (!activeCompanyName && !formData.companyName) {
       triggerToast('Please select a company in the top header first.', 'error');
@@ -329,38 +375,77 @@ const ClientMaster = () => {
     }
   };
 
+  // Helper to fetch all records matching active filter (no pagination limit)
+  const fetchAllExportData = async () => {
+    try {
+      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
+      const params = new URLSearchParams({
+        page: 1,
+        limit: 100000,
+        search: searchQuery,
+        status: statusFilter
+      });
+      if (activeCompId) {
+        params.append('companyId', activeCompId);
+      }
+
+      const url = `${CLIENT_ENDPOINTS.GET_ALL}?${params.toString()}`;
+      const response = await apiService.get(url);
+      if (response && response.data) {
+        return Array.isArray(response.data) ? response.data : (response.data.rows || []);
+      }
+      return clients;
+    } catch (err) {
+      return clients;
+    }
+  };
+
   // CSV Export logic
-  const handleDownloadCSV = () => {
-    if (clients.length === 0) return;
-    const headers = ['Client Name', 'Email', 'Contact Number', 'Address', 'City', 'State', 'Status'];
-    const rows = clients.map(c => [
+  const handleDownloadCSV = async () => {
+    const allData = await fetchAllExportData();
+    if (!allData || allData.length === 0) return;
+    const headers = ['Client Name', 'Email', 'Contact Number', 'Office Address', 'Plant / Industry Address', 'City', 'State', 'Status'];
+    const rows = allData.map(c => [
       c.clientName,
       c.email || 'N/A',
       c.contactNumber,
-      c.address,
+      c.officeAddress || c.address || 'N/A',
+      c.plantAddress || c.address || 'N/A',
       c.city,
       c.state || 'N/A',
       c.status
     ]);
-
-    const csvContent = "data:text/csv;charset=utf-8," 
-      + [headers.join(','), ...rows.map(e => e.map(val => `"${val}"`).join(","))].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "Clients_Report.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadCSV(headers, rows, 'Clients_Report.csv');
     setShowDownloadDropdown(false);
   };
 
   // Excel Export logic
-  const handleDownloadExcel = () => {
-    if (clients.length === 0) return;
-    const headers = ['Client Name', 'Email', 'Contact Number', 'Address', 'City', 'State', 'Status'];
-    const rows = clients.map(c => [
+  const handleDownloadExcel = async () => {
+    const allData = await fetchAllExportData();
+    if (!allData || allData.length === 0) return;
+    const headers = ['Client Name', 'Email', 'Contact Number', 'Office Address', 'Plant / Industry Address', 'City', 'State', 'Status'];
+    const rows = allData.map(c => [
       c.clientName,
+      c.email || 'N/A',
+      c.contactNumber,
+      c.officeAddress || c.address || 'N/A',
+      c.plantAddress || c.address || 'N/A',
+      c.city,
+      c.state || 'N/A',
+      c.status
+    ]);
+    downloadExcel(headers, rows, 'Clients_Report.xlsx');
+    setShowDownloadDropdown(false);
+  };
+
+  // Copy to Clipboard logic
+  const handleCopy = async () => {
+    const allData = await fetchAllExportData();
+    if (!allData || allData.length === 0) return;
+    const headers = ['Client Name', 'Company Name', 'Email', 'Contact Number', 'Address', 'City', 'State', 'Status'];
+    const rows = allData.map(c => [
+      c.clientName,
+      c.companyName || (c.company ? (c.company.companyName || c.company.company_name) : 'N/A'),
       c.email || 'N/A',
       c.contactNumber,
       c.address,
@@ -368,58 +453,24 @@ const ClientMaster = () => {
       c.state || 'N/A',
       c.status
     ]);
-    
-    const htmlTable = `
-      <table border="1">
-        <thead>
-          <tr style="background-color: #f8fafc; font-weight: bold;">
-            ${headers.map(h => `<th>${h}</th>`).join('')}
-          </tr>
-        </thead>
-        <tbody>
-          ${rows.map(r => `<tr>${r.map(val => `<td>${val}</td>`).join('')}</tr>`).join('')}
-        </tbody>
-      </table>
-    `;
-    const excelBlob = new Blob([htmlTable], { type: 'application/vnd.ms-excel' });
-    const excelUrl = URL.createObjectURL(excelBlob);
-    const link = document.createElement("a");
-    link.setAttribute("href", excelUrl);
-    link.setAttribute("download", "Clients_Report.xls");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setShowDownloadDropdown(false);
-  };
-
-  // Copy to Clipboard logic
-  const handleCopy = () => {
-    if (clients.length === 0) return;
-    const headers = ['Client Code', 'Client Name', 'Company Name', 'Email', 'Contact Number', 'Address', 'City', 'State', 'Status'];
-    const rows = clients.map(c => [
-      c.clientName,
-      c.companyName || (c.company ? (c.company.companyName || c.company.company_name) : 'N/A'),
-      c.gender,
-      c.contactNumber,
-      c.address,
-      c.city,
-      c.status
-    ]);
     const text = [headers.join('\t'), ...rows.map(r => r.join('\t'))].join('\n');
-    navigator.clipboard.writeText(text);
-    triggerToast('Copied to clipboard successfully.', 'success');
+    copyTextToClipboard(text,
+      () => triggerToast('Copied to clipboard successfully.', 'success'),
+      () => triggerToast('Failed to copy text.', 'error')
+    );
     setShowDownloadDropdown(false);
   };
 
   // PDF Print logic
-  const handlePrintPDF = () => {
-    if (clients.length === 0) return;
+  const handlePrintPDF = async () => {
+    const allData = await fetchAllExportData();
+    if (!allData || allData.length === 0) return;
     const printWindow = window.open('', '_blank');
-    const rowsHtml = clients.map(c => `
+    const rowsHtml = allData.map(c => `
       <tr>
         <td>${c.clientName}</td>
         <td>${c.companyName || (c.company ? (c.company.companyName || c.company.company_name) : 'N/A')}</td>
-        <td>${c.gender}</td>
+        <td>${c.email || 'N/A'}</td>
         <td>${c.contactNumber}</td>
         <td>${c.address}</td>
         <td>${c.city}</td>
@@ -442,7 +493,7 @@ const ClientMaster = () => {
           <h2>Clients Report</h2>
           <table>
             <thead>
-              <tr><th>Client Name</th><th>Company</th><th>Gender</th><th>Phone</th><th>Address</th><th>City</th><th>Status</th></tr>
+              <tr><th>Client Name</th><th>Company</th><th>Email</th><th>Phone</th><th>Address</th><th>City</th><th>Status</th></tr>
             </thead>
             <tbody>
               ${rowsHtml}
@@ -469,7 +520,7 @@ const ClientMaster = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      
+
       {/* Toast Notification Container in Top Right Corner */}
       {toast.show && (
         <div style={{
@@ -503,8 +554,8 @@ const ClientMaster = () => {
         <div className="master-top-bar-actions" style={{ display: 'flex', gap: '0.75rem', position: 'relative' }} ref={dropdownRef}>
           {!isFormOpen && (
             <>
-              <button 
-                onClick={handleOpenCreate} 
+              <button
+                onClick={handleOpenCreate}
                 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1rem', fontWeight: 600, cursor: 'pointer' }}
               >
                 <FaPlus />
@@ -521,20 +572,20 @@ const ClientMaster = () => {
           )}
 
           {/* Premium Download Button */}
-          <button 
-            onClick={() => setShowDownloadDropdown(!showDownloadDropdown)} 
+          <button
+            onClick={() => setShowDownloadDropdown(!showDownloadDropdown)}
             disabled={clients.length === 0}
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '0.5rem', 
-              backgroundColor: '#22c55e', 
-              color: '#ffffff', 
-              border: 'none', 
-              borderRadius: '8px', 
-              padding: '0.5rem 1.25rem', 
-              fontWeight: 600, 
-              cursor: 'pointer', 
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              backgroundColor: '#22c55e',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '0.5rem 1.25rem',
+              fontWeight: 600,
+              cursor: 'pointer',
               opacity: clients.length === 0 ? 0.6 : 1,
               boxShadow: '0 2px 4px rgba(34, 197, 94, 0.2)'
             }}
@@ -602,10 +653,10 @@ const ClientMaster = () => {
           <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '1.25rem', color: '#1e293b' }}>
             {editingId ? 'Edit Client Details' : 'Add New Client'}
           </h3>
-          
+
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
-              
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>
                   Client Name <span style={{ color: '#ef4444' }}>*</span>
@@ -638,20 +689,35 @@ const ClientMaster = () => {
 
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem', marginTop: '0.5rem', alignItems: 'end' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', gridColumn: '1 / -1' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem', marginTop: '0.5rem', alignItems: 'start' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>
-                  Address <span style={{ color: '#ef4444' }}>*</span>
+                  Office Address <span style={{ color: '#ef4444' }}>*</span>
                 </label>
                 <textarea
-                  name="address"
-                  value={formData.address}
+                  name="officeAddress"
+                  value={formData.officeAddress}
                   onChange={handleInputChange}
-                  placeholder="Enter Address"
+                  placeholder="Enter Office Address"
                   rows={2}
-                  style={{ padding: '0.625rem', border: `1px solid ${formErrors.address ? '#ef4444' : '#cbd5e1'}`, borderRadius: '6px', outline: 'none', resize: 'vertical', minHeight: '60px', fontFamily: 'inherit' }}
+                  style={{ padding: '0.625rem', border: `1px solid ${formErrors.officeAddress ? '#ef4444' : '#cbd5e1'}`, borderRadius: '6px', outline: 'none', resize: 'vertical', minHeight: '60px', fontFamily: 'inherit' }}
                 />
-                {formErrors.address && <span style={{ fontSize: '0.75rem', color: '#ef4444' }}>{formErrors.address}</span>}
+                {formErrors.officeAddress && <span style={{ fontSize: '0.75rem', color: '#ef4444' }}>{formErrors.officeAddress}</span>}
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>
+                  Plant / Industry Address <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <textarea
+                  name="plantAddress"
+                  value={formData.plantAddress}
+                  onChange={handleInputChange}
+                  placeholder="Enter Plant / Industry Address"
+                  rows={2}
+                  style={{ padding: '0.625rem', border: `1px solid ${formErrors.plantAddress ? '#ef4444' : '#cbd5e1'}`, borderRadius: '6px', outline: 'none', resize: 'vertical', minHeight: '60px', fontFamily: 'inherit' }}
+                />
+                {formErrors.plantAddress && <span style={{ fontSize: '0.75rem', color: '#ef4444' }}>{formErrors.plantAddress}</span>}
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
@@ -699,13 +765,13 @@ const ClientMaster = () => {
                   value={formData.city}
                   onChange={handleInputChange}
                   disabled={!formData.state}
-                  style={{ 
-                    padding: '0.625rem', 
-                    border: `1px solid ${formErrors.city ? '#ef4444' : '#cbd5e1'}`, 
-                    borderRadius: '6px', 
-                    outline: 'none', 
-                    backgroundColor: !formData.state ? '#f8fafc' : '#ffffff', 
-                    height: '42px', 
+                  style={{
+                    padding: '0.625rem',
+                    border: `1px solid ${formErrors.city ? '#ef4444' : '#cbd5e1'}`,
+                    borderRadius: '6px',
+                    outline: 'none',
+                    backgroundColor: !formData.state ? '#f8fafc' : '#ffffff',
+                    height: '42px',
                     fontSize: '0.875rem',
                     cursor: !formData.state ? 'not-allowed' : 'pointer'
                   }}
@@ -795,11 +861,34 @@ const ClientMaster = () => {
 
       {/* Filter and Table view */}
       <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-        
+
         {/* Table Filters */}
         <div className="master-table-filters" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
-          <div style={{ fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>
-            Total Clients: {totalItems}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div style={{ fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>
+              Total Clients: {totalItems}
+            </div>
+            {selectedIds.length > 0 && (
+              <button
+                onClick={handleBulkDelete}
+                style={{
+                  background: '#ef4444',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '0.4rem 0.85rem',
+                  fontWeight: 600,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  boxShadow: '0 1px 2px rgba(239, 68, 68, 0.2)'
+                }}
+              >
+                <FaTrash size={12} /> Delete Selected ({selectedIds.length})
+              </button>
+            )}
           </div>
           <div className="master-filter-inputs" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             <select
@@ -826,11 +915,21 @@ const ClientMaster = () => {
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                <th style={{ padding: '0.75rem 0.75rem', width: '40px', textAlign: 'center' }}>
+                  <input
+                    type="checkbox"
+                    checked={clients.length > 0 && selectedIds.length === clients.length}
+                    onChange={handleSelectAll}
+                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                  />
+                </th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ACTIONS</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CLIENT NAME</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>EMAIL</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CONTACT</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>OFFICE ADDRESS</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>PLANT ADDRESS</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CITY</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATE</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATUS</th>
@@ -839,33 +938,41 @@ const ClientMaster = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={10} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan={11} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                     Loading clients...
                   </td>
                 </tr>
               ) : clients.length === 0 ? (
                 <tr>
-                  <td colSpan={10} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan={11} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                     No clients found.
                   </td>
                 </tr>
               ) : (
                 clients.map((client, index) => (
-                  <tr 
-                    key={client.id} 
+                  <tr
+                    key={client.id}
                     onClick={() => handleOpenEdit(client)}
                     style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background-color 0.15s' }}
                     className="company-table-row"
                   >
+                    <td style={{ padding: '0.75rem 0.75rem', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(client.id)}
+                        onChange={(e) => handleSelectRow(client.id, e)}
+                        style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                      />
+                    </td>
                     <td style={{ padding: '0.75rem 1rem', display: 'flex', gap: '0.5rem' }}>
-                      <button 
+                      <button
                         onClick={(e) => { e.stopPropagation(); handleOpenEdit(client); }}
                         style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                         title="Edit"
                       >
                         <FaEdit size={12} />
                       </button>
-                      <button 
+                      <button
                         onClick={(e) => { e.stopPropagation(); handleDelete(client.id, client.clientName); }}
                         style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                         title="Delete"
@@ -877,10 +984,12 @@ const ClientMaster = () => {
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{client.clientName}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.email || 'N/A'}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.contactNumber}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.officeAddress || client.address || 'N/A'}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.plantAddress || client.address || 'N/A'}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.city}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.state || 'N/A'}</td>
                     <td style={{ padding: '0.75rem 1rem' }}>
-                      <span style={{ 
+                      <span style={{
                         display: 'inline-block',
                         padding: '0.125rem 0.5rem',
                         fontSize: '0.75rem',
@@ -916,9 +1025,9 @@ const ClientMaster = () => {
                   <div className="master-record-card-header">
                     <div>
                       <div className="master-record-title">{client.clientName}</div>
-                      <div className="master-record-subtitle">#{ (currentPage - 1) * pageSize + index + 1 } • {client.companyName || 'N/A'}</div>
+                      <div className="master-record-subtitle">#{(currentPage - 1) * pageSize + index + 1} • {client.companyName || 'N/A'}</div>
                     </div>
-                    <span style={{ 
+                    <span style={{
                       padding: '0.2rem 0.6rem',
                       fontSize: '0.75rem',
                       fontWeight: 700,
@@ -950,13 +1059,13 @@ const ClientMaster = () => {
                   </div>
 
                   <div className="master-record-actions">
-                    <button 
+                    <button
                       onClick={(e) => { e.stopPropagation(); handleOpenEdit(client); }}
                       style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                     >
                       <FaEdit size={12} /> Edit
                     </button>
-                    <button 
+                    <button
                       onClick={(e) => { e.stopPropagation(); handleDelete(client.id, client.clientName); }}
                       style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                     >
@@ -968,9 +1077,9 @@ const ClientMaster = () => {
             </div>
           )}
         </div>
-        
+
         {/* Pagination Controls */}
-        <Pagination 
+        <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
           totalItems={totalItems}

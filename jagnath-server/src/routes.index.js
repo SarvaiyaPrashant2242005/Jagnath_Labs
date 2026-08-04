@@ -23,6 +23,7 @@ router.use('/sub-category', subCategoryRoutes);
 router.use('/test-request', testRequestRoutes);
 router.use('/category-parameter', categoryParameterRoutes);
 router.use('/test-request-parameter', testRequestParameterRoutes);
+router.use('/test-request-parameters', testRequestParameterRoutes);
 router.use('/price-master', priceMasterRoutes);
 router.use('/price-list', priceMasterRoutes);
 router.use('/caution', cautionRoutes);

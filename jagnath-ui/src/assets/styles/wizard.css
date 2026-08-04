@@ -1,0 +1,636 @@
+/* LIMS New Test Request Wizard Stylesheet */
+
+.wiz-steps-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 1.25rem 0 2rem 0;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.wiz-step-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  user-select: none;
+}
+
+.wiz-step-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid #CBD5E1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  background-color: var(--white);
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+/* Active Step Circle */
+.wiz-step-item.active .wiz-step-circle {
+  border-color: #1E3A8A;
+  background-color: #1E3A8A;
+  color: var(--white);
+  box-shadow: 0 0 0 4px rgba(30, 58, 138, 0.15);
+}
+
+/* Completed Step Circle */
+.wiz-step-item.completed .wiz-step-circle {
+  border-color: #1E3A8A;
+  background-color: #1E3A8A;
+  color: var(--white);
+}
+
+.wiz-step-circle-check {
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wiz-step-label {
+  display: flex;
+  flex-direction: column;
+}
+
+.wiz-step-title {
+  font-size: 0.825rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  line-height: 1.2;
+}
+
+.wiz-step-item.active .wiz-step-title,
+.wiz-step-item.completed .wiz-step-title {
+  color: var(--text-dark);
+}
+
+/* Connective line spacer */
+.wiz-step-line {
+  height: 2px;
+  width: 70px;
+  background-color: #E2E8F0;
+  transition: background-color 0.3s;
+}
+
+.wiz-step-line.completed {
+  background-color: #1E3A8A;
+}
+
+/* Step Wizard main card */
+.wiz-card {
+  background-color: var(--white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(135, 206, 235, 0.12);
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.wiz-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.wiz-form-full {
+  grid-column: span 2;
+}
+
+.wiz-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.wiz-field-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  display: flex;
+  align-items: center;
+}
+
+.wiz-field-label span {
+  color: #EF4444;
+  margin-left: 0.15rem;
+}
+
+.wiz-field-input,
+.wiz-field-select,
+.wiz-field-textarea {
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  padding: 0.725rem 1rem;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  outline: none;
+  background-color: var(--white);
+  color: var(--text-dark);
+  transition: all 0.2s ease;
+}
+
+.wiz-field-input:focus,
+.wiz-field-select:focus,
+.wiz-field-textarea:focus {
+  border-color: var(--primary-dark);
+  box-shadow: 0 0 0 3px rgba(135, 206, 235, 0.15);
+}
+
+.wiz-field-textarea {
+  resize: vertical;
+  min-height: 90px;
+}
+
+.wiz-field-error {
+  color: #EF4444;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-top: 0.25rem;
+}
+
+/* Step 3: Parameter Selection Layout */
+.wiz-params-layout {
+  display: grid;
+  grid-template-columns: 1fr 330px;
+  gap: 1.5rem;
+  align-items: start;
+  width: 100%;
+}
+
+.wiz-params-left {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.wiz-params-card {
+  background-color: var(--white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(135, 206, 235, 0.12);
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Large search block */
+.wiz-search-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.wiz-search-icon {
+  position: absolute;
+  left: 1.25rem;
+  color: var(--text-muted);
+  font-size: 1.25rem;
+}
+
+.wiz-search-input {
+  border: 1px solid #E2E8F0;
+  border-radius: 999px;
+  padding: 0.875rem 1.25rem 0.875rem 3.25rem;
+  width: 100%;
+  outline: none;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  color: var(--text-dark);
+}
+
+.wiz-search-input:focus {
+  border-color: var(--primary-dark);
+  box-shadow: 0 0 0 3px rgba(135, 206, 235, 0.15);
+}
+
+/* Categories horizontally scrolled pills */
+.wiz-filter-pills {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.65rem;
+  scrollbar-width: none; /* Firefox */
+  border-bottom: 1px solid #F1F5F9;
+}
+
+.wiz-filter-pills::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
+.wiz-filter-pill {
+  padding: 0.45rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 999px;
+  border: 1px solid #E2E8F0;
+  background-color: var(--white);
+  color: var(--text-light);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.wiz-filter-pill:hover {
+  background-color: #F8FAFC;
+  color: var(--text-dark);
+}
+
+.wiz-filter-pill.active {
+  background-color: #1E3A8A;
+  border-color: #1E3A8A;
+  color: var(--white);
+  box-shadow: 0 3px 8px rgba(30, 58, 138, 0.25);
+}
+
+/* Category Groups and grids */
+.wiz-cat-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+.wiz-cat-title {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #F1F5F9;
+  padding-bottom: 0.45rem;
+  margin-top: 0.5rem;
+}
+
+.wiz-param-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+/* Parameter Grid Selection Card */
+.wiz-param-card {
+  border: 1px solid #E2E8F0;
+  padding: 0.875rem 1rem;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--white);
+  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+  user-select: none;
+}
+
+.wiz-param-card:hover {
+  border-color: #CBD5E1;
+  background-color: #F8FAFC;
+}
+
+.wiz-param-card.selected {
+  border-color: #1E3A8A;
+  background-color: rgba(30, 58, 138, 0.02);
+}
+
+.wiz-param-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.wiz-param-name {
+  font-size: 0.825rem;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.wiz-param-price {
+  font-size: 0.725rem;
+  color: var(--text-light);
+  font-weight: 600;
+}
+
+/* Selection circle overlay */
+.wiz-param-checkbox {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid #CBD5E1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  color: transparent;
+  background-color: var(--white);
+  transition: all 0.2s ease;
+}
+
+.wiz-param-card:hover .wiz-param-checkbox {
+  border-color: #94A3B8;
+}
+
+.wiz-param-card.selected .wiz-param-checkbox {
+  background-color: #1E3A8A;
+  border-color: #1E3A8A;
+  color: var(--white);
+}
+
+/* Sidebar Selected Summary Card */
+.wiz-sidebar-card {
+  background-color: var(--white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(135, 206, 235, 0.12);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  position: sticky;
+  top: 2rem;
+}
+
+.wiz-sidebar-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: 1.5px solid #F1F5F9;
+  padding-bottom: 0.75rem;
+}
+
+.wiz-selected-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  max-height: 200px;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.wiz-selected-list::-webkit-scrollbar {
+  width: 4px;
+}
+.wiz-selected-list::-webkit-scrollbar-thumb {
+  background-color: #E2E8F0;
+  border-radius: 4px;
+}
+
+.wiz-selected-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid #F8FAFC;
+}
+
+.wiz-selected-name {
+  font-weight: 600;
+  color: var(--text-dark);
+}
+
+.wiz-selected-price {
+  font-weight: 700;
+  color: var(--text-light);
+}
+
+.wiz-selected-remove {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 0.15rem;
+  display: flex;
+}
+.wiz-selected-remove:hover {
+  color: #EF4444;
+}
+
+.wiz-sidebar-empty {
+  font-size: 0.8rem;
+  color: var(--text-light);
+  font-style: italic;
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.wiz-sidebar-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.775rem;
+  color: var(--text-light);
+  margin-top: 0.25rem;
+}
+
+.wiz-sidebar-meta span:last-child {
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.wiz-sidebar-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  border-top: 1px dashed #CBD5E1;
+  padding-top: 1rem;
+  margin-top: 0.5rem;
+}
+
+.wiz-sidebar-cost {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #1E3A8A;
+}
+
+/* Step 4: Review Summary Panels */
+.wiz-review-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.wiz-review-card {
+  border: 1px solid #E2E8F0;
+  padding: 1.25rem 1.5rem;
+  border-radius: var(--radius-md);
+  background-color: var(--white);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.wiz-review-card-full {
+  grid-column: span 2;
+}
+
+.wiz-review-card-title {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #F1F5F9;
+  padding-bottom: 0.5rem;
+}
+
+.wiz-review-table {
+  width: 100%;
+}
+
+.wiz-review-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  padding: 0.35rem 0;
+}
+
+.wiz-review-label {
+  color: var(--text-light);
+  font-weight: 500;
+}
+
+.wiz-review-val {
+  color: var(--text-dark);
+  font-weight: 700;
+  text-align: right;
+}
+
+/* Parameter Pill summary tags */
+.wiz-tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.wiz-tag-pill {
+  background-color: rgba(135, 206, 235, 0.12);
+  border: 1px solid rgba(135, 206, 235, 0.3);
+  border-radius: var(--radius-full);
+  padding: 0.35rem 0.85rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  display: inline-flex;
+  align-items: center;
+}
+
+.wiz-tag-price {
+  color: var(--text-light);
+  font-weight: 500;
+  margin-left: 0.35rem;
+}
+
+/* Info banner box */
+.wiz-alert-banner {
+  background-color: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  padding: 1.125rem 1.25rem;
+  border-radius: 8px;
+  font-size: 0.825rem;
+  color: #1E3A8A;
+  line-height: 1.55;
+  margin-top: 0.5rem;
+}
+
+/* Footer Navigation Buttons Row */
+.wiz-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid #F1F5F9;
+  padding-top: 1.5rem;
+  margin-top: 0.5rem;
+  width: 100%;
+}
+
+.wiz-back-btn {
+  background-color: var(--white);
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  padding: 0.7rem 1.5rem;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-light);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.wiz-back-btn:hover {
+  background-color: #F1F5F9;
+  color: var(--text-dark);
+}
+
+.wiz-continue-btn {
+  background-color: #1E3A8A;
+  color: var(--white);
+  border: none;
+  border-radius: 8px;
+  padding: 0.7rem 1.5rem;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 4px 10px rgba(30, 58, 138, 0.2);
+  transition: all 0.2s ease;
+}
+
+.wiz-continue-btn:hover {
+  background-color: #172554;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(30, 58, 138, 0.3);
+}
+
+/* Responsiveness adjustments */
+@media (max-width: 992px) {
+  .wiz-params-layout {
+    grid-template-columns: 1fr;
+  }
+  .wiz-sidebar-card {
+    position: static;
+  }
+}
+
+@media (max-width: 768px) {
+  .wiz-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .wiz-form-full {
+    grid-column: span 1;
+  }
+  .wiz-review-grid {
+    grid-template-columns: 1fr;
+  }
+  .wiz-review-card-full {
+    grid-column: span 1;
+  }
+  .wiz-steps-container {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .wiz-step-line {
+    display: none;
+  }
+}

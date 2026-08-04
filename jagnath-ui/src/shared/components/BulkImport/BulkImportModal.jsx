@@ -8,7 +8,7 @@ import {
   FaCheckCircle, FaExclamationTriangle, FaTrash, FaSyncAlt,
   FaFilter, FaInfoCircle
 } from 'react-icons/fa';
-import { downloadTemplate, parseExcelFile, validateMasterRows, MASTER_SCHEMAS } from '../../services/excelService';
+import { downloadTemplate, parseExcelFile, validateMasterRows, exportFailedRowsToExcel, MASTER_SCHEMAS } from '../../services/excelService';
 
 const BulkImportModal = ({
   isOpen,
@@ -181,6 +181,10 @@ const BulkImportModal = ({
   const errorCount = rows.filter(r => r._status === 'ERROR').length;
   const newCount = rows.filter(r => r._status === 'NEW').length;
   const updateCount = rows.filter(r => r._status === 'UPDATE').length;
+  const duplicateCount = rows.filter(r => {
+    const errStr = Object.values(r._errors || {}).join(' ').toLowerCase();
+    return errStr.includes('duplicate') || errStr.includes('exists');
+  }).length;
 
   // Filtered rows for preview table
   const displayedRows = rows.filter(r => {
@@ -621,6 +625,16 @@ const BulkImportModal = ({
                   <button className={`pill-btn ${filter === 'UPDATE' ? 'active' : ''}`} onClick={() => handleSetFilter('UPDATE')}>
                     Updates ({updateCount})
                   </button>
+                  {duplicateCount > 0 && (
+                    <button className={`pill-btn ${filter === 'DUPLICATES' ? 'active' : ''}`} onClick={() => setFilter('DUPLICATES')} style={{ color: '#d97706', borderColor: '#fcd34d' }}>
+                      Duplicates ({duplicateCount})
+                    </button>
+                  )}
+                  {errorCount > 0 && (
+                    <button className={`pill-btn ${filter === 'ERRORS' ? 'active' : ''}`} onClick={() => setFilter('ERRORS')} style={{ color: '#ef4444', borderColor: '#fca5a5' }}>
+                      Errors Only ({errorCount})
+                    </button>
+                  )}
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -748,16 +762,31 @@ const BulkImportModal = ({
 
         {/* Modal Footer */}
         <div className="bulk-modal-footer">
-          <button className="btn-secondary" onClick={onClose} disabled={submitting}>
-            Cancel
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button className="btn-secondary" onClick={onClose} disabled={submitting}>
+              Cancel
+            </button>
+            {step === 2 && errorCount > 0 && (
+              <button
+                className="btn-secondary"
+                style={{ color: '#dc2626', borderColor: '#fca5a5' }}
+                onClick={() => exportFailedRowsToExcel(masterType, rows.filter(r => r._status === 'ERROR'))}
+              >
+                <FaDownload /> Download Failed Rows ({errorCount})
+              </button>
+            )}
+          </div>
           {step === 2 && (
             <button
               className="btn-primary"
               onClick={handleFinalSubmit}
               disabled={submitting || (totalCount - errorCount) === 0}
             >
-              {submitting ? 'Importing to DB...' : `Load ${totalCount - errorCount} Valid Rows to DB`}
+              {submitting
+                ? 'Importing to DB...'
+                : updateCount > 0
+                  ? `Import ${newCount} records & update ${updateCount} ${masterType}s`
+                  : `Import ${newCount} records to DB`}
             </button>
           )}
         </div>
