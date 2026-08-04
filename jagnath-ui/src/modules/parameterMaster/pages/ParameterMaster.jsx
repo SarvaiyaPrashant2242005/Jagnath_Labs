@@ -342,8 +342,8 @@ const ParameterMaster = () => {
     setSubmitting(true);
 
     const activeCompId = localStorage.getItem('selectedCompanyId');
-    const matchedComp = companies.find(c => c.id === activeCompId);
-    const activeCompanyName = matchedComp ? (matchedComp.companyName || matchedComp.company_name) : '';
+    const matchedComp = companies.find(c => String(c.id) === String(activeCompId));
+    const activeCompanyName = matchedComp ? (matchedComp.companyName || matchedComp.company_name) : (companies.length > 0 ? (companies[0].companyName || companies[0].company_name) : '');
 
     if (!activeCompanyName && !formData.companyName) {
       triggerToast('Please select a company in the top header first.', 'error');

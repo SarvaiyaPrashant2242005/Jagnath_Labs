@@ -64,7 +64,7 @@ const DashboardLayout = ({ children }) => {
         
         if (companyList.length > 0) {
           const savedSelectedId = localStorage.getItem('selectedCompanyId');
-          const found = companyList.find(c => c.id === savedSelectedId);
+          const found = companyList.find(c => String(c.id) === String(savedSelectedId));
           if (found) {
             setSelectedCompany(found.companyName || found.company_name);
           } else {
