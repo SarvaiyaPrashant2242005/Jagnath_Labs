@@ -20,12 +20,24 @@ const Parameter = sequelize.define("Parameter", {
             key: "id",
         }
     },
+    subCategoryId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: "sub_categories",
+            key: "id",
+        }
+    },
     parameterName: {
         type: DataTypes.STRING,
         allowNull: false,
     },
     description: {
         type: DataTypes.TEXT,
+        allowNull: true,
+    },
+    testMethod: {
+        type: DataTypes.STRING,
         allowNull: true,
     },
     status: {

@@ -5,8 +5,10 @@
 const TestRequest = require("./testRequest.model");
 const Company = require("../../Masters/CompanyMasters/company.model");
 const Client = require("../../Masters/ClientMasters/client.model");
+const Caution = require("../../Masters/CautionMasters/caution.model");
 const Users = require("../../Auth/Users/users.model");
 const sequelize = require("../../../config/database");
+const { Op } = require("sequelize");
 const path = require("path");
 const { writeLogToFile } = require("../../../services/loggerService");
 
@@ -79,8 +81,6 @@ const formatTestRequest = (tr) => {
     }
     delete trObj.company;
     delete trObj.client;
-    delete trObj.companyId;
-    delete trObj.clientId;
     return trObj;
 };
 
@@ -104,7 +104,7 @@ const formatDateTime = (date = new Date()) => {
 const getPerformedBy = async (userId) => {
     try {
         const user = await Users.findByPk(userId);
-        return user ? (user.full_name || user.name || user.email) : "Unknown";
+        return user ? (user.name || user.email) : "Unknown";
     } catch {
         return "Unknown";
     }
@@ -295,24 +295,54 @@ Status      : SUCCESS
 /**
  * Get TestRequest by ID.
  */
-const getTestRequestById = async (trId, companyId) => {
+const getTestRequestById = async (trId, companyId = null) => {
     try {
+        const whereClause = { id: trId };
+        if (companyId) {
+            whereClause.companyId = companyId;
+        }
         const tr = await TestRequest.findOne({
-            where: { id: trId, companyId },
+            where: whereClause,
             include: [
                 {
                     model: Company,
-                    as: "company",
-                    attributes: ["companyName", "company_name"]
+                    as: "company"
                 },
                 {
                     model: Client,
-                    as: "client",
-                    attributes: ["clientName"]
+                    as: "client"
+                },
+                {
+                    model: Caution,
+                    as: "caution"
                 }
             ],
             attributes: { exclude: ["deleted_at"] }
         });
+
+        if (!tr && companyId) {
+            tr = await TestRequest.findOne({
+                where: { id: trId },
+                include: [
+                    {
+                        model: Company,
+                        as: "company",
+                        attributes: ["company_name"]
+                    },
+                    {
+                        model: Client,
+                        as: "client",
+                        attributes: ["clientName"]
+                    },
+                    {
+                        model: Caution,
+                        as: "caution"
+                    }
+                ],
+                attributes: { exclude: ["deleted_at"] }
+            });
+        }
+
         return formatTestRequest(tr);
     } catch (error) {
         throw error;
@@ -322,15 +352,20 @@ const getTestRequestById = async (trId, companyId) => {
 /**
  * Get all TestRequests under a company.
  */
-const getTestRequestsByCompany = async (companyId) => {
+const getTestRequestsByCompany = async (companyId, options = {}) => {
     try {
-        const trs = await TestRequest.findAll({
-            where: { companyId },
+        let whereClause = {};
+        if (companyId && companyId !== 'ALL') {
+            whereClause.companyId = companyId;
+        }
+
+        let queryOptions = {
+            where: whereClause,
             include: [
                 {
                     model: Company,
                     as: "company",
-                    attributes: ["companyName", "company_name"]
+                    attributes: ["company_name"]
                 },
                 {
                     model: Client,
@@ -338,8 +373,41 @@ const getTestRequestsByCompany = async (companyId) => {
                     attributes: ["clientName"]
                 }
             ],
-            attributes: { exclude: ["deleted_at"] }
-        });
+            attributes: { exclude: ["deleted_at"] },
+            order: [['created_at', 'DESC']]
+        };
+
+        if (options.clientId) {
+            queryOptions.where.clientId = options.clientId;
+        }
+
+        if (options.status && options.status !== 'ALL') {
+            queryOptions.where.status = options.status;
+        }
+
+        if (options.limit && options.page) {
+            queryOptions.limit = parseInt(options.limit);
+            queryOptions.offset = (parseInt(options.page) - 1) * queryOptions.limit;
+
+            if (options.search) {
+                queryOptions.where = {
+                    ...queryOptions.where,
+                    [Op.or]: [
+                        { sampleIdNumber: { [Op.iLike]: `%${options.search}%` } },
+                        { reportNumber: { [Op.iLike]: `%${options.search}%` } },
+                        { sampleCollectedBy: { [Op.iLike]: `%${options.search}%` } }
+                    ]
+                };
+            }
+
+            const result = await TestRequest.findAndCountAll(queryOptions);
+            return {
+                ...result,
+                rows: result.rows.map(tr => formatTestRequest(tr))
+            };
+        }
+
+        const trs = await TestRequest.findAll(queryOptions);
         return trs.map(tr => formatTestRequest(tr));
     } catch (error) {
         throw error;

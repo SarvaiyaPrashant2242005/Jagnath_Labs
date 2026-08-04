@@ -45,6 +45,11 @@ const TestRequestParameter = sequelize.define("TestRequestParameter", {
         type: DataTypes.STRING,
         allowNull: true,
     },
+    price: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: true,
+        defaultValue: 0,
+    },
     status: {
         type: DataTypes.STRING,
         defaultValue: "Pending",

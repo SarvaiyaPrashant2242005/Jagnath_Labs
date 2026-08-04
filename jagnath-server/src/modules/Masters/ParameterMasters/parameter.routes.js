@@ -10,6 +10,7 @@ const { authenticateToken } = require("../../../middlewares/auth.middleware");
 // Protect all parameter routes
 router.use(authenticateToken);
 
+router.post("/bulk-import", parameterController.bulkImport);
 router.post("/", parameterController.create);
 router.get("/", parameterController.getAll);
 router.get("/:id", parameterController.getById);

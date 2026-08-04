@@ -28,13 +28,33 @@ const Client = sequelize.define("Client", {
         type: DataTypes.STRING,
         allowNull: false,
     },
-    address: {
+    officeAddress: {
         type: DataTypes.TEXT,
         allowNull: false,
+        field: "office_address",
+        defaultValue: "N/A"
+    },
+    plantAddress: {
+        type: DataTypes.TEXT,
+        allowNull: false,
+        field: "plant_address",
+        defaultValue: "N/A"
+    },
+    address: {
+        type: DataTypes.TEXT,
+        allowNull: true,
     },
     city: {
         type: DataTypes.STRING,
         allowNull: false,
+    },
+    state: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
+    email: {
+        type: DataTypes.STRING,
+        allowNull: true,
     },
     gender: {
         type: DataTypes.STRING,

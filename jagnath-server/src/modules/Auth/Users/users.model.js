@@ -15,10 +15,6 @@ const Users = sequelize.define("Users", {
     },
     name: {
         type: DataTypes.STRING,
-        allowNull: true,
-    },
-    full_name: {
-        type: DataTypes.STRING,
         allowNull: false,
     },
     email: {
@@ -30,9 +26,21 @@ const Users = sequelize.define("Users", {
         type: DataTypes.STRING,
         allowNull: false,
     },
+    role: {
+        type: DataTypes.ENUM("SuperAdmin", "Admin", "User"),
+        defaultValue: "User",
+    },
     status: {
         type: DataTypes.ENUM("Active", "Inactive", "Blocked", "Deleted"),
         defaultValue: "Active",
+    },
+    reset_otp: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
+    reset_otp_expires_at: {
+        type: DataTypes.DATE,
+        allowNull: true,
     },
 }, {
     tableName: "users",

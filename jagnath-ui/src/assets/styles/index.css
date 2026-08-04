@@ -9,11 +9,130 @@
 @import './faq.css';
 @import './footer.css';
 @import './animation.css';
-@import './testRequests.css';
-@import './wizard.css';
-@import './companies.css';
-@import './clients.css';
-@import './categories.css';
-@import './parameters.css';
+@import './dashboard.css';
 @import './responsive.css';
+
+/* Premium Form & Input Styles */
+.premium-ui-form {
+  max-width: 100%;
+}
+
+.premium-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #1e293b;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  outline: none;
+  transition: all 0.2s ease-in-out;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  font-family: 'Plus Jakarta Sans', 'Manrope', -apple-system, sans-serif;
+  box-sizing: border-box;
+}
+
+.premium-input:hover {
+  border-color: #94a3b8;
+}
+
+.premium-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
+  background-color: #ffffff;
+}
+
+/* For Select dropdowns specifically */
+select.premium-input {
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1.25rem;
+  padding-right: 2.5rem;
+}
+
+/* For textareas */
+textarea.premium-input {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* Placeholders styling */
+.premium-input::placeholder {
+  color: #94a3b8;
+}
+
+/* Global Master Responsiveness Helpers */
+@media (max-width: 768px) {
+  .master-top-bar {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 1rem !important;
+  }
+  
+  .master-top-bar-actions {
+    width: 100% !important;
+    justify-content: space-between !important;
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+  }
+
+  .master-top-bar-actions button {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .master-table-filters {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.75rem !important;
+  }
+
+  .master-table-filters input,
+  .master-table-filters select {
+    width: 100% !important;
+  }
+}
+
+/* Test Request Form Mobile Optimization */
+@media (max-width: 991px) {
+  .test-request-split-container {
+    flex-direction: column !important;
+    gap: 1.5rem !important;
+  }
+
+  .live-preview-container {
+    width: 100% !important;
+    max-height: none !important;
+    position: relative !important;
+    top: auto !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .test-request-form-card {
+    padding: 1.25rem 1rem !important;
+    border-radius: 12px !important;
+  }
+
+  .test-request-title-prefix {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.35rem !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .test-request-bottom-actions {
+    padding: 1rem !important;
+    justify-content: stretch !important;
+  }
+  .test-request-bottom-actions button {
+    flex: 1 1 100% !important;
+    justify-content: center !important;
+  }
+}
+
 

@@ -4,8 +4,12 @@
  */
 const Parameter = require("./parameter.model");
 const Company = require("../CompanyMasters/company.model");
+const Category = require("../CategoryMasters/category.model");
+const SubCategory = require("../SubCategoryMasters/subCategory.model");
+const CategoryParameter = require("../CategoryParameterMasters/categoryParameter.model");
 const Users = require("../../Auth/Users/users.model");
 const sequelize = require("../../../config/database");
+const { Op } = require("sequelize");
 const path = require("path");
 const { writeLogToFile } = require("../../../services/loggerService");
 
@@ -46,6 +50,26 @@ const formatParameter = (param) => {
         paramObj.companyName = null;
     }
     delete paramObj.company;
+
+    // Resolve category details from mapping
+    if (paramObj.categoryParameters && paramObj.categoryParameters.length > 0) {
+        const mapping = paramObj.categoryParameters[0];
+        paramObj.categoryId = mapping.categoryId;
+        paramObj.categoryName = mapping.category ? mapping.category.name : null;
+    } else {
+        paramObj.categoryId = null;
+        paramObj.categoryName = null;
+    }
+    delete paramObj.categoryParameters;
+
+    if (paramObj.subCategory) {
+        paramObj.subCategoryId = paramObj.subCategory.id;
+        paramObj.subCategoryName = paramObj.subCategory.name;
+    } else {
+        paramObj.subCategoryName = null;
+    }
+    delete paramObj.subCategory;
+
     return paramObj;
 };
 
@@ -69,7 +93,7 @@ const formatDateTime = (date = new Date()) => {
 const getPerformedBy = async (userId) => {
     try {
         const user = await Users.findByPk(userId);
-        return user ? (user.full_name || user.name || user.email) : "Unknown";
+        return user ? (user.name || user.email) : "Unknown";
     } catch {
         return "Unknown";
     }
@@ -82,7 +106,7 @@ const getChangesBlock = (oldValues, newValues) => {
     const lines = [];
     const keysToCheck = new Set([...Object.keys(oldValues), ...Object.keys(newValues)]);
     for (const key of keysToCheck) {
-        if (['id', 'created_at', 'updated_at', 'deleted_at', 'createdAt', 'updatedAt', 'deletedAt', 'userId', 'companyId', 'company'].includes(key)) {
+        if (['id', 'created_at', 'updated_at', 'deleted_at', 'createdAt', 'updatedAt', 'deletedAt', 'userId', 'companyId', 'company', 'categoryParameters'].includes(key)) {
             continue;
         }
         const oldValue = oldValues[key];
@@ -106,7 +130,48 @@ const getChangesBlock = (oldValues, newValues) => {
 const createParameter = async (parameterData, userId, reqInfo) => {
     const transaction = await sequelize.transaction();
     try {
-        const newParameter = await Parameter.create(parameterData, { transaction });
+        const { categoryId, ...paramFields } = parameterData;
+
+        let newParameter = await Parameter.findOne({
+            where: {
+                companyId: paramFields.companyId,
+                parameterName: { [Op.iLike]: paramFields.parameterName.trim() }
+            },
+            transaction
+        });
+
+        if (!newParameter) {
+            newParameter = await Parameter.create(paramFields, { transaction });
+        } else {
+            // Update fields of the existing parameter
+            await newParameter.update({
+                description: paramFields.description || newParameter.description,
+                testMethod: paramFields.testMethod || newParameter.testMethod,
+                status: paramFields.status || newParameter.status
+            }, { transaction });
+        }
+
+        if (categoryId) {
+            const existingMapping = await CategoryParameter.findOne({
+                where: {
+                    companyId: newParameter.companyId,
+                    categoryId,
+                    parameterId: newParameter.id
+                },
+                transaction
+            });
+
+            if (!existingMapping) {
+                await CategoryParameter.create({
+                    companyId: newParameter.companyId,
+                    categoryId,
+                    parameterId: newParameter.id,
+                    status: "Active"
+                }, { transaction });
+            } else if (existingMapping.status !== 'Active') {
+                await existingMapping.update({ status: 'Active' }, { transaction });
+            }
+        }
 
         // Fetch company name for logging
         const company = await Company.findByPk(newParameter.companyId, { transaction });
@@ -161,7 +226,26 @@ const updateParameter = async (parameterId, parameterData, userId, companyId, re
 
         const oldValues = getLoggableValues(parameter);
 
-        const updatedParameter = await parameter.update(parameterData, { transaction });
+        const { categoryId, ...paramFields } = parameterData;
+        const updatedParameter = await parameter.update(paramFields, { transaction });
+
+        // Update category association
+        if (categoryId !== undefined) {
+            await CategoryParameter.destroy({
+                where: { parameterId, companyId },
+                transaction
+            });
+
+            if (categoryId) {
+                await CategoryParameter.create({
+                    companyId,
+                    categoryId,
+                    parameterId,
+                    status: "Active"
+                }, { transaction });
+            }
+        }
+
         const newValues = getLoggableValues(updatedParameter);
 
         const companyName = parameter.company ? (parameter.company.companyName || parameter.company.company_name) : "Unknown";
@@ -182,7 +266,7 @@ Performed By: ${performedBy}
 
 Company     : ${companyName}
 
-Parameter   : ${updatedParameter.parameterName}
+Parameter   : ${updatedParameter.parameterName}w
 
 Parameter ID: ${parameterId}
 ${changesBlock}
@@ -215,6 +299,12 @@ const deleteParameter = async (parameterId, userId, companyId, reqInfo) => {
         const companyName = parameter.company ? (parameter.company.companyName || parameter.company.company_name) : "Unknown";
         const performedBy = await getPerformedBy(userId);
         const formattedDate = formatDateTime();
+
+        // Delete associated CategoryParameter mappings as well
+        await CategoryParameter.destroy({
+            where: { parameterId, companyId },
+            transaction
+        });
 
         await parameter.destroy({ transaction });
         await transaction.commit();
@@ -253,11 +343,27 @@ const getParameterById = async (parameterId, companyId) => {
     try {
         const param = await Parameter.findOne({
             where: { id: parameterId, companyId },
-            include: [{
-                model: Company,
-                as: "company",
-                attributes: ["companyName", "company_name"]
-            }],
+            include: [
+                {
+                    model: Company,
+                    as: "company",
+                    attributes: ["company_name"]
+                },
+                {
+                    model: SubCategory,
+                    as: "subCategory",
+                    attributes: ["id", "name"]
+                },
+                {
+                    model: CategoryParameter,
+                    as: "categoryParameters",
+                    include: [{
+                        model: Category,
+                        as: "category",
+                        attributes: ["name"]
+                    }]
+                }
+            ],
             attributes: { exclude: ["deleted_at"] }
         });
         return formatParameter(param);
@@ -269,17 +375,64 @@ const getParameterById = async (parameterId, companyId) => {
 /**
  * Get all parameters under a company.
  */
-const getParametersByCompany = async (companyId) => {
+const getParametersByCompany = async (companyId, options = {}) => {
     try {
-        const params = await Parameter.findAll({
+        let queryOptions = {
             where: { companyId },
-            include: [{
-                model: Company,
-                as: "company",
-                attributes: ["companyName", "company_name"]
-            }],
-            attributes: { exclude: ["deleted_at"] }
-        });
+            include: [
+                {
+                    model: Company,
+                    as: "company",
+                    attributes: ["company_name"]
+                },
+                {
+                    model: SubCategory,
+                    as: "subCategory",
+                    attributes: ["id", "name"]
+                },
+                {
+                    model: CategoryParameter,
+                    as: "categoryParameters",
+                    include: [{
+                        model: Category,
+                        as: "category",
+                        attributes: ["name"]
+                    }]
+                }
+            ],
+            attributes: { exclude: ["deleted_at"] },
+            distinct: true
+        };
+
+        if (options.search) {
+            queryOptions.where.parameterName = { [Op.iLike]: `%${options.search}%` };
+        }
+
+        if (options.status && options.status !== 'ALL') {
+            queryOptions.where.status = options.status;
+        }
+
+        if (options.subCategoryId) {
+            queryOptions.where.subCategoryId = options.subCategoryId;
+        }
+
+        if (options.categoryId) {
+            queryOptions.include[2].where = { categoryId: options.categoryId };
+            queryOptions.include[2].required = true;
+        }
+
+        if (options.limit && options.page) {
+            queryOptions.limit = parseInt(options.limit);
+            queryOptions.offset = (parseInt(options.page) - 1) * queryOptions.limit;
+
+            const result = await Parameter.findAndCountAll(queryOptions);
+            return {
+                ...result,
+                rows: result.rows.map(param => formatParameter(param))
+            };
+        }
+
+        const params = await Parameter.findAll(queryOptions);
         return params.map(param => formatParameter(param));
     } catch (error) {
         throw error;
@@ -291,5 +444,91 @@ module.exports = {
     updateParameter,
     deleteParameter,
     getParameterById,
-    getParametersByCompany
+    getParametersByCompany,
+    bulkImportParameters: async (records, companyId, userId, reqInfo) => {
+        const transaction = await sequelize.transaction();
+        try {
+            let createdCount = 0;
+            let updatedCount = 0;
+
+            for (const item of records) {
+                const data = item.data;
+                const paramName = data.parameterName || data.name;
+                if (!paramName) continue;
+
+                // Resolve category mapping if categoryName is provided
+                let categoryId = null;
+                const rawCatName = (data.categoryName || data.disciplineGroup || "").trim();
+                if (rawCatName) {
+                    let cat = await Category.findOne({ where: { name: { [Op.iLike]: rawCatName }, companyId }, transaction });
+                    if (!cat) {
+                        throw new Error(`Discipline Group '${rawCatName}' does not exist.`);
+                    }
+                    categoryId = cat.id;
+                } else {
+                    throw new Error("Discipline Group is required.");
+                }
+
+                // Resolve sub category mapping if subCategoryName is provided
+                let subCategoryId = null;
+                const rawSubCatName = (data.subCategoryName || data.subCategory || "").trim();
+                if (rawSubCatName && categoryId) {
+                    let subCat = await SubCategory.findOne({
+                        where: { name: { [Op.iLike]: rawSubCatName }, companyId },
+                        transaction
+                    });
+                    if (!subCat) {
+                        throw new Error(`Sub Category '${rawSubCatName}' does not exist.`);
+                    }
+                    if (subCat.categoryId !== categoryId) {
+                        throw new Error(`Sub Category '${rawSubCatName}' does not belong to selected Discipline Group '${rawCatName}'.`);
+                    }
+                    subCategoryId = subCat.id;
+                }
+
+                const paramPayload = {
+                    companyId,
+                    parameterName: paramName,
+                    subCategoryId: subCategoryId || data.subCategoryId || null,
+                    description: data.description || null,
+                    testMethod: data.testMethod || null,
+                    status: (data.status && ['Active', 'Inactive'].includes(String(data.status).trim())) ? String(data.status).trim() : 'Active'
+                };
+
+                let existing = null;
+                if (item._dbId) {
+                    existing = await Parameter.findOne({ where: { id: item._dbId, companyId }, transaction });
+                } else {
+                    existing = await Parameter.findOne({ where: { parameterName: paramName, companyId }, transaction });
+                }
+
+                if (existing) {
+                    await existing.update(paramPayload, { transaction });
+                    updatedCount++;
+
+                    if (categoryId) {
+                        const rel = await CategoryParameter.findOne({ where: { parameterId: existing.id, companyId }, transaction });
+                        if (rel) {
+                            await rel.update({ categoryId }, { transaction });
+                        } else {
+                            await CategoryParameter.create({ companyId, categoryId, parameterId: existing.id, status: "Active" }, { transaction });
+                        }
+                    }
+                } else {
+                    const newParam = await Parameter.create(paramPayload, { transaction });
+                    createdCount++;
+
+                    if (categoryId) {
+                        await CategoryParameter.create({ companyId, categoryId, parameterId: newParam.id, status: "Active" }, { transaction });
+                    }
+                }
+            }
+
+            await transaction.commit();
+            return { createdCount, updatedCount, totalProcessed: records.length };
+        } catch (error) {
+            await transaction.rollback();
+            throw error;
+        }
+    }
 };

@@ -32,12 +32,18 @@ const authenticateToken = (req, res, next) => {
     }
 
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback_secret");
-        req.user = decoded;
+        const secret = process.env.JWT_SECRET || process.env.JWT_ACCESS_SECRET || "fallback_secret";
+        const decoded = jwt.verify(token, secret);
+        const resolvedUserId = decoded.user_id || decoded.id || decoded.userId;
+        req.user = {
+            ...decoded,
+            user_id: resolvedUserId,
+            id: resolvedUserId
+        };
         next();
     } catch (err) {
-        return res.status(403).json(errorResponse(
-            "FORBIDDEN",
+        return res.status(401).json(errorResponse(
+            "UNAUTHORIZED",
             err.message,
             "Your session has expired or is invalid. Please log in again."
         ));

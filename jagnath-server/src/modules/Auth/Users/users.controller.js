@@ -125,10 +125,116 @@ const logout = async (req, res) => {
     }
 };
 
+const getAllUsers = async (req, res) => {
+    try {
+        const { page = 1, limit = 10, search = '', role = '' } = req.query;
+        const result = await usersService.getAllUsers(page, limit, search, role);
+        return res.status(200).json(successResponse(
+            "USERS_FETCHED",
+            "Users fetched successfully.",
+            "Users retrieved.",
+            result.data,
+            {
+                totalItems: result.totalItems,
+                totalPages: result.totalPages,
+                currentPage: result.currentPage,
+                pageSize: parseInt(limit, 10)
+            }
+        ));
+    } catch (err) {
+        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "An unexpected error occurred."));
+    }
+};
+
+const updateUser = async (req, res) => {
+    try {
+        const updated = await usersService.updateUser(req.params.id, req.body);
+        return res.status(200).json(successResponse(
+            "USER_UPDATED",
+            "User updated successfully.",
+            "User updated successfully.",
+            updated
+        ));
+    } catch (err) {
+        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Failed to update user."));
+    }
+};
+
+const deleteUser = async (req, res) => {
+    try {
+        await usersService.deleteUser(req.params.id);
+        return res.status(200).json(successResponse(
+            "USER_DELETED",
+            "User deleted successfully.",
+            "User deleted successfully.",
+            null
+        ));
+    } catch (err) {
+        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Failed to delete user."));
+    }
+};
+
+const bulkImport = async (req, res) => {
+    try {
+        const { rows } = req.body || {};
+        if (!Array.isArray(rows) || rows.length === 0) {
+            return res.status(400).json(errorResponse("VALIDATION_ERROR", "No rows provided for bulk import.", "No valid data provided."));
+        }
+
+        const result = await usersService.bulkImportUsers(rows);
+        return res.status(200).json(successResponse(
+            "USERS_BULK_IMPORTED",
+            `Successfully processed ${result.totalProcessed} users (${result.createdCount} created, ${result.updatedCount} updated).`,
+            "Bulk import completed.",
+            result
+        ));
+    } catch (err) {
+        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Failed to bulk import users."));
+    }
+};
+
+const forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body || {};
+        const result = await usersService.requestPasswordReset(email);
+        return res.status(200).json(successResponse("OTP_SENT", result.message, result.message));
+    } catch (err) {
+        return res.status(400).json(errorResponse("FORGOT_PASSWORD_ERROR", err.message, err.message));
+    }
+};
+
+const verifyOtp = async (req, res) => {
+    try {
+        const { email, otp } = req.body || {};
+        const result = await usersService.verifyResetOtp(email, otp);
+        return res.status(200).json(successResponse("OTP_VERIFIED", result.message, result.message));
+    } catch (err) {
+        return res.status(400).json(errorResponse("VERIFY_OTP_ERROR", err.message, err.message));
+    }
+};
+
+const resetPassword = async (req, res) => {
+    try {
+        const { email, otp, newPassword } = req.body || {};
+        const result = await usersService.resetPasswordWithOtp(email, otp, newPassword);
+        return res.status(200).json(successResponse("PASSWORD_RESET_SUCCESS", result.message, result.message));
+    } catch (err) {
+        return res.status(400).json(errorResponse("RESET_PASSWORD_ERROR", err.message, err.message));
+    }
+};
+
 module.exports = {
     register,
     login,
+    forgotPassword,
+    verifyOtp,
+    resetPassword,
     rotateToken,
     getMe,
-    logout
+    logout,
+    getAllUsers,
+    updateUser,
+    deleteUser,
+    bulkImport
 };
+

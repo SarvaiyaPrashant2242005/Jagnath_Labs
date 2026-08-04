@@ -11,47 +11,6 @@ import Card from '../../shared/components/Card/Card';
 // Local Video Import
 import landingVideo from '../../assets/video/jagnath Landing page.mp4';
 
-// Logo Image
-import logoImage from '../../assets/images/J-logo.png';
-
-// React Icons
-import { 
-  FaCalendarAlt, 
-  FaVial, 
-  FaAward, 
-  FaFileMedical, 
-  FaCloudDownloadAlt, 
-  FaCheckDouble,
-  FaHome,
-  FaHeartbeat,
-  FaVenus,
-  FaUserShield,
-  FaFacebookF,
-  FaTwitter,
-  FaLinkedinIn,
-  FaInstagram,
-  FaPhoneAlt,
-  FaEnvelope,
-  FaMapMarkerAlt,
-  FaChevronDown,
-  FaStar,
-  FaTimes,
-  FaCheck,
-  FaLaptopMedical,
-  FaFileDownload,
-  FaTruck,
-  FaUserMd,
-  FaRegMoneyBillAlt,
-  FaRunning,
-  FaChartLine,
-  FaHospitalSymbol,
-  FaShieldAlt,
-  FaNotesMedical
-} from 'react-icons/fa';
-import { MdBloodtype } from 'react-icons/md';
-import { GiMicroscope } from 'react-icons/gi';
-import { TbReportAnalytics } from 'react-icons/tb';
-import { FiActivity } from 'react-icons/fi';
 // Lucide Icons
 import {
   Calendar,
@@ -99,7 +58,6 @@ function LandingPage({ onNavigate }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeSlide, setActiveSlide] = useState(0);
   const [openFaq, setOpenFaq] = useState(null);
-  const isAnimatingRef = useRef(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // GSAP Refs
@@ -149,21 +107,21 @@ function LandingPage({ onNavigate }) {
 
     // 3. Hero Animations (Entrance)
     const tlHero = gsap.timeline();
-    tlHero.fromTo(heroBadgeRef.current, 
+    tlHero.fromTo(heroBadgeRef.current,
       { opacity: 0, y: 30 },
       { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out' }
     );
-    tlHero.fromTo(heroHeadingRef.current, 
+    tlHero.fromTo(heroHeadingRef.current,
       { opacity: 0, y: 40 },
       { opacity: 1, y: 0, duration: 0.8, ease: 'power3.out' },
       '-=0.4'
     );
-    tlHero.fromTo(heroDescRef.current, 
+    tlHero.fromTo(heroDescRef.current,
       { opacity: 0, y: 30 },
       { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out' },
       '-=0.4'
     );
-    tlHero.fromTo(heroBtnsRef.current, 
+    tlHero.fromTo(heroBtnsRef.current,
       { opacity: 0, y: 20 },
       { opacity: 1, y: 0, duration: 0.5, ease: 'power3.out' },
       '-=0.3'
@@ -175,8 +133,8 @@ function LandingPage({ onNavigate }) {
       const targetVal = parseFloat(el.getAttribute('data-target'));
       const isFloat = el.getAttribute('data-float') === 'true';
       const suffix = el.getAttribute('data-suffix') || '';
-      
-      gsap.fromTo(el, 
+
+      gsap.fromTo(el,
         { textContent: 0 },
         {
           textContent: targetVal,
@@ -188,7 +146,7 @@ function LandingPage({ onNavigate }) {
             toggleActions: 'play none none none',
           },
           snap: { textContent: isFloat ? 0.1 : 1 },
-          onUpdate: function() {
+          onUpdate: function () {
             const currentVal = parseFloat(el.textContent);
             el.textContent = (isFloat ? currentVal.toFixed(1) : Math.floor(currentVal)) + suffix;
           }
@@ -384,19 +342,13 @@ function LandingPage({ onNavigate }) {
 
   useEffect(() => {
     const timer = setInterval(() => {
-      if (!isAnimatingRef.current) {
-        changeSlide((activeSlide + 1) % testimonials.length);
-      }
+      changeSlide((activeSlide + 1) % testimonials.length);
     }, 6000);
     return () => clearInterval(timer);
-  }, [activeSlide, testimonials.length]);
+  }, [activeSlide]);
 
   const changeSlide = (index) => {
-    if (isAnimatingRef.current) return;
-    if (index === activeSlide) return;
-
     if (testimonialSliderRef.current) {
-      isAnimatingRef.current = true;
       gsap.to(testimonialSliderRef.current, {
         opacity: 0,
         scale: 0.96,
@@ -410,9 +362,6 @@ function LandingPage({ onNavigate }) {
             y: 0,
             duration: 0.5,
             ease: 'power2.out',
-            onComplete: () => {
-              isAnimatingRef.current = false;
-            }
           });
         }
       });
@@ -452,18 +401,6 @@ function LandingPage({ onNavigate }) {
   return (
     <>
       {/* Navbar Section */}
-      <header className={`navbar-container ${isScrolled ? 'scrolled' : ''}`}>
-        <div className="navbar-wrapper">
-          <a href="#" className="nav-logo" id="logo-anchor">
-            <img src={logoImage} alt="Jaganath Lab" className="nav-logo-img" />
-            Jaganath<span className="logo-text-highlight"> - Lab</span>
-          </a>
-
-          <div className="nav-actions">
-            <Button variant="secondary" onClick={() => onNavigate('login')} className="nav-login-btn">
-              Login
-            </Button>
-          </div>
       <header className={`navbar-container ${isScrolled || isMobileMenuOpen ? 'scrolled' : ''}`}>
         <div className="navbar-wrapper">
           <a href="#home" className="nav-logo" id="logo-anchor">
@@ -546,11 +483,9 @@ function LandingPage({ onNavigate }) {
               </p>
 
               <div ref={heroBtnsRef} className="hero-ctas">
-                <Button variant="primary" onClick={() => onNavigate('login')}>
                 <Button variant="primary" onClick={() => onNavigate && onNavigate('login')}>
                   Book a Test
                 </Button>
-                <Button variant="glass" onClick={() => document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' })}>
                 <Button variant="outline" onClick={() => {
                   const el = document.getElementById('services');
                   if (el) el.scrollIntoView({ behavior: 'smooth' });
@@ -608,10 +543,10 @@ function LandingPage({ onNavigate }) {
         <section className="counter-section">
           <div className="counter-container">
             <div className="counter-item">
-              <span 
-                ref={(el) => (counterRefs.current[0] = el)} 
-                className="counter-number highlight" 
-                data-target="100000" 
+              <span
+                ref={(el) => (counterRefs.current[0] = el)}
+                className="counter-number highlight"
+                data-target="100000"
                 data-suffix="+"
               >
                 0
@@ -620,10 +555,10 @@ function LandingPage({ onNavigate }) {
             </div>
 
             <div className="counter-item">
-              <span 
-                ref={(el) => (counterRefs.current[1] = el)} 
-                className="counter-number" 
-                data-target="250" 
+              <span
+                ref={(el) => (counterRefs.current[1] = el)}
+                className="counter-number"
+                data-target="250"
                 data-suffix="+"
               >
                 0
@@ -632,11 +567,11 @@ function LandingPage({ onNavigate }) {
             </div>
 
             <div className="counter-item">
-              <span 
-                ref={(el) => (counterRefs.current[2] = el)} 
-                className="counter-number highlight" 
-                data-target="99.8" 
-                data-float="true" 
+              <span
+                ref={(el) => (counterRefs.current[2] = el)}
+                className="counter-number highlight"
+                data-target="99.8"
+                data-float="true"
                 data-suffix="%"
               >
                 0
@@ -645,10 +580,10 @@ function LandingPage({ onNavigate }) {
             </div>
 
             <div className="counter-item">
-              <span 
-                ref={(el) => (counterRefs.current[3] = el)} 
-                className="counter-number" 
-                data-target="24" 
+              <span
+                ref={(el) => (counterRefs.current[3] = el)}
+                className="counter-number"
+                data-target="24"
                 data-suffix="/7"
               >
                 0
@@ -823,9 +758,6 @@ function LandingPage({ onNavigate }) {
             <h2 className="section-title">
               Our Precise <span className="highlight">Diagnostic Process</span>
             </h2>
-            <p className="section-desc">
-              From booking to report delivery, experience a seamless diagnostic journey powered by precision and technology.
-            </p>
           </div>
 
           <div ref={timelineSectionRef} className="timeline-outer-container">
@@ -834,12 +766,10 @@ function LandingPage({ onNavigate }) {
             </div>
 
             <div className="timeline-steps">
-              <div 
-                ref={(el) => (timelineStepsRef.current[0] = el)} 
+              <div
+                ref={(el) => (timelineStepsRef.current[0] = el)}
                 className="timeline-step"
               >
-                <div className="timeline-node"><FaCalendarAlt /></div>
-                <span className="timeline-label">Book Test</span>
                 <div className="timeline-node"><Calendar /></div>
                 <div className="timeline-info">
                   <h3 className="timeline-step-title">1. Book Test</h3>
@@ -847,12 +777,10 @@ function LandingPage({ onNavigate }) {
                 </div>
               </div>
 
-              <div 
-                ref={(el) => (timelineStepsRef.current[1] = el)} 
+              <div
+                ref={(el) => (timelineStepsRef.current[1] = el)}
                 className="timeline-step"
               >
-                <div className="timeline-node"><FaVial /></div>
-                <span className="timeline-label">Collection</span>
                 <div className="timeline-node"><TestTube /></div>
                 <div className="timeline-info">
                   <h3 className="timeline-step-title">2. Collection</h3>
@@ -860,12 +788,10 @@ function LandingPage({ onNavigate }) {
                 </div>
               </div>
 
-              <div 
-                ref={(el) => (timelineStepsRef.current[2] = el)} 
+              <div
+                ref={(el) => (timelineStepsRef.current[2] = el)}
                 className="timeline-step"
               >
-                <div className="timeline-node"><GiMicroscope /></div>
-                <span className="timeline-label">Analysis</span>
                 <div className="timeline-node"><Microscope /></div>
                 <div className="timeline-info">
                   <h3 className="timeline-step-title">3. Analysis</h3>
@@ -873,12 +799,10 @@ function LandingPage({ onNavigate }) {
                 </div>
               </div>
 
-              <div 
-                ref={(el) => (timelineStepsRef.current[3] = el)} 
+              <div
+                ref={(el) => (timelineStepsRef.current[3] = el)}
                 className="timeline-step"
               >
-                <div className="timeline-node"><FaAward /></div>
-                <span className="timeline-label">Verification</span>
                 <div className="timeline-node"><Award /></div>
                 <div className="timeline-info">
                   <h3 className="timeline-step-title">4. Verification</h3>
@@ -886,12 +810,10 @@ function LandingPage({ onNavigate }) {
                 </div>
               </div>
 
-              <div 
-                ref={(el) => (timelineStepsRef.current[4] = el)} 
+              <div
+                ref={(el) => (timelineStepsRef.current[4] = el)}
                 className="timeline-step"
               >
-                <div className="timeline-node"><FaFileMedical /></div>
-                <span className="timeline-label">Generation</span>
                 <div className="timeline-node"><FileText /></div>
                 <div className="timeline-info">
                   <h3 className="timeline-step-title">5. Generation</h3>
@@ -899,12 +821,10 @@ function LandingPage({ onNavigate }) {
                 </div>
               </div>
 
-              <div 
-                ref={(el) => (timelineStepsRef.current[5] = el)} 
+              <div
+                ref={(el) => (timelineStepsRef.current[5] = el)}
                 className="timeline-step"
               >
-                <div className="timeline-node"><FaCloudDownloadAlt /></div>
-                <span className="timeline-label">Delivery</span>
                 <div className="timeline-node"><Download /></div>
                 <div className="timeline-info">
                   <h3 className="timeline-step-title">6. Delivery</h3>
@@ -912,12 +832,10 @@ function LandingPage({ onNavigate }) {
                 </div>
               </div>
 
-              <div 
-                ref={(el) => (timelineStepsRef.current[6] = el)} 
+              <div
+                ref={(el) => (timelineStepsRef.current[6] = el)}
                 className="timeline-step"
               >
-                <div className="timeline-node"><FaCheckDouble /></div>
-                <span className="timeline-label">Completed</span>
                 <div className="timeline-node"><CheckCheck /></div>
                 <div className="timeline-info">
                   <h3 className="timeline-step-title">7. Completed</h3>
@@ -1011,10 +929,10 @@ function LandingPage({ onNavigate }) {
                 </div>
                 <div className="testimonial-profile">
                   <div className="testimonial-avatar-wrapper">
-                    <img 
-                      className="testimonial-avatar" 
-                      src={testimonials[activeSlide].image} 
-                      alt={testimonials[activeSlide].name} 
+                    <img
+                      className="testimonial-avatar"
+                      src={testimonials[activeSlide].image}
+                      alt={testimonials[activeSlide].name}
                     />
                   </div>
                   <div className="testimonial-info-text">
@@ -1050,13 +968,13 @@ function LandingPage({ onNavigate }) {
 
           <div ref={faqContainerRef} className="faq-container">
             {faqs.map((faq, index) => (
-              <div 
-                key={index} 
+              <div
+                key={index}
                 className={`faq-item ${openFaq === index ? 'active' : ''}`}
               >
-                <button 
+                <button
                   type="button"
-                  className="faq-header" 
+                  className="faq-header"
                   onClick={() => toggleFaq(index)}
                   aria-expanded={openFaq === index}
                 >
@@ -1065,8 +983,7 @@ function LandingPage({ onNavigate }) {
                     <ChevronDown />
                   </span>
                 </button>
-                <div className="faq-content">
-                <div className="faq-content" style={{ maxHeight: openFaq === index ? '200px' : '0px' }}>
+                <div className="faq-content" style={{ maxHeight: openFaq === index ? '500px' : '0px' }}>
                   <p className="faq-answer">{faq.a}</p>
                 </div>
               </div>
@@ -1075,21 +992,22 @@ function LandingPage({ onNavigate }) {
         </section>
 
         {/* Final CTA Section */}
-        <section className="section-padding" id="cta-section" style={{ padding: '120px 6%' }}>
+        <section className="landing-cta-section" id="cta-section">
           <div ref={ctaContainerRef} className="cta-gradient-card">
-            <h2 className="section-title" style={{ color: 'var(--white)', marginBottom: '1rem' }}>
+            <h2 className="section-title cta-title">
               Ready For Your Health Checkup?
             </h2>
-            <p className="hero-desc" style={{ margin: '0 auto 2rem', color: 'rgba(255, 255, 255, 0.9)', textAlign: 'center' }}>
+            <p className="hero-desc cta-desc">
               Book your diagnostic laboratory tests and home sample collection in minutes.
             </p>
-            <div className="hero-ctas" style={{ justifyContent: 'center' }}>
-              <Button variant="secondary" onClick={() => onNavigate('login')}>
+            <div className="hero-ctas cta-ctas">
+              <Button variant="secondary" onClick={() => onNavigate && onNavigate('login')}>
                 Book Appointment
               </Button>
-              <Button variant="glass" onClick={() => document.getElementById('footer-contact')?.scrollIntoView({ behavior: 'smooth' })}>
-                <FaPhoneAlt style={{ marginRight: '0.5rem' }} /> Contact Us
-              <Button variant="glass">
+              <Button variant="glass" onClick={() => {
+                const el = document.getElementById('faqs');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }}>
                 <Phone style={{ marginRight: '0.5rem' }} size={18} /> Contact Us
               </Button>
             </div>
@@ -1098,12 +1016,9 @@ function LandingPage({ onNavigate }) {
       </main>
 
       {/* Footer Section */}
-      <footer className="footer-section" id="footer-contact">
+      <footer className="footer-section">
         <div className="footer-container">
           <div className="footer-col">
-            <a href="#" className="footer-logo">
-              <img src={logoImage} alt="Jaganath Lab" className="footer-logo-img" />
-              Jaganath<span className="logo-text-highlight"> - Lab</span>
             <a href="#home" className="footer-logo">
               <img src="/Images/Navbar_Logo.png" alt="Jaganath Lab" className="footer-logo-img" />
             </a>

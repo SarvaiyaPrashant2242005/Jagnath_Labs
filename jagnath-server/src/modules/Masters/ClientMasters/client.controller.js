@@ -15,6 +15,7 @@ const { successResponse, errorResponse } = require("../../../utils/response");
 const create = async (req, res) => {
     try {
         const userId = req.user.user_id;
+        const isSuperAdmin = req.user.role === "SuperAdmin" || req.user.role === "SUPER_ADMIN" || req.user.email === "admin@jagnath.com";
         const body = req.body || {};
 
         const { error, value } = createClientSchema.validate(body);
@@ -30,10 +31,7 @@ const create = async (req, res) => {
         const companyNameVal = value.companyName;
         const company = await Company.findOne({
             where: {
-                [Op.or]: [
-                    { companyName: companyNameVal },
-                    { company_name: companyNameVal }
-                ]
+                company_name: companyNameVal
             }
         });
 
@@ -46,7 +44,7 @@ const create = async (req, res) => {
         }
 
         // Verify that the authenticated user owns that company
-        const isOwner = await companyService.checkOwnership(company.id, userId);
+        const isOwner = await companyService.checkOwnership(company.id, userId, isSuperAdmin);
         if (!isOwner) {
             return res.status(403).json(errorResponse(
                 "FORBIDDEN",
@@ -85,6 +83,7 @@ const update = async (req, res) => {
     try {
         const { id } = req.params;
         const userId = req.user.user_id;
+        const isSuperAdmin = req.user.role === "SuperAdmin" || req.user.role === "SUPER_ADMIN" || req.user.email === "admin@jagnath.com";
         const body = req.body || {};
 
         const { error, value } = updateClientSchema.validate(body);
@@ -106,7 +105,7 @@ const update = async (req, res) => {
         }
 
         // Verify ownership of the company that the client currently belongs to
-        const isOwner = await companyService.checkOwnership(client.companyId, userId);
+        const isOwner = await companyService.checkOwnership(client.companyId, userId, isSuperAdmin);
         if (!isOwner) {
             return res.status(403).json(errorResponse(
                 "FORBIDDEN",
@@ -121,10 +120,7 @@ const update = async (req, res) => {
         if (value.companyName !== undefined) {
             const company = await Company.findOne({
                 where: {
-                    [Op.or]: [
-                        { companyName: value.companyName },
-                        { company_name: value.companyName }
-                    ]
+                    company_name: value.companyName
                 }
             });
 
@@ -137,7 +133,7 @@ const update = async (req, res) => {
             }
 
             // Verify ownership of the target company
-            const isTargetOwner = await companyService.checkOwnership(company.id, userId);
+            const isTargetOwner = await companyService.checkOwnership(company.id, userId, isSuperAdmin);
             if (!isTargetOwner) {
                 return res.status(403).json(errorResponse(
                     "FORBIDDEN",
@@ -176,6 +172,7 @@ const getById = async (req, res) => {
     try {
         const { id } = req.params;
         const userId = req.user.user_id;
+        const isSuperAdmin = req.user.role === "SuperAdmin" || req.user.role === "SUPER_ADMIN" || req.user.email === "admin@jagnath.com";
 
         const client = await clientService.getClientById(id);
         if (!client) {
@@ -187,7 +184,7 @@ const getById = async (req, res) => {
         }
 
         // Verify ownership
-        const isOwner = await companyService.checkOwnership(client.companyId, userId);
+        const isOwner = await companyService.checkOwnership(client.companyId, userId, isSuperAdmin);
         if (!isOwner) {
             return res.status(403).json(errorResponse(
                 "FORBIDDEN",
@@ -213,32 +210,67 @@ const getById = async (req, res) => {
 const getAll = async (req, res) => {
     try {
         const userId = req.user.user_id;
+        const isSuperAdmin = req.user.role === "SuperAdmin" || req.user.role === "SUPER_ADMIN" || req.user.email === "admin@jagnath.com";
+        const requestedCompanyId = req.query.companyId || req.query.company_id || req.headers["x-company-id"];
 
-        // Find user's company
-        let company = await companyService.getCompanyByUserId(userId);
-        if (!company) {
-            const companies = await companyService.getCompaniesByUser(userId);
-            if (companies && companies.length > 0) {
-                company = companies[0];
+        let companyIdToUse;
+
+        if (requestedCompanyId) {
+            // Verify ownership of the requested company
+            const isOwner = await companyService.checkOwnership(requestedCompanyId, userId, isSuperAdmin);
+            if (!isOwner) {
+                return res.status(403).json(errorResponse(
+                    "FORBIDDEN",
+                    "Unauthorized access to this company's clients.",
+                    "Unauthorized"
+                ));
             }
+            companyIdToUse = requestedCompanyId;
+        } else {
+            // Find default user's company
+            let company = await companyService.getCompanyByUserId(userId);
+            if (!company) {
+                const companies = await companyService.getCompaniesByUser(userId, { isSuperAdmin });
+                if (companies && companies.length > 0) {
+                    company = companies[0];
+                }
+            }
+
+            if (!company) {
+                return res.status(200).json(successResponse(
+                    "CLIENTS_FETCHED",
+                    "Clients fetched successfully.",
+                    "Clients retrieved.",
+                    req.query.limit ? { rows: [], total: 0, page: parseInt(req.query.page), totalPages: 0 } : []
+                ));
+            }
+            companyIdToUse = company.id;
         }
 
-        if (!company) {
-            return res.status(200).json(successResponse(
-                "CLIENTS_FETCHED",
-                "Clients fetched successfully.",
-                "Clients retrieved.",
-                []
-            ));
-        }
+        const options = {
+            page: req.query.page,
+            limit: req.query.limit,
+            search: req.query.search,
+            status: req.query.status
+        };
 
-        const clients = await clientService.getClientsByCompany(company.id);
+        const result = await clientService.getClientsByCompany(companyIdToUse, options);
+
+        let responseData = result;
+        if (options.limit && result.rows) {
+            responseData = {
+                rows: result.rows,
+                total: result.count,
+                page: parseInt(options.page),
+                totalPages: Math.ceil(result.count / parseInt(options.limit))
+            };
+        }
 
         return res.status(200).json(successResponse(
             "CLIENTS_FETCHED",
             "Clients fetched successfully.",
             "Clients retrieved.",
-            clients
+            responseData
         ));
     } catch (err) {
         return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Failed to fetch clients."));
@@ -252,6 +284,7 @@ const remove = async (req, res) => {
     try {
         const { id } = req.params;
         const userId = req.user.user_id;
+        const isSuperAdmin = req.user.role === "SuperAdmin" || req.user.role === "SUPER_ADMIN" || req.user.email === "admin@jagnath.com";
 
         const client = await clientService.getClientById(id);
         if (!client) {
@@ -263,7 +296,7 @@ const remove = async (req, res) => {
         }
 
         // Verify ownership
-        const isOwner = await companyService.checkOwnership(client.companyId, userId);
+        const isOwner = await companyService.checkOwnership(client.companyId, userId, isSuperAdmin);
         if (!isOwner) {
             return res.status(403).json(errorResponse(
                 "FORBIDDEN",
@@ -290,10 +323,71 @@ const remove = async (req, res) => {
     }
 };
 
+/**
+ * Bulk Import Clients from Excel dataset.
+ */
+const bulkImport = async (req, res) => {
+    try {
+        const userId = req.user.user_id;
+        const isSuperAdmin = req.user.role === "SuperAdmin" || req.user.role === "SUPER_ADMIN" || req.user.email === "admin@jagnath.com";
+        const { rows } = req.body || {};
+        const requestedCompanyId = req.headers["x-company-id"] || req.query.companyId || req.query.company_id || req.body?.companyId;
+
+        if (!Array.isArray(rows) || rows.length === 0) {
+            return res.status(400).json(errorResponse(
+                "VALIDATION_ERROR",
+                "No rows provided for bulk import.",
+                "No valid data provided."
+            ));
+        }
+
+        let companyIdToUse;
+        if (requestedCompanyId) {
+            const isOwner = await companyService.checkOwnership(requestedCompanyId, userId, isSuperAdmin);
+            if (!isOwner) {
+                return res.status(403).json(errorResponse("FORBIDDEN", "Unauthorized company access.", "Unauthorized"));
+            }
+            companyIdToUse = requestedCompanyId;
+        } else {
+            let company = await companyService.getCompanyByUserId(userId);
+            if (!company) {
+                const companies = await companyService.getCompaniesByUser(userId, { isSuperAdmin });
+                if (companies && companies.length > 0) {
+                    company = companies[0];
+                }
+            }
+
+            if (!company) {
+                return res.status(404).json(errorResponse("NOT_FOUND", "Company not found for user.", "Company not found."));
+            }
+            companyIdToUse = company.id;
+        }
+
+        const reqInfo = {
+            ip: req.ip || req.connection.remoteAddress,
+            userAgent: req.headers["user-agent"]
+        };
+
+        const result = await clientService.bulkImportClients(rows, companyIdToUse, userId, reqInfo);
+
+        return res.status(200).json(successResponse(
+            "CLIENTS_BULK_IMPORTED",
+            `Successfully processed ${result.totalProcessed} records (${result.createdCount} created, ${result.updatedCount} updated).`,
+            "Bulk import completed.",
+            result
+        ));
+    } catch (err) {
+        console.error("Bulk Import Controller Error:", err);
+        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, err.message || "Bulk import failed."));
+    }
+};
+
 module.exports = {
     create,
     update,
     getById,
     getAll,
-    remove
+    remove,
+    bulkImport
 };
+

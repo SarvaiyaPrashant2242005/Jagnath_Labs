@@ -25,6 +25,9 @@ db.Category = require("../modules/Masters/CategoryMasters/category.model");
 db.TestRequest = require("../modules/Forms/TestRequestForm/testRequest.model");
 db.CategoryParameter = require("../modules/Masters/CategoryParameterMasters/categoryParameter.model");
 db.TestRequestParameter = require("../modules/Transactions/TestRequestParameters/testRequestParameter.model");
+db.PriceMaster = require("../modules/Masters/PriceListMasters/price_master.model");
+db.Caution = require("../modules/Masters/CautionMasters/caution.model");
+db.SubCategory = require("../modules/Masters/SubCategoryMasters/subCategory.model");
 
 // Define Associations
 db.Users.hasMany(db.RefreshTokens, { foreignKey: "user_id" });
@@ -65,5 +68,32 @@ db.TestRequestParameter.belongsTo(db.TestRequest, { foreignKey: "testRequestId",
 
 db.Parameter.hasMany(db.TestRequestParameter, { foreignKey: "parameterId", as: "testRequestParameters" });
 db.TestRequestParameter.belongsTo(db.Parameter, { foreignKey: "parameterId", as: "parameter" });
+
+// Price Master Associations
+db.Company.hasMany(db.PriceMaster, { foreignKey: "companyId", as: "priceMasters" });
+db.PriceMaster.belongsTo(db.Company, { foreignKey: "companyId", as: "company" });
+
+db.Category.hasMany(db.PriceMaster, { foreignKey: "categoryId", as: "priceMasters" });
+db.PriceMaster.belongsTo(db.Category, { foreignKey: "categoryId", as: "category" });
+
+db.Parameter.hasMany(db.PriceMaster, { foreignKey: "parameterId", as: "priceMasters" });
+db.PriceMaster.belongsTo(db.Parameter, { foreignKey: "parameterId", as: "parameter" });
+
+// Caution Master Associations
+db.Company.hasMany(db.Caution, { foreignKey: "companyId", as: "cautions" });
+db.Caution.belongsTo(db.Company, { foreignKey: "companyId", as: "company" });
+
+db.Caution.hasMany(db.TestRequest, { foreignKey: "cautionId", as: "testRequests" });
+db.TestRequest.belongsTo(db.Caution, { foreignKey: "cautionId", as: "caution" });
+
+// Sub Category Associations
+db.Category.hasMany(db.SubCategory, { foreignKey: "categoryId", as: "subCategories" });
+db.SubCategory.belongsTo(db.Category, { foreignKey: "categoryId", as: "category" });
+
+db.Company.hasMany(db.SubCategory, { foreignKey: "companyId", as: "subCategories" });
+db.SubCategory.belongsTo(db.Company, { foreignKey: "companyId", as: "company" });
+
+db.SubCategory.hasMany(db.Parameter, { foreignKey: "subCategoryId", as: "parameters" });
+db.Parameter.belongsTo(db.SubCategory, { foreignKey: "subCategoryId", as: "subCategory" });
 
 module.exports = db;

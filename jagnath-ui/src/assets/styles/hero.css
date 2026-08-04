@@ -1,13 +1,14 @@
 .hero-section {
   position: relative;
   width: 100%;
-  height: 100vh;
-  height: 100svh;
+  min-height: 100vh;
+  min-height: 100svh;
   display: flex;
   align-items: center;
   overflow: hidden;
   background-color: var(--bg-soft);
-  padding: 80px 6% 0;
+  padding: 120px 6% 80px;
+  box-sizing: border-box;
 }
 
 .hero-video-container {
@@ -36,7 +37,6 @@
   z-index: 1;
 }
 
-/* For dark overlay fallback or video contrast adjustment */
 .hero-overlay-dark {
   background: linear-gradient(135deg, rgba(17, 24, 39, 0.92) 0%, rgba(17, 24, 39, 0.75) 100%);
 }
@@ -53,16 +53,12 @@
   position: relative;
 }
 
-
-
 .hero-content {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 28px;
+  gap: 24px;
 }
-
-
 
 .hero-badge {
   background: var(--accent-glow-soft);
@@ -72,7 +68,7 @@
 }
 
 .hero-heading {
-  font-size: clamp(2.8rem, 5.5vw, 4.4rem);
+  font-size: clamp(2.2rem, 4.8vw, 4.4rem);
   font-weight: 800;
   line-height: 1.15;
   letter-spacing: -0.03em;
@@ -87,8 +83,7 @@
 }
 
 .hero-desc {
-  font-size: 1.125rem;
-  /* 18px */
+  font-size: clamp(0.95rem, 1.3vw, 1.125rem);
   line-height: 1.6;
   color: var(--text-light);
   max-width: 580px;
@@ -107,13 +102,13 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100%;
+  width: 100%;
 }
 
 .floating-medical-card {
   width: 100%;
   max-width: 380px;
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.6);
@@ -123,124 +118,35 @@
   z-index: 2;
   position: relative;
   animation: floatCard 6s ease-in-out infinite;
+  box-sizing: border-box;
 }
 
 .floating-glass-stat {
   position: absolute;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.8);
   box-shadow: var(--shadow-lg);
   border-radius: var(--radius-md);
-  padding: 16px 20px;
+  padding: 14px 18px;
   display: flex;
   align-items: center;
   gap: 12px;
   z-index: 3;
+  white-space: nowrap;
 }
 
 .stat-left {
   top: -20px;
-  left: -30px;
+  left: -20px;
   animation: floatBadge1 7s ease-in-out infinite alternate;
 }
 
 .stat-right {
-  bottom: 20px;
+  bottom: -20px;
   right: -20px;
   animation: floatBadge2 8s ease-in-out infinite alternate;
-}
-
-@media (max-width: 991px) {
-  .hero-section {
-    height: auto;
-    min-height: 100vh;
-    min-height: 100svh;
-    padding: 130px 6% 60px;
-    display: flex;
-    align-items: center;
-  }
-
-  .hero-overlay {
-    background: rgba(255, 255, 255, 0.94) !important;
-  }
-
-  .hero-video {
-    opacity: 0.05 !important;
-  }
-
-  .hero-grid {
-    grid-template-columns: 1fr;
-    gap: 40px;
-    text-align: center;
-  }
-
-  .hero-content {
-    align-items: center;
-    gap: 20px;
-  }
-
-  .hero-heading {
-    font-size: clamp(2rem, 6.5vw, 3.2rem);
-  }
-
-  .hero-desc {
-    font-size: 1rem;
-    margin: 0 auto;
-  }
-
-  .hero-ctas {
-    justify-content: center;
-  }
-
-  .hero-illustration-pane {
-    margin-top: 40px;
-  }
-
-  .stat-left {
-    left: 10px;
-  }
-
-  .stat-right {
-    right: 10px;
-  }
-}
-
-@media (max-width: 576px) {
-  .hero-section {
-    padding: 110px 4% 50px;
-  }
-
-  .hero-ctas {
-    flex-direction: column;
-    width: 100%;
-    gap: 10px;
-  }
-
-  .hero-ctas .premium-btn {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .hero-illustration-pane {
-    padding: 0;
-    margin-top: 30px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    width: 100%;
-  }
-
-  .floating-medical-card {
-    padding: 24px 20px;
-    max-width: 100%;
-    animation: none;
-  }
-
-  .floating-glass-stat {
-    display: none !important;
-  }
 }
 
 .icon-box-circle {
@@ -253,18 +159,16 @@
   justify-content: center;
   color: var(--primary-dark);
   font-size: 1.25rem;
+  flex-shrink: 0;
 }
 
 /* Animations */
 @keyframes floatCard {
-
-  0%,
-  100% {
+  0%, 100% {
     transform: translateY(0);
   }
-
   50% {
-    transform: translateY(-12px);
+    transform: translateY(-10px);
   }
 }
 
@@ -272,9 +176,8 @@
   0% {
     transform: translate(0, 0);
   }
-
   100% {
-    transform: translate(-8px, -10px);
+    transform: translate(-6px, -8px);
   }
 }
 
@@ -282,9 +185,8 @@
   0% {
     transform: translate(0, 0);
   }
-
   100% {
-    transform: translate(10px, 8px);
+    transform: translate(8px, 6px);
   }
 }
 
@@ -295,7 +197,7 @@
   background: var(--white);
   border-top: 1px solid var(--border-color);
   border-bottom: 1px solid var(--border-color);
-  padding: 24px 0;
+  padding: 20px 0;
   position: relative;
   z-index: 5;
 }
@@ -310,24 +212,119 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 0.95rem;
+  font-size: clamp(0.85rem, 1vw, 0.95rem);
   font-weight: 700;
   color: var(--text-light);
-  margin: 0 40px;
+  margin: 0 clamp(20px, 3vw, 40px);
   white-space: nowrap;
 }
 
 .partner-icon {
   font-size: 1.2rem;
   color: var(--primary);
+  flex-shrink: 0;
 }
 
 @keyframes scrollMarquee {
   0% {
     transform: translateX(0);
   }
-
   100% {
     transform: translateX(-50%);
+  }
+}
+
+/* Responsive Media Queries for Hero */
+@media (max-width: 1199px) {
+  .hero-grid {
+    gap: 40px;
+  }
+  
+  .stat-left {
+    left: -10px;
+  }
+  
+  .stat-right {
+    right: -10px;
+  }
+}
+
+@media (max-width: 991px) {
+  .hero-section {
+    min-height: auto;
+    padding: 110px 5% 60px;
+  }
+
+  .hero-overlay {
+    background: rgba(248, 250, 252, 0.96) !important;
+  }
+
+  .hero-video {
+    opacity: 0.08 !important;
+  }
+
+  .hero-grid {
+    grid-template-columns: 1fr;
+    gap: 40px;
+    text-align: center;
+  }
+
+  .hero-content {
+    align-items: center;
+    gap: 20px;
+  }
+
+  .hero-desc {
+    margin: 0 auto;
+  }
+
+  .hero-ctas {
+    justify-content: center;
+  }
+
+  .hero-illustration-pane {
+    margin-top: 20px;
+  }
+
+  .floating-glass-stat {
+    position: relative;
+    top: auto !important;
+    bottom: auto !important;
+    left: auto !important;
+    right: auto !important;
+    animation: none !important;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .floating-medical-card {
+    animation: none;
+    max-width: 480px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+}
+
+@media (max-width: 576px) {
+  .hero-section {
+    padding: 95px 4% 40px;
+  }
+
+  .hero-ctas {
+    flex-direction: column;
+    width: 100%;
+    gap: 12px;
+  }
+
+  .hero-ctas button,
+  .hero-ctas .premium-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .floating-medical-card {
+    padding: 20px 16px;
+    max-width: 100%;
   }
 }

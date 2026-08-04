@@ -39,16 +39,9 @@ const create = async (req, res) => {
             ));
         }
 
-        // Find the Company using companyName
-        const companyNameVal = value.companyName;
-        const company = await Company.findOne({
-            where: {
-                [Op.or]: [
-                    { companyName: companyNameVal },
-                    { company_name: companyNameVal }
-                ]
-            }
-        });
+        // Find the Company using companyId
+        const companyIdVal = value.companyId;
+        const company = await Company.findByPk(companyIdVal);
 
         if (!company) {
             return res.status(404).json(errorResponse(
@@ -68,10 +61,10 @@ const create = async (req, res) => {
             ));
         }
 
-        // Find the Client using clientName and companyId
+        // Find the Client using clientId and companyId
         const client = await Client.findOne({
             where: {
-                clientName: value.clientName,
+                id: value.clientId,
                 companyId: company.id
             }
         });
@@ -89,6 +82,8 @@ const create = async (req, res) => {
             ...value,
             companyId: company.id,
             clientId: client.id,
+            cautionId: (value.cautionId && typeof value.cautionId === 'string' && value.cautionId.trim() !== "") ? value.cautionId : null,
+            includeCaution: !!value.includeCaution,
             address: value.address !== undefined && value.address !== null && value.address !== "" ? value.address : client.address,
             contactNumber: value.contactNumber !== undefined && value.contactNumber !== null && value.contactNumber !== "" ? value.contactNumber : client.contactNumber
         };
@@ -125,16 +120,39 @@ const getAll = async (req, res) => {
         try {
             company = await getUserCompany(userId);
         } catch (e) {
-            return res.status(404).json(errorResponse("NOT_FOUND", e.message, e.message));
+            return res.status(200).json(successResponse(
+                "TEST_REQUESTS_FETCHED",
+                "Test requests fetched successfully.",
+                "Test requests fetched successfully.",
+                req.query.limit ? { rows: [], total: 0, page: parseInt(req.query.page), totalPages: 0 } : []
+            ));
         }
 
-        const trs = await testRequestService.getTestRequestsByCompany(company.id);
+        const options = {
+            page: req.query.page,
+            limit: req.query.limit,
+            search: req.query.search,
+            status: req.query.status,
+            clientId: req.query.clientId
+        };
+
+        const result = await testRequestService.getTestRequestsByCompany(company.id, options);
+
+        let responseData = result;
+        if (options.limit && result.rows) {
+            responseData = {
+                rows: result.rows,
+                total: result.count,
+                page: parseInt(options.page),
+                totalPages: Math.ceil(result.count / parseInt(options.limit))
+            };
+        }
 
         return res.status(200).json(successResponse(
             "TEST_REQUESTS_FETCHED",
             "Test requests fetched successfully.",
             "Test requests fetched successfully.",
-            trs
+            responseData
         ));
     } catch (err) {
         return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Failed to fetch test requests."));
@@ -148,21 +166,19 @@ const getById = async (req, res) => {
     try {
         const { id } = req.params;
         const userId = req.user.user_id;
+        const isSuperAdmin = req.user.role === "SuperAdmin" || req.user.role === "SUPER_ADMIN" || req.user.email === "admin@jagnath.com";
 
-        let company;
-        try {
-            company = await getUserCompany(userId);
-        } catch (e) {
-            return res.status(404).json(errorResponse("NOT_FOUND", e.message, e.message));
+        let tr = await testRequestService.getTestRequestById(id, null);
+        if (!tr) {
+            return res.status(404).json(errorResponse("NOT_FOUND", "Test Request not found.", "Test Request not found."));
         }
 
-        const tr = await testRequestService.getTestRequestById(id, company.id);
-        if (!tr) {
-            return res.status(404).json(errorResponse(
-                "NOT_FOUND",
-                "Test Request not found or access denied.",
-                "Test Request not found."
-            ));
+        // Verify company ownership if not SuperAdmin
+        if (!isSuperAdmin) {
+            const isOwner = await companyService.checkOwnership(tr.companyId, userId);
+            if (!isOwner) {
+                return res.status(403).json(errorResponse("FORBIDDEN", "Unauthorized access to this Test Request.", "Unauthorized"));
+            }
         }
 
         return res.status(200).json(successResponse(
@@ -217,16 +233,9 @@ const update = async (req, res) => {
         let resolvedCompanyId = existingTR.companyId;
         let resolvedClientId = existingTR.clientId;
 
-        // If companyName is updated
-        if (value.companyName) {
-            const comp = await Company.findOne({
-                where: {
-                    [Op.or]: [
-                        { companyName: value.companyName },
-                        { company_name: value.companyName }
-                    ]
-                }
-            });
+        // If companyId is updated
+        if (value.companyId) {
+            const comp = await Company.findByPk(value.companyId);
             if (!comp) {
                 return res.status(404).json(errorResponse("NOT_FOUND", "Company not found.", "Company not found."));
             }
@@ -237,18 +246,14 @@ const update = async (req, res) => {
             resolvedCompanyId = comp.id;
         }
 
-        // If clientName is updated (or companyName is updated)
-        if (value.clientName || value.companyName) {
-            let clientNameVal = value.clientName;
-            if (!clientNameVal) {
-                const currentClient = await Client.findByPk(existingTR.clientId);
-                clientNameVal = currentClient ? currentClient.clientName : null;
-            }
+        // If clientId is updated (or companyId is updated)
+        if (value.clientId || value.companyId) {
+            let clientIdVal = value.clientId || existingTR.clientId;
 
-            if (clientNameVal) {
+            if (clientIdVal) {
                 const client = await Client.findOne({
                     where: {
-                        clientName: clientNameVal,
+                        id: clientIdVal,
                         companyId: resolvedCompanyId
                     }
                 });
@@ -256,7 +261,7 @@ const update = async (req, res) => {
                     return res.status(404).json(errorResponse("NOT_FOUND", "Client not found in this company.", "Client not found."));
                 }
                 resolvedClientId = client.id;
-                
+
                 // Copy details automatically from the resolved client if address/contactNumber are not explicitly updated in the request body
                 if (value.address === undefined) {
                     value.address = client.address;
@@ -272,6 +277,12 @@ const update = async (req, res) => {
             companyId: resolvedCompanyId,
             clientId: resolvedClientId
         };
+        if (value.cautionId !== undefined) {
+            updateData.cautionId = (value.cautionId && typeof value.cautionId === 'string' && value.cautionId.trim() !== "") ? value.cautionId : null;
+        }
+        if (value.includeCaution !== undefined) {
+            updateData.includeCaution = !!value.includeCaution;
+        }
         delete updateData.companyName;
         delete updateData.clientName;
 

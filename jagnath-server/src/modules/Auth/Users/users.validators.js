@@ -16,11 +16,11 @@ const registerSchema = Joi.object({
         "string.min": "Password must be at least 6 characters long.",
         "any.required": "Password is required."
     }),
-    confirmPassword: Joi.any().valid(Joi.ref('password')).required().messages({
-        "any.only": "Confirm password must match password.",
-        "any.required": "Confirm password is required."
+    confirmPassword: Joi.any().valid(Joi.ref('password')).optional().messages({
+        "any.only": "Confirm password must match password."
     }),
-    full_name: Joi.string().min(2).max(100).optional()
+    role: Joi.string().valid("SuperAdmin", "Admin", "User").optional(),
+    status: Joi.string().valid("Active", "Inactive", "Blocked", "Deleted").optional()
 });
 
 const loginSchema = Joi.object({
