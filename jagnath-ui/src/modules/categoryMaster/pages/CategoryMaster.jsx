@@ -8,11 +8,8 @@ import { apiService } from '../../../shared/services/apiService';
 import { CATEGORY_ENDPOINTS, COMPANY_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 import Pagination from '../../../shared/components/Pagination';
 import BulkImportModal from '../../../shared/components/BulkImport/BulkImportModal';
-<<<<<<< HEAD
-import { downloadCSV, downloadExcel, copyTextToClipboard } from '../../../shared/utils/exportUtils';
-=======
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
->>>>>>> Test
+import { downloadCSV, downloadExcel } from '../../../shared/utils/exportUtils';
 
 const CategoryMaster = () => {
   // Category & Company states
@@ -21,49 +18,9 @@ const CategoryMaster = () => {
   const [loading, setLoading] = useState(false);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
 
-<<<<<<< HEAD
-  // Multi-Select state
-  const [selectedIds, setSelectedIds] = useState([]);
-
-  // Select all / deselect all current page categories
-  const handleSelectAll = (e) => {
-    if (e.target.checked) {
-      const allIds = categories.map(c => c.id);
-      setSelectedIds(allIds);
-    } else {
-      setSelectedIds([]);
-    }
-  };
-
-  // Toggle single category selection
-  const handleSelectRow = (id, e) => {
-    e.stopPropagation();
-    setSelectedIds(prev =>
-      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
-    );
-  };
-
-  // Bulk Delete Selected
-  const handleBulkDelete = async () => {
-    if (selectedIds.length === 0) return;
-    if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} selected categories?`)) return;
-
-    try {
-      setLoading(true);
-      await Promise.all(selectedIds.map(id => apiService.delete(CATEGORY_ENDPOINTS.DELETE(id))));
-      triggerToast(`Successfully deleted ${selectedIds.length} categories!`, 'success');
-      setSelectedIds([]);
-      fetchCategories();
-    } catch (err) {
-      triggerToast(err.message || 'Failed to delete selected categories.', 'error');
-      setLoading(false);
-    }
-  };
-=======
   // Delete confirmation modal state
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null, name: '' });
   const [deleting, setDeleting] = useState(false);
->>>>>>> Test
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -131,15 +88,15 @@ const CategoryMaster = () => {
   };
 
   // Fetch all categories
-  const fetchCategories = async (page = currentPage, limit = pageSize, search = searchQuery, status = statusFilter) => {
+  const fetchCategories = async () => {
     setLoading(true);
     try {
       const activeCompId = localStorage.getItem('selectedCompanyId') || '';
       const params = new URLSearchParams({
-        page: page,
-        limit: limit,
-        search: search,
-        status: status
+        page: currentPage,
+        limit: pageSize,
+        search: searchQuery,
+        status: statusFilter
       });
       if (activeCompId) {
         params.append('companyId', activeCompId);
@@ -321,36 +278,10 @@ const CategoryMaster = () => {
     }
   };
 
-  // Helper to fetch all records matching active filter (no pagination limit)
-  const fetchAllExportData = async () => {
-    try {
-      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
-      const params = new URLSearchParams({
-        page: 1,
-        limit: 100000,
-        search: searchQuery,
-        status: statusFilter
-      });
-      if (activeCompId) {
-        params.append('companyId', activeCompId);
-      }
-
-      const url = `${CATEGORY_ENDPOINTS.GET_ALL}?${params.toString()}`;
-      const response = await apiService.get(url);
-      if (response && response.data) {
-        return Array.isArray(response.data) ? response.data : (response.data.rows || []);
-      }
-      return categories;
-    } catch (err) {
-      return categories;
-    }
-  };
-
-  const handleDownloadCSV = async () => {
-    const allData = await fetchAllExportData();
-    if (!allData || allData.length === 0) return;
+  const handleDownloadCSV = () => {
+    if (categories.length === 0) return;
     const headers = ['Category Name', 'Description', 'Status'];
-    const rows = allData.map(c => [
+    const rows = categories.map(c => [
       c.name,
       c.description || 'None',
       c.status
@@ -359,11 +290,10 @@ const CategoryMaster = () => {
     setShowDownloadDropdown(false);
   };
 
-  const handleDownloadExcel = async () => {
-    const allData = await fetchAllExportData();
-    if (!allData || allData.length === 0) return;
+  const handleDownloadExcel = () => {
+    if (categories.length === 0) return;
     const headers = ['Category Name', 'Description', 'Status'];
-    const rows = allData.map(c => [
+    const rows = categories.map(c => [
       c.name,
       c.description || 'None',
       c.status
@@ -372,28 +302,24 @@ const CategoryMaster = () => {
     setShowDownloadDropdown(false);
   };
 
-  const handleCopy = async () => {
-    const allData = await fetchAllExportData();
-    if (!allData || allData.length === 0) return;
+  const handleCopy = () => {
+    if (categories.length === 0) return;
     const headers = ['Category Name', 'Description', 'Status'];
-    const rows = allData.map(c => [
+    const rows = categories.map(c => [
       c.name,
       c.description || 'None',
       c.status
     ]);
     const text = [headers.join('\t'), ...rows.map(r => r.join('\t'))].join('\n');
-    copyTextToClipboard(text,
-      () => triggerToast('Copied to clipboard successfully.', 'success'),
-      () => triggerToast('Failed to copy text.', 'error')
-    );
+    navigator.clipboard.writeText(text);
+    triggerToast('Copied to clipboard successfully.', 'success');
     setShowDownloadDropdown(false);
   };
 
-  const handlePrintPDF = async () => {
-    const allData = await fetchAllExportData();
-    if (!allData || allData.length === 0) return;
+  const handlePrintPDF = () => {
+    if (categories.length === 0) return;
     const printWindow = window.open('', '_blank');
-    const rows = allData.map(c => `
+    const rows = categories.map(c => `
       <tr>
         <td>${c.name}</td>
         <td>${c.description || 'None'}</td>
@@ -582,15 +508,9 @@ const CategoryMaster = () => {
 
               {/* Category Name */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-<<<<<<< HEAD
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Category Name *</label>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Discipline Group Name *</label>
                 <input
                   type="text"
-=======
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Discipline Group Name *</label>
-                <input 
-                  type="text" 
->>>>>>> Test
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
@@ -680,36 +600,8 @@ const CategoryMaster = () => {
 
         {/* Table Filters */}
         <div className="master-table-filters" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
-<<<<<<< HEAD
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{ fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>
-              Total Categories: {totalItems}
-            </div>
-            {selectedIds.length > 0 && (
-              <button
-                onClick={handleBulkDelete}
-                style={{
-                  background: '#ef4444',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '6px',
-                  padding: '0.4rem 0.85rem',
-                  fontWeight: 600,
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  boxShadow: '0 1px 2px rgba(239, 68, 68, 0.2)'
-                }}
-              >
-                <FaTrash size={12} /> Delete Selected ({selectedIds.length})
-              </button>
-            )}
-=======
           <div style={{ fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>
             Total Discipline Groups: {totalItems}
->>>>>>> Test
           </div>
           <div className="master-filter-inputs" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             <select
@@ -736,14 +628,6 @@ const CategoryMaster = () => {
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                <th style={{ padding: '0.75rem 0.75rem', width: '40px', textAlign: 'center' }}>
-                  <input
-                    type="checkbox"
-                    checked={categories.length > 0 && selectedIds.length === categories.length}
-                    onChange={handleSelectAll}
-                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                  />
-                </th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ACTIONS</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CATEGORY NAME</th>
@@ -771,14 +655,6 @@ const CategoryMaster = () => {
                     style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background-color 0.15s' }}
                     className="company-table-row"
                   >
-                    <td style={{ padding: '0.75rem 0.75rem', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.includes(category.id)}
-                        onChange={(e) => handleSelectRow(category.id, e)}
-                        style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                      />
-                    </td>
                     <td style={{ padding: '0.75rem 1rem', display: 'flex', gap: '0.5rem' }}>
                       <button
                         onClick={(e) => { e.stopPropagation(); handleOpenEdit(category); }}
@@ -787,13 +663,8 @@ const CategoryMaster = () => {
                       >
                         <FaEdit size={12} />
                       </button>
-<<<<<<< HEAD
                       <button
-                        onClick={(e) => { e.stopPropagation(); handleDelete(category.id); }}
-=======
-                      <button 
                         onClick={(e) => { e.stopPropagation(); handleDelete(category.id, category.categoryName || category.name); }}
->>>>>>> Test
                         style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                         title="Delete"
                       >
@@ -860,13 +731,8 @@ const CategoryMaster = () => {
                     >
                       <FaEdit size={12} /> Edit
                     </button>
-<<<<<<< HEAD
                     <button
-                      onClick={(e) => { e.stopPropagation(); handleDelete(category.id); }}
-=======
-                    <button 
                       onClick={(e) => { e.stopPropagation(); handleDelete(category.id, category.categoryName || category.name); }}
->>>>>>> Test
                       style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                     >
                       <FaTrash size={12} /> Delete
@@ -901,10 +767,8 @@ const CategoryMaster = () => {
         onImportSuccess={async (validRows) => {
           const res = await apiService.post(CATEGORY_ENDPOINTS.BULK_IMPORT, { rows: validRows });
           if (res && res.success) {
-            const inserted = res.data?.inserted ?? res.data?.createdCount ?? 0;
-            const updated = res.data?.updated ?? res.data?.updatedCount ?? 0;
-            triggerToast(`Bulk Import Complete: ${inserted} created, ${updated} updated!`, 'success');
-            fetchCategories();
+            triggerToast(res.message || 'Categories imported successfully!', 'success');
+            fetchCategories(currentPage, pageSize, searchQuery, statusFilter);
           } else {
             throw new Error(res?.message || 'Failed to import categories.');
           }

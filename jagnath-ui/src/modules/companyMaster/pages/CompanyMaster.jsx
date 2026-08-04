@@ -10,6 +10,7 @@ import { getStoredUser } from '../../auth/services/authService';
 import { getIndianStates, getCitiesByStateIso2 } from '../../../shared/services/locationService';
 import Pagination from '../../../shared/components/Pagination';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
+import { downloadCSV, downloadExcel } from '../../../shared/utils/exportUtils';
 
 const CompanyMaster = ({ onCompanyUpdate }) => {
   // Company state

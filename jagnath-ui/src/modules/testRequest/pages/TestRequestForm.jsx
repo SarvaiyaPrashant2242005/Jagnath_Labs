@@ -4,6 +4,7 @@ import { apiService } from '../../../shared/services/apiService';
 import {
   CLIENT_ENDPOINTS,
   CATEGORY_ENDPOINTS,
+  PARAMETER_ENDPOINTS,
   CATEGORY_PARAMETER_ENDPOINTS,
   TEST_REQUEST_ENDPOINTS,
   TEST_REQUEST_PARAMETER_ENDPOINTS,
@@ -31,6 +32,8 @@ const TestRequestForm = () => {
   // State for dynamic parameter checklist
   const [parameters, setParameters] = useState([]);
   const [checkedParameters, setCheckedParameters] = useState({});
+  const [subCategoriesLoading, setSubCategoriesLoading] = useState(false);
+  const [parametersLoading, setParametersLoading] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -199,7 +202,8 @@ const TestRequestForm = () => {
         });
 
         if (tr.sampleParticular) {
-          fetchParametersForCategory(tr.sampleParticular);
+          fetchSubCategoriesForCategory(tr.sampleParticular);
+          fetchParameters('', tr.sampleParticular);
         }
 
         // Fetch checked parameters
@@ -232,39 +236,95 @@ const TestRequestForm = () => {
     }
   };
 
-  const fetchParametersForCategory = async (categoryId) => {
+  const fetchSubCategoriesForCategory = async (categoryId) => {
+    if (!categoryId) {
+      setSubCategories([]);
+      return;
+    }
+    setSubCategoriesLoading(true);
     try {
-      const res = await apiService.get(CATEGORY_PARAMETER_ENDPOINTS.GET_BY_CATEGORY(categoryId));
-      if (res?.data) {
-        const paramList = Array.isArray(res.data) ? res.data : [res.data];
-        setParameters(paramList.filter(param => param.status === 'Active'));
-      } else {
-        setParameters([]);
-      }
+      const res = await apiService.get(`${SUB_CATEGORY_ENDPOINTS.GET_ALL}?categoryId=${categoryId}&status=Active&all=true`);
+      const list = res?.data?.subCategories || res?.data || [];
+      const subCatList = Array.isArray(list) ? list : [list];
+      setSubCategories(subCatList.filter(s => s.status === 'Active' || s.status === true || !s.status));
     } catch (e) {
-      setParameters([]);
+      console.error("Error fetching subcategories", e);
+      setSubCategories([]);
+    } finally {
+      setSubCategoriesLoading(false);
     }
   };
 
-  const fetchSubCategoriesForCategory = async (categoryId) => {
+  const fetchParameters = async (subCategoryId, categoryId) => {
+    setParametersLoading(true);
     try {
-      const res = await apiService.get(`${SUB_CATEGORY_ENDPOINTS.GET_ALL}?categoryId=${categoryId}`);
-      setSubCategories(res?.data || []);
-    } catch {
-      setSubCategories([]);
+      let url = `${PARAMETER_ENDPOINTS.GET_ALL}?status=Active&all=true`;
+      if (subCategoryId) {
+        url += `&subCategoryId=${subCategoryId}`;
+      } else if (categoryId) {
+        url += `&categoryId=${categoryId}`;
+      } else {
+        setParameters([]);
+        setParametersLoading(false);
+        return;
+      }
+      const res = await apiService.get(url);
+      let list = [];
+      if (res?.data?.rows) {
+        list = res.data.rows;
+      } else if (Array.isArray(res?.data)) {
+        list = res.data;
+      } else if (res?.data) {
+        list = [res.data];
+      }
+      setParameters(list.filter(p => p.status === 'Active' || p.status === true || !p.status));
+    } catch (e) {
+      console.error("Error fetching parameters", e);
+      setParameters([]);
+    } finally {
+      setParametersLoading(false);
     }
+  };
+
+  const handleSubCategoryChange = (e) => {
+    const subId = e.target.value;
+    setSelectedSubCategory(subId);
+    setCheckedParameters({});
+    fetchParameters(subId, formData.sampleParticular);
+  };
+
+  const handleToggleSelectAllParameters = () => {
+    const displayedParams = parameters.filter(param => !selectedSubCategory || param.subCategoryId === selectedSubCategory || param.subCategory?.id === selectedSubCategory);
+    if (displayedParams.length === 0) return;
+    
+    const allChecked = displayedParams.every(p => !!checkedParameters[p.id]);
+    setCheckedParameters(prev => {
+      const next = { ...prev };
+      displayedParams.forEach(p => {
+        if (allChecked) {
+          delete next[p.id];
+        } else {
+          next[p.id] = true;
+        }
+      });
+      return next;
+    });
   };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     
-    if (name === 'sampleParticular' && value) {
+    if (name === 'sampleParticular') {
       setSelectedSubCategory('');
-      fetchSubCategoriesForCategory(value);
-      fetchParametersForCategory(value);
-      // Reset checks when category changes
+      setParameters([]);
       setCheckedParameters({});
+      if (value) {
+        fetchSubCategoriesForCategory(value);
+        fetchParameters('', value);
+      } else {
+        setSubCategories([]);
+      }
     }
 
     if (name === 'clientId' && value) {
@@ -483,7 +543,7 @@ const TestRequestForm = () => {
                 <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Customer / Client <span style={{color: '#ef4444'}}>*</span></label>
                 <select name="clientId" value={formData.clientId} onChange={handleChange} className="premium-input">
                   <option value="">Select Client</option>
-                  {clients.map(c => <option key={c.id} value={c.id}>{c.clientName}</option>)}
+                  {[...clients].sort((a, b) => (a.clientName || '').localeCompare(b.clientName || '')).map(c => <option key={c.id} value={c.id}>{c.clientName}</option>)}
                 </select>
               </div>
 
@@ -660,29 +720,62 @@ const TestRequestForm = () => {
                 <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Discipline Group <span style={{color: '#ef4444'}}>*</span></label>
                 <select name="sampleParticular" value={formData.sampleParticular} onChange={handleChange} className="premium-input">
                   <option value="">Select Discipline Group</option>
-                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  {[...categories].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Sub Category</label>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>
+                  Sub Category {subCategoriesLoading && <span style={{ fontSize: '0.75rem', color: '#64748b' }}>(Loading...)</span>}
+                </label>
                 <select 
                   value={selectedSubCategory} 
-                  onChange={(e) => setSelectedSubCategory(e.target.value)} 
+                  onChange={handleSubCategoryChange} 
                   className="premium-input"
-                  disabled={!formData.sampleParticular}
+                  disabled={!formData.sampleParticular || subCategoriesLoading}
                 >
                   <option value="">All Sub Categories</option>
-                  {subCategories.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  {[...subCategories].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
+                {formData.sampleParticular && !subCategoriesLoading && subCategories.length === 0 && (
+                  <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                    No subcategories available for this discipline group
+                  </span>
+                )}
               </div>
             </div>
 
-            {parameters.length > 0 && (
+            {parametersLoading ? (
+              <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
+                Loading parameters...
+              </div>
+            ) : parameters.length === 0 && formData.sampleParticular ? (
+              <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
+                No parameters mapped to this subcategory
+              </div>
+            ) : parameters.length > 0 && (
               <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
                 <div style={{ padding: '1.25rem', borderBottom: '1px solid #e2e8f0', background: 'linear-gradient(to right, #f8fafc, #ffffff)', fontWeight: 700, color: '#1e293b', fontSize: '1.05rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
                   <span>Select Test Parameters to be Analyzed</span>
                   <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                    <button
+                      type="button"
+                      onClick={handleToggleSelectAllParameters}
+                      style={{
+                        background: '#e0e7ff',
+                        color: '#4338ca',
+                        border: 'none',
+                        borderRadius: '6px',
+                        padding: '0.35rem 0.75rem',
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {parameters.filter(param => !selectedSubCategory || param.subCategoryId === selectedSubCategory || param.subCategory?.id === selectedSubCategory).length > 0 &&
+                       parameters.filter(param => !selectedSubCategory || param.subCategoryId === selectedSubCategory || param.subCategory?.id === selectedSubCategory).every(p => !!checkedParameters[p.id])
+                       ? 'Deselect All' : 'Select All'}
+                    </button>
                     <span style={{ fontSize: '0.85rem', background: '#dcfce7', color: '#166534', padding: '0.25rem 0.75rem', borderRadius: '999px', fontWeight: 700 }}>
                       Total: ₹{parameters.reduce((sum, param) => sum + (checkedParameters[param.id] ? (priceMasterMap[param.id] || 0) : 0), 0).toFixed(2)}
                     </span>
@@ -702,8 +795,9 @@ const TestRequestForm = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {parameters
+                      {[...parameters]
                         .filter(param => !selectedSubCategory || param.subCategoryId === selectedSubCategory || param.subCategory?.id === selectedSubCategory)
+                        .sort((a, b) => (a.parameterName || '').localeCompare(b.parameterName || ''))
                         .map(param => {
                         const isChecked = !!checkedParameters[param.id];
                         const paramPrice = priceMasterMap[param.id] || 0;

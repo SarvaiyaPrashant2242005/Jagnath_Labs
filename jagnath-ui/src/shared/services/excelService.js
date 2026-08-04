@@ -5,6 +5,61 @@
 import * as XLSX from 'xlsx';
 
 /**
+ * Normalizes an Excel header for comparison.
+ * Trims whitespace, lowercases, removes asterisks, and strips special characters (dots, underscores, hyphens, slashes, spaces).
+ */
+export const normalizeExcelHeader = (header) => {
+  if (!header || typeof header !== 'string') return '';
+  return header
+    .trim()
+    .toLowerCase()
+    .replace(/\*/g, '')
+    .replace(/[._\-/\s]+/g, '');
+};
+
+/**
+ * Normalizes email address.
+ */
+export const normalizeEmail = (email) => {
+  if (!email || typeof email !== 'string') return '';
+  return email.trim().toLowerCase();
+};
+
+/**
+ * Normalizes phone numbers: converts numbers to strings, trims, and strips formatting.
+ */
+export const normalizePhone = (phone) => {
+  if (phone === null || phone === undefined) return '';
+  let str = String(phone).trim();
+  if (typeof phone === 'number') {
+    if (Number.isInteger(phone)) {
+      str = String(phone);
+    } else {
+      str = phone.toFixed(0);
+    }
+  }
+  return str.replace(/[\s\-\(\)\+]/g, '');
+};
+
+/**
+ * Normalizes general strings for case-insensitive comparisons.
+ */
+export const normalizeString = (str) => {
+  if (str === null || str === undefined) return '';
+  return String(str).trim().toLowerCase();
+};
+
+/**
+ * Sanitizes cell text to protect against formula injection when exporting Excel / CSV.
+ */
+export const sanitizeSpreadsheetValue = (val) => {
+  if (typeof val === 'string' && /^[=\+\-@]/.test(val)) {
+    return `'${val}`;
+  }
+  return val;
+};
+
+/**
  * Master Schema definitions for Excel templates and validation.
  */
 export const MASTER_SCHEMAS = {
@@ -13,14 +68,14 @@ export const MASTER_SCHEMAS = {
     filename: 'Client_Master_Template.xlsx',
     uniqueKeys: ['email', 'clientName'],
     headers: [
-      { key: 'clientName', label: 'Client Name *', required: true, type: 'string' },
-      { key: 'contactNumber', label: 'Contact Number *', required: true, type: 'string' },
-      { key: 'email', label: 'Email', required: false, type: 'email' },
-      { key: 'gender', label: 'Gender', required: false, type: 'select', options: ['Male', 'Female', 'Other'] },
-      { key: 'address', label: 'Address', required: false, type: 'string' },
-      { key: 'city', label: 'City', required: false, type: 'string' },
-      { key: 'state', label: 'State', required: false, type: 'string' },
-      { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'] }
+      { key: 'clientName', label: 'Client Name *', required: true, type: 'string', aliases: ['clientname', 'clientname*', 'name', 'client_name', 'client Name', 'Client Name *'] },
+      { key: 'contactNumber', label: 'Contact Number *', required: true, type: 'string', aliases: ['contactnumber', 'contactnumber*', 'contactno', 'contactno.', 'mobilenumber', 'mobile', 'phone', 'contact_number', 'Contact Number *', 'Contact No'] },
+      { key: 'email', label: 'Email', required: false, type: 'email', aliases: ['email', 'emailaddress', 'email_address', 'Email Address'] },
+      { key: 'gender', label: 'Gender', required: false, type: 'select', options: ['Male', 'Female', 'Other'], aliases: ['gender', 'Gender'] },
+      { key: 'address', label: 'Address', required: false, type: 'string', aliases: ['address', 'communicationaddress', 'communication_address', 'Address', 'Communication Address'] },
+      { key: 'city', label: 'City', required: false, type: 'string', aliases: ['city', 'City'] },
+      { key: 'state', label: 'State', required: false, type: 'string', aliases: ['state', 'State'] },
+      { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'], aliases: ['status', 'Status'] }
     ],
     sampleData: [
       {
@@ -51,9 +106,9 @@ export const MASTER_SCHEMAS = {
     filename: 'Discipline_Group_Master_Template.xlsx',
     uniqueKeys: ['categoryName'],
     headers: [
-      { key: 'categoryName', label: 'Discipline Group Name *', required: true, type: 'string' },
-      { key: 'description', label: 'Description', required: false, type: 'string' },
-      { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'] }
+      { key: 'categoryName', label: 'Discipline Group Name *', required: true, type: 'string', aliases: ['disciplinegroupname', 'disciplinegroupname*', 'disciplinegroup', 'discipline_group', 'groupname', 'name', 'categoryname', 'categoryname*', 'category', 'Discipline Group Name *', 'Category Name'] },
+      { key: 'description', label: 'Description', required: false, type: 'string', aliases: ['description', 'Description'] },
+      { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'], aliases: ['status', 'Status'] }
     ],
     sampleData: [
       {
@@ -74,10 +129,10 @@ export const MASTER_SCHEMAS = {
     filename: 'Sub_Category_Master_Template.xlsx',
     uniqueKeys: ['categoryName', 'name'],
     headers: [
-      { key: 'categoryName', label: 'Discipline Group *', required: true, type: 'string' },
-      { key: 'name', label: 'Sub Category Name *', required: true, type: 'string' },
-      { key: 'description', label: 'Description', required: false, type: 'string' },
-      { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'] }
+      { key: 'categoryName', label: 'Discipline Group *', required: true, type: 'string', aliases: ['disciplinegroup', 'disciplinegroup*', 'disciplinegroupname', 'groupname', 'category', 'categoryname', 'Discipline Group *', 'Discipline Group'] },
+      { key: 'name', label: 'Sub Category Name *', required: true, type: 'string', aliases: ['subcategoryname', 'subcategoryname*', 'subcategory', 'subcategory_name', 'name', 'Sub Category Name *'] },
+      { key: 'description', label: 'Description', required: false, type: 'string', aliases: ['description', 'Description'] },
+      { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'], aliases: ['status', 'Status'] }
     ],
     sampleData: [
       {
@@ -100,12 +155,12 @@ export const MASTER_SCHEMAS = {
     filename: 'Parameter_Master_Template.xlsx',
     uniqueKeys: ['parameterName'],
     headers: [
-      { key: 'categoryName', label: 'Discipline Group *', required: true, type: 'string' },
-      { key: 'subCategoryName', label: 'Sub Category', required: false, type: 'string' },
-      { key: 'parameterName', label: 'Parameter Name *', required: true, type: 'string' },
-      { key: 'testMethod', label: 'Test Method', required: false, type: 'string' },
-      { key: 'description', label: 'Description', required: false, type: 'string' },
-      { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'] }
+      { key: 'categoryName', label: 'Discipline Group *', required: true, type: 'string', aliases: ['disciplinegroup', 'disciplinegroup*', 'disciplinegroupname', 'groupname', 'category', 'categoryname', 'Discipline Group *'] },
+      { key: 'subCategoryName', label: 'Sub Category', required: false, type: 'string', aliases: ['subcategory', 'subcategoryname', 'subcategory_name', 'Sub Category'] },
+      { key: 'parameterName', label: 'Parameter Name *', required: true, type: 'string', aliases: ['parametername', 'parametername*', 'name', 'parameter', 'Parameter Name *'] },
+      { key: 'testMethod', label: 'Test Method', required: false, type: 'string', aliases: ['testmethod', 'test_method', 'Test Method'] },
+      { key: 'description', label: 'Description', required: false, type: 'string', aliases: ['description', 'Description'] },
+      { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'], aliases: ['status', 'Status'] }
     ],
     sampleData: [
       {
@@ -132,11 +187,11 @@ export const MASTER_SCHEMAS = {
     filename: 'Price_List_Template.xlsx',
     uniqueKeys: ['categoryName', 'parameterName'],
     headers: [
-      { key: 'categoryName', label: 'Discipline Group *', required: true, type: 'string' },
-      { key: 'subCategoryName', label: 'Sub Category', required: false, type: 'string' },
-      { key: 'parameterName', label: 'Parameter Name *', required: true, type: 'string' },
-      { key: 'price', label: 'Price *', required: true, type: 'number' },
-      { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'] }
+      { key: 'categoryName', label: 'Discipline Group *', required: true, type: 'string', aliases: ['disciplinegroup', 'disciplinegroup*', 'disciplinegroupname', 'groupname', 'category', 'categoryname', 'Discipline Group *'] },
+      { key: 'subCategoryName', label: 'Sub Category', required: false, type: 'string', aliases: ['subcategory', 'subcategoryname', 'subcategory_name', 'Sub Category'] },
+      { key: 'parameterName', label: 'Parameter Name *', required: true, type: 'string', aliases: ['parametername', 'parametername*', 'name', 'parameter', 'Parameter Name *'] },
+      { key: 'price', label: 'Price *', required: true, type: 'number', aliases: ['price', 'price*', 'rate', 'Price *'] },
+      { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'], aliases: ['status', 'Status'] }
     ],
     sampleData: [
       {
@@ -161,11 +216,11 @@ export const MASTER_SCHEMAS = {
     filename: 'User_Master_Template.xlsx',
     uniqueKeys: ['email'],
     headers: [
-      { key: 'name', label: 'Full Name *', required: true, type: 'string' },
-      { key: 'email', label: 'Email *', required: true, type: 'email' },
-      { key: 'password', label: 'Initial Password', required: false, type: 'string' },
-      { key: 'role', label: 'Role', required: false, type: 'select', options: ['Admin', 'Technician', 'Sampler', 'User'] },
-      { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'] }
+      { key: 'name', label: 'Full Name *', required: true, type: 'string', aliases: ['fullname', 'fullname*', 'name', 'Full Name *'] },
+      { key: 'email', label: 'Email *', required: true, type: 'email', aliases: ['email', 'email*', 'emailaddress', 'Email *'] },
+      { key: 'password', label: 'Initial Password', required: false, type: 'string', aliases: ['password', 'initialpassword', 'Initial Password'] },
+      { key: 'role', label: 'Role', required: false, type: 'select', options: ['Admin', 'Technician', 'Sampler', 'User'], aliases: ['role', 'Role'] },
+      { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'], aliases: ['status', 'Status'] }
     ],
     sampleData: [
       {
@@ -188,7 +243,7 @@ export const MASTER_SCHEMAS = {
 
 /**
  * Downloads pre-structured Excel template file for specified Master.
- * @param {string} masterType - 'client' | 'category' | 'parameter' | 'pricelist' | 'user'
+ * @param {string} masterType
  */
 export const downloadTemplate = (masterType) => {
   const schema = MASTER_SCHEMAS[masterType];
@@ -198,17 +253,7 @@ export const downloadTemplate = (masterType) => {
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Template');
 
-  const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-  const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  const url = URL.createObjectURL(blob);
-
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = schema.filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  XLSX.writeFile(workbook, schema.filename);
 };
 
 /**
@@ -237,35 +282,6 @@ export const parseExcelFile = (file) => {
 };
 
 /**
- * Normalization helpers
- */
-export const normalizeEmail = (email) => {
-  if (!email || typeof email !== 'string') return '';
-  return email.trim().toLowerCase();
-};
-
-export const normalizePhone = (phone) => {
-  if (phone === null || phone === undefined) return '';
-  const str = String(phone).trim();
-  return str.replace(/[\s\-\(\)\+]/g, '');
-};
-
-export const normalizeString = (str) => {
-  if (!str || typeof str !== 'string') return '';
-  return str.trim().toLowerCase();
-};
-
-/**
- * Sanitizes cell text to protect against formula injection when exporting Excel / CSV.
- */
-export const sanitizeSpreadsheetValue = (val) => {
-  if (typeof val === 'string' && /^[=\+\-@]/.test(val)) {
-    return `'${val}`;
-  }
-  return val;
-};
-
-/**
  * Exports failed rows into a downloadable Excel file.
  */
 export const exportFailedRowsToExcel = (masterType, failedRows) => {
@@ -289,17 +305,7 @@ export const exportFailedRowsToExcel = (masterType, failedRows) => {
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Failed Rows');
 
-  const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-  const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  const url = URL.createObjectURL(blob);
-
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `${masterType}_Failed_Rows_${Date.now()}.xlsx`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  XLSX.writeFile(workbook, `${masterType}_Failed_Rows_${Date.now()}.xlsx`);
 };
 
 /**
@@ -314,47 +320,67 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
   const schema = MASTER_SCHEMAS[masterType];
   if (!schema) return [];
 
-  // Map header labels to internal object keys
-  const labelToKeyMap = {};
-  schema.headers.forEach(h => {
-    labelToKeyMap[h.label] = h.key;
-    // Also support label without asterisk or spaces
-    labelToKeyMap[h.label.replace(' *', '').trim()] = h.key;
-    // Support internal key name directly (for re-validating edited/deleted rows)
-    labelToKeyMap[h.key] = h.key;
-  });
-
   const evaluatedRows = [];
   const seenEmailsInFile = new Map();
   const seenPhonesInFile = new Map();
   const seenNamesInFile = new Map();
-  const seenCompositeKeys = new Map();
 
-  rawRows.forEach((row, index) => {
+  let validRowNum = 0;
+
+  rawRows.forEach((row) => {
+    // 14. Ignore completely empty Excel rows
+    const isRowEmpty = Object.values(row).every(val => val === null || val === undefined || String(val).trim() === '');
+    if (isRowEmpty) {
+      return;
+    }
+
+    validRowNum++;
     const normalizedData = {};
     const cellErrors = {};
     let isRowValid = true;
 
-    // Map Excel header labels to internal keys
+    // Initialize all schema fields with empty strings
+    schema.headers.forEach(h => {
+      normalizedData[h.key] = '';
+    });
+
+    // Map Excel header labels to internal keys using central header normalization & aliases
     Object.keys(row).forEach(rawHeader => {
-      const cleanHeader = rawHeader.trim().toLowerCase();
-      const cleanWithoutStar = cleanHeader.replace(' *', '').trim();
-      const matchedKey = labelToKeyMap[cleanHeader] || labelToKeyMap[cleanWithoutStar];
-      if (matchedKey) {
-        normalizedData[matchedKey] = row[rawHeader] !== undefined && row[rawHeader] !== null ? String(row[rawHeader]) : '';
+      const normRaw = normalizeExcelHeader(rawHeader);
+      
+      // Look for a matching schema header field
+      const matchedField = schema.headers.find(h => {
+        if (normalizeExcelHeader(h.key) === normRaw) return true;
+        if (normalizeExcelHeader(h.label) === normRaw) return true;
+        if (h.aliases && h.aliases.some(alias => normalizeExcelHeader(alias) === normRaw)) return true;
+        return false;
+      });
+
+      if (matchedField) {
+        const rawVal = row[rawHeader];
+        let cleanedVal = '';
+        if (rawVal !== undefined && rawVal !== null) {
+          if (matchedField.key === 'contactNumber') {
+            cleanedVal = normalizePhone(rawVal);
+          } else {
+            cleanedVal = String(rawVal).trim();
+          }
+        }
+        normalizedData[matchedField.key] = cleanedVal;
       }
     });
 
     // Run schema validations per field
     schema.headers.forEach(h => {
-      const rawVal = normalizedData[h.key] !== undefined && normalizedData[h.key] !== null ? String(normalizedData[h.key]) : '';
-      const val = rawVal.trim();
+      const val = (normalizedData[h.key] || '').trim();
 
+      // Required field check
       if (h.required && (!val || val === '')) {
         cellErrors[h.key] = `${h.label} is required.`;
         isRowValid = false;
       }
 
+      // Email format check
       if (h.type === 'email' && val && val !== '') {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(val)) {
@@ -363,19 +389,34 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
         }
       }
 
+      // Number validation (e.g. Price)
       if (h.type === 'number' && val && val !== '') {
-        if (isNaN(Number(val))) {
+        const num = Number(val);
+        if (isNaN(num)) {
           cellErrors[h.key] = 'Must be a valid number.';
+          isRowValid = false;
+        } else if (num < 0) {
+          cellErrors[h.key] = 'Cannot be a negative number.';
           isRowValid = false;
         }
       }
 
+      // Case-insensitive matching for select options (Status / Gender)
+      if (h.type === 'select' && val && val !== '') {
+        const matchedOption = h.options.find(opt => opt.trim().toLowerCase() === val.toLowerCase());
+        if (matchedOption) {
+          normalizedData[h.key] = matchedOption;
+        } else {
+          cellErrors[h.key] = `Invalid value. Choose from: ${h.options.join(', ')}`;
+          isRowValid = false;
+        }
+      }
+
+      // Default Status to Active if not provided
       if (h.key === 'status' && !normalizedData['status']) {
         normalizedData['status'] = 'Active';
       }
     });
-
-    const rowNum = index + 1;
 
     // Check for internal file duplicates
     if (masterType === 'client') {
@@ -397,20 +438,20 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
       }
 
       if (isRowValid) {
-        if (nEmail) seenEmailsInFile.set(nEmail, rowNum);
-        if (nPhone) seenPhonesInFile.set(nPhone, rowNum);
+        if (nEmail) seenEmailsInFile.set(nEmail, validRowNum);
+        if (nPhone) seenPhonesInFile.set(nPhone, validRowNum);
       }
     } else if (masterType === 'category' || masterType === 'parameter') {
       const fieldKey = masterType === 'category' ? 'categoryName' : 'parameterName';
-      const nName = normalizeString(normalizedData[fieldKey] || normalizedData.name);
+      const nName = normalizeString(normalizedData[fieldKey]);
 
       if (nName && seenNamesInFile.has(nName)) {
-        const msg = `Duplicate ${masterType} in uploaded file. First found at row ${seenNamesInFile.get(nName)}.`;
+        const msg = `Duplicate ${masterType === 'category' ? 'discipline group' : 'parameter'} in uploaded file. First found at row ${seenNamesInFile.get(nName)}.`;
         cellErrors[fieldKey] = msg;
         cellErrors['_row'] = msg;
         isRowValid = false;
       } else if (nName) {
-        seenNamesInFile.set(nName, rowNum);
+        seenNamesInFile.set(nName, validRowNum);
       }
     }
 
@@ -437,14 +478,14 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
           matchingDbId = (emailClient || phoneClient).id;
         }
       } else if (masterType === 'category') {
-        const nCatName = normalizeString(normalizedData.categoryName || normalizedData.name);
+        const nCatName = normalizeString(normalizedData.categoryName);
         const dbCat = existingDbRecords.find(c => normalizeString(c.name || c.categoryName) === nCatName);
         if (dbCat) {
           isDbMatch = true;
           matchingDbId = dbCat.id;
         }
       } else if (masterType === 'parameter') {
-        const nParamName = normalizeString(normalizedData.parameterName || normalizedData.name);
+        const nParamName = normalizeString(normalizedData.parameterName);
         const dbParam = existingDbRecords.find(p => normalizeString(p.parameterName || p.name) === nParamName);
         if (dbParam) {
           isDbMatch = true;
@@ -461,8 +502,8 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
     }
 
     evaluatedRows.push({
-      _id: `row_${index}_${Date.now()}`,
-      _originalIndex: rowNum,
+      _id: `row_${validRowNum}_${Date.now()}`,
+      _originalIndex: validRowNum,
       _status: statusTag,
       _errors: cellErrors,
       _dbId: matchingDbId,

@@ -9,6 +9,7 @@ import { SUB_CATEGORY_ENDPOINTS, CATEGORY_ENDPOINTS } from '../../../shared/serv
 import Pagination from '../../../shared/components/Pagination';
 import BulkImportModal from '../../../shared/components/BulkImport/BulkImportModal';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
+import { downloadCSV, downloadExcel } from '../../../shared/utils/exportUtils';
 
 /**
  * @component SubCategoryMaster
@@ -245,27 +246,7 @@ const SubCategoryMaster = () => {
       sc.description || 'None',
       sc.status
     ]);
-    
-    let htmlTable = `
-      <table border="1">
-        <thead>
-          <tr style="background-color: #f8fafc; font-weight: bold;">
-            ${headers.map(h => `<th>${h}</th>`).join('')}
-          </tr>
-        </thead>
-        <tbody>
-          ${rows.map(r => `<tr>${r.map(val => `<td>${val}</td>`).join('')}</tr>`).join('')}
-        </tbody>
-      </table>
-    `;
-    const excelBlob = new Blob([htmlTable], { type: 'application/vnd.ms-excel' });
-    const excelUrl = URL.createObjectURL(excelBlob);
-    const link = document.createElement("a");
-    link.setAttribute("href", excelUrl);
-    link.setAttribute("download", "Sub_Categories_Report.xls");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadExcel(headers, rows, 'Sub_Categories_Report.xlsx');
     setShowDownloadDropdown(false);
   };
 
@@ -278,17 +259,7 @@ const SubCategoryMaster = () => {
       sc.description || 'None',
       sc.status
     ]);
-
-    let csvContent = 'data:text/csv;charset=utf-8,' 
-      + [headers.join(','), ...rows.map(e => e.map(val => `"${val}"`).join(','))].join('\n');
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Sub_Categories_Export_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadCSV(headers, rows, 'Sub_Categories_Report.csv');
     setShowDownloadDropdown(false);
   };
 

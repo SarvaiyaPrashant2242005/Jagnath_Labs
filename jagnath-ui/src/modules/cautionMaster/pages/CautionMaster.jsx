@@ -13,9 +13,48 @@ const CautionMaster = () => {
   const [cautions, setCautions] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  // Multi-Select state
+  const [selectedIds, setSelectedIds] = useState([]);
+
   // Delete confirmation modal state
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null, name: '' });
   const [deleting, setDeleting] = useState(false);
+
+  // Select all / deselect all current page cautions
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      const allIds = cautions.map(c => c.id);
+      setSelectedIds(allIds);
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  // Toggle single caution selection
+  const handleSelectRow = (id, e) => {
+    e.stopPropagation();
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  // Bulk Delete Selected
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} selected caution record(s)?`)) return;
+
+    try {
+      setLoading(true);
+      await Promise.all(selectedIds.map(id => apiService.delete(`${CAUTION_ENDPOINTS.DELETE}/${id}`)));
+      triggerToast(`${selectedIds.length} caution record(s) deleted successfully!`, 'success');
+      setSelectedIds([]);
+      fetchCautions();
+    } catch (err) {
+      triggerToast(err.message || 'Failed to delete selected caution records.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);

@@ -378,7 +378,7 @@ const bulkImport = async (req, res) => {
         ));
     } catch (err) {
         console.error("Bulk Import Controller Error:", err);
-        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Bulk import failed."));
+        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, err.message || "Bulk import failed."));
     }
 };
 

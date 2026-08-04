@@ -131,15 +131,46 @@ const createParameter = async (parameterData, userId, reqInfo) => {
     const transaction = await sequelize.transaction();
     try {
         const { categoryId, ...paramFields } = parameterData;
-        const newParameter = await Parameter.create(paramFields, { transaction });
+
+        let newParameter = await Parameter.findOne({
+            where: {
+                companyId: paramFields.companyId,
+                parameterName: { [Op.iLike]: paramFields.parameterName.trim() }
+            },
+            transaction
+        });
+
+        if (!newParameter) {
+            newParameter = await Parameter.create(paramFields, { transaction });
+        } else {
+            // Update fields of the existing parameter
+            await newParameter.update({
+                description: paramFields.description || newParameter.description,
+                testMethod: paramFields.testMethod || newParameter.testMethod,
+                status: paramFields.status || newParameter.status
+            }, { transaction });
+        }
 
         if (categoryId) {
-            await CategoryParameter.create({
-                companyId: newParameter.companyId,
-                categoryId,
-                parameterId: newParameter.id,
-                status: "Active"
-            }, { transaction });
+            const existingMapping = await CategoryParameter.findOne({
+                where: {
+                    companyId: newParameter.companyId,
+                    categoryId,
+                    parameterId: newParameter.id
+                },
+                transaction
+            });
+
+            if (!existingMapping) {
+                await CategoryParameter.create({
+                    companyId: newParameter.companyId,
+                    categoryId,
+                    parameterId: newParameter.id,
+                    status: "Active"
+                }, { transaction });
+            } else if (existingMapping.status !== 'Active') {
+                await existingMapping.update({ status: 'Active' }, { transaction });
+            }
         }
 
         // Fetch company name for logging
@@ -373,25 +404,26 @@ const getParametersByCompany = async (companyId, options = {}) => {
             distinct: true
         };
 
+        if (options.search) {
+            queryOptions.where.parameterName = { [Op.iLike]: `%${options.search}%` };
+        }
+
+        if (options.status && options.status !== 'ALL') {
+            queryOptions.where.status = options.status;
+        }
+
+        if (options.subCategoryId) {
+            queryOptions.where.subCategoryId = options.subCategoryId;
+        }
+
+        if (options.categoryId) {
+            queryOptions.include[2].where = { categoryId: options.categoryId };
+            queryOptions.include[2].required = true;
+        }
+
         if (options.limit && options.page) {
             queryOptions.limit = parseInt(options.limit);
             queryOptions.offset = (parseInt(options.page) - 1) * queryOptions.limit;
-
-            if (options.search) {
-                queryOptions.where.parameterName = { [Op.iLike]: `%${options.search}%` };
-            }
-
-            if (options.status && options.status !== 'ALL') {
-                queryOptions.where.status = options.status;
-            }
-
-            if (options.subCategoryId) {
-                queryOptions.where.subCategoryId = options.subCategoryId;
-            }
-
-            if (options.categoryId) {
-                queryOptions.include[2].where = { categoryId: options.categoryId };
-            }
 
             const result = await Parameter.findAndCountAll(queryOptions);
             return {
@@ -430,9 +462,11 @@ module.exports = {
                 if (rawCatName) {
                     let cat = await Category.findOne({ where: { name: { [Op.iLike]: rawCatName }, companyId }, transaction });
                     if (!cat) {
-                        cat = await Category.create({ name: rawCatName, companyId, status: "Active" }, { transaction });
+                        throw new Error(`Discipline Group '${rawCatName}' does not exist.`);
                     }
                     categoryId = cat.id;
+                } else {
+                    throw new Error("Discipline Group is required.");
                 }
 
                 // Resolve sub category mapping if subCategoryName is provided
@@ -440,16 +474,14 @@ module.exports = {
                 const rawSubCatName = (data.subCategoryName || data.subCategory || "").trim();
                 if (rawSubCatName && categoryId) {
                     let subCat = await SubCategory.findOne({
-                        where: { categoryId, name: { [Op.iLike]: rawSubCatName }, companyId },
+                        where: { name: { [Op.iLike]: rawSubCatName }, companyId },
                         transaction
                     });
                     if (!subCat) {
-                        subCat = await SubCategory.create({
-                            categoryId,
-                            name: rawSubCatName,
-                            companyId,
-                            status: "Active"
-                        }, { transaction });
+                        throw new Error(`Sub Category '${rawSubCatName}' does not exist.`);
+                    }
+                    if (subCat.categoryId !== categoryId) {
+                        throw new Error(`Sub Category '${rawSubCatName}' does not belong to selected Discipline Group '${rawCatName}'.`);
                     }
                     subCategoryId = subCat.id;
                 }

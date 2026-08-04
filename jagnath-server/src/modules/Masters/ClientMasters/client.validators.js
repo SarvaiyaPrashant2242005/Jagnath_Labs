@@ -16,9 +16,15 @@ const createClientSchema = Joi.object({
         "string.pattern.base": "Contact Number must contain only digits.",
         "any.required": "Contact Number is required."
     }),
-    address: Joi.string().required().messages({
-        "any.required": "Address is required."
+    officeAddress: Joi.string().required().messages({
+        "any.required": "Office Address is required.",
+        "string.empty": "Office Address is required."
     }),
+    plantAddress: Joi.string().required().messages({
+        "any.required": "Plant / Industry Address is required.",
+        "string.empty": "Plant / Industry Address is required."
+    }),
+    address: Joi.string().allow("", null).optional(),
     city: Joi.string().required().messages({
         "any.required": "City is required."
     }),
@@ -41,7 +47,9 @@ const updateClientSchema = Joi.object({
     contactNumber: Joi.string().pattern(/^[0-9]+$/).optional().messages({
         "string.pattern.base": "Contact Number must contain only digits."
     }),
-    address: Joi.string().optional(),
+    officeAddress: Joi.string().optional(),
+    plantAddress: Joi.string().optional(),
+    address: Joi.string().allow("", null).optional(),
     city: Joi.string().optional(),
     state: Joi.string().allow("", null).optional(),
     email: Joi.string().email().allow("", null).optional().messages({

@@ -49,9 +49,10 @@ const createSubCategory = async (data, companyId) => {
  * Get all SubCategories with pagination, filtering & search.
  */
 const getAllSubCategories = async (query, companyId) => {
+    const isAll = query.all === "true" || query.all === true || (!query.page && !query.limit);
     const page = parseInt(query.page, 10) || 1;
-    const limit = parseInt(query.limit, 10) || 10;
-    const offset = (page - 1) * limit;
+    const limit = isAll ? null : (parseInt(query.limit, 10) || 10);
+    const offset = isAll ? null : (page - 1) * limit;
 
     const whereClause = {};
 
@@ -81,7 +82,7 @@ const getAllSubCategories = async (query, companyId) => {
         whereClause.name = { [Op.iLike]: `%${query.search.trim()}%` };
     }
 
-    const { count, rows } = await db.SubCategory.findAndCountAll({
+    const queryOptions = {
         where: whereClause,
         include: [
             {
@@ -90,14 +91,19 @@ const getAllSubCategories = async (query, companyId) => {
                 attributes: ["id", "name"]
             }
         ],
-        order: [["created_at", "DESC"]],
-        limit,
-        offset
-    });
+        order: [["created_at", "DESC"]]
+    };
+
+    if (!isAll) {
+        queryOptions.limit = limit;
+        queryOptions.offset = offset;
+    }
+
+    const { count, rows } = await db.SubCategory.findAndCountAll(queryOptions);
 
     return {
         totalItems: count,
-        totalPages: Math.ceil(count / limit),
+        totalPages: isAll ? 1 : Math.ceil(count / limit),
         currentPage: page,
         subCategories: rows
     };
@@ -175,71 +181,81 @@ const bulkImportSubCategories = async (rows, companyId) => {
         throw new Error("No rows provided for bulk import.");
     }
 
-    // Load existing categories for company to resolve category names
-    const categories = await db.Category.findAll({ where: { companyId } });
-    const categoryMap = new Map();
-    categories.forEach(c => categoryMap.set(c.name.trim().toLowerCase(), c.id));
+    const transaction = await db.sequelize.transaction();
+    try {
+        // Load existing categories for company to resolve category names
+        const categories = await db.Category.findAll({ where: { companyId }, transaction });
+        const categoryMap = new Map();
+        categories.forEach(c => categoryMap.set(c.name.trim().toLowerCase(), c.id));
 
-    const processedList = [];
-    const errors = [];
+        const processedList = [];
+        const errors = [];
 
-    for (let index = 0; index < rows.length; index++) {
-        const row = rows[index];
-        const itemData = row.data ? row.data : row;
+        for (let index = 0; index < rows.length; index++) {
+            const row = rows[index];
+            const itemData = row.data ? row.data : row;
 
-        const rawCategoryName = (itemData.categoryName || itemData.disciplineGroup || itemData.category || "").trim();
-        const rawSubCategoryName = (itemData.name || itemData.subCategoryName || itemData.subCategory || "").trim();
+            const rawCategoryName = (itemData.categoryName || itemData.disciplineGroup || itemData.category || "").trim();
+            const rawSubCategoryName = (itemData.name || itemData.subCategoryName || itemData.subCategory || "").trim();
 
-        if (!rawCategoryName || !rawSubCategoryName) {
-            errors.push(`Row ${index + 1}: Missing Discipline Group or Sub Category name.`);
-            continue;
-        }
-
-        let catId = categoryMap.get(rawCategoryName.toLowerCase());
-        
-        // Auto-create category if it does not exist
-        if (!catId) {
-            const newCat = await db.Category.create({
-                companyId,
-                name: rawCategoryName,
-                status: "Active"
-            });
-            catId = newCat.id;
-            categoryMap.set(rawCategoryName.toLowerCase(), catId);
-        }
-
-        // Upsert sub category
-        const existing = await db.SubCategory.findOne({
-            where: {
-                companyId,
-                categoryId: catId,
-                name: { [Op.iLike]: rawSubCategoryName }
+            if (!rawCategoryName || !rawSubCategoryName) {
+                errors.push(`Row ${index + 1}: Missing Discipline Group or Sub Category name.`);
+                continue;
             }
-        });
 
-        if (existing) {
-            await existing.update({
-                description: itemData.description ? itemData.description.trim() : existing.description,
-                status: itemData.status === "Inactive" ? "Inactive" : "Active"
+            let catId = categoryMap.get(rawCategoryName.toLowerCase());
+            
+            // If parent discipline does not exist, show a clear row-level validation error
+            if (!catId) {
+                errors.push(`Row ${index + 1}: Discipline Group '${rawCategoryName}' does not exist.`);
+                continue;
+            }
+
+            // Upsert sub category
+            const existing = await db.SubCategory.findOne({
+                where: {
+                    companyId,
+                    categoryId: catId,
+                    name: { [Op.iLike]: rawSubCategoryName }
+                },
+                transaction
             });
-            processedList.push(existing);
-        } else {
-            const created = await db.SubCategory.create({
-                companyId,
-                categoryId: catId,
-                name: rawSubCategoryName,
-                description: itemData.description ? itemData.description.trim() : null,
-                status: itemData.status === "Inactive" ? "Inactive" : "Active"
-            });
-            processedList.push(created);
+
+            const statusVal = (itemData.status && String(itemData.status).trim().toLowerCase() === 'inactive') ? 'Inactive' : 'Active';
+
+            if (existing) {
+                await existing.update({
+                    description: itemData.description ? itemData.description.trim() : existing.description,
+                    status: statusVal
+                }, { transaction });
+                processedList.push(existing);
+            } else {
+                const created = await db.SubCategory.create({
+                    companyId,
+                    categoryId: catId,
+                    name: rawSubCategoryName,
+                    description: itemData.description ? itemData.description.trim() : null,
+                    status: statusVal
+                }, { transaction });
+                processedList.push(created);
+            }
         }
-    }
 
-    return {
-        importedCount: processedList.length,
-        errorCount: errors.length,
-        errors
-    };
+        if (errors.length > 0) {
+            throw new Error(errors.join(" | "));
+        }
+
+        await transaction.commit();
+
+        return {
+            importedCount: processedList.length,
+            errorCount: errors.length,
+            errors
+        };
+    } catch (err) {
+        await transaction.rollback();
+        throw err;
+    }
 };
 
 module.exports = {

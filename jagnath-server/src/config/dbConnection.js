@@ -24,12 +24,15 @@ const connectDB = async () => {
         console.log("✅ PostgreSQL Connected Successfully");
 
         // 2. Sync all models with the database (alter: false to prevent PostgreSQL alter conflict crashes)
-        await sequelize.sync({ alter: false });
+        await sequelize.sync({ alter: true });
         console.log('📂 Database & tables synced!');
 
-        // 3. Run unique index migration and duplicate report
-        const { runMigration } = require("../database/migrations/01_add_unique_indexes_and_cleanup");
-        await runMigration();
+        // 3. Run migrations
+        const { runMigration: runMigration01 } = require("../database/migrations/01_add_unique_indexes_and_cleanup");
+        await runMigration01();
+
+        const { runMigration: runMigration02 } = require("../database/migrations/02_add_office_and_plant_address_to_clients");
+        await runMigration02();
 
         // 4. Seed default data if needed
         const { seedDefaultUser } = require("../database/seeders");

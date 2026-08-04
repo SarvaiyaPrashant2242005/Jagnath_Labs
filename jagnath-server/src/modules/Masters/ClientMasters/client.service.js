@@ -18,6 +18,8 @@ const deleteLogPath = path.join(__dirname, "../../../../logs/Client/Delete.txt")
 const fieldLabels = {
     clientName: "Client Name",
     contactNumber: "Contact Number",
+    officeAddress: "Office Address",
+    plantAddress: "Plant / Industry Address",
     address: "Address",
     city: "City",
     gender: "Gender",
@@ -47,6 +49,12 @@ const getLoggableValues = (instance) => {
 const formatClient = (client) => {
     if (!client) return null;
     const clientObj = client.toJSON ? client.toJSON() : { ...client };
+    if (!clientObj.officeAddress) {
+        clientObj.officeAddress = clientObj.address || 'N/A';
+    }
+    if (!clientObj.plantAddress) {
+        clientObj.plantAddress = clientObj.address || 'N/A';
+    }
     if (clientObj.company) {
         clientObj.companyName = clientObj.company.companyName || clientObj.company.company_name;
     } else {
@@ -354,6 +362,7 @@ module.exports = {
             let updatedCount = 0;
             let failedCount = 0;
             let skippedCount = 0;
+            const rowResults = [];
 
             for (const item of records) {
                 const raw = item.data || item;
@@ -369,14 +378,10 @@ module.exports = {
                     companyId
                 };
 
-                let existing = null;
-                if (item._dbId) {
-                    existing = await Client.findOne({ where: { id: item._dbId, companyId }, transaction });
-                } else if (data.email) {
-                    existing = await Client.findOne({ where: { email: data.email, companyId }, transaction });
-                } else if (data.clientName) {
-                    existing = await Client.findOne({ where: { clientName: data.clientName, companyId }, transaction });
-                }
+                const { clientName, contactNumber, email, gender, address, city, state, status } = data;
+                const rawData = raw;
+                const rowNum = item._originalIndex || (records.indexOf(item) + 1);
+                const errors = [];
 
                 const normEmail = normalizeEmail(email);
                 const normPhone = normalizePhone(contactNumber);

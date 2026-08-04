@@ -9,6 +9,7 @@ import { PARAMETER_ENDPOINTS, COMPANY_ENDPOINTS, CATEGORY_ENDPOINTS, SUB_CATEGOR
 import Pagination from '../../../shared/components/Pagination';
 import BulkImportModal from '../../../shared/components/BulkImport/BulkImportModal';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
+import { downloadCSV, downloadExcel } from '../../../shared/utils/exportUtils';
 
 const ParameterMaster = () => {
   // Parameter, Company & Category states
@@ -429,16 +430,7 @@ const ParameterMaster = () => {
       p.description || 'None',
       p.status
     ]);
-
-    const csvContent = "data:text/csv;charset=utf-8,"
-      + [headers.join(','), ...rows.map(e => e.map(val => `"${val}"`).join(","))].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "Parameters_Report.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadCSV(headers, rows, 'Parameters_Report.csv');
     setShowDownloadDropdown(false);
   };
 
@@ -453,27 +445,7 @@ const ParameterMaster = () => {
       p.description || 'None',
       p.status
     ]);
-
-    const htmlTable = `
-      <table border="1">
-        <thead>
-          <tr style="background-color: #f8fafc; font-weight: bold;">
-            ${headers.map(h => `<th>${h}</th>`).join('')}
-          </tr>
-        </thead>
-        <tbody>
-          ${rows.map(r => `<tr>${r.map(val => `<td>${val}</td>`).join('')}</tr>`).join('')}
-        </tbody>
-      </table>
-    `;
-    const excelBlob = new Blob([htmlTable], { type: 'application/vnd.ms-excel' });
-    const excelUrl = URL.createObjectURL(excelBlob);
-    const link = document.createElement("a");
-    link.setAttribute("href", excelUrl);
-    link.setAttribute("download", "Parameters_Report.xls");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadExcel(headers, rows, 'Parameters_Report.xlsx');
     setShowDownloadDropdown(false);
   };
 
@@ -710,7 +682,7 @@ const ParameterMaster = () => {
                   style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.categoryId ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', cursor: 'pointer', outline: 'none', backgroundColor: '#ffffff' }}
                 >
                   <option value="">Select Discipline Group</option>
-                  {categoriesList.map(cat => (
+                  {[...categoriesList].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(cat => (
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
                 </select>
@@ -729,7 +701,7 @@ const ParameterMaster = () => {
                   style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', cursor: 'pointer', outline: 'none', backgroundColor: '#ffffff' }}
                 >
                   <option value="">Select Sub Category</option>
-                  {subCategoriesList.map(sub => (
+                  {[...subCategoriesList].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(sub => (
                     <option key={sub.id} value={sub.id}>{sub.name}</option>
                   ))}
                 </select>
@@ -873,7 +845,7 @@ const ParameterMaster = () => {
               style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem' }}
             >
               <option value="">ALL DISCIPLINE GROUPS</option>
-              {categoriesList.map(cat => (
+              {[...categoriesList].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(cat => (
                 <option key={cat.id} value={cat.id}>{cat.name}</option>
               ))}
             </select>
@@ -889,7 +861,7 @@ const ParameterMaster = () => {
               style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', backgroundColor: !categoryFilter ? '#f1f5f9' : '#ffffff' }}
             >
               <option value="">ALL SUB CATEGORIES</option>
-              {subCategoriesFilterList.map(sub => (
+              {[...subCategoriesFilterList].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(sub => (
                 <option key={sub.id} value={sub.id}>{sub.name}</option>
               ))}
             </select>

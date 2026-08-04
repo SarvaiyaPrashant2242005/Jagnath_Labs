@@ -10,6 +10,7 @@ import { CATEGORY_ENDPOINTS, PARAMETER_ENDPOINTS, PRICE_MASTER_ENDPOINTS, SUB_CA
 import Pagination from '../../../shared/components/Pagination';
 import BulkImportModal from '../../../shared/components/BulkImport/BulkImportModal';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
+import { downloadCSV, downloadExcel } from '../../../shared/utils/exportUtils';
 
 const PriceMasterPage = () => {
   // Data States
@@ -21,9 +22,48 @@ const PriceMasterPage = () => {
   const [loading, setLoading] = useState(true);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
 
+  // Multi-Select state
+  const [selectedIds, setSelectedIds] = useState([]);
+
   // Delete confirmation modal state
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null, name: '' });
   const [deleting, setDeleting] = useState(false);
+
+  // Select all / deselect all current page prices
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      const allIds = prices.map(p => p.id);
+      setSelectedIds(allIds);
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  // Toggle single price row selection
+  const handleSelectRow = (id, e) => {
+    e.stopPropagation();
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  // Bulk Delete Selected
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} selected price item(s)?`)) return;
+
+    try {
+      setLoading(true);
+      await Promise.all(selectedIds.map(id => priceMasterService.deletePrice(id)));
+      triggerToast(`${selectedIds.length} price item(s) deleted successfully!`, 'success');
+      setSelectedIds([]);
+      fetchPrices();
+    } catch (err) {
+      triggerToast(err.message || 'Failed to delete selected price items.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Filters State
   const [searchQuery, setSearchQuery] = useState('');
@@ -596,7 +636,7 @@ const PriceMasterPage = () => {
                   style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.categoryId ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none', backgroundColor: '#ffffff' }}
                 >
                   <option value="">-- Select Discipline Group --</option>
-                  {categories.map((c) => (
+                  {[...categories].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map((c) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
@@ -615,7 +655,7 @@ const PriceMasterPage = () => {
                   style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', backgroundColor: !formData.categoryId ? '#f1f5f9' : '#ffffff' }}
                 >
                   <option value="">-- Select Sub Category --</option>
-                  {subCategories.map((s) => (
+                  {[...subCategories].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map((s) => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
                 </select>
@@ -642,7 +682,7 @@ const PriceMasterPage = () => {
                   style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.parameterId ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none', backgroundColor: !formData.categoryId ? '#f1f5f9' : '#ffffff' }}
                 >
                   <option value="">-- Select Parameter --</option>
-                  {filteredParameters.map((p) => (
+                  {[...filteredParameters].sort((a, b) => ((a.name || a.parameterName) || '').localeCompare((b.name || b.parameterName) || '')).map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name || p.parameterName} {p.testingStandard ? `(${p.testingStandard})` : ''}
                     </option>

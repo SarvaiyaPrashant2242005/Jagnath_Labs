@@ -363,6 +363,7 @@ module.exports = {
             let updatedCount = 0;
             let failedCount = 0;
             let skippedCount = 0;
+            const rowResults = [];
 
             for (const item of records) {
                 const raw = item.data || item;
@@ -376,7 +377,12 @@ module.exports = {
                     companyId
                 };
 
-                const normName = normalizeString(categoryName);
+                const { name, description, status } = data;
+                const rawData = raw;
+                const rowNum = item._originalIndex || (records.indexOf(item) + 1);
+                const errors = [];
+
+                const normName = normalizeString(name);
 
                 if (seenCategoriesInFile.has(normName)) {
                     errors.push(`Duplicate category in uploaded file. First found at row ${seenCategoriesInFile.get(normName)}.`);
@@ -430,7 +436,7 @@ module.exports = {
                         // Insert New Category
                         const newCat = await Category.create({
                             companyId,
-                            name: String(categoryName).trim(),
+                            name: String(name).trim(),
                             description,
                             status
                         }, { transaction });

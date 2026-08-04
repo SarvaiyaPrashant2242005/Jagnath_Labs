@@ -193,36 +193,81 @@ module.exports = {
 
                 // Resolve Category ID
                 let catId = data.categoryId;
-                if (!catId && data.categoryName) {
-                    let cat = await Category.findOne({ where: { name: data.categoryName, companyId }, transaction });
+                const rawCatName = (data.categoryName || "").trim();
+                if (!catId && rawCatName) {
+                    let cat = await Category.findOne({ where: { name: { [Op.iLike]: rawCatName }, companyId }, transaction });
                     if (!cat) {
-                        cat = await Category.create({ name: data.categoryName, companyId, status: "Active" }, { transaction });
+                        throw new Error(`Discipline Group '${rawCatName}' does not exist.`);
                     }
                     catId = cat.id;
+                }
+                if (!catId) {
+                    throw new Error("Discipline Group is required.");
                 }
 
                 // Resolve Parameter ID
                 let paramId = data.parameterId;
-                if (!paramId && data.parameterName) {
-                    let param = await Parameter.findOne({ where: { parameterName: data.parameterName, companyId }, transaction });
+                const rawParamName = (data.parameterName || "").trim();
+                if (!paramId && rawParamName) {
+                    let param = await Parameter.findOne({ where: { parameterName: { [Op.iLike]: rawParamName }, companyId }, transaction });
                     if (!param) {
-                        param = await Parameter.create({ parameterName: data.parameterName, companyId, status: "Active" }, { transaction });
+                        throw new Error(`Parameter '${rawParamName}' does not exist.`);
                     }
                     paramId = param.id;
                 }
+                if (!paramId) {
+                    throw new Error("Parameter Name is required.");
+                }
 
-                if (!catId || !paramId) continue;
+                // Verify hierarchy mapping: Discipline Group -> Parameter
+                const CategoryParameter = require("../CategoryParameterMasters/categoryParameter.model");
+                const mapping = await CategoryParameter.findOne({
+                    where: { categoryId: catId, parameterId: paramId, companyId },
+                    transaction
+                });
+                if (!mapping) {
+                    throw new Error(`Parameter '${rawParamName}' is not linked to Discipline Group '${rawCatName}'.`);
+                }
+
+                // Verify Sub Category if provided
+                const rawSubCatName = (data.subCategoryName || "").trim();
+                if (rawSubCatName) {
+                    const subCat = await db.SubCategory.findOne({
+                        where: { name: { [Op.iLike]: rawSubCatName }, categoryId: catId, companyId },
+                        transaction
+                    });
+                    if (!subCat) {
+                        throw new Error(`Sub Category '${rawSubCatName}' does not exist under Discipline Group '${rawCatName}'.`);
+                    }
+                    const param = await Parameter.findByPk(paramId, { transaction });
+                    if (param.subCategoryId !== subCat.id) {
+                        throw new Error(`Parameter '${rawParamName}' does not belong to Sub Category '${rawSubCatName}'.`);
+                    }
+                }
+
+                // Validate and parse Price
+                const rawPrice = data.price;
+                if (rawPrice === undefined || rawPrice === null || String(rawPrice).trim() === '') {
+                    throw new Error(`Price is required for parameter '${rawParamName}'.`);
+                }
+                const parsedPrice = Number(rawPrice);
+                if (isNaN(parsedPrice)) {
+                    throw new Error(`Price '${rawPrice}' must be a valid number.`);
+                }
+                if (parsedPrice < 0) {
+                    throw new Error("Price cannot be negative.");
+                }
 
                 let existing = await PriceMaster.findOne({
                     where: { categoryId: catId, parameterId: paramId, companyId },
                     transaction
                 });
 
-                const statusVal = (data.status && ['Active', 'Inactive'].includes(String(data.status).trim())) ? String(data.status).trim() : 'Active';
+                const statusVal = (data.status && String(data.status).trim().toLowerCase() === 'inactive') ? 'Inactive' : 'Active';
 
                 if (existing) {
                     await existing.update({
-                        price: data.price || 0,
+                        price: parsedPrice,
                         status: statusVal,
                         updatedBy: userId
                     }, { transaction });
@@ -232,7 +277,7 @@ module.exports = {
                         companyId,
                         categoryId: catId,
                         parameterId: paramId,
-                        price: data.price || 0,
+                        price: parsedPrice,
                         status: statusVal,
                         createdBy: userId
                     }, { transaction });
