@@ -39,36 +39,47 @@ const QuotationPrint = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [compRes, clientRes, catRes, trRes, priceRes] = await Promise.all([
-        apiService.get(COMPANY_ENDPOINTS.GET_MY),
-        apiService.get(CLIENT_ENDPOINTS.GET_ALL),
-        apiService.get(CATEGORY_ENDPOINTS.GET_ALL),
-        apiService.get(TEST_REQUEST_ENDPOINTS.GET_BY_ID(id)),
-        apiService.get(PRICE_MASTER_ENDPOINTS.GET_ALL)
-      ]);
+      setError(false);
 
+      const trRes = await apiService.get(TEST_REQUEST_ENDPOINTS.GET_BY_ID(id));
       if (!trRes?.data) {
         setError(true);
+        setLoading(false);
         return;
       }
 
       const tr = trRes.data;
       setFormData(tr);
 
-      const cList = Array.isArray(compRes?.data) ? compRes.data : [compRes?.data];
-      const clList = Array.isArray(clientRes?.data) ? clientRes.data : [clientRes?.data];
-      const catList = Array.isArray(catRes?.data) ? catRes.data : [catRes?.data];
-      const pList = Array.isArray(priceRes?.data) ? priceRes.data : (priceRes?.data?.rows || []);
+      if (tr.company) setSelCompany(tr.company);
+      if (tr.client) setSelClient(tr.client);
+      if (tr.caution) setSelCaution(tr.caution);
 
-      const matchingComp = cList.find(c => c.id === tr.companyId || (c.companyName || c.company_name) === tr.companyName) || {};
-      const matchingClient = clList.find(c => c.id === tr.clientId || c.clientName === tr.clientName) || {};
-      const matchingCat = catList.find(c => c.id === tr.sampleParticular) || {};
+      const [compRes, clientRes, catRes, priceRes] = await Promise.allSettled([
+        apiService.get(COMPANY_ENDPOINTS.GET_MY),
+        apiService.get(CLIENT_ENDPOINTS.GET_ALL),
+        apiService.get(CATEGORY_ENDPOINTS.GET_ALL),
+        apiService.get(PRICE_MASTER_ENDPOINTS.GET_ALL)
+      ]);
+
+      const compData = compRes.status === 'fulfilled' ? compRes.value?.data : null;
+      const clientData = clientRes.status === 'fulfilled' ? clientRes.value?.data : null;
+      const catData = catRes.status === 'fulfilled' ? catRes.value?.data : null;
+      const priceData = priceRes.status === 'fulfilled' ? priceRes.value?.data : null;
+
+      const cList = Array.isArray(compData) ? compData : (compData ? [compData] : []);
+      const clList = Array.isArray(clientData) ? clientData : (clientData?.rows ? clientData.rows : (clientData ? [clientData] : []));
+      const catList = Array.isArray(catData) ? catData : (catData?.rows ? catData.rows : (catData ? [catData] : []));
+      const pList = Array.isArray(priceData) ? priceData : (priceData?.rows ? priceData.rows : (priceData ? [priceData] : []));
+
+      const matchingComp = cList.find(c => c.id === tr.companyId || (c.companyName || c.company_name) === tr.companyName) || tr.company || {};
+      const matchingClient = clList.find(c => c.id === tr.clientId || c.clientName === tr.clientName) || tr.client || {};
+      const matchingCat = catList.find(c => c.id === tr.sampleParticular || c.name === tr.sampleParticularName) || {};
 
       setSelCompany(matchingComp);
       setSelClient(matchingClient);
-      setSelCategory(matchingCat);
+      if (matchingCat.id) setSelCategory(matchingCat);
 
-      // Build price map from PriceMaster
       const pMap = {};
       pList.forEach(pm => {
         if (pm.parameterId) {
@@ -77,9 +88,7 @@ const QuotationPrint = () => {
       });
       setPriceMap(pMap);
 
-      if (tr.caution) {
-        setSelCaution(tr.caution);
-      } else if (tr.cautionId) {
+      if (!tr.caution && tr.cautionId) {
         try {
           const cautionRes = await apiService.get(CAUTION_ENDPOINTS.GET_BY_ID(tr.cautionId));
           if (cautionRes?.data) setSelCaution(cautionRes.data);
@@ -90,29 +99,38 @@ const QuotationPrint = () => {
 
       let allCategoryParams = [];
       if (tr.sampleParticular) {
-        const paramRes = await apiService.get(CATEGORY_PARAMETER_ENDPOINTS.GET_BY_CATEGORY(tr.sampleParticular));
-        if (paramRes?.data) {
-          allCategoryParams = Array.isArray(paramRes.data) ? paramRes.data : [paramRes.data];
+        try {
+          const paramRes = await apiService.get(CATEGORY_PARAMETER_ENDPOINTS.GET_BY_CATEGORY(tr.sampleParticular));
+          if (paramRes?.data) {
+            allCategoryParams = Array.isArray(paramRes.data) ? paramRes.data : [paramRes.data];
+          }
+        } catch (e) {
+          console.error("Error fetching category parameters:", e);
         }
       }
 
-      const trpRes = await apiService.get(TEST_REQUEST_PARAMETER_ENDPOINTS.GET_ALL);
-      if (trpRes?.data) {
-        const trps = Array.isArray(trpRes.data) ? trpRes.data : [trpRes.data];
-        const matchingTrps = trps.filter(t => t.testRequestId === id);
-        
-        const selectedList = [];
-        matchingTrps.forEach(trp => {
-          const paramObj = allCategoryParams.find(p => p.id === trp.parameterId) || { id: trp.parameterId, parameterName: trp.parameterName || 'Parameter' };
-          const pPrice = trp.price !== undefined && trp.price !== null ? parseFloat(trp.price) : (pMap[trp.parameterId] || 0);
-          selectedList.push({
-            ...paramObj,
-            price: pPrice
+      try {
+        const trpRes = await apiService.get(TEST_REQUEST_PARAMETER_ENDPOINTS.GET_ALL);
+        if (trpRes?.data) {
+          const trps = Array.isArray(trpRes.data) ? trpRes.data : (trpRes.data?.rows || [trpRes.data]);
+          const matchingTrps = trps.filter(t => t.testRequestId === id);
+
+          const selectedList = [];
+          matchingTrps.forEach(trp => {
+            const paramObj = allCategoryParams.find(p => p.id === trp.parameterId) || { id: trp.parameterId, parameterName: trp.parameterName || 'Parameter' };
+            const pPrice = trp.price !== undefined && trp.price !== null ? parseFloat(trp.price) : (pMap[trp.parameterId] || 0);
+            selectedList.push({
+              ...paramObj,
+              price: pPrice
+            });
           });
-        });
-        setParameters(selectedList);
-      } else {
-        setParameters([]);
+
+          setParameters(selectedList.length > 0 ? selectedList : allCategoryParams);
+        } else {
+          setParameters(allCategoryParams);
+        }
+      } catch (e) {
+        setParameters(allCategoryParams);
       }
 
       setTimeout(() => {

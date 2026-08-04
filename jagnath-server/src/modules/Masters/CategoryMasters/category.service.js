@@ -324,11 +324,16 @@ module.exports = {
             let updatedCount = 0;
 
             for (const item of records) {
-                const data = { ...item.data, companyId };
-                // Ensure field name mapping if categoryName is passed
-                if (data.categoryName && !data.name) {
-                    data.name = data.categoryName;
-                }
+                const raw = item.data || item;
+                const catName = (raw.name || raw.categoryName || '').trim();
+                const statusVal = (raw.status && ['Active', 'Inactive'].includes(String(raw.status).trim())) ? String(raw.status).trim() : 'Active';
+
+                const data = {
+                    name: catName || 'Unnamed Group',
+                    description: raw.description || '',
+                    status: statusVal,
+                    companyId
+                };
 
                 let existing = null;
                 if (item._dbId) {
@@ -350,6 +355,7 @@ module.exports = {
             return { createdCount, updatedCount, totalProcessed: records.length };
         } catch (error) {
             await transaction.rollback();
+            console.error("Error in bulkImportCategories service:", error);
             throw error;
         }
     }

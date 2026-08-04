@@ -218,10 +218,12 @@ module.exports = {
                     transaction
                 });
 
+                const statusVal = (data.status && ['Active', 'Inactive'].includes(String(data.status).trim())) ? String(data.status).trim() : 'Active';
+
                 if (existing) {
                     await existing.update({
-                        price: data.price,
-                        status: data.status || "Active",
+                        price: data.price || 0,
+                        status: statusVal,
                         updatedBy: userId
                     }, { transaction });
                     updatedCount++;
@@ -230,8 +232,8 @@ module.exports = {
                         companyId,
                         categoryId: catId,
                         parameterId: paramId,
-                        price: data.price,
-                        status: data.status || "Active",
+                        price: data.price || 0,
+                        status: statusVal,
                         createdBy: userId
                     }, { transaction });
                     createdCount++;

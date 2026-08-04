@@ -460,7 +460,7 @@ module.exports = {
                     subCategoryId: subCategoryId || data.subCategoryId || null,
                     description: data.description || null,
                     testMethod: data.testMethod || null,
-                    status: data.status || "Active"
+                    status: (data.status && ['Active', 'Inactive'].includes(String(data.status).trim())) ? String(data.status).trim() : 'Active'
                 };
 
                 let existing = null;

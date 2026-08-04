@@ -166,21 +166,19 @@ const getById = async (req, res) => {
     try {
         const { id } = req.params;
         const userId = req.user.user_id;
+        const isSuperAdmin = req.user.role === "SuperAdmin" || req.user.role === "SUPER_ADMIN" || req.user.email === "admin@jagnath.com";
 
-        let company;
-        try {
-            company = await getUserCompany(userId);
-        } catch (e) {
-            return res.status(404).json(errorResponse("NOT_FOUND", e.message, e.message));
+        let tr = await testRequestService.getTestRequestById(id, null);
+        if (!tr) {
+            return res.status(404).json(errorResponse("NOT_FOUND", "Test Request not found.", "Test Request not found."));
         }
 
-        const tr = await testRequestService.getTestRequestById(id, company.id);
-        if (!tr) {
-            return res.status(404).json(errorResponse(
-                "NOT_FOUND",
-                "Test Request not found or access denied.",
-                "Test Request not found."
-            ));
+        // Verify company ownership if not SuperAdmin
+        if (!isSuperAdmin) {
+            const isOwner = await companyService.checkOwnership(tr.companyId, userId);
+            if (!isOwner) {
+                return res.status(403).json(errorResponse("FORBIDDEN", "Unauthorized access to this Test Request.", "Unauthorized"));
+            }
         }
 
         return res.status(200).json(successResponse(

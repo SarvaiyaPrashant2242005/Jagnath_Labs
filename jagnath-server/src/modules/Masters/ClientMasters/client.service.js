@@ -330,13 +330,23 @@ module.exports = {
             let updatedCount = 0;
 
             for (const item of records) {
-                const data = { ...item.data, companyId };
-                delete data.companyName;
+                const raw = item.data || item;
+                const data = {
+                    clientName: raw.clientName || 'Unnamed Client',
+                    contactNumber: raw.contactNumber || 'N/A',
+                    address: raw.address || 'N/A',
+                    city: raw.city || 'N/A',
+                    state: raw.state || 'N/A',
+                    email: raw.email && String(raw.email).trim() !== '' ? String(raw.email).trim() : null,
+                    gender: raw.gender || 'Male',
+                    status: (raw.status && ['Active', 'Inactive'].includes(String(raw.status).trim())) ? String(raw.status).trim() : 'Active',
+                    companyId
+                };
 
                 let existing = null;
                 if (item._dbId) {
                     existing = await Client.findOne({ where: { id: item._dbId, companyId }, transaction });
-                } else if (data.email && data.email !== '') {
+                } else if (data.email) {
                     existing = await Client.findOne({ where: { email: data.email, companyId }, transaction });
                 } else if (data.clientName) {
                     existing = await Client.findOne({ where: { clientName: data.clientName, companyId }, transaction });
@@ -355,6 +365,7 @@ module.exports = {
             return { createdCount, updatedCount, totalProcessed: records.length };
         } catch (error) {
             await transaction.rollback();
+            console.error("Error in bulkImportClients service:", error);
             throw error;
         }
     }

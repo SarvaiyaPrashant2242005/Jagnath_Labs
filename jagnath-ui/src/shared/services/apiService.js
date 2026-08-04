@@ -75,8 +75,8 @@ const request = async (url, options = {}) => {
       message: `HTTP ${response.status}: ${response.statusText}`,
     };
 
-    // Handle Token Expiry
-    if (response.status === 401 || response.status === 403) {
+    // Handle Token Expiry (401 Unauthorized only)
+    if (response.status === 401) {
       const refreshToken = sessionStorage.getItem("refreshToken");
 
       // Prevent infinite loops for the refresh endpoint itself

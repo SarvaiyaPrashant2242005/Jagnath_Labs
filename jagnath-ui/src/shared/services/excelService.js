@@ -262,13 +262,14 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
       const trimmedHeader = rawHeader.trim();
       const matchedKey = labelToKeyMap[trimmedHeader] || labelToKeyMap[trimmedHeader.replace(' *', '')];
       if (matchedKey) {
-        normalizedData[matchedKey] = String(row[rawHeader]).trim();
+        normalizedData[matchedKey] = row[rawHeader] !== undefined && row[rawHeader] !== null ? String(row[rawHeader]) : '';
       }
     });
 
     // Run schema validations per field
     schema.headers.forEach(h => {
-      const val = normalizedData[h.key] || '';
+      const rawVal = normalizedData[h.key] !== undefined && normalizedData[h.key] !== null ? String(normalizedData[h.key]) : '';
+      const val = rawVal.trim();
 
       // 1. Required check
       if (h.required && (!val || val === '')) {

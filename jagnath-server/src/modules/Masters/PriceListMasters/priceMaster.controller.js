@@ -9,12 +9,41 @@ const companyService = require("../CompanyMasters/company.service");
 const Company = require("../CompanyMasters/company.model");
 const { successResponse, errorResponse } = require("../../../utils/response");
 
-const resolveCompanyId = async (body, query, userId) => {
-    const companyIdVal = body.companyId || body.company_id || query.companyId || query.company_id;
-    const companyNameVal = body.companyName || query.companyName;
+const resolveCompanyId = async (reqOrBody, queryParam = {}, thirdParam = {}, fourthParam = {}) => {
+    let body = {};
+    let query = {};
+    let headers = {};
+    let user = {};
+
+    if (reqOrBody && (reqOrBody.user || reqOrBody.headers)) {
+        body = reqOrBody.body || {};
+        query = reqOrBody.query || {};
+        headers = reqOrBody.headers || {};
+        user = reqOrBody.user || {};
+    } else {
+        body = reqOrBody || {};
+        query = queryParam || {};
+        if (typeof thirdParam === 'string') {
+            user = { user_id: thirdParam };
+        } else if (thirdParam && thirdParam.user_id) {
+            user = thirdParam;
+        } else if (typeof fourthParam === 'string') {
+            user = { user_id: fourthParam };
+        } else if (fourthParam && fourthParam.user_id) {
+            user = fourthParam;
+        }
+        if (typeof thirdParam === 'object' && !thirdParam.user_id) {
+            headers = thirdParam;
+        }
+    }
+
+    const userId = user.user_id;
+    const isSuperAdmin = user.role === "SuperAdmin" || user.role === "SUPER_ADMIN" || user.email === "admin@jagnath.com";
+    const companyIdVal = headers["x-company-id"] || body?.companyId || body?.company_id || query?.companyId || query?.company_id;
+    const companyNameVal = body?.companyName || query?.companyName;
 
     if (companyIdVal) {
-        const isOwner = await companyService.checkOwnership(companyIdVal, userId);
+        const isOwner = await companyService.checkOwnership(companyIdVal, userId, isSuperAdmin);
         if (!isOwner) {
             throw new Error("UNAUTHORIZED_COMPANY");
         }
@@ -24,7 +53,7 @@ const resolveCompanyId = async (body, query, userId) => {
         if (!company) {
             throw new Error("COMPANY_NOT_FOUND");
         }
-        const isOwner = await companyService.checkOwnership(company.id, userId);
+        const isOwner = await companyService.checkOwnership(company.id, userId, isSuperAdmin);
         if (!isOwner) {
             throw new Error("UNAUTHORIZED_COMPANY");
         }
@@ -34,7 +63,7 @@ const resolveCompanyId = async (body, query, userId) => {
         if (company) {
             return company.id;
         }
-        const companies = await companyService.getCompaniesByUser(userId);
+        const companies = await companyService.getCompaniesByUser(userId, { isSuperAdmin });
         if (companies && companies.length > 0) {
             return companies[0].id;
         }
@@ -57,7 +86,7 @@ const create = async (req, res) => {
 
         let companyId;
         try {
-            companyId = await resolveCompanyId(body, req.query, userId);
+            companyId = await resolveCompanyId(req);
         } catch (e) {
             if (e.message === "UNAUTHORIZED_COMPANY") {
                 return res.status(403).json(errorResponse("FORBIDDEN", "Unauthorized", "Access Denied: You do not own this company."));
@@ -91,7 +120,7 @@ const getAll = async (req, res) => {
 
         let companyId;
         try {
-            companyId = await resolveCompanyId({}, req.query, userId);
+            companyId = await resolveCompanyId(req);
         } catch (e) {
             if (e.message === "UNAUTHORIZED_COMPANY") {
                 return res.status(403).json(errorResponse("FORBIDDEN", "Unauthorized access.", "Unauthorized"));
@@ -146,7 +175,7 @@ const getById = async (req, res) => {
         const { id } = req.params;
         const userId = req.user.user_id;
 
-        const companyId = await resolveCompanyId({}, req.query, userId);
+        const companyId = await resolveCompanyId(req);
         const price = await priceMasterService.getPriceById(id, companyId);
 
         if (!price) {
@@ -178,7 +207,7 @@ const update = async (req, res) => {
             return res.status(400).json(errorResponse("VALIDATION_ERROR", error.details[0].message, error.details[0].message));
         }
 
-        const companyId = await resolveCompanyId(body, req.query, userId);
+        const companyId = await resolveCompanyId(req);
         const updated = await priceMasterService.updatePrice(id, value, userId, companyId);
 
         return res.status(200).json(successResponse(
@@ -200,7 +229,7 @@ const remove = async (req, res) => {
         const { id } = req.params;
         const userId = req.user.user_id;
 
-        const companyId = await resolveCompanyId({}, req.query, userId);
+        const companyId = await resolveCompanyId(req);
         await priceMasterService.deletePrice(id, companyId);
 
         return res.status(200).json(successResponse(
@@ -230,7 +259,7 @@ const bulkImport = async (req, res) => {
             ));
         }
 
-        const companyId = await resolveCompanyId(req.body, req.query, userId);
+        const companyId = await resolveCompanyId(req);
         const result = await priceMasterService.bulkImportPrices(rows, companyId, userId);
 
         return res.status(200).json(successResponse(
