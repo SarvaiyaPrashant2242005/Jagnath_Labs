@@ -121,6 +121,19 @@ const getChangesBlock = (oldValues, newValues) => {
 const createClient = async (clientData, userId, reqInfo) => {
     const transaction = await sequelize.transaction();
     try {
+        if (clientData.clientName && clientData.companyId) {
+            const existingClient = await Client.findOne({
+                where: {
+                    companyId: clientData.companyId,
+                    clientName: { [Op.iLike]: clientData.clientName.trim() }
+                },
+                transaction
+            });
+            if (existingClient) {
+                throw new Error(`Client "${clientData.clientName}" already exists for this company.`);
+            }
+        }
+
         const newClient = await Client.create(clientData, { transaction });
 
         // Fetch company name for logging
@@ -171,6 +184,20 @@ const updateClient = async (clientId, clientData, userId, reqInfo) => {
         });
         if (!client) {
             throw new Error("Client not found.");
+        }
+
+        if (clientData.clientName && clientData.clientName.trim() !== client.clientName) {
+            const duplicateClient = await Client.findOne({
+                where: {
+                    id: { [Op.ne]: clientId },
+                    companyId: client.companyId,
+                    clientName: { [Op.iLike]: clientData.clientName.trim() }
+                },
+                transaction
+            });
+            if (duplicateClient) {
+                throw new Error(`Client "${clientData.clientName}" already exists for this company.`);
+            }
         }
 
         const oldValues = getLoggableValues(client);

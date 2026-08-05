@@ -16,18 +16,52 @@ const createSubCategory = async (data, companyId) => {
     }
 
     // Verify parent Category exists
-    const category = await db.Category.findOne({
-        where: { id: data.categoryId, companyId: finalCompanyId }
+    let category = await db.Category.findOne({
+        where: { id: data.categoryId }
     });
     if (!category) {
-        throw new Error("Specified Discipline Group (Category) does not exist for this company.");
+        throw new Error("Specified Discipline Group (Category) does not exist.");
     }
 
-    // Check duplicate
+    // Resolve Category for finalCompanyId
+    let targetCategory = await db.Category.findOne({
+        where: { id: data.categoryId, companyId: finalCompanyId }
+    });
+    if (!targetCategory) {
+        targetCategory = await db.Category.findOne({
+            where: {
+                companyId: finalCompanyId,
+                name: { [Op.iLike]: category.name.trim() }
+            }
+        });
+    }
+
+    if (!targetCategory) {
+        // Auto-create category for this company if it doesn't exist yet
+        targetCategory = await db.Category.create({
+            companyId: finalCompanyId,
+            name: category.name.trim(),
+            description: category.description || null,
+            status: "Active"
+        });
+    }
+
+    const finalCategoryId = targetCategory.id;
+
+    // Find all categories in finalCompanyId with the same category name
+    const sameNameCats = await db.Category.findAll({
+        where: {
+            companyId: finalCompanyId,
+            name: { [Op.iLike]: targetCategory.name.trim() }
+        }
+    });
+    const catIds = sameNameCats.map(c => c.id);
+
+    // Check duplicate strictly for finalCompanyId
     const existing = await db.SubCategory.findOne({
         where: {
             companyId: finalCompanyId,
-            categoryId: data.categoryId,
+            categoryId: { [Op.in]: catIds },
             name: { [Op.iLike]: data.name.trim() }
         }
     });
@@ -38,7 +72,7 @@ const createSubCategory = async (data, companyId) => {
 
     return await db.SubCategory.create({
         companyId: finalCompanyId,
-        categoryId: data.categoryId,
+        categoryId: finalCategoryId,
         name: data.name.trim(),
         description: data.description ? data.description.trim() : null,
         status: data.status || "Active"
@@ -64,8 +98,12 @@ const getAllSubCategories = async (query, companyId) => {
     if (query.categoryId) {
         const cat = await db.Category.findOne({ where: { id: query.categoryId } });
         if (cat) {
+            const sameNameCatsWhere = { name: { [Op.iLike]: cat.name.trim() } };
+            if (targetCompanyId) {
+                sameNameCatsWhere.companyId = targetCompanyId;
+            }
             const sameNameCats = await db.Category.findAll({
-                where: { name: { [Op.iLike]: cat.name.trim() } }
+                where: sameNameCatsWhere
             });
             const catIds = sameNameCats.map(c => c.id);
             whereClause.categoryId = { [Op.in]: catIds };
@@ -132,13 +170,14 @@ const getSubCategoryById = async (id, companyId) => {
  */
 const updateSubCategory = async (id, data, companyId) => {
     const subCategory = await getSubCategoryById(id, companyId);
+    const finalCompanyId = data.companyId || companyId || subCategory.companyId;
 
     if (data.name && data.name.trim() !== subCategory.name) {
         const targetCategoryId = data.categoryId || subCategory.categoryId;
         const duplicate = await db.SubCategory.findOne({
             where: {
                 id: { [Op.ne]: id },
-                companyId: subCategory.companyId,
+                companyId: finalCompanyId,
                 categoryId: targetCategoryId,
                 name: { [Op.iLike]: data.name.trim() }
             }
@@ -149,7 +188,7 @@ const updateSubCategory = async (id, data, companyId) => {
     }
 
     if (data.categoryId) {
-        const cat = await db.Category.findOne({ where: { id: data.categoryId, companyId: subCategory.companyId } });
+        const cat = await db.Category.findOne({ where: { id: data.categoryId } });
         if (!cat) throw new Error("Invalid Discipline Group specified.");
     }
 

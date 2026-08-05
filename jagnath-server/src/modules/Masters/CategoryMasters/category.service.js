@@ -108,6 +108,19 @@ const getChangesBlock = (oldValues, newValues) => {
 const createCategory = async (categoryData, userId, reqInfo) => {
     const transaction = await sequelize.transaction();
     try {
+        if (categoryData.name && categoryData.companyId) {
+            const existingCat = await Category.findOne({
+                where: {
+                    companyId: categoryData.companyId,
+                    name: { [Op.iLike]: categoryData.name.trim() }
+                },
+                transaction
+            });
+            if (existingCat) {
+                throw new Error(`Discipline Group "${categoryData.name}" already exists for this company.`);
+            }
+        }
+
         const newCategory = await Category.create(categoryData, { transaction });
 
         // Fetch company name for logging
@@ -169,6 +182,20 @@ const updateCategory = async (categoryId, categoryData, userId, companyId, reqIn
         }
         if (!category) {
             throw new Error("Category not found or access denied.");
+        }
+
+        if (categoryData.name && categoryData.name.trim() !== category.name) {
+            const duplicateCat = await Category.findOne({
+                where: {
+                    id: { [Op.ne]: categoryId },
+                    companyId: category.companyId,
+                    name: { [Op.iLike]: categoryData.name.trim() }
+                },
+                transaction
+            });
+            if (duplicateCat) {
+                throw new Error(`Discipline Group "${categoryData.name}" already exists for this company.`);
+            }
         }
 
         const oldValues = getLoggableValues(category);
