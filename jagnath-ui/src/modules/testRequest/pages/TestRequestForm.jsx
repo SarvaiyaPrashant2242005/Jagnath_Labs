@@ -190,9 +190,47 @@ const TestRequestForm = () => {
           : (matchingClient.email ? matchingClient.email.split(',').map(e => e.trim()).filter(Boolean) : []);
         setClientEmails(emailsList);
 
-        const savedSubCatId = tr.subCategoryId || tr.sub_category_id || '';
-        const savedCategoryId = tr.categoryId || (tr.sampleParticular && tr.sampleParticular.length === 36 ? tr.sampleParticular : '');
+        let savedSubCatId = tr.subCategoryId || tr.sub_category_id || '';
+        let savedCategoryId = tr.categoryId || tr.category_id || (tr.sampleParticular && tr.sampleParticular.length === 36 ? tr.sampleParticular : '');
         const savedSampleParticular = (tr.sampleParticular && tr.sampleParticular.length === 36) ? '' : (tr.sampleParticular || '');
+
+        // Fetch checked parameters for this test request
+        const checks = {};
+        const loadedSeq = [];
+        try {
+          const trpRes = await apiService.get(TEST_REQUEST_PARAMETER_ENDPOINTS.GET_ALL);
+          if (trpRes?.data) {
+            const trps = Array.isArray(trpRes.data) ? trpRes.data : (trpRes.data.rows || [trpRes.data]);
+            const matchingTrps = trps.filter(t => String(t.testRequestId) === String(id));
+            matchingTrps.sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
+            matchingTrps.forEach(t => {
+              if (t.parameterId) {
+                checks[t.parameterId] = true;
+                checks[`_id_${t.parameterId}`] = t.id; // Store transaction ID for updates/deletes
+                loadedSeq.push(t.parameterId);
+              }
+            });
+            setCheckedParameters(checks);
+            setSelectedParamSequence(loadedSeq);
+          }
+        } catch (e) {
+          console.error("Error fetching request parameters", e);
+        }
+
+        // If category or subcategory is missing in TR record, try inferring from checked parameters
+        if ((!savedCategoryId || !savedSubCatId) && loadedSeq.length > 0) {
+          try {
+            const paramRes = await apiService.get(`${PARAMETER_ENDPOINTS.GET_ALL}?status=Active&all=true`);
+            const allParams = Array.isArray(paramRes?.data) ? paramRes.data : (paramRes?.data?.rows || []);
+            const matchedParam = allParams.find(p => loadedSeq.includes(p.id));
+            if (matchedParam) {
+              if (!savedCategoryId) savedCategoryId = matchedParam.categoryId || matchedParam.category_id || '';
+              if (!savedSubCatId) savedSubCatId = matchedParam.subCategoryId || matchedParam.sub_category_id || '';
+            }
+          } catch (err) {
+            console.error("Error inferring category from parameters", err);
+          }
+        }
 
         setFormData({
           companyId: matchingComp.id || tr.companyId || '',
@@ -236,35 +274,8 @@ const TestRequestForm = () => {
 
         if (savedCategoryId) {
           fetchSubCategoriesForCategory(savedCategoryId);
-          if (savedSubCatId) {
-            fetchParameters(savedSubCatId);
-          } else {
-            setParameters([]);
-          }
         }
-
-        // Fetch checked parameters
-        try {
-          const trpRes = await apiService.get(TEST_REQUEST_PARAMETER_ENDPOINTS.GET_ALL);
-          if (trpRes?.data) {
-            const trps = Array.isArray(trpRes.data) ? trpRes.data : [trpRes.data];
-            const matchingTrps = trps.filter(t => t.testRequestId === id);
-            matchingTrps.sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
-            const checks = {};
-            const loadedSeq = [];
-            matchingTrps.forEach(t => {
-              if (t.parameterId) {
-                checks[t.parameterId] = true;
-                checks[`_id_${t.parameterId}`] = t.id; // Store transaction ID for updates/deletes
-                loadedSeq.push(t.parameterId);
-              }
-            });
-            setCheckedParameters(checks);
-            setSelectedParamSequence(loadedSeq);
-          }
-        } catch (e) {
-          console.error("Error fetching request parameters", e);
-        }
+        fetchParameters(savedSubCatId, savedCategoryId, loadedSeq);
       } else {
         // Pre-select company if we resolved one
         if (targetCompanyId) {
@@ -298,15 +309,20 @@ const TestRequestForm = () => {
     }
   };
 
-  const fetchParameters = async (subCategoryId) => {
-    if (!subCategoryId) {
+  const fetchParameters = async (subCategoryId, categoryId, extraIncludeIds = []) => {
+    if (!subCategoryId && !categoryId && (!extraIncludeIds || extraIncludeIds.length === 0)) {
       setParameters([]);
       setParametersLoading(false);
       return;
     }
     setParametersLoading(true);
     try {
-      const url = `${PARAMETER_ENDPOINTS.GET_ALL}?status=Active&all=true&subCategoryId=${subCategoryId}`;
+      let url = `${PARAMETER_ENDPOINTS.GET_ALL}?status=Active&all=true`;
+      if (subCategoryId) {
+        url += `&subCategoryId=${subCategoryId}`;
+      } else if (categoryId) {
+        url += `&categoryId=${categoryId}`;
+      }
       const res = await apiService.get(url);
       let list = [];
       if (res?.data?.rows) {
@@ -316,7 +332,21 @@ const TestRequestForm = () => {
       } else if (res?.data) {
         list = [res.data];
       }
-      setParameters(list.filter(p => p.status === 'Active' || p.status === true || !p.status));
+
+      let activeList = list.filter(p => p.status === 'Active' || p.status === true || !p.status);
+
+      // If there are extra parameter IDs (e.g., from existing TR parameters) missing from activeList, fetch and merge them
+      if (extraIncludeIds && extraIncludeIds.length > 0) {
+        const missingIds = extraIncludeIds.filter(id => !activeList.some(p => p.id === id));
+        if (missingIds.length > 0) {
+          const allRes = await apiService.get(`${PARAMETER_ENDPOINTS.GET_ALL}?status=Active&all=true`);
+          const allList = Array.isArray(allRes?.data) ? allRes.data : (allRes?.data?.rows || []);
+          const extraParams = allList.filter(p => missingIds.includes(p.id));
+          activeList = [...activeList, ...extraParams];
+        }
+      }
+
+      setParameters(activeList);
       setParamPage(1);
     } catch (e) {
       console.error("Error fetching parameters", e);
@@ -333,7 +363,9 @@ const TestRequestForm = () => {
     setParamPage(1);
     setCheckedParameters({});
     if (subId) {
-      fetchParameters(subId);
+      fetchParameters(subId, formData.categoryId);
+    } else if (formData.categoryId) {
+      fetchParameters('', formData.categoryId);
     } else {
       setParameters([]);
     }
@@ -1019,7 +1051,7 @@ const TestRequestForm = () => {
               <div style={{ padding: '2.5rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1', fontWeight: 500 }}>
                 Please select a Discipline Group to begin.
               </div>
-            ) : (!selectedSubCategory && !formData.subCategoryId) ? (
+            ) : (!selectedSubCategory && !formData.subCategoryId && subCategories.length > 0 && parameters.length === 0) ? (
               <div style={{ padding: '2.5rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1', fontWeight: 500 }}>
                 Please select a Sub Category to view test parameters.
               </div>
@@ -1029,10 +1061,15 @@ const TestRequestForm = () => {
               </div>
             ) : parameters.length === 0 ? (
               <div style={{ padding: '2.5rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
-                No parameters mapped to this subcategory
+                No parameters mapped to this selection
               </div>
             ) : (() => {
-              const categoryFilteredParams = parameters.filter(param => !selectedSubCategory || param.subCategoryId === selectedSubCategory || param.subCategory?.id === selectedSubCategory);
+              const categoryFilteredParams = parameters.filter(param =>
+                !selectedSubCategory ||
+                param.subCategoryId === selectedSubCategory ||
+                param.subCategory?.id === selectedSubCategory ||
+                checkedParameters[param.id]
+              );
               const searchFilteredParams = categoryFilteredParams
                 .filter(param => {
                   if (!paramSearch.trim()) return true;

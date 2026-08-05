@@ -37,62 +37,29 @@ const TestReportForm = () => {
   const [formData, setFormData] = useState({
     formatNo: 'Format No. 7.8 F-02',
     reportDate: new Date().toISOString().split('T')[0],
-    reportNumber: 'JLT010726RR00307',
-    nameOfWork: 'Waste Water Analysis',
-    detailsOfSample: 'Waste Water Sample',
-    packingDetails: 'Sample Sealed in Plastic Bottle',
-    reportIssuedTo: 'M/S Nature Sprout Environmental Services',
-    referenceNo: 'JLT010726RR00307',
-    dateOfReceipt: '2026-07-17',
-    agencyName: 'M/S Nature Sprout Environmental Services',
-    agencyAddress: 'Office no 216-217, Shree Raj Paradise, Phase-3, Dared GIDC, Jamnagar.',
-    sampleQuantity: '01 (1 ltr)',
-    samplingLocation: 'Inlet CETP',
+    reportNumber: '',
+    nameOfWork: '',
+    detailsOfSample: '',
+    packingDetails: '',
+    reportIssuedTo: '',
+    referenceNo: '',
+    dateOfReceipt: '',
+    agencyName: '',
+    agencyAddress: '',
+    sampleQuantity: '',
+    samplingLocation: '',
     conditionOnReceipt: 'Satisfactory',
-    sampleCollectedBy: 'By Party',
-    startingDateOfTest: '2026-07-17',
-    completionDateOfTest: '2026-07-19',
-    sectionHeader: 'WASTE WATER ANALYSIS',
+    sampleCollectedBy: '',
+    startingDateOfTest: '',
+    completionDateOfTest: '',
+    sectionHeader: '',
     reviewedByAnalyst: 'Sr. Analyst',
     authorizedSignatory: 'Mr. Ankit Rathod/ Mr. Purvin Raiyan',
     termsAndConditions: 'The report is analyzed with the quality standards. These results are related to sample collection as specified above. This report in full or part, shall not be published advertised, used for any legal action, unless written consent and prior permission has been secured from the owner, JAGNATH LAB TECHNOLOGIES, GONDAL-RAJKOT.'
   });
 
   // Dynamic Parameters Results Table State
-  const [parametersList, setParametersList] = useState([
-    {
-      srNo: '01',
-      parameterName: 'pH @28° C',
-      referenceMethod: 'APHA, 24th Edition 2023/4500-H+ B',
-      unit: '-',
-      result: '3.50',
-      permissibleLimit: '-'
-    },
-    {
-      srNo: '02',
-      parameterName: 'Total Suspended solids',
-      referenceMethod: 'APHA, 24th Edition 2023/ 2540-D',
-      unit: 'mg/L',
-      result: '82.3',
-      permissibleLimit: '-'
-    },
-    {
-      srNo: '03',
-      parameterName: 'Chemical Oxygen Demand',
-      referenceMethod: 'IS 3025 (Part 58):2006/Reaffirmed 2023',
-      unit: 'mg/L',
-      result: '448.97',
-      permissibleLimit: '-'
-    },
-    {
-      srNo: '04',
-      parameterName: 'Total Dissolved solids',
-      referenceMethod: 'APHA, 24th Edition 2023/ 2540-C',
-      unit: 'mg/L',
-      result: '7954.4',
-      permissibleLimit: '-'
-    }
-  ]);
+  const [parametersList, setParametersList] = useState([]);
 
   // UI state
   const [showLivePreview, setShowLivePreview] = useState(true);
