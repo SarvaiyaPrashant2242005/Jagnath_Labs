@@ -132,11 +132,17 @@ const createParameter = async (parameterData, userId, reqInfo) => {
     try {
         const { categoryId, ...paramFields } = parameterData;
 
+        const paramSubCatId = paramFields.subCategoryId || null;
+        const findWhere = {
+            companyId: paramFields.companyId,
+            parameterName: { [Op.iLike]: paramFields.parameterName.trim() }
+        };
+        if (paramSubCatId) {
+            findWhere.subCategoryId = paramSubCatId;
+        }
+
         let newParameter = await Parameter.findOne({
-            where: {
-                companyId: paramFields.companyId,
-                parameterName: { [Op.iLike]: paramFields.parameterName.trim() }
-            },
+            where: findWhere,
             transaction
         });
 
@@ -499,7 +505,11 @@ module.exports = {
                 if (item._dbId) {
                     existing = await Parameter.findOne({ where: { id: item._dbId, companyId }, transaction });
                 } else {
-                    existing = await Parameter.findOne({ where: { parameterName: paramName, companyId }, transaction });
+                    const findWhere = { companyId, parameterName: { [Op.iLike]: paramName.trim() } };
+                    if (paramPayload.subCategoryId) {
+                        findWhere.subCategoryId = paramPayload.subCategoryId;
+                    }
+                    existing = await Parameter.findOne({ where: findWhere, transaction });
                 }
 
                 if (existing) {
