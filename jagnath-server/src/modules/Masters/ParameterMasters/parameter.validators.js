@@ -11,15 +11,14 @@ const createParameterSchema = Joi.object({
     }),
     description: Joi.string().optional().allow("", null),
     testMethod: Joi.string().optional().allow("", null),
-    status: Joi.string().valid("Active", "Inactive").required().messages({
-        "any.only": "Status must be Active or Inactive.",
-        "any.required": "Status is required."
+    status: Joi.string().valid("Active", "Inactive").default("Active").optional().messages({
+        "any.only": "Status must be Active or Inactive."
     }),
-    companyName: Joi.string().trim().optional(),
-    companyId: Joi.string().trim().optional(),
+    companyName: Joi.string().trim().optional().allow("", null),
+    companyId: Joi.string().trim().optional().allow("", null),
     categoryId: Joi.string().trim().optional().allow("", null),
     subCategoryId: Joi.string().trim().optional().allow("", null)
-});
+}).unknown(true);
 
 const updateParameterSchema = Joi.object({
     parameterName: Joi.string().optional().messages({
@@ -30,11 +29,11 @@ const updateParameterSchema = Joi.object({
     status: Joi.string().valid("Active", "Inactive").optional().messages({
         "any.only": "Status must be Active or Inactive."
     }),
-    companyName: Joi.string().trim().optional(),
-    companyId: Joi.string().trim().optional(),
+    companyName: Joi.string().trim().optional().allow("", null),
+    companyId: Joi.string().trim().optional().allow("", null),
     categoryId: Joi.string().trim().optional().allow("", null),
     subCategoryId: Joi.string().trim().optional().allow("", null)
-});
+}).unknown(true);
 
 
 module.exports = {

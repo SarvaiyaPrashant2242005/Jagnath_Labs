@@ -354,6 +354,7 @@ const ParameterMaster = () => {
       description: formData.description,
       testMethod: formData.testMethod,
       status: formData.status,
+      companyId: activeCompId || null,
       companyName: activeCompanyName || formData.companyName,
       categoryId: formData.categoryId || null,
       subCategoryId: formData.subCategoryId || null
@@ -370,7 +371,7 @@ const ParameterMaster = () => {
       setIsFormOpen(false);
       fetchParameters();
     } catch (err) {
-      triggerToast(err.messageToShow || err.message || 'Operation failed. Please try again.', 'error');
+      triggerToast(err.messageToShow || err.message || err.error?.userMessage || err.error?.message || 'Operation failed. Please try again.', 'error');
     } finally {
       setSubmitting(false);
     }
