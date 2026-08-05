@@ -52,7 +52,9 @@ const ParameterMaster = () => {
   // Form inputs state
   const [formData, setFormData] = useState({
     parameterName: '',
-    description: '',
+    unit: '',
+    isPermissibleLimitApplicable: false,
+    permissibleLimit: '',
     testMethod: '',
     status: 'Active',
     companyName: '',
@@ -325,7 +327,9 @@ const ParameterMaster = () => {
     }
     setFormData({
       parameterName: '',
-      description: '',
+      unit: '',
+      isPermissibleLimitApplicable: false,
+      permissibleLimit: '',
       testMethod: '',
       status: 'Active',
       companyName: defaultCompanyName,
@@ -345,7 +349,9 @@ const ParameterMaster = () => {
     }
     setFormData({
       parameterName: param.parameterName || '',
-      description: param.description || '',
+      unit: param.unit || '',
+      isPermissibleLimitApplicable: param.isPermissibleLimitApplicable === true || param.is_permissible_limit_applicable === true,
+      permissibleLimit: param.permissibleLimit || param.permissible_limit || '',
       testMethod: param.testMethod || '',
       status: param.status || 'Active',
       companyName: param.companyName || (param.company ? (param.company.companyName || param.company.company_name) : ''),
@@ -376,7 +382,9 @@ const ParameterMaster = () => {
 
     const payload = {
       parameterName: formData.parameterName,
-      description: formData.description,
+      unit: formData.unit,
+      isPermissibleLimitApplicable: formData.isPermissibleLimitApplicable,
+      permissibleLimit: formData.isPermissibleLimitApplicable ? formData.permissibleLimit : '',
       testMethod: formData.testMethod,
       status: formData.status,
       companyName: activeCompanyName || formData.companyName,
@@ -776,18 +784,56 @@ const ParameterMaster = () => {
                 />
               </div>
 
-              {/* Description */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: 'span 2' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Description</label>
-                <textarea
-                  name="description"
-                  value={formData.description}
+              {/* Unit */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Unit</label>
+                <input
+                  type="text"
+                  name="unit"
+                  value={formData.unit}
                   onChange={handleInputChange}
-                  placeholder="Optional description of the test parameter"
-                  rows={2}
-                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
+                  placeholder="e.g. mg/L, %, pH"
+                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', fontFamily: 'inherit' }}
                 />
               </div>
+
+              {/* Permissible Limit Applicable Switch / Radio */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Permissible Limit Applicable?</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', height: '42px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600, color: '#1e293b' }}>
+                    <input
+                      type="radio"
+                      name="isPermissibleLimitApplicable"
+                      checked={formData.isPermissibleLimitApplicable === true}
+                      onChange={() => setFormData(prev => ({ ...prev, isPermissibleLimitApplicable: true }))}
+                    /> Yes
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600, color: '#64748b' }}>
+                    <input
+                      type="radio"
+                      name="isPermissibleLimitApplicable"
+                      checked={formData.isPermissibleLimitApplicable === false}
+                      onChange={() => setFormData(prev => ({ ...prev, isPermissibleLimitApplicable: false, permissibleLimit: '' }))}
+                    /> No
+                  </label>
+                </div>
+              </div>
+
+              {/* Permissible Limit Value (Shown if Applicable) */}
+              {formData.isPermissibleLimitApplicable && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Permissible Limit Value *</label>
+                  <input
+                    type="text"
+                    name="permissibleLimit"
+                    value={formData.permissibleLimit}
+                    onChange={handleInputChange}
+                    placeholder="e.g. 6.5 - 8.5 or Max 100 mg/L"
+                    style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', fontFamily: 'inherit' }}
+                  />
+                </div>
+              )}
 
               {/* Status sliding toggle switch */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
@@ -940,19 +986,21 @@ const ParameterMaster = () => {
                     <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SUB CATEGORY</th>
                     <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>LOCATION OF SAMPLE</th>
                     <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>TEST METHOD</th>
+                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>UNIT</th>
+                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>PERMISSIBLE LIMIT</th>
                     <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATUS</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                      <td colSpan={10} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                         Loading parameters...
                       </td>
                     </tr>
                   ) : parameters.length === 0 ? (
                     <tr>
-                      <td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                      <td colSpan={10} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                         No parameters found.
                       </td>
                     </tr>
@@ -986,6 +1034,10 @@ const ParameterMaster = () => {
                         <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.subCategoryName || 'Unassigned'}</td>
                         <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.locationSampleName || 'N/A'}</td>
                         <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.testMethod || 'N/A'}</td>
+                        <td style={{ padding: '0.75rem 1rem', color: '#334155', fontWeight: 600 }}>{param.unit || '-'}</td>
+                        <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>
+                          {param.isPermissibleLimitApplicable || param.is_permissible_limit_applicable ? (param.permissibleLimit || param.permissible_limit || 'Applicable') : '-'}
+                        </td>
                         <td style={{ padding: '0.75rem 1rem' }}>
                           <span style={{
                             display: 'inline-block',

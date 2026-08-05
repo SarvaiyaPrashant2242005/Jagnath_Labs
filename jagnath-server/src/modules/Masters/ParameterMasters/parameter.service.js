@@ -155,6 +155,9 @@ const createParameter = async (parameterData, userId, reqInfo) => {
             await newParameter.update({
                 description: paramFields.description || newParameter.description,
                 testMethod: paramFields.testMethod || newParameter.testMethod,
+                unit: paramFields.unit !== undefined ? paramFields.unit : newParameter.unit,
+                isPermissibleLimitApplicable: paramFields.isPermissibleLimitApplicable !== undefined ? paramFields.isPermissibleLimitApplicable : newParameter.isPermissibleLimitApplicable,
+                permissibleLimit: paramFields.permissibleLimit !== undefined ? paramFields.permissibleLimit : newParameter.permissibleLimit,
                 status: paramFields.status || newParameter.status
             }, { transaction });
         }

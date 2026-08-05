@@ -24,6 +24,7 @@ const DashboardLayout = ({ children }) => {
     if (!path) return 'dashboard';
     if (path === 'company') return 'companies';
     if (path.startsWith('test-requests')) return 'requests';
+    if (path.startsWith('test-reports')) return 'test-reports';
     return path;
   };
 
@@ -121,6 +122,7 @@ const DashboardLayout = ({ children }) => {
     if (tabKey === 'companies') route = '/company';
     if (tabKey === 'users') route = '/users';
     if (tabKey === 'requests') route = '/test-requests';
+    if (tabKey === 'test-reports') route = '/test-reports';
     
     navigate(route);
   };
