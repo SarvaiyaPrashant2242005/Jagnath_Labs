@@ -12,6 +12,35 @@ const { Op } = require("sequelize");
 const { successResponse, errorResponse } = require("../../../utils/response");
 
 /**
+ * Helper to resolve companyId from headers, query, body or user default
+ */
+const resolveCompanyId = async (req) => {
+    const userId = req.user?.user_id;
+    const isSuperAdmin = req.user?.role === "SuperAdmin" || req.user?.role === "SUPER_ADMIN" || req.user?.role === "SUPERADMIN" || req.user?.role === "Super Admin" || req.user?.email === "admin@jagnath.com";
+
+    const companyIdVal = req.headers["x-company-id"] || req.query?.companyId || req.query?.company_id || req.body?.companyId || req.body?.company_id;
+
+    if (companyIdVal && companyIdVal !== "null" && companyIdVal !== "undefined" && companyIdVal !== "ALL") {
+        const isOwner = await companyService.checkOwnership(companyIdVal, userId, isSuperAdmin);
+        if (isOwner) {
+            return companyIdVal;
+        }
+    }
+
+    const company = await companyService.getCompanyByUserId(userId);
+    if (company) {
+        return company.id;
+    }
+
+    const companies = await companyService.getCompaniesByUser(userId, { isSuperAdmin });
+    if (companies && companies.length > 0) {
+        return companies[0].id;
+    }
+
+    return null;
+};
+
+/**
  * Helper to fetch user's company and ensure they have one
  */
 const getUserCompany = async (userId) => {
@@ -39,8 +68,8 @@ const create = async (req, res) => {
             ));
         }
 
-        // Find the Company using companyId
-        const companyIdVal = value.companyId;
+        // Find the Company using companyId from value or resolved header/query
+        const companyIdVal = value.companyId || (await resolveCompanyId(req));
         const company = await Company.findByPk(companyIdVal);
 
         if (!company) {
@@ -115,16 +144,14 @@ const create = async (req, res) => {
 const getAll = async (req, res) => {
     try {
         const userId = req.user.user_id;
+        const companyId = await resolveCompanyId(req);
 
-        let company;
-        try {
-            company = await getUserCompany(userId);
-        } catch (e) {
+        if (!companyId) {
             return res.status(200).json(successResponse(
                 "TEST_REQUESTS_FETCHED",
                 "Test requests fetched successfully.",
                 "Test requests fetched successfully.",
-                req.query.limit ? { rows: [], total: 0, page: parseInt(req.query.page), totalPages: 0 } : []
+                req.query.limit ? { rows: [], total: 0, page: parseInt(req.query.page) || 1, totalPages: 0 } : []
             ));
         }
 
@@ -136,14 +163,14 @@ const getAll = async (req, res) => {
             clientId: req.query.clientId
         };
 
-        const result = await testRequestService.getTestRequestsByCompany(company.id, options);
+        const result = await testRequestService.getTestRequestsByCompany(companyId, options);
 
         let responseData = result;
         if (options.limit && result.rows) {
             responseData = {
                 rows: result.rows,
                 total: result.count,
-                page: parseInt(options.page),
+                page: parseInt(options.page) || 1,
                 totalPages: Math.ceil(result.count / parseInt(options.limit))
             };
         }
@@ -318,12 +345,10 @@ const remove = async (req, res) => {
     try {
         const { id } = req.params;
         const userId = req.user.user_id;
+        const companyId = await resolveCompanyId(req);
 
-        let company;
-        try {
-            company = await getUserCompany(userId);
-        } catch (e) {
-            return res.status(404).json(errorResponse("NOT_FOUND", e.message, e.message));
+        if (!companyId) {
+            return res.status(404).json(errorResponse("NOT_FOUND", "Company not found.", "Company not found."));
         }
 
         const reqInfo = {
@@ -331,7 +356,7 @@ const remove = async (req, res) => {
             userAgent: req.headers["user-agent"]
         };
 
-        await testRequestService.deleteTestRequest(id, userId, company.id, reqInfo);
+        await testRequestService.deleteTestRequest(id, userId, companyId, reqInfo);
 
         return res.status(200).json(successResponse(
             "TEST_REQUEST_DELETED",

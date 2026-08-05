@@ -387,20 +387,21 @@ const getTestRequestsByCompany = async (companyId, options = {}) => {
             queryOptions.where.status = options.status;
         }
 
+        if (options.search && options.search.trim()) {
+            const searchPattern = `%${options.search.trim()}%`;
+            queryOptions.where = {
+                ...queryOptions.where,
+                [Op.or]: [
+                    { sampleIdNumber: { [Op.iLike]: searchPattern } },
+                    { reportNumber: { [Op.iLike]: searchPattern } },
+                    { sampleCollectedBy: { [Op.iLike]: searchPattern } }
+                ]
+            };
+        }
+
         if (options.limit && options.page) {
             queryOptions.limit = parseInt(options.limit);
             queryOptions.offset = (parseInt(options.page) - 1) * queryOptions.limit;
-
-            if (options.search) {
-                queryOptions.where = {
-                    ...queryOptions.where,
-                    [Op.or]: [
-                        { sampleIdNumber: { [Op.iLike]: `%${options.search}%` } },
-                        { reportNumber: { [Op.iLike]: `%${options.search}%` } },
-                        { sampleCollectedBy: { [Op.iLike]: `%${options.search}%` } }
-                    ]
-                };
-            }
 
             const result = await TestRequest.findAndCountAll(queryOptions);
             return {
