@@ -8,6 +8,7 @@ const Category = require("../CategoryMasters/category.model");
 const SubCategory = require("../SubCategoryMasters/subCategory.model");
 const CategoryParameter = require("../CategoryParameterMasters/categoryParameter.model");
 const Users = require("../../Auth/Users/users.model");
+const LocationSample = require("../LocationSampleMasters/locationSample.model");
 const sequelize = require("../../../config/database");
 const { Op } = require("sequelize");
 const path = require("path");
@@ -69,6 +70,13 @@ const formatParameter = (param) => {
         paramObj.subCategoryName = null;
     }
     delete paramObj.subCategory;
+
+    if (paramObj.locationSample) {
+        paramObj.locationSampleName = paramObj.locationSample.name;
+    } else {
+        paramObj.locationSampleName = null;
+    }
+    delete paramObj.locationSample;
 
     return paramObj;
 };
@@ -355,6 +363,11 @@ const getParameterById = async (parameterId, companyId) => {
                     attributes: ["id", "name"]
                 },
                 {
+                    model: LocationSample,
+                    as: "locationSample",
+                    attributes: ["id", "name"]
+                },
+                {
                     model: CategoryParameter,
                     as: "categoryParameters",
                     include: [{
@@ -388,6 +401,11 @@ const getParametersByCompany = async (companyId, options = {}) => {
                 {
                     model: SubCategory,
                     as: "subCategory",
+                    attributes: ["id", "name"]
+                },
+                {
+                    model: LocationSample,
+                    as: "locationSample",
                     attributes: ["id", "name"]
                 },
                 {

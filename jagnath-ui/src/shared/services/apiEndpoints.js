@@ -71,6 +71,15 @@ export const CATEGORY_ENDPOINTS = {
   BULK_IMPORT: `${API_BASE_URL}/category/bulk-import`,
 };
 
+// ─── Location of Sample Endpoints ─────────────────────────────────────────────
+export const LOCATION_SAMPLE_ENDPOINTS = {
+  CREATE: `${API_BASE_URL}/location-sample`,
+  GET_ALL: `${API_BASE_URL}/location-sample`,
+  GET_BY_ID: (id) => `${API_BASE_URL}/location-sample/${id}`,
+  UPDATE: (id) => `${API_BASE_URL}/location-sample/${id}`,
+  DELETE: (id) => `${API_BASE_URL}/location-sample/${id}`,
+};
+
 // ─── Sub Category Endpoints ───────────────────────────────────────────────────
 export const SUB_CATEGORY_ENDPOINTS = {
   CREATE: `${API_BASE_URL}/sub-category`,

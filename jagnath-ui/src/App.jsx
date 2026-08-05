@@ -18,6 +18,7 @@ import QuotationPrint from './modules/testRequest/pages/QuotationPrint';
 import Profile from './modules/profile/pages/Profile';
 import PriceList from './modules/pricelist/pages/PriceList';
 import CautionMaster from './modules/cautionMaster/pages/CautionMaster';
+import LocationSampleMaster from './modules/locationSampleMaster/pages/LocationSampleMaster';
 import { getStoredUser } from './modules/auth/services/authService';
 import './assets/styles/index.css';
 
@@ -126,6 +127,7 @@ function App() {
         {/* Dynamic Placeholder pages for all LIMS routes in sidebar */}
         <Route path="/clients" element={<ProtectedRoute><ClientMaster /></ProtectedRoute>} />
         <Route path="/categories" element={<ProtectedRoute><CategoryMaster /></ProtectedRoute>} />
+        <Route path="/location-samples" element={<ProtectedRoute><LocationSampleMaster /></ProtectedRoute>} />
         <Route path="/sub-categories" element={<ProtectedRoute><SubCategoryMaster /></ProtectedRoute>} />
         <Route path="/parameters" element={<ProtectedRoute><ParameterMaster /></ProtectedRoute>} />
         <Route path="/users" element={<ProtectedRoute><UserMaster /></ProtectedRoute>} />

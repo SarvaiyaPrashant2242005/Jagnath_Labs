@@ -1461,31 +1461,128 @@ const TestRequestForm = () => {
                   </tr>
                 </tbody>
               </table>
-              
-              {/* Selected Parameters Checklist */}
-              {Object.values(checkedParameters).some(Boolean) && (
-                <div style={{ marginTop: '8px', border: '1px solid #000000', padding: '4px' }}>
-                  <div style={{ fontWeight: 'bold', fontSize: '7px', textTransform: 'uppercase', marginBottom: '3px', borderBottom: '1px solid #000000', paddingBottom: '2px' }}>
-                    Selected Parameters ({parameters.filter(p => checkedParameters[p.id]).length})
-                  </div>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '7px' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <th style={{ textAlign: 'left', padding: '1px' }}>Parameter Name</th>
-                        <th style={{ textAlign: 'left', padding: '1px' }}>Test Method</th>
+
+              {/* Footer Page 1 */}
+              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '7px', marginTop: 'auto' }}>
+                <tbody>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}>Doc No: JLT/ 7.1 F-01</td>
+                    <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}></td>
+                    <td style={{ width: '33.33%', padding: '2px 3px', textAlign: 'right' }}>Page 1 of 2</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Format No. 7.1 F-01</td>
+                    <td colSpan={2} style={{ padding: '2px 3px' }}>Format: Test Request Form (Water & Waste Water)</td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Prepared By: TM</td>
+                    <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Approved By: QM</td>
+                    <td style={{ padding: '2px 3px' }}>Issue By/Reviewed By: TM</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* PAGE BREAK / SPACER */}
+            <div style={{ margin: '2rem 0', borderTop: '2px dashed #cbd5e1', position: 'relative' }}>
+              <span style={{ position: 'absolute', top: '-10px', left: '50%', transform: 'translateX(-50%)', background: '#f8fafc', padding: '0 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Page 2 Preview</span>
+            </div>
+
+            {/* PAGE 2 */}
+            <div style={{
+              background: '#ffffff',
+              border: '1px solid #000000',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+              padding: '1.25rem',
+              fontSize: '10px',
+              fontFamily: '"Plus Jakarta Sans", "Inter", sans-serif',
+              color: '#000000',
+              lineHeight: '1.3',
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: '297mm',
+              boxSizing: 'border-box'
+            }}>
+              {/* Header block (repeated from Page 1) */}
+              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', marginBottom: '8px' }}>
+                <tbody>
+                  <tr>
+                    <td style={{ width: '45%', border: '1px solid #000000', padding: '4px', verticalAlign: 'middle', textAlign: 'center' }}>
+                      <img src="/Images/Navbar_Logo.png" alt="Logo" style={{ height: '50px', objectFit: 'contain', display: 'block', margin: '0 auto' }} />
+                    </td>
+                    <td style={{ width: '25%', border: '1px solid #000000', padding: '4px', textAlign: 'center', fontWeight: 'bold', fontSize: '10px' }}>
+                      FORMATS
+                    </td>
+                    <td style={{ width: '30%', border: '1px solid #000000', padding: '0' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '7px' }}>
+                        <tbody>
+                          <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Amendment No.</td><td style={{ padding: '2px 3px' }}>00</td></tr>
+                          <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Amendment Date</td><td style={{ padding: '2px 3px' }}>--</td></tr>
+                          <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Issue No.</td><td style={{ padding: '2px 3px' }}>01</td></tr>
+                          <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Issue Date</td><td style={{ padding: '2px 3px' }}>01/09/2018</td></tr>
+                          <tr><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Format No.</td><td style={{ padding: '2px 3px' }}>7.1 F-01</td></tr>
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div style={{ fontWeight: 'bold', fontSize: '8px', marginBottom: '8px', border: '1px solid #000000', borderTop: 'none', background: '#f8fafc', padding: '3px', textAlign: 'center' }}>
+                Test Parameter to Be Analyzed: - {selCategory.name || 'WATER & WASTE WATER'}
+              </div>
+
+              {/* Parameters Grid */}
+              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '8px', marginBottom: '8px' }}>
+                <thead>
+                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid #000000' }}>
+                    <th style={{ width: '8%', padding: '3px', borderRight: '1px solid #000000', textAlign: 'center' }}>Sr. No.</th>
+                    <th style={{ width: '42%', padding: '3px', borderRight: '1px solid #000000', textAlign: 'left' }}>Test Parameters</th>
+                    <th style={{ width: '10%', padding: '3px', borderRight: '1px solid #000000', textAlign: 'center' }}>Tick √</th>
+                    <th style={{ width: '40%', padding: '3px', textAlign: 'center' }}>Test Method</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Array.from({ length: Math.max(20, parameters.length) }).map((_, i) => {
+                    const param = parameters[i];
+                    const isChecked = param ? !!checkedParameters[param.id] : false;
+                    return (
+                      <tr key={i} style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ padding: '2px', borderRight: '1px solid #000000', textAlign: 'center' }}>{i + 1}.</td>
+                        <td style={{ padding: '2px 4px', borderRight: '1px solid #000000', textAlign: 'left' }}>{param ? (param.parameterName || param.name) : ''}</td>
+                        <td style={{ padding: '2px', borderRight: '1px solid #000000', textAlign: 'center', fontWeight: 'bold', color: '#15803d' }}>{isChecked ? '√' : ''}</td>
+                        <td style={{ padding: '2px 4px', textAlign: 'left' }}>{param ? (param.testMethod || '') : ''}</td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {parameters.filter(p => checkedParameters[p.id]).map(param => (
-                        <tr key={param.id} style={{ borderBottom: '1px dashed #e2e8f0' }}>
-                          <td style={{ padding: '1px', fontWeight: '600' }}>{param.parameterName}</td>
-                          <td style={{ padding: '1px', color: '#64748b' }}>{param.testMethod || 'N/A'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                    );
+                  })}
+                </tbody>
+              </table>
+
+              {/* Approved By Technical Manager */}
+              <div style={{ textAlign: 'right', marginTop: '1.5rem', fontWeight: 'bold', fontSize: '8px', paddingRight: '1.5rem' }}>
+                Approved By<br />
+                Technical Manager
+              </div>
+
+              {/* Footer Page 2 */}
+              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '7px', marginTop: 'auto' }}>
+                <tbody>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}>Doc No: JLT/ 7.1 F-01</td>
+                    <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}></td>
+                    <td style={{ width: '33.33%', padding: '2px 3px', textAlign: 'right' }}>Page 2 of 2</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Format No. 7.1 F-01</td>
+                    <td colSpan={2} style={{ padding: '2px 3px' }}>Format: Test Request Form (Water & Waste Water)</td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Prepared By: TM</td>
+                    <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Approved By: QM</td>
+                    <td style={{ padding: '2px 3px' }}>Issue By/Reviewed By: TM</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         )}

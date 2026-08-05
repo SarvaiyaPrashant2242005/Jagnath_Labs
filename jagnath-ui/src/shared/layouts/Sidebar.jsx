@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import {
   FaChartPie, FaBuilding, FaUserFriends, FaTags, FaSlidersH,
   FaClipboardList, FaFileAlt, FaFileInvoiceDollar,
-  FaTruck, FaCog, FaChevronRight, FaFolder, FaTimes, FaUserShield, FaShieldAlt
+  FaTruck, FaCog, FaChevronRight, FaFolder, FaTimes, FaUserShield, FaShieldAlt,
+  FaMapMarkerAlt
 } from 'react-icons/fa';
 
 /**
@@ -14,7 +15,7 @@ const Sidebar = ({ activeTab, onTabChange, onNewRequest, sidebarRef, isOpen = tr
 
   // Auto-expand group containing the active tab
   useEffect(() => {
-    if (['companies', 'clients', 'categories', 'sub-categories', 'parameters', 'price-lists', 'cautions'].includes(activeTab)) {
+    if (['companies', 'clients', 'categories', 'sub-categories', 'parameters', 'price-lists', 'cautions', 'location-samples'].includes(activeTab)) {
       setOpenGroup('masters');
     } else if (['requests', 'new-request'].includes(activeTab)) {
       setOpenGroup('workflow');
@@ -315,6 +316,7 @@ const Sidebar = ({ activeTab, onTabChange, onNewRequest, sidebarRef, isOpen = tr
                   { name: 'Company', key: 'companies', icon: <FaBuilding size={14} /> },
                   { name: 'Clients', key: 'clients', icon: <FaUserFriends size={14} /> },
                   { name: 'Discipline Group', key: 'categories', icon: <FaTags size={14} /> },
+                  { name: 'Location of Sample', key: 'location-samples', icon: <FaMapMarkerAlt size={14} /> },
                   { name: 'Sub Category', key: 'sub-categories', icon: <FaSlidersH size={14} /> },
                   { name: 'Parameters', key: 'parameters', icon: <FaSlidersH size={14} /> },
                   { name: 'Price List', key: 'price-lists', icon: <FaFileInvoiceDollar size={14} /> },

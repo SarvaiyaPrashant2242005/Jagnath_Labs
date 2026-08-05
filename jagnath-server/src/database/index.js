@@ -28,6 +28,7 @@ db.TestRequestParameter = require("../modules/Transactions/TestRequestParameters
 db.PriceMaster = require("../modules/Masters/PriceListMasters/price_master.model");
 db.Caution = require("../modules/Masters/CautionMasters/caution.model");
 db.SubCategory = require("../modules/Masters/SubCategoryMasters/subCategory.model");
+db.LocationSample = require("../modules/Masters/LocationSampleMasters/locationSample.model");
 
 // Define Associations
 db.Users.hasMany(db.RefreshTokens, { foreignKey: "user_id" });
@@ -98,5 +99,12 @@ db.Parameter.belongsTo(db.SubCategory, { foreignKey: "subCategoryId", as: "subCa
 
 db.SubCategory.hasMany(db.TestRequest, { foreignKey: "subCategoryId", as: "testRequests" });
 db.TestRequest.belongsTo(db.SubCategory, { foreignKey: "subCategoryId", as: "subCategory" });
+
+// Location of Sample Associations
+db.Company.hasMany(db.LocationSample, { foreignKey: "companyId", as: "locationSamples" });
+db.LocationSample.belongsTo(db.Company, { foreignKey: "companyId", as: "company" });
+
+db.LocationSample.hasMany(db.Parameter, { foreignKey: "locationSampleId", as: "parameters" });
+db.Parameter.belongsTo(db.LocationSample, { foreignKey: "locationSampleId", as: "locationSample" });
 
 module.exports = db;

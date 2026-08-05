@@ -5,7 +5,7 @@ import {
   FaFilePdf, FaPrint, FaChevronDown, FaTimes
 } from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
-import { PARAMETER_ENDPOINTS, COMPANY_ENDPOINTS, CATEGORY_ENDPOINTS, SUB_CATEGORY_ENDPOINTS } from '../../../shared/services/apiEndpoints';
+import { PARAMETER_ENDPOINTS, COMPANY_ENDPOINTS, CATEGORY_ENDPOINTS, SUB_CATEGORY_ENDPOINTS, LOCATION_SAMPLE_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 import Pagination from '../../../shared/components/Pagination';
 import BulkImportModal from '../../../shared/components/BulkImport/BulkImportModal';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
@@ -17,6 +17,7 @@ const ParameterMaster = () => {
   const [companies, setCompanies] = useState([]);
   const [categoriesList, setCategoriesList] = useState([]);
   const [subCategoriesList, setSubCategoriesList] = useState([]);
+  const [locationSamplesList, setLocationSamplesList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
 
@@ -56,7 +57,8 @@ const ParameterMaster = () => {
     status: 'Active',
     companyName: '',
     categoryId: '',
-    subCategoryId: ''
+    subCategoryId: '',
+    locationSampleId: ''
   });
   const [formErrors, setFormErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -184,6 +186,23 @@ const ParameterMaster = () => {
     }
   };
 
+  // Fetch active location samples to populate dropdown options
+  const fetchLocationSamplesForDropdown = async () => {
+    try {
+      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
+      const url = activeCompId ? `${LOCATION_SAMPLE_ENDPOINTS.GET_ALL}?companyId=${activeCompId}&status=Active` : `${LOCATION_SAMPLE_ENDPOINTS.GET_ALL}?status=Active`;
+      const response = await apiService.get(url);
+      if (response && response.data) {
+        const locs = Array.isArray(response.data) ? response.data : (response.data.rows || [response.data]);
+        setLocationSamplesList(locs);
+      } else {
+        setLocationSamplesList([]);
+      }
+    } catch (err) {
+      setLocationSamplesList([]);
+    }
+  };
+
   useEffect(() => {
     fetchSubCategoriesForDropdown(formData.categoryId);
   }, [formData.categoryId, isFormOpen]);
@@ -262,12 +281,14 @@ const ParameterMaster = () => {
     const initializeData = async () => {
       await fetchCompanies();
       await fetchCategoriesForDropdown();
+      await fetchLocationSamplesForDropdown();
       await fetchParameters();
     };
     initializeData();
 
     const handleCompanyChange = () => {
       fetchCategoriesForDropdown();
+      fetchLocationSamplesForDropdown();
       fetchParameters();
     };
     window.addEventListener('companyChanged', handleCompanyChange);
@@ -309,7 +330,8 @@ const ParameterMaster = () => {
       status: 'Active',
       companyName: defaultCompanyName,
       categoryId: initialCatId,
-      subCategoryId: ''
+      subCategoryId: '',
+      locationSampleId: ''
     });
     setFormErrors({});
     setEditingId(null);
@@ -328,7 +350,8 @@ const ParameterMaster = () => {
       status: param.status || 'Active',
       companyName: param.companyName || (param.company ? (param.company.companyName || param.company.company_name) : ''),
       categoryId: param.categoryId || '',
-      subCategoryId: param.subCategoryId || ''
+      subCategoryId: param.subCategoryId || '',
+      locationSampleId: param.locationSampleId || ''
     });
     setFormErrors({});
     setEditingId(param.id);
@@ -358,7 +381,8 @@ const ParameterMaster = () => {
       status: formData.status,
       companyName: activeCompanyName || formData.companyName,
       categoryId: formData.categoryId || null,
-      subCategoryId: formData.subCategoryId || null
+      subCategoryId: formData.subCategoryId || null,
+      locationSampleId: formData.locationSampleId || null
     };
 
     try {
@@ -707,6 +731,22 @@ const ParameterMaster = () => {
                 </select>
               </div>
 
+              {/* Location of Sample Dropdown */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Location of Sample</label>
+                <select
+                  name="locationSampleId"
+                  value={formData.locationSampleId}
+                  onChange={handleInputChange}
+                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', cursor: 'pointer', outline: 'none', backgroundColor: '#ffffff' }}
+                >
+                  <option value="">Select Location of Sample</option>
+                  {[...locationSamplesList].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(loc => (
+                    <option key={loc.id} value={loc.id}>{loc.name}</option>
+                  ))}
+                </select>
+              </div>
+
               {/* Parameter Name */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Parameter Name *</label>
@@ -898,6 +938,7 @@ const ParameterMaster = () => {
                     <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>PARAMETER NAME</th>
                     <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>DISCIPLINE GROUP</th>
                     <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SUB CATEGORY</th>
+                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>LOCATION OF SAMPLE</th>
                     <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>TEST METHOD</th>
                     <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATUS</th>
                   </tr>
@@ -905,13 +946,13 @@ const ParameterMaster = () => {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                      <td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                         Loading parameters...
                       </td>
                     </tr>
                   ) : parameters.length === 0 ? (
                     <tr>
-                      <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                      <td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                         No parameters found.
                       </td>
                     </tr>
@@ -943,6 +984,7 @@ const ParameterMaster = () => {
                         <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{param.parameterName}</td>
                         <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.categoryName || (param.category ? param.category.categoryName : 'Unassigned')}</td>
                         <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.subCategoryName || 'Unassigned'}</td>
+                        <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.locationSampleName || 'N/A'}</td>
                         <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.testMethod || 'N/A'}</td>
                         <td style={{ padding: '0.75rem 1rem' }}>
                           <span style={{

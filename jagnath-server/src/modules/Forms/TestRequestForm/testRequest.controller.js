@@ -22,6 +22,40 @@ const getUserCompany = async (userId) => {
     return company;
 };
 
+const resolveCompanyId = async (body, query, userId, headers = {}, reqUser = {}) => {
+    const isSuperAdmin = reqUser?.role === "SuperAdmin" || reqUser?.role === "SUPER_ADMIN" || reqUser?.role === "SUPERADMIN" || reqUser?.role === "Super Admin" || reqUser?.email === "admin@jagnath.com";
+    const companyIdVal = body?.companyId || body?.company_id || query?.companyId || query?.company_id || headers?.["x-company-id"];
+    const companyNameVal = body?.companyName || query?.companyName;
+
+    if (companyIdVal) {
+        const isOwner = await companyService.checkOwnership(companyIdVal, userId, isSuperAdmin);
+        if (!isOwner) {
+            throw new Error("UNAUTHORIZED_COMPANY");
+        }
+        return companyIdVal;
+    } else if (companyNameVal) {
+        const company = await Company.findOne({ where: { company_name: companyNameVal } });
+        if (!company) {
+            throw new Error("COMPANY_NOT_FOUND");
+        }
+        const isOwner = await companyService.checkOwnership(company.id, userId, isSuperAdmin);
+        if (!isOwner) {
+            throw new Error("UNAUTHORIZED_COMPANY");
+        }
+        return company.id;
+    } else {
+        const company = await companyService.getCompanyByUserId(userId);
+        if (company) {
+            return company.id;
+        }
+        const companies = await companyService.getCompaniesByUser(userId, { isSuperAdmin });
+        if (companies && companies.length > 0) {
+            return companies[0].id;
+        }
+        throw new Error("NO_COMPANY_FOUND");
+    }
+};
+
 /**
  * Create a new TestRequest.
  */
@@ -116,10 +150,13 @@ const getAll = async (req, res) => {
     try {
         const userId = req.user.user_id;
 
-        let company;
+        let companyId;
         try {
-            company = await getUserCompany(userId);
+            companyId = await resolveCompanyId(req.body, req.query, userId, req.headers, req.user);
         } catch (e) {
+            if (e.message === "UNAUTHORIZED_COMPANY") {
+                return res.status(403).json(errorResponse("FORBIDDEN", "Unauthorized access to this company.", "Unauthorized"));
+            }
             return res.status(200).json(successResponse(
                 "TEST_REQUESTS_FETCHED",
                 "Test requests fetched successfully.",
@@ -136,7 +173,7 @@ const getAll = async (req, res) => {
             clientId: req.query.clientId
         };
 
-        const result = await testRequestService.getTestRequestsByCompany(company.id, options);
+        const result = await testRequestService.getTestRequestsByCompany(companyId, options);
 
         let responseData = result;
         if (options.limit && result.rows) {

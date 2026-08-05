@@ -331,7 +331,7 @@ const TestRequestList = () => {
               style={{ padding: '0.5rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', backgroundColor: '#ffffff' }}
             >
               <option value="">ALL CUSTOMERS</option>
-              {clients.map((c) => (
+              {[...clients].sort((a, b) => (a.clientName || '').localeCompare(b.clientName || '')).map((c) => (
                 <option key={c.id} value={c.id}>{c.clientName}</option>
               ))}
             </select>

@@ -28,6 +28,15 @@ const Parameter = sequelize.define("Parameter", {
             key: "id",
         }
     },
+    locationSampleId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        field: "location_sample_id",
+        references: {
+            model: "location_of_samples",
+            key: "id",
+        }
+    },
     parameterName: {
         type: DataTypes.STRING,
         allowNull: false,
