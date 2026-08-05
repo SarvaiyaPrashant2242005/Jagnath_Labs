@@ -34,6 +34,12 @@ const connectDB = async () => {
         const { runMigration: runMigration02 } = require("../database/migrations/02_add_office_and_plant_address_to_clients");
         await runMigration02();
 
+        const { runMigration: runMigration03 } = require("../database/migrations/03_add_unit_and_permissible_limit_to_parameters");
+        await runMigration03();
+
+        const { runMigration: runMigration04 } = require("../database/migrations/04_create_test_reports_table");
+        await runMigration04();
+
         // 4. Seed default data if needed
         const { seedDefaultUser } = require("../database/seeders");
         await seedDefaultUser();

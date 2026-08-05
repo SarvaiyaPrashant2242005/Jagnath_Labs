@@ -17,7 +17,7 @@ const Sidebar = ({ activeTab, onTabChange, onNewRequest, sidebarRef, isOpen = tr
   useEffect(() => {
     if (['companies', 'clients', 'categories', 'sub-categories', 'parameters', 'price-lists', 'cautions', 'location-samples'].includes(activeTab)) {
       setOpenGroup('masters');
-    } else if (['requests', 'new-request'].includes(activeTab)) {
+    } else if (['requests', 'new-request', 'test-reports'].includes(activeTab)) {
       setOpenGroup('workflow');
     } else if (['reports', 'invoices', 'dispatch', 'settings'].includes(activeTab)) {
       setOpenGroup('reports');
@@ -356,6 +356,16 @@ const Sidebar = ({ activeTab, onTabChange, onNewRequest, sidebarRef, isOpen = tr
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <FaClipboardList size={14} />
                     <span>Test Requests</span>
+                  </div>
+                </div>
+                <div
+                  className={`submenu-item ${activeTab === 'test-reports' ? 'active-sub' : ''}`}
+                  onClick={() => handleItemClick('test-reports')}
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <FaFileAlt size={14} />
+                    <span>Test Reports</span>
                   </div>
                 </div>
               </div>

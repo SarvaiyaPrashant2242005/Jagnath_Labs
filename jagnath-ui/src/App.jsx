@@ -15,6 +15,9 @@ import TestRequestForm from './modules/testRequest/pages/TestRequestForm';
 import TestRequestList from './modules/testRequest/pages/TestRequestList';
 import TestRequestPrint from './modules/testRequest/pages/TestRequestPrint';
 import QuotationPrint from './modules/testRequest/pages/QuotationPrint';
+import TestReportList from './modules/testReport/pages/TestReportList';
+import TestReportForm from './modules/testReport/pages/TestReportForm';
+import TestReportPrint from './modules/testReport/pages/TestReportPrint';
 import Profile from './modules/profile/pages/Profile';
 import PriceList from './modules/pricelist/pages/PriceList';
 import CautionMaster from './modules/cautionMaster/pages/CautionMaster';
@@ -137,10 +140,14 @@ function App() {
         <Route path="/test-requests" element={<ProtectedRoute><TestRequestList /></ProtectedRoute>} />
         <Route path="/test-requests/add" element={<ProtectedRoute><TestRequestForm /></ProtectedRoute>} />
         <Route path="/test-requests/edit/:id" element={<ProtectedRoute><TestRequestForm /></ProtectedRoute>} />
+        <Route path="/test-reports" element={<ProtectedRoute><TestReportList /></ProtectedRoute>} />
+        <Route path="/test-reports/add" element={<ProtectedRoute><TestReportForm /></ProtectedRoute>} />
+        <Route path="/test-reports/edit/:id" element={<ProtectedRoute><TestReportForm /></ProtectedRoute>} />
 
         {/* Print Routes without DashboardLayout */}
         <Route path="/test-requests/print/:id" element={<ProtectedPrintRoute><TestRequestPrint /></ProtectedPrintRoute>} />
         <Route path="/test-requests/quotation/:id" element={<ProtectedPrintRoute><QuotationPrint /></ProtectedPrintRoute>} />
+        <Route path="/test-reports/print/:id" element={<ProtectedPrintRoute><TestReportPrint /></ProtectedPrintRoute>} />
         <Route path="/reports" element={<ProtectedRoute><PlaceholderPage title="Reports Directory" /></ProtectedRoute>} />
         <Route path="/invoices" element={<ProtectedRoute><PlaceholderPage title="Invoices Directory" /></ProtectedRoute>} />
         <Route path="/dispatch" element={<ProtectedRoute><PlaceholderPage title="Dispatch Directory" /></ProtectedRoute>} />
