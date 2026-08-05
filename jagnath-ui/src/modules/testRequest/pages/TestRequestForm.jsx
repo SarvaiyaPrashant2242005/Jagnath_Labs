@@ -38,6 +38,19 @@ const TestRequestForm = () => {
   const [paramPage, setParamPage] = useState(1);
   const [paramSearch, setParamSearch] = useState('');
   const [paramPageSize, setParamPageSize] = useState(10);
+  const [clientEmails, setClientEmails] = useState([]);
+  const [showEmailDropdown, setShowEmailDropdown] = useState(false);
+  const emailDropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (emailDropdownRef.current && !emailDropdownRef.current.contains(event.target)) {
+        setShowEmailDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -172,6 +185,10 @@ const TestRequestForm = () => {
       if (isEditing && tr) {
         const matchingComp = cList.find(c => c.id === tr.companyId || (c.companyName || c.company_name) === tr.companyName) || {};
         const matchingClient = clList.find(c => c.id === tr.clientId || c.clientName === tr.clientName) || {};
+        const emailsList = (matchingClient.emails && matchingClient.emails.length > 0)
+          ? matchingClient.emails
+          : (matchingClient.email ? matchingClient.email.split(',').map(e => e.trim()).filter(Boolean) : []);
+        setClientEmails(emailsList);
 
         const savedSubCatId = tr.subCategoryId || tr.sub_category_id || '';
         const savedCategoryId = tr.categoryId || (tr.sampleParticular && tr.sampleParticular.length === 36 ? tr.sampleParticular : '');
@@ -370,40 +387,76 @@ const TestRequestForm = () => {
       }
     }
 
-    if (name === 'clientId' && value) {
-      // Fetch latest client details from backend to resolve emails
-      apiService.get(CLIENT_ENDPOINTS.GET_BY_ID(value))
-        .then(res => {
-          const selectedClient = res.data;
-          if (selectedClient) {
-            const clientPlantAddress = selectedClient.plantAddress || selectedClient.plant_address || selectedClient.officeAddress || selectedClient.office_address || selectedClient.address || '';
-            const primaryEmail = (selectedClient.emails && selectedClient.emails.length > 0)
-              ? selectedClient.emails[0]
-              : (selectedClient.email ? selectedClient.email.split(',')[0].trim() : '');
-            setFormData(prev => ({
-              ...prev,
-              address: clientPlantAddress,
-              email: primaryEmail,
-              contactNumber: selectedClient.contactNumber || prev.contactNumber
-            }));
-          }
-        })
-        .catch(err => {
-          console.error("Error fetching latest client details:", err);
-          const selectedClient = clients.find(c => c.id === value);
-          if (selectedClient) {
-            const clientPlantAddress = selectedClient.plantAddress || selectedClient.plant_address || selectedClient.officeAddress || selectedClient.office_address || selectedClient.address || '';
-            const primaryEmail = (selectedClient.emails && selectedClient.emails.length > 0)
-              ? selectedClient.emails[0]
-              : (selectedClient.email ? selectedClient.email.split(',')[0].trim() : '');
-            setFormData(prev => ({
-              ...prev,
-              address: clientPlantAddress,
-              email: primaryEmail,
-              contactNumber: selectedClient.contactNumber || prev.contactNumber
-            }));
-          }
-        });
+    if (name === 'clientId') {
+      if (!value) {
+        setClientEmails([]);
+        setFormData(prev => ({
+          ...prev,
+          clientId: '',
+          address: '',
+          email: '',
+          contactNumber: ''
+        }));
+      } else {
+        // Fetch latest client details from backend to resolve emails
+        apiService.get(CLIENT_ENDPOINTS.GET_BY_ID(value))
+          .then(res => {
+            const selectedClient = res.data;
+            if (selectedClient) {
+              const clientPlantAddress = selectedClient.plantAddress || selectedClient.plant_address || selectedClient.officeAddress || selectedClient.office_address || selectedClient.address || '';
+              const emailsList = (selectedClient.emails && selectedClient.emails.length > 0)
+                ? selectedClient.emails
+                : (selectedClient.email ? selectedClient.email.split(',').map(e => e.trim()).filter(Boolean) : []);
+              setClientEmails(emailsList);
+              const primaryEmail = emailsList.length > 0 ? emailsList[0] : '';
+              setFormData(prev => ({
+                ...prev,
+                address: clientPlantAddress,
+                email: primaryEmail,
+                contactNumber: selectedClient.contactNumber || prev.contactNumber
+              }));
+            }
+          })
+          .catch(err => {
+            console.error("Error fetching latest client details:", err);
+            const selectedClient = clients.find(c => c.id === value);
+            if (selectedClient) {
+              const clientPlantAddress = selectedClient.plantAddress || selectedClient.plant_address || selectedClient.officeAddress || selectedClient.office_address || selectedClient.address || '';
+              const emailsList = (selectedClient.emails && selectedClient.emails.length > 0)
+                ? selectedClient.emails
+                : (selectedClient.email ? selectedClient.email.split(',').map(e => e.trim()).filter(Boolean) : []);
+              setClientEmails(emailsList);
+              const primaryEmail = emailsList.length > 0 ? emailsList[0] : '';
+              setFormData(prev => ({
+                ...prev,
+                address: clientPlantAddress,
+                email: primaryEmail,
+                contactNumber: selectedClient.contactNumber || prev.contactNumber
+              }));
+            }
+          });
+      }
+    }
+  };
+
+  const handleToggleEmail = (email) => {
+    const currentEmails = formData.email ? formData.email.split(',').map(e => e.trim()).filter(Boolean) : [];
+    let updated;
+    if (currentEmails.includes(email)) {
+      updated = currentEmails.filter(e => e !== email);
+    } else {
+      updated = [...currentEmails, email];
+    }
+    setFormData(prev => ({ ...prev, email: updated.join(', ') }));
+  };
+
+  const handleSelectAllEmails = () => {
+    const currentEmails = formData.email ? formData.email.split(',').map(e => e.trim()).filter(Boolean) : [];
+    const allSelected = clientEmails.every(e => currentEmails.includes(e));
+    if (allSelected) {
+      setFormData(prev => ({ ...prev, email: '' }));
+    } else {
+      setFormData(prev => ({ ...prev, email: clientEmails.join(', ') }));
     }
   };
 
@@ -749,9 +802,90 @@ const TestRequestForm = () => {
                 <textarea name="address" value={formData.address} onChange={handleChange} className="premium-input" rows={2} placeholder="Enter full address..."></textarea>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', position: 'relative' }} ref={emailDropdownRef}>
                 <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Email ID</label>
-                <input type="text" name="email" value={formData.email} onChange={handleChange} className="premium-input" placeholder="e.g. contact@client.com, contact2@client.com" />
+                {clientEmails.length > 1 ? (
+                  <>
+                    <div
+                      onClick={() => setShowEmailDropdown(!showEmailDropdown)}
+                      className="premium-input"
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        cursor: 'pointer',
+                        background: '#ffffff',
+                        minHeight: '42px',
+                        padding: '0.5rem 0.75rem',
+                        boxSizing: 'border-box'
+                      }}
+                    >
+                      <span style={{ fontSize: '0.9rem', color: formData.email ? '#0f172a' : '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {formData.email || 'Select Emails'}
+                      </span>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>▼</span>
+                    </div>
+
+                    {showEmailDropdown && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: '100%',
+                          left: 0,
+                          right: 0,
+                          marginTop: '0.25rem',
+                          background: '#ffffff',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '8px',
+                          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                          zIndex: 50,
+                          padding: '0.5rem',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '0.5rem',
+                          maxHeight: '200px',
+                          overflowY: 'auto'
+                        }}
+                      >
+                        {/* Select All Option */}
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.25rem 0.5rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, borderBottom: '1px solid #f1f5f9', paddingBottom: '0.5rem' }}>
+                          <input
+                            type="checkbox"
+                            checked={clientEmails.every(e => (formData.email ? formData.email.split(',').map(x => x.trim()) : []).includes(e))}
+                            onChange={handleSelectAllEmails}
+                            style={{ accentColor: '#22c55e', cursor: 'pointer' }}
+                          />
+                          Select All ({clientEmails.length})
+                        </label>
+
+                        {/* Individual Email Options */}
+                        {clientEmails.map((email, idx) => {
+                          const isChecked = (formData.email ? formData.email.split(',').map(x => x.trim()) : []).includes(email);
+                          return (
+                            <label key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.25rem 0.5rem', cursor: 'pointer', fontSize: '0.875rem', color: '#334155' }}>
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => handleToggleEmail(email)}
+                                style={{ accentColor: '#22c55e', cursor: 'pointer' }}
+                              />
+                              {email}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <input
+                    type="text"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    className="premium-input"
+                    placeholder="e.g. contact@client.com, contact2@client.com"
+                  />
+                )}
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
