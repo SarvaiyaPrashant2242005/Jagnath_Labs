@@ -354,20 +354,24 @@ const getTransactionById = async (trpId) => {
 /**
  * Get all transactions.
  */
-const getAllTransactions = async (companyId) => {
+const getAllTransactions = async (companyId = null) => {
     try {
+        const trInclude = {
+            model: TestRequest,
+            as: "testRequest",
+            include: [{
+                model: Company,
+                as: "company",
+                attributes: ["company_name"]
+            }]
+        };
+        if (companyId && companyId !== 'ALL') {
+            trInclude.where = { companyId };
+        }
+
         const trps = await TestRequestParameter.findAll({
             include: [
-                {
-                    model: TestRequest,
-                    as: "testRequest",
-                    where: { companyId },
-                    include: [{
-                        model: Company,
-                        as: "company",
-                        attributes: ["company_name"]
-                    }]
-                },
+                trInclude,
                 {
                     model: Parameter,
                     as: "parameter",
@@ -385,21 +389,25 @@ const getAllTransactions = async (companyId) => {
 /**
  * Get parameters by Test Request ID.
  */
-const getParametersByTestRequest = async (testRequestId, companyId) => {
+const getParametersByTestRequest = async (testRequestId, companyId = null) => {
     try {
+        const trInclude = {
+            model: TestRequest,
+            as: "testRequest",
+            include: [{
+                model: Company,
+                as: "company",
+                attributes: ["company_name"]
+            }]
+        };
+        if (companyId && companyId !== 'ALL') {
+            trInclude.where = { companyId };
+        }
+
         const trps = await TestRequestParameter.findAll({
             where: { testRequestId },
             include: [
-                {
-                    model: TestRequest,
-                    as: "testRequest",
-                    where: { companyId },
-                    include: [{
-                        model: Company,
-                        as: "company",
-                        attributes: ["company_name"]
-                    }]
-                },
+                trInclude,
                 {
                     model: Parameter,
                     as: "parameter",
