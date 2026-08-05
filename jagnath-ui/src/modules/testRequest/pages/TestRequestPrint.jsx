@@ -103,19 +103,30 @@ const TestRequestPrint = () => {
         const trpRes = await apiService.get(TEST_REQUEST_PARAMETER_ENDPOINTS.GET_ALL);
         if (trpRes?.data) {
           const trps = Array.isArray(trpRes.data) ? trpRes.data : (trpRes.data?.rows || [trpRes.data]);
-          const matchingTrps = trps.filter(t => t.testRequestId === id);
-          const checks = {};
-          matchingTrps.forEach(t => {
-            if (t.parameterId) checks[t.parameterId] = true;
-          });
-          setCheckedParameters(checks);
+          const matchingTrps = trps.filter(t => t.testRequestId === id || t.test_request_id === id);
 
-          const selectedParamsOnly = allCategoryParams.filter(p => checks[p.id]);
-          setParameters(selectedParamsOnly.length > 0 ? selectedParamsOnly : allCategoryParams);
+          const checks = {};
+          const selectedList = [];
+
+          matchingTrps.forEach(t => {
+            const pId = t.parameterId || t.parameter_id || t.id;
+            if (pId) checks[pId] = true;
+
+            const catParam = allCategoryParams.find(p => p.id === pId || p.parameterId === pId || p.parameter_id === pId);
+            selectedList.push({
+              id: pId,
+              parameterName: t.parameterName || t.parameter?.parameterName || (catParam ? (catParam.parameterName || catParam.name) : 'Parameter'),
+              testMethod: t.testMethod || t.test_method || (catParam ? (catParam.testMethod || catParam.defaultTestMethod) : '')
+            });
+          });
+
+          setCheckedParameters(checks);
+          setParameters(selectedList.length > 0 ? selectedList : allCategoryParams);
         } else {
           setParameters(allCategoryParams);
         }
       } catch (e) {
+        console.error("Error fetching test request parameters for print:", e);
         setParameters(allCategoryParams);
       }
 
@@ -363,12 +374,14 @@ const TestRequestPrint = () => {
           <tbody>
             {Array.from({ length: Math.max(20, parameters.length) }).map((_, i) => {
               const param = parameters[i];
+              const pName = param ? (param.parameterName || param.name || param.parameter?.parameterName || '') : '';
+              const pMethod = param ? (param.testMethod || param.defaultTestMethod || param.test_method || '') : '';
               return (
                 <tr key={i}>
                   <td style={{ textAlign: 'center' }}>{i + 1}.</td>
-                  <td style={{ textAlign: 'left', paddingLeft: '8px' }}>{param ? (param.parameterName || param.name) : ''}</td>
-                  <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{param ? '√' : ''}</td>
-                  <td style={{ textAlign: 'center' }}>{param ? (param.testMethod || param.defaultTestMethod || '') : ''}</td>
+                  <td style={{ textAlign: 'left', paddingLeft: '8px' }}>{pName}</td>
+                  <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{param && pName ? '√' : ''}</td>
+                  <td style={{ textAlign: 'center' }}>{pMethod}</td>
                 </tr>
               );
             })}

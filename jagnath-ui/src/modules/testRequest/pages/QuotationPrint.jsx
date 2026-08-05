@@ -113,14 +113,18 @@ const QuotationPrint = () => {
         const trpRes = await apiService.get(TEST_REQUEST_PARAMETER_ENDPOINTS.GET_ALL);
         if (trpRes?.data) {
           const trps = Array.isArray(trpRes.data) ? trpRes.data : (trpRes.data?.rows || [trpRes.data]);
-          const matchingTrps = trps.filter(t => t.testRequestId === id);
+          const matchingTrps = trps.filter(t => t.testRequestId === id || t.test_request_id === id);
 
           const selectedList = [];
           matchingTrps.forEach(trp => {
-            const paramObj = allCategoryParams.find(p => p.id === trp.parameterId) || { id: trp.parameterId, parameterName: trp.parameterName || 'Parameter' };
-            const pPrice = trp.price !== undefined && trp.price !== null ? parseFloat(trp.price) : (pMap[trp.parameterId] || 0);
+            const pId = trp.parameterId || trp.parameter_id || trp.id;
+            const catParam = allCategoryParams.find(p => p.id === pId || p.parameterId === pId || p.parameter_id === pId);
+            const pPrice = trp.price !== undefined && trp.price !== null ? parseFloat(trp.price) : (catParam?.price || 0);
             selectedList.push({
-              ...paramObj,
+              ...(catParam || {}),
+              id: pId,
+              parameterName: trp.parameterName || trp.parameter?.parameterName || catParam?.parameterName || catParam?.name || 'Parameter',
+              testMethod: trp.testMethod || trp.test_method || catParam?.testMethod || catParam?.defaultTestMethod || '',
               price: pPrice
             });
           });
