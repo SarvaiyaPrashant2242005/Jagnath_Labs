@@ -30,6 +30,16 @@ const LocationSample = sequelize.define("LocationSample", {
         defaultValue: "Active",
         allowNull: false,
     },
+    inlet: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+        allowNull: false,
+    },
+    outlet: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+        allowNull: false,
+    },
     createdBy: {
         type: DataTypes.UUID,
         allowNull: true,

@@ -76,6 +76,8 @@ const create = async (req, res) => {
         const locData = {
             name: value.name,
             status: value.status || "Active",
+            inlet: value.inlet !== undefined ? value.inlet : false,
+            outlet: value.outlet !== undefined ? value.outlet : false,
             companyId
         };
 

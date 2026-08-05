@@ -45,7 +45,9 @@ const LocationSampleMaster = () => {
   const [formData, setFormData] = useState({
     name: '',
     status: 'Active',
-    companyName: ''
+    companyName: '',
+    inlet: false,
+    outlet: false
   });
   const [formErrors, setFormErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -146,7 +148,9 @@ const LocationSampleMaster = () => {
     setFormData({
       name: '',
       status: 'Active',
-      companyName: ''
+      companyName: '',
+      inlet: false,
+      outlet: false
     });
     setFormErrors({});
     setEditingId(null);
@@ -155,10 +159,10 @@ const LocationSampleMaster = () => {
 
   // Handle manual input change
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: type === 'checkbox' ? checked : value
     }));
     if (formErrors[name]) {
       setFormErrors(prev => ({ ...prev, [name]: '' }));
@@ -188,6 +192,8 @@ const LocationSampleMaster = () => {
       const payload = {
         name: formData.name.trim(),
         status: formData.status,
+        inlet: formData.inlet,
+        outlet: formData.outlet,
         companyId: activeCompId
       };
 
@@ -213,7 +219,9 @@ const LocationSampleMaster = () => {
     setFormData({
       name: loc.name,
       status: loc.status || 'Active',
-      companyName: loc.companyName || ''
+      companyName: loc.companyName || '',
+      inlet: !!loc.inlet,
+      outlet: !!loc.outlet
     });
     setFormErrors({});
     setIsFormOpen(true);
@@ -246,6 +254,8 @@ const LocationSampleMaster = () => {
       'Sr No': idx + 1,
       'Location of Sample': loc.name,
       'Company': loc.companyName || 'N/A',
+      'Inlet': loc.inlet ? 'Yes' : 'No',
+      'Outlet': loc.outlet ? 'Yes' : 'No',
       'Status': loc.status
     }));
 
@@ -266,7 +276,7 @@ const LocationSampleMaster = () => {
       {/* Title Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{ background: '#eff6ff', color: '#3b82f6', padding: '0.75rem', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#dcfce7', color: '#16a34a', padding: '0.75rem', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <FaMapMarkerAlt size={20} />
           </div>
           <div>
@@ -297,7 +307,7 @@ const LocationSampleMaster = () => {
 
           <button
             onClick={() => setIsFormOpen(!isFormOpen)}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.625rem 1rem', background: '#3b82f6', border: 'none', borderRadius: '8px', color: '#ffffff', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', transition: 'background-color 0.15s' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.625rem 1rem', background: '#22c55e', border: 'none', borderRadius: '8px', color: '#ffffff', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', transition: 'background-color 0.15s' }}
           >
             <FaPlus /> {isFormOpen ? 'Close Panel' : 'Add Location'}
           </button>
@@ -339,6 +349,30 @@ const LocationSampleMaster = () => {
                 <option value="Inactive">Inactive</option>
               </select>
             </div>
+
+            {/* Inlet / Outlet Options */}
+            <div style={{ display: 'flex', gap: '2rem', alignItems: 'center', marginTop: '0.5rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600, color: '#475569' }}>
+                <input
+                  type="checkbox"
+                  name="inlet"
+                  checked={formData.inlet}
+                  onChange={handleInputChange}
+                  style={{ width: '1.1rem', height: '1.1rem', cursor: 'pointer', accentColor: '#22c55e' }}
+                />
+                Inlet Location
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600, color: '#475569' }}>
+                <input
+                  type="checkbox"
+                  name="outlet"
+                  checked={formData.outlet}
+                  onChange={handleInputChange}
+                  style={{ width: '1.1rem', height: '1.1rem', cursor: 'pointer', accentColor: '#22c55e' }}
+                />
+                Outlet Location
+              </label>
+            </div>
           </div>
 
           {/* Form Actions */}
@@ -353,7 +387,7 @@ const LocationSampleMaster = () => {
             <button
               type="submit"
               disabled={submitting}
-              style={{ padding: '0.5rem 1.25rem', background: '#3b82f6', border: 'none', borderRadius: '6px', color: '#ffffff', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+              style={{ padding: '0.5rem 1.25rem', background: '#22c55e', border: 'none', borderRadius: '6px', color: '#ffffff', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
             >
               {submitting ? 'Saving...' : (editingId ? 'Update Location' : 'Save Location')}
             </button>
@@ -377,7 +411,7 @@ const LocationSampleMaster = () => {
             />
             <button
               type="submit"
-              style={{ padding: '0.5rem 1rem', background: '#3b82f6', border: 'none', borderRadius: '8px', color: '#ffffff', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}
+              style={{ padding: '0.5rem 1rem', background: '#22c55e', border: 'none', borderRadius: '8px', color: '#ffffff', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}
             >
               Search
             </button>
@@ -405,17 +439,19 @@ const LocationSampleMaster = () => {
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600, width: '80px' }}>SR. NO.</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>LOCATION TITLE</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>COMPANY</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600, width: '100px' }}>INLET</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600, width: '100px' }}>OUTLET</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600, width: '120px' }}>STATUS</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>Loading locations of sample...</td>
+                  <td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>Loading locations of sample...</td>
                 </tr>
               ) : locations.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>No locations of sample found.</td>
+                  <td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>No locations of sample found.</td>
                 </tr>
               ) : (
                 locations.map((loc, index) => (
@@ -439,6 +475,20 @@ const LocationSampleMaster = () => {
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{loc.name}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{loc.companyName || 'Unassigned'}</td>
+                    <td style={{ padding: '0.75rem 1rem' }}>
+                      {loc.inlet ? (
+                        <span style={{ display: 'inline-block', padding: '0.125rem 0.5rem', fontSize: '0.75rem', fontWeight: 600, borderRadius: '12px', backgroundColor: '#dcfce7', color: '#15803d' }}>Yes</span>
+                      ) : (
+                        <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>No</span>
+                      )}
+                    </td>
+                    <td style={{ padding: '0.75rem 1rem' }}>
+                      {loc.outlet ? (
+                        <span style={{ display: 'inline-block', padding: '0.125rem 0.5rem', fontSize: '0.75rem', fontWeight: 600, borderRadius: '12px', backgroundColor: '#dcfce7', color: '#15803d' }}>Yes</span>
+                      ) : (
+                        <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>No</span>
+                      )}
+                    </td>
                     <td style={{ padding: '0.75rem 1rem' }}>
                       <span style={{
                         display: 'inline-block',

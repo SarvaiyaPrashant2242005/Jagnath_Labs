@@ -17,7 +17,9 @@ const deleteLogPath = path.join(__dirname, "../../../../logs/LocationSample/Dele
 
 const fieldLabels = {
     name: "Location Name",
-    status: "Status"
+    status: "Status",
+    inlet: "Inlet",
+    outlet: "Outlet"
 };
 
 const getLoggableValues = (instance) => {
