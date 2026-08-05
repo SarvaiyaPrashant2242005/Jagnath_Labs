@@ -188,10 +188,88 @@ const remove = async (req, res) => {
     }
 };
 
+const sendEmail = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { to, subject, body, pdfBase64, fileName } = req.body || {};
+        const userId = req.user.user_id;
+        const companyId = await resolveCompanyId(req.body || {}, req.query, userId, req.headers, req.user);
+
+        const report = await testReportService.getTestReportById(id, companyId);
+        if (!report) {
+            return res.status(404).json(errorResponse("NOT_FOUND", "Test report not found."));
+        }
+
+        const emailService = require("../../../shared/services/email.service");
+        const emailTemplateService = require("../../Utils/EmailTemplates/emailTemplate.service");
+
+        // Resolve target email address
+        const targetEmail = to || report.email || report.reportIssuedToEmail || (report.testRequest && report.testRequest.email) || "";
+        if (!targetEmail) {
+            return res.status(400).json(errorResponse("VALIDATION_ERROR", "No recipient email address provided or configured for this client."));
+        }
+
+        let finalSubject = subject;
+        let finalBody = body;
+
+        if (!finalSubject || !finalBody) {
+            const templates = await emailTemplateService.getAllEmailTemplates({ templateType: "TEST_REPORT" }, companyId);
+            const template = templates[0] || {};
+
+            const placeholderData = {
+                clientName: report.reportIssuedTo || report.agencyName || "Valued Client",
+                contactPerson: report.reportIssuedTo || report.agencyName || "Valued Client",
+                reportNumber: report.reportNumber || report.id.slice(0, 8),
+                detailsOfSample: report.detailsOfSample || report.nameOfWork || "Tested Sample",
+                date: report.dateOfReceipt || report.reportDate || new Date().toISOString().split("T")[0],
+                companyName: report.companyName || "Jagnath Labs"
+            };
+
+            const compileText = (str = "") => {
+                let resText = str;
+                Object.keys(placeholderData).forEach(k => {
+                    const regex = new RegExp(`\\{${k}\\}`, "gi");
+                    resText = resText.replace(regex, placeholderData[k] || "");
+                });
+                return resText;
+            };
+
+            if (!finalSubject) finalSubject = compileText(template.subject || "Final Test Analysis Report - {reportNumber}");
+            if (!finalBody) finalBody = compileText(template.body || "<p>Dear {clientName}, please find your Test Report attached.</p>");
+        }
+
+        const attachments = [];
+        if (pdfBase64) {
+            const cleanBase64 = pdfBase64.replace(/^data:application\/pdf;base64,/, "");
+            attachments.push({
+                filename: fileName || `Test_Report_${report.reportNumber || report.id.slice(0, 8)}.pdf`,
+                content: Buffer.from(cleanBase64, "base64"),
+                contentType: "application/pdf"
+            });
+        }
+
+        const emailResult = await emailService.sendDocumentEmail({
+            to: targetEmail,
+            subject: finalSubject,
+            html: finalBody,
+            attachments
+        });
+
+        return res.status(200).json(successResponse(
+            "EMAIL_SENT",
+            emailResult.message || `Email sent successfully to ${targetEmail}.`,
+            emailResult
+        ));
+    } catch (err) {
+        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Failed to send email."));
+    }
+};
+
 module.exports = {
     create,
     update,
     getAll,
     getById,
-    remove
+    remove,
+    sendEmail
 };

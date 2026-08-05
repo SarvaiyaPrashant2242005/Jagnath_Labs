@@ -22,6 +22,7 @@ import Profile from './modules/profile/pages/Profile';
 import PriceList from './modules/pricelist/pages/PriceList';
 import CautionMaster from './modules/cautionMaster/pages/CautionMaster';
 import LocationSampleMaster from './modules/locationSampleMaster/pages/LocationSampleMaster';
+import EmailTemplateMaster from './modules/utils/pages/EmailTemplateMaster';
 import { getStoredUser } from './modules/auth/services/authService';
 import './assets/styles/index.css';
 
@@ -137,6 +138,8 @@ function App() {
         <Route path="/price-lists" element={<ProtectedRoute><PriceList /></ProtectedRoute>} />
         <Route path="/price-master" element={<ProtectedRoute><PriceList /></ProtectedRoute>} />
         <Route path="/cautions" element={<ProtectedRoute><CautionMaster /></ProtectedRoute>} />
+        <Route path="/utils/templates" element={<ProtectedRoute><EmailTemplateMaster /></ProtectedRoute>} />
+        <Route path="/templates" element={<ProtectedRoute><EmailTemplateMaster /></ProtectedRoute>} />
         <Route path="/test-requests" element={<ProtectedRoute><TestRequestList /></ProtectedRoute>} />
         <Route path="/test-requests/add" element={<ProtectedRoute><TestRequestForm /></ProtectedRoute>} />
         <Route path="/test-requests/edit/:id" element={<ProtectedRoute><TestRequestForm /></ProtectedRoute>} />

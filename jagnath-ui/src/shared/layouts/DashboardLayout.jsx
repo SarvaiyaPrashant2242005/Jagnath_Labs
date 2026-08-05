@@ -25,11 +25,12 @@ const DashboardLayout = ({ children }) => {
     if (path === 'company') return 'companies';
     if (path.startsWith('test-requests')) return 'requests';
     if (path.startsWith('test-reports')) return 'test-reports';
+    if (path === 'utils/templates' || path === 'templates') return 'utils-templates';
     return path;
   };
 
   const activeTab = getActiveTabFromPath(location.pathname);
-  
+
   // Responsive sidebar open state: closed by default on mobile/tablets
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => window.innerWidth > 991);
   
@@ -123,6 +124,7 @@ const DashboardLayout = ({ children }) => {
     if (tabKey === 'users') route = '/users';
     if (tabKey === 'requests') route = '/test-requests';
     if (tabKey === 'test-reports') route = '/test-reports';
+    if (tabKey === 'utils-templates' || tabKey === 'templates') route = '/utils/templates';
     
     navigate(route);
   };

@@ -390,10 +390,90 @@ const remove = async (req, res) => {
     }
 };
 
+/**
+ * Send TestRequest email to client with template & PDF attachment.
+ */
+const sendEmail = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { to, subject, body, pdfBase64, fileName } = req.body || {};
+
+        const tr = await testRequestService.getTestRequestById(id, null);
+        if (!tr) {
+            return res.status(404).json(errorResponse("NOT_FOUND", "Test Request not found."));
+        }
+
+        const emailService = require("../../../shared/services/email.service");
+        const emailTemplateService = require("../../Utils/EmailTemplates/emailTemplate.service");
+
+        // Resolve recipient email address
+        const targetEmail = to || tr.email || (tr.client && tr.client.email) || "";
+        if (!targetEmail) {
+            return res.status(400).json(errorResponse("VALIDATION_ERROR", "No recipient email address provided or configured for this client."));
+        }
+
+        let finalSubject = subject;
+        let finalBody = body;
+
+        // If subject or body is not customized in request, load and compile template
+        if (!finalSubject || !finalBody) {
+            const templates = await emailTemplateService.getAllEmailTemplates({ templateType: "TEST_REQUEST" }, tr.companyId);
+            const template = templates[0] || {};
+
+            const placeholderData = {
+                clientName: tr.clientName || tr.contactPerson || "Valued Client",
+                contactPerson: tr.contactPerson || tr.clientName || "Valued Client",
+                reportNumber: tr.reportNumber || tr.sampleIdNumber || tr.id.slice(0, 8),
+                detailsOfSample: tr.sampleParticular || tr.formTitle || "Testing Sample",
+                date: tr.dateOfReceipt || tr.dateOfCollection || new Date().toISOString().split("T")[0],
+                companyName: tr.companyName || "Jagnath Labs"
+            };
+
+            const compileText = (str = "") => {
+                let resText = str;
+                Object.keys(placeholderData).forEach(k => {
+                    const regex = new RegExp(`\\{${k}\\}`, "gi");
+                    resText = resText.replace(regex, placeholderData[k] || "");
+                });
+                return resText;
+            };
+
+            if (!finalSubject) finalSubject = compileText(template.subject || "Test Request Acknowledgement - {reportNumber}");
+            if (!finalBody) finalBody = compileText(template.body || "<p>Dear {clientName}, please find your Test Request Form attached.</p>");
+        }
+
+        const attachments = [];
+        if (pdfBase64) {
+            const cleanBase64 = pdfBase64.replace(/^data:application\/pdf;base64,/, "");
+            attachments.push({
+                filename: fileName || `Test_Request_${tr.reportNumber || tr.id.slice(0, 8)}.pdf`,
+                content: Buffer.from(cleanBase64, "base64"),
+                contentType: "application/pdf"
+            });
+        }
+
+        const emailResult = await emailService.sendDocumentEmail({
+            to: targetEmail,
+            subject: finalSubject,
+            html: finalBody,
+            attachments
+        });
+
+        return res.status(200).json(successResponse(
+            "EMAIL_SENT",
+            emailResult.message || `Email sent successfully to ${targetEmail}.`,
+            emailResult
+        ));
+    } catch (err) {
+        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Failed to send email."));
+    }
+};
+
 module.exports = {
     create,
     getAll,
     getById,
     update,
-    remove
+    remove,
+    sendEmail
 };

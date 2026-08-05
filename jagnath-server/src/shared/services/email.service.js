@@ -117,7 +117,48 @@ const sendOtpEmail = async ({ to, name, otp }) => {
     }
 };
 
+/**
+ * Send Document Email (TRF / Test Report) with PDF Attachment.
+ */
+const sendDocumentEmail = async ({ to, subject, html, attachments = [] }) => {
+    if (!to) {
+        throw new Error("Recipient email address (to) is required.");
+    }
+
+    if (!process.env.SMTP_USER || process.env.SMTP_USER.includes('your_email')) {
+        console.log(`[SMTP Notice] Skipped sending document email to ${to} (SMTP credentials not configured in .env). Subject: ${subject}`);
+        return {
+            success: true,
+            simulated: true,
+            message: `SMTP not configured in server environment. Simulated email dispatch to ${to}.`
+        };
+    }
+
+    try {
+        const transporter = createTransporter();
+        const mailOptions = {
+            from: process.env.SMTP_FROM || `"Jagnath Labs" <${process.env.SMTP_USER}>`,
+            to: to,
+            subject: subject || 'Document from Jagnath Labs',
+            html: html || '<p>Please find attached document from Jagnath Labs.</p>',
+            attachments: attachments
+        };
+
+        const info = await transporter.sendMail(mailOptions);
+        console.log(`[SMTP Success] Document email sent to ${to} (MessageId: ${info.messageId})`);
+        return {
+            success: true,
+            messageId: info.messageId,
+            message: `Email sent successfully to ${to}.`
+        };
+    } catch (error) {
+        console.error('[SMTP Error] Failed to send document email:', error.message);
+        throw new Error(`Failed to send email: ${error.message}`);
+    }
+};
+
 module.exports = {
     sendWelcomeEmail,
-    sendOtpEmail
+    sendOtpEmail,
+    sendDocumentEmail
 };

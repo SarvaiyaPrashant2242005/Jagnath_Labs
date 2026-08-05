@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import {
   FaFileAlt, FaPlus, FaDownload, FaSearch, FaPrint,
   FaEdit, FaTrash, FaCheck, FaExclamationCircle,
-  FaChevronLeft, FaChevronRight, FaFilePdf, FaFileCsv, FaFileExcel, FaCopy
+  FaChevronLeft, FaChevronRight, FaFilePdf, FaFileCsv, FaFileExcel, FaCopy,
+  FaPaperPlane, FaTimes, FaEnvelope
 } from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
-import { CLIENT_ENDPOINTS, TEST_REPORT_ENDPOINTS } from '../../../shared/services/apiEndpoints';
+import { CLIENT_ENDPOINTS, TEST_REPORT_ENDPOINTS, EMAIL_TEMPLATE_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 
 /**
  * @component TestReportList
@@ -21,6 +22,16 @@ const TestReportList = () => {
 
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  // Send Mail Modal State
+  const [mailModal, setMailModal] = useState({
+    isOpen: false,
+    item: null,
+    to: '',
+    subject: '',
+    body: '',
+    sending: false
+  });
 
   // Filter & Search states
   const [searchQuery, setSearchQuery] = useState('');
@@ -57,6 +68,71 @@ const TestReportList = () => {
       }
     }
     return dateStr;
+  };
+
+  const handleOpenMailModal = async (reportItem) => {
+    try {
+      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
+      const recipientEmail = reportItem.email || reportItem.reportIssuedToEmail || (reportItem.testRequest && reportItem.testRequest.email) || '';
+
+      let defaultSubject = `Final Test Analysis Report - ${reportItem.reportNumber || reportItem.id.slice(0, 8)}`;
+      let defaultBody = `<p>Dear <strong>${reportItem.reportIssuedTo || reportItem.agencyName || 'Valued Client'}</strong>,</p><p>We are pleased to inform you that testing for sample <strong>${reportItem.detailsOfSample || reportItem.nameOfWork || 'Tested Sample'}</strong> has been completed successfully by <strong>Jagnath Labs</strong>.</p><p>Please find attached the official Test Analysis Report PDF.</p>`;
+
+      try {
+        const tplRes = await apiService.get(`${EMAIL_TEMPLATE_ENDPOINTS.GET_ALL}?companyId=${activeCompId}&templateType=TEST_REPORT`);
+        if (tplRes?.data) {
+          const list = Array.isArray(tplRes.data) ? tplRes.data : (tplRes.data.rows || [tplRes.data]);
+          const tpl = list.find(t => t.templateType === 'TEST_REPORT') || list[0];
+          if (tpl) {
+            const compile = (str = '') => str
+              .replace(/\{clientName\}/gi, reportItem.reportIssuedTo || reportItem.agencyName || 'Valued Client')
+              .replace(/\{contactPerson\}/gi, reportItem.reportIssuedTo || reportItem.agencyName || 'Valued Client')
+              .replace(/\{reportNumber\}/gi, reportItem.reportNumber || reportItem.id.slice(0, 8))
+              .replace(/\{detailsOfSample\}/gi, reportItem.detailsOfSample || reportItem.nameOfWork || 'Tested Sample')
+              .replace(/\{date\}/gi, reportItem.dateOfReceipt || reportItem.reportDate || '')
+              .replace(/\{companyName\}/gi, 'Jagnath Labs');
+
+            if (tpl.subject) defaultSubject = compile(tpl.subject);
+            if (tpl.body) defaultBody = compile(tpl.body);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load email template', err);
+      }
+
+      setMailModal({
+        isOpen: true,
+        item: reportItem,
+        to: recipientEmail,
+        subject: defaultSubject,
+        body: defaultBody,
+        sending: false
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleSendMail = async (e) => {
+    e.preventDefault();
+    if (!mailModal.to.trim()) {
+      triggerToast('Recipient email is required.', 'error');
+      return;
+    }
+    setMailModal(prev => ({ ...prev, sending: true }));
+    try {
+      await apiService.post(TEST_REPORT_ENDPOINTS.SEND_EMAIL(mailModal.item.id), {
+        to: mailModal.to,
+        subject: mailModal.subject,
+        body: mailModal.body
+      });
+      triggerToast(`Email sent successfully to ${mailModal.to}!`, 'success');
+      setMailModal({ isOpen: false, item: null, to: '', subject: '', body: '', sending: false });
+    } catch (err) {
+      console.error('Send email error:', err);
+      triggerToast(err.response?.data?.message || 'Failed to send email.', 'error');
+      setMailModal(prev => ({ ...prev, sending: false }));
+    }
   };
 
   // Fetch Test Reports list from Backend API
@@ -328,6 +404,13 @@ const TestReportList = () => {
                         <FaPrint size={12} />
                       </button>
                       <button 
+                        onClick={(e) => { e.stopPropagation(); handleOpenMailModal(req); }}
+                        style={{ background: '#8b5cf6', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
+                        title="Send Mail to Client"
+                      >
+                        <FaPaperPlane size={12} />
+                      </button>
+                      <button 
                         onClick={(e) => { e.stopPropagation(); navigate(`/test-reports/edit/${req.id}`); }}
                         style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                         title="Edit"
@@ -432,6 +515,152 @@ const TestReportList = () => {
                 Delete
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Send Email Modal */}
+      {mailModal.isOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.6)',
+          backdropFilter: 'blur(4px)',
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '1rem'
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '20px',
+            width: '100%',
+            maxWidth: '650px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+            border: '1px solid #e2e8f0'
+          }}>
+            <div style={{
+              padding: '1.25rem 1.5rem',
+              borderBottom: '1px solid #e2e8f0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              background: 'linear-gradient(to right, #f8fafc, #ffffff)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                <FaPaperPlane size={18} style={{ color: '#8b5cf6' }} />
+                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700, color: '#0f172a' }}>
+                  Send Test Report Email
+                </h3>
+              </div>
+              <button
+                onClick={() => setMailModal({ isOpen: false, item: null, to: '', subject: '', body: '', sending: false })}
+                style={{ border: 'none', background: 'transparent', color: '#64748b', cursor: 'pointer', fontSize: '1.1rem' }}
+              >
+                <FaTimes />
+              </button>
+            </div>
+
+            <form onSubmit={handleSendMail} style={{ padding: '1.5rem' }}>
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#334155', marginBottom: '0.4rem' }}>
+                  Recipient Client Email <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={mailModal.to}
+                  onChange={(e) => setMailModal(prev => ({ ...prev, to: e.target.value }))}
+                  placeholder="client@example.com"
+                  style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none' }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#334155', marginBottom: '0.4rem' }}>
+                  Email Subject <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={mailModal.subject}
+                  onChange={(e) => setMailModal(prev => ({ ...prev, subject: e.target.value }))}
+                  style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none' }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#334155', marginBottom: '0.4rem' }}>
+                  Email Body (HTML)
+                </label>
+                <textarea
+                  rows={6}
+                  value={mailModal.body}
+                  onChange={(e) => setMailModal(prev => ({ ...prev, body: e.target.value }))}
+                  style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.875rem', fontFamily: 'monospace', outline: 'none' }}
+                ></textarea>
+              </div>
+
+              {/* Attachment Preview Badge */}
+              <div style={{
+                background: '#f8fafc',
+                padding: '0.85rem 1rem',
+                borderRadius: '10px',
+                border: '1px solid #e2e8f0',
+                marginBottom: '1.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem'
+              }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#fee2e2', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <FaFilePdf size={18} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#1e293b' }}>
+                    Attached: Test_Report_{mailModal.item?.reportNumber || mailModal.item?.id?.slice(0, 8)}.pdf
+                  </div>
+                  <div style={{ fontSize: '0.775rem', color: '#64748b' }}>
+                    Official Test Analysis Report PDF automatically generated and attached
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', borderTop: '1px solid #e2e8f0', paddingTop: '1.25rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setMailModal({ isOpen: false, item: null, to: '', subject: '', body: '', sending: false })}
+                  style={{ background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '8px', padding: '0.6rem 1.25rem', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={mailModal.sending}
+                  style={{
+                    background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '0.6rem 1.5rem',
+                    fontWeight: 600,
+                    fontSize: '0.875rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    opacity: mailModal.sending ? 0.7 : 1
+                  }}
+                >
+                  <FaPaperPlane size={13} /> {mailModal.sending ? 'Sending Email...' : 'Send Email Now'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

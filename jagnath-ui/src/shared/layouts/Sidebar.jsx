@@ -3,7 +3,7 @@ import {
   FaChartPie, FaBuilding, FaUserFriends, FaTags, FaSlidersH,
   FaClipboardList, FaFileAlt, FaFileInvoiceDollar,
   FaTruck, FaCog, FaChevronRight, FaFolder, FaTimes, FaUserShield, FaShieldAlt,
-  FaMapMarkerAlt
+  FaMapMarkerAlt, FaTools, FaEnvelopeOpenText
 } from 'react-icons/fa';
 
 /**
@@ -19,6 +19,8 @@ const Sidebar = ({ activeTab, onTabChange, onNewRequest, sidebarRef, isOpen = tr
       setOpenGroup('masters');
     } else if (['requests', 'new-request', 'test-reports'].includes(activeTab)) {
       setOpenGroup('workflow');
+    } else if (['utils-templates', 'templates'].includes(activeTab)) {
+      setOpenGroup('utils');
     } else if (['reports', 'invoices', 'dispatch', 'settings'].includes(activeTab)) {
       setOpenGroup('reports');
     }
@@ -371,7 +373,34 @@ const Sidebar = ({ activeTab, onTabChange, onNewRequest, sidebarRef, isOpen = tr
               </div>
             </div>
 
-            {/* 4. Reports Dropdown */}
+            {/* 4. Utils Dropdown */}
+            <div className="menu-group">
+              <div
+                className={`menu-group-header ${openGroup === 'utils' ? 'expanded-header' : ''}`}
+                onClick={() => handleGroupToggle('utils')}
+              >
+                <div className="menu-item-left" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <FaTools className="menu-icon" />
+                  <span>Utils</span>
+                </div>
+                <FaChevronRight size={11} className="chevron-icon" />
+              </div>
+
+              <div className={`submenu-container ${openGroup === 'utils' ? 'open' : ''}`}>
+                <div
+                  className={`submenu-item ${activeTab === 'utils-templates' || activeTab === 'templates' ? 'active-sub' : ''}`}
+                  onClick={() => handleItemClick('utils-templates')}
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <FaEnvelopeOpenText size={14} />
+                    <span>Templates</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 5. Reports Dropdown */}
             <div className="menu-group">
               <div className={`submenu-container ${openGroup === 'reports' ? 'open' : ''}`}>
                 {[

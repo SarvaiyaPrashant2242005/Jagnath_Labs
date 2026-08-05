@@ -107,6 +107,7 @@ export const TEST_REQUEST_ENDPOINTS = {
   GET_BY_ID: (id) => `${API_BASE_URL}/test-request/${id}`,
   UPDATE: (id) => `${API_BASE_URL}/test-request/${id}`,
   DELETE: (id) => `${API_BASE_URL}/test-request/${id}`,
+  SEND_EMAIL: (id) => `${API_BASE_URL}/test-request/${id}/send-email`,
 };
 
 // ─── Test Report Endpoints ──────────────────────────────────────────────────────
@@ -116,6 +117,16 @@ export const TEST_REPORT_ENDPOINTS = {
   GET_BY_ID: (id) => `${API_BASE_URL}/test-report/${id}`,
   UPDATE: (id) => `${API_BASE_URL}/test-report/${id}`,
   DELETE: (id) => `${API_BASE_URL}/test-report/${id}`,
+  SEND_EMAIL: (id) => `${API_BASE_URL}/test-report/${id}/send-email`,
+};
+
+// ─── Email Template Endpoints ────────────────────────────────────────────────────
+export const EMAIL_TEMPLATE_ENDPOINTS = {
+  CREATE: `${API_BASE_URL}/email-template`,
+  GET_ALL: `${API_BASE_URL}/email-template`,
+  GET_BY_ID: (id) => `${API_BASE_URL}/email-template/${id}`,
+  UPDATE: (id) => `${API_BASE_URL}/email-template/${id}`,
+  DELETE: (id) => `${API_BASE_URL}/email-template/${id}`,
 };
 
 // ─── Test Request Parameter (Transaction) Endpoints ─────────────────────────────

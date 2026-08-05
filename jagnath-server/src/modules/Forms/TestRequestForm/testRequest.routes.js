@@ -13,6 +13,7 @@ router.use(authenticateToken);
 router.post("/", testRequestController.create);
 router.get("/", testRequestController.getAll);
 router.get("/:id", testRequestController.getById);
+router.post("/:id/send-email", testRequestController.sendEmail);
 router.put("/:id", testRequestController.update);
 router.delete("/:id", testRequestController.remove);
 
