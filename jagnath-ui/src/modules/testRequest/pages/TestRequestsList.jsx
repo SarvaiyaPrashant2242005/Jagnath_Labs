@@ -1,12 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { 
-  FaSearch, FaFilter, FaCalendarAlt, FaPlus, 
-  FaChevronLeft, FaChevronRight, FaTrash 
+import {
+  FaSearch, FaFilter, FaCalendarAlt, FaPlus,
+  FaChevronLeft, FaChevronRight, FaTrash
 } from 'react-icons/fa';
 import testRequestService from '../../../shared/services/testRequestService';
 
-const TestRequestsList = ({ 
-  triggerNotification, 
+const TestRequestsList = ({
+  triggerNotification,
   requests,
   setRequests,
   onAddNewRequestClick
@@ -15,12 +15,12 @@ const TestRequestsList = ({
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  
+
   // Filter settings states
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
-  
+
   // Pagination page state
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -35,17 +35,17 @@ const TestRequestsList = ({
   const filteredRequests = requests.filter(row => {
     // 1. Search Query filter (TR ID, client, company)
     const q = searchQuery.toLowerCase().trim();
-    const matchQuery = q === '' || 
-      row.id.toLowerCase().includes(q) || 
-      (row.client && row.client.toLowerCase().includes(q)) || 
+    const matchQuery = q === '' ||
+      row.id.toLowerCase().includes(q) ||
+      (row.client && row.client.toLowerCase().includes(q)) ||
       (row.company && row.company.toLowerCase().includes(q));
-      
+
     // 2. Category filter
     const matchCategory = categoryFilter === 'All' || row.category === categoryFilter;
-    
+
     // 3. Status filter
     const matchStatus = statusFilter === 'All' || row.status === statusFilter;
-    
+
     return matchQuery && matchCategory && matchStatus;
   });
 
@@ -68,7 +68,7 @@ const TestRequestsList = ({
   const handleSelectAll = (e) => {
     const newSelected = new Set(selectedIds);
     const currentPageIds = paginatedRequests.map(r => r.id);
-    
+
     if (e.target.checked) {
       // Add all visible rows on current page
       currentPageIds.forEach(id => newSelected.add(id));
@@ -128,17 +128,17 @@ const TestRequestsList = ({
             {/* Search inputs */}
             <div className="tr-search-wrapper">
               <FaSearch className="tr-search-icon" />
-              <input 
-                type="text" 
-                className="tr-search-input" 
+              <input
+                type="text"
+                className="tr-search-input"
                 placeholder="Search TR number, client, company..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            
+
             {/* Category selection filter */}
-            <select 
+            <select
               className="tr-filter-select"
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
@@ -166,7 +166,7 @@ const TestRequestsList = ({
               <FaFilter />
               <span>Category</span>
             </button>
-            
+
             <button className="tr-filter-btn">
               <FaCalendarAlt />
               <span>Date Range</span>
@@ -177,7 +177,7 @@ const TestRequestsList = ({
             <span className="tr-results-count">
               {filteredRequests.length} results
             </span>
-            <button 
+            <button
               className="tr-new-request-card-btn"
               onClick={onAddNewRequestClick}
             >
@@ -194,9 +194,9 @@ const TestRequestsList = ({
               <tr>
                 <th className="tr-checkbox-cell">
                   <div className="tr-checkbox-wrapper">
-                    <input 
-                      type="checkbox" 
-                      className="tr-checkbox" 
+                    <input
+                      type="checkbox"
+                      className="tr-checkbox"
                       checked={isCurrentPageAllSelected}
                       onChange={handleSelectAll}
                     />
@@ -204,7 +204,7 @@ const TestRequestsList = ({
                 </th>
                 <th>TR Number</th>
                 <th>Client / Company</th>
-                <th>Category</th>
+                <th>Title</th>
                 <th>Collection Date</th>
                 <th>Priority</th>
                 <th>Status</th>
@@ -230,8 +230,8 @@ const TestRequestsList = ({
                   <tr key={row.id} style={{ backgroundColor: selectedIds.has(row.id) ? '#F1F5F9' : 'transparent' }}>
                     <td className="tr-checkbox-cell">
                       <div className="tr-checkbox-wrapper">
-                        <input 
-                          type="checkbox" 
+                        <input
+                          type="checkbox"
                           className="tr-checkbox"
                           checked={selectedIds.has(row.id)}
                           onChange={(e) => handleSelectRow(row.id, e.target.checked)}
@@ -259,7 +259,7 @@ const TestRequestsList = ({
                       </span>
                     </td>
                     <td>
-                      <button 
+                      <button
                         onClick={() => handleDelete(row.id)}
                         style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: '0.9rem', padding: '0.25rem' }}
                         title="Delete Test Request"
@@ -282,14 +282,14 @@ const TestRequestsList = ({
           </div>
 
           <div className="tr-pagination">
-            <button 
+            <button
               className="tr-page-btn"
               disabled={currentPage === 1}
               onClick={() => setCurrentPage(prev => prev - 1)}
             >
               <FaChevronLeft />
             </button>
-            
+
             {Array.from({ length: totalPages }).map((_, idx) => {
               const pageNum = idx + 1;
               return (
@@ -303,7 +303,7 @@ const TestRequestsList = ({
               );
             })}
 
-            <button 
+            <button
               className="tr-page-btn"
               disabled={currentPage === totalPages}
               onClick={() => setCurrentPage(prev => prev + 1)}

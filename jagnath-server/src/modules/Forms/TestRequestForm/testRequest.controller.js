@@ -139,7 +139,8 @@ const create = async (req, res) => {
             newTR
         ));
     } catch (err) {
-        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Failed to create test request."));
+        const errorMsg = err.message || "Failed to create test request.";
+        return res.status(400).json(errorResponse("BAD_REQUEST", errorMsg, errorMsg));
     }
 };
 
@@ -344,7 +345,8 @@ const update = async (req, res) => {
                 "Test Request not found."
             ));
         }
-        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Failed to update test request."));
+        const errorMsg = err.message || "Failed to update test request.";
+        return res.status(400).json(errorResponse("BAD_REQUEST", errorMsg, errorMsg));
     }
 };
 

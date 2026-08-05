@@ -72,7 +72,7 @@ const TestRequestPrint = () => {
 
       const matchingComp = cList.find(c => c.id === tr.companyId || (c.companyName || c.company_name) === tr.companyName) || tr.company || {};
       const matchingClient = clList.find(c => c.id === tr.clientId || c.clientName === tr.clientName) || tr.client || {};
-      const matchingCat = catList.find(c => c.id === tr.sampleParticular || c.name === tr.sampleParticularName) || {};
+      const matchingCat = catList.find(c => c.id === tr.categoryId || c.id === tr.sampleParticular || c.name === tr.sampleParticularName) || {};
 
       setSelCompany(matchingComp);
       setSelClient(matchingClient);
@@ -88,9 +88,10 @@ const TestRequestPrint = () => {
       }
 
       let allCategoryParams = [];
-      if (tr.sampleParticular) {
+      const activeCatId = tr.categoryId || (tr.sampleParticular && tr.sampleParticular.length === 36 ? tr.sampleParticular : null);
+      if (activeCatId) {
         try {
-          const paramRes = await apiService.get(CATEGORY_PARAMETER_ENDPOINTS.GET_BY_CATEGORY(tr.sampleParticular));
+          const paramRes = await apiService.get(CATEGORY_PARAMETER_ENDPOINTS.GET_BY_CATEGORY(activeCatId));
           if (paramRes?.data) {
             allCategoryParams = Array.isArray(paramRes.data) ? paramRes.data : [paramRes.data];
           }
@@ -236,7 +237,7 @@ const TestRequestPrint = () => {
 
             <tr>
               <td className="label-col">Sample Particular</td><td className="colon-col">:</td>
-              <td colSpan={7} className="val-col">{selCategory.name || 'Ground Water/Surface Water/Drinking Water Waste Water'}</td>
+              <td colSpan={7} className="val-col" style={{ whiteSpace: 'pre-wrap' }}>{formData.sampleParticular || selCategory.name || ''}</td>
             </tr>
 
             <tr>

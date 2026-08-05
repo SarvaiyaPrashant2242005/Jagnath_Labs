@@ -205,6 +205,25 @@ const runMigration = async () => {
       WHERE deleted_at IS NULL;
     `, { transaction });
 
+    // Deduplicate reportNumber in test_requests if any duplicates exist
+    await sequelize.query(`
+      UPDATE test_requests
+      SET deleted_at = NOW()
+      WHERE id IN (
+        SELECT id FROM (
+          SELECT id, ROW_NUMBER() OVER (PARTITION BY "companyId", LOWER(TRIM("reportNumber")) ORDER BY created_at ASC) as rnum
+          FROM test_requests
+          WHERE deleted_at IS NULL AND "reportNumber" IS NOT NULL AND TRIM("reportNumber") <> ''
+        ) t WHERE t.rnum > 1
+      );
+    `, { transaction });
+
+    await sequelize.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_test_requests_company_lower_report_number
+      ON test_requests ("companyId", LOWER(TRIM("reportNumber")))
+      WHERE deleted_at IS NULL AND "reportNumber" IS NOT NULL AND TRIM("reportNumber") <> '';
+    `, { transaction });
+
     await transaction.commit();
     console.log("✅ Migration completed successfully!");
 
