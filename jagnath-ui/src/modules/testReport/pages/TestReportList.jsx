@@ -6,7 +6,7 @@ import {
   FaChevronLeft, FaChevronRight, FaFilePdf, FaFileCsv, FaFileExcel, FaCopy
 } from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
-import { CLIENT_ENDPOINTS } from '../../../shared/services/apiEndpoints';
+import { CLIENT_ENDPOINTS, TEST_REPORT_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 
 /**
  * @component TestReportList
@@ -59,7 +59,25 @@ const TestReportList = () => {
     return dateStr;
   };
 
-  // Load clients for filter dropdown
+  // Fetch Test Reports list from Backend API
+  const fetchReports = async () => {
+    try {
+      setLoading(true);
+      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
+      const url = activeCompId ? `${TEST_REPORT_ENDPOINTS.GET_ALL}?companyId=${activeCompId}` : TEST_REPORT_ENDPOINTS.GET_ALL;
+      const res = await apiService.get(url);
+      if (res?.data) {
+        const rList = Array.isArray(res.data) ? res.data : (res.data.rows || []);
+        setReports(rList);
+      }
+    } catch (err) {
+      console.error('Failed to load test reports from backend:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load clients & test reports on mount
   useEffect(() => {
     const fetchClients = async () => {
       try {
@@ -75,6 +93,7 @@ const TestReportList = () => {
       }
     };
     fetchClients();
+    fetchReports();
   }, []);
 
   // Close dropdown on click outside
@@ -93,11 +112,16 @@ const TestReportList = () => {
     setDeleteModal({ isOpen: true, targetId: id, reportNo });
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!deleteModal.targetId) return;
-    setReports(prev => prev.filter(r => r.id !== deleteModal.targetId));
-    triggerToast('Test report deleted successfully.', 'success');
-    setDeleteModal({ isOpen: false, targetId: null, reportNo: '' });
+    try {
+      await apiService.delete(TEST_REPORT_ENDPOINTS.DELETE(deleteModal.targetId));
+      triggerToast('Test report deleted successfully.', 'success');
+      setDeleteModal({ isOpen: false, targetId: null, reportNo: '' });
+      fetchReports();
+    } catch (err) {
+      triggerToast(err.messageToShow || err.message || 'Failed to delete test report.', 'error');
+    }
   };
 
   // Filter logic
@@ -105,10 +129,12 @@ const TestReportList = () => {
     const q = searchQuery.toLowerCase().trim();
     const matchQuery = q === '' ||
       (row.reportNumber && row.reportNumber.toLowerCase().includes(q)) ||
+      (row.reportIssuedTo && row.reportIssuedTo.toLowerCase().includes(q)) ||
       (row.clientName && row.clientName.toLowerCase().includes(q)) ||
+      (row.nameOfWork && row.nameOfWork.toLowerCase().includes(q)) ||
       (row.title && row.title.toLowerCase().includes(q));
 
-    const matchClient = !selectedClient || row.clientId === selectedClient || row.clientName?.toLowerCase().includes(selectedClient.toLowerCase());
+    const matchClient = !selectedClient || row.clientId === selectedClient || row.clientName?.toLowerCase().includes(selectedClient.toLowerCase()) || row.reportIssuedTo?.toLowerCase().includes(selectedClient.toLowerCase());
     const matchStatus = statusFilter === 'ALL' || row.status === statusFilter;
 
     return matchQuery && matchClient && matchStatus;
@@ -317,9 +343,9 @@ const TestReportList = () => {
                       </button>
                     </td>
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{req.clientName || 'N/A'}</td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{req.title || 'N/A'}</td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{req.reportNumber || 'N/A'}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{req.reportIssuedTo || req.agencyName || req.clientName || 'N/A'}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{req.nameOfWork || req.title || 'N/A'}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{req.reportNumber || req.referenceNo || 'N/A'}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{formatDateDDMMYYYY(req.dateOfReceipt)}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{req.sampleCollectedBy || 'N/A'}</td>
                     <td style={{ padding: '0.75rem 1rem' }}>

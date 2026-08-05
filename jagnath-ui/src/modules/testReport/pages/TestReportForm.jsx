@@ -7,6 +7,7 @@ import {
 import { apiService } from '../../../shared/services/apiService';
 import {
   TEST_REQUEST_ENDPOINTS,
+  TEST_REPORT_ENDPOINTS,
   CATEGORY_PARAMETER_ENDPOINTS,
   TEST_REQUEST_PARAMETER_ENDPOINTS,
   PARAMETER_ENDPOINTS
@@ -303,14 +304,27 @@ const TestReportForm = () => {
   const handleSave = async () => {
     setSubmitting(true);
     try {
-      // Frontend mock save delay
-      await new Promise(res => setTimeout(res, 400));
-      triggerToast('Test Report saved successfully!', 'success');
+      const activeCompId = localStorage.getItem('selectedCompanyId');
+      const payload = {
+        ...formData,
+        parametersList,
+        testRequestId: selectedTRId || formData.testRequestId || null,
+        companyId: activeCompId || null
+      };
+
+      if (isEditing) {
+        await apiService.put(TEST_REPORT_ENDPOINTS.UPDATE(id), payload);
+        triggerToast('Test Report updated successfully!', 'success');
+      } else {
+        await apiService.post(TEST_REPORT_ENDPOINTS.CREATE, payload);
+        triggerToast('Test Report saved successfully!', 'success');
+      }
+
       setTimeout(() => {
         navigate('/test-reports');
       }, 500);
     } catch (err) {
-      triggerToast('Failed to save test report.', 'error');
+      triggerToast(err.messageToShow || err.message || 'Failed to save test report.', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -319,14 +333,33 @@ const TestReportForm = () => {
   const handleSaveAndPrint = async () => {
     setSubmitting(true);
     try {
-      await new Promise(res => setTimeout(res, 300));
-      triggerToast('Saving & generating PDF report...', 'success');
-      window.print();
+      const activeCompId = localStorage.getItem('selectedCompanyId');
+      const payload = {
+        ...formData,
+        parametersList,
+        testRequestId: selectedTRId || formData.testRequestId || null,
+        companyId: activeCompId || null
+      };
+
+      let savedReportId = id;
+      if (isEditing) {
+        const res = await apiService.put(TEST_REPORT_ENDPOINTS.UPDATE(id), payload);
+        if (res?.data?.id) savedReportId = res.data.id;
+      } else {
+        const res = await apiService.post(TEST_REPORT_ENDPOINTS.CREATE, payload);
+        if (res?.data?.id) savedReportId = res.data.id;
+      }
+
+      triggerToast('Report saved! Redirecting to PDF print view...', 'success');
       setTimeout(() => {
-        navigate('/test-reports');
-      }, 500);
+        if (savedReportId) {
+          navigate(`/test-reports/print/${savedReportId}`);
+        } else {
+          window.print();
+        }
+      }, 400);
     } catch (err) {
-      triggerToast('Failed to generate PDF.', 'error');
+      triggerToast(err.messageToShow || err.message || 'Failed to generate PDF.', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -683,7 +716,6 @@ const TestReportForm = () => {
                     <th style={{ padding: '0.5rem', width: '80px' }}>UNIT</th>
                     <th style={{ padding: '0.5rem', width: '100px' }}>RESULT</th>
                     <th style={{ padding: '0.5rem', width: '110px' }}>PERMISSIBLE LIMIT</th>
-                    <th style={{ padding: '0.5rem', width: '40px' }}></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -741,15 +773,6 @@ const TestReportForm = () => {
                           placeholder="Limit"
                           style={tableInputStyle}
                         />
-                      </td>
-                      <td style={{ padding: '0.4rem', textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteParamRow(idx)}
-                          style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}
-                        >
-                          <FaTrash size={12} />
-                        </button>
                       </td>
                     </tr>
                   ))}
@@ -812,156 +835,179 @@ const TestReportForm = () => {
             </div>
 
             {/* A4 Document Box */}
-            <div ref={printRef} className="printable-report-sheet" style={a4DocumentSheetStyle}>
+            <div ref={printRef} className="printable-report-sheet" style={{
+              background: '#ffffff',
+              borderRadius: '8px',
+              padding: '1.5rem',
+              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
+              border: '1px solid #e2e8f0',
+              fontFamily: '"Times New Roman", Times, serif',
+              color: '#000000',
+              lineHeight: '1.3',
+              boxSizing: 'border-box'
+            }}>
               
-              {/* Header Logo & Header Table */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #000', paddingBottom: '0.5rem', marginBottom: '0.5rem' }}>
-                <img src="/Images/Navbar_Logo.png" alt="Jagnath Lab" style={{ height: '52px', objectFit: 'contain' }} />
-                <div style={{ border: '1px solid #000', padding: '0.25rem 0.5rem', textAlign: 'right', fontSize: '0.7rem' }}>
-                  <div style={{ fontWeight: 700 }}>{formData.formatNo}</div>
-                  <div>Date: - {formatDateDDMMYYYY(formData.reportDate)}</div>
+              {/* 1. Header with Logo ONLY */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                <div>
+                  <img src="/Images/Navbar_Logo.png" alt="Jagnath Logo" style={{ height: '52px', objectFit: 'contain' }} />
                 </div>
               </div>
 
-              {/* Centered Document Title */}
-              <div style={{ textAlign: 'center', fontSize: '1.1rem', fontWeight: 900, textDecoration: 'underline', marginBottom: '0.5rem' }}>
+              {/* Horizontal Line */}
+              <div style={{ borderBottom: '1.5px solid #000000', marginBottom: '0.4rem' }}></div>
+
+              {/* 2. Document Title */}
+              <div style={{ textAlign: 'center', fontSize: '1.15rem', fontWeight: 'bold', textDecoration: 'underline', marginBottom: '0.3rem' }}>
                 TEST REPORT
               </div>
 
-              {/* Reference ID Banner */}
-              <div style={{ fontSize: '0.8rem', fontWeight: 800, marginBottom: '0.25rem' }}>
-                {formData.reportNumber}
+              {/* Format No. & Date Line */}
+              <div style={{ textAlign: 'right', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '0.2rem' }}>
+                <span>{formData.formatNo || 'Format No. 7.8 F-02'}</span>
+                <span style={{ marginLeft: '1.5rem' }}>Date: - {formatDateDDMMYYYY(formData.formatDate || formData.dateOfReceipt || new Date().toISOString())}</span>
               </div>
 
-              {/* Sample Metadata Key-Value Bordered Table */}
-              <table style={borderedTableStyle}>
+              {/* 3. Metadata Grid Table */}
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', border: '1px solid #000000', marginBottom: '0' }}>
                 <tbody>
-                  <tr>
-                    <td style={{ ...tableCellKey, width: '22%' }}>Title</td>
-                    <td colSpan={3} style={{ ...tableCellValue, width: '78%' }}>{formData.nameOfWork}</td>
-                  </tr>
-                  <tr>
-                    <td style={{ ...tableCellKey, width: '22%' }}>Details of sample</td>
-                    <td style={{ ...tableCellValue, width: '28%' }}>{formData.detailsOfSample}</td>
-                    <td style={{ ...tableCellKey, width: '22%' }}>Mode of Packing</td>
-                    <td style={{ ...tableCellValue, width: '28%' }}>{formData.packingDetails}</td>
-                  </tr>
-                  <tr>
-                    <td style={{ ...tableCellKey, width: '22%' }}>Report Issued To</td>
-                    <td colSpan={3} style={{ ...tableCellValue, fontWeight: 700 }}>{formData.reportIssuedTo}</td>
-                  </tr>
-                  <tr>
-                    <td style={{ ...tableCellKey, width: '22%' }}>Reference No. / Report No.</td>
-                    <td colSpan={3} style={{ ...tableCellValue, fontWeight: 700 }}>{formData.referenceNo}</td>
-                  </tr>
-                  <tr>
-                    <td style={{ ...tableCellKey, width: '22%' }}>Date Of Receipt Of Sample</td>
-                    <td colSpan={3} style={tableCellValue}>{formatDateDDMMYYYY(formData.dateOfReceipt)}</td>
-                  </tr>
-                  <tr>
-                    <td style={{ ...tableCellKey, width: '22%' }}>Name Of Agency/Company</td>
-                    <td colSpan={3} style={tableCellValue}>
-                      <div style={{ fontWeight: 700 }}>{formData.agencyName}</div>
-                      <div style={{ fontSize: '0.68rem', color: '#475569' }}>{formData.agencyAddress}</div>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td colSpan={4} style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold', fontSize: '0.78rem' }}>
+                      {formData.reportNumber || formData.referenceNo || 'JLT010726RR00307'}
                     </td>
                   </tr>
-                  <tr>
-                    <td style={{ ...tableCellKey, width: '22%' }}>Sample Quantity</td>
-                    <td style={{ ...tableCellValue, width: '28%' }}>{formData.sampleQuantity}</td>
-                    <td style={{ ...tableCellKey, width: '22%' }}>Sampling Location</td>
-                    <td style={{ ...tableCellValue, width: '28%' }}>{formData.samplingLocation}</td>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ width: '34%', padding: '0.2rem 0.35rem', fontWeight: 'bold', borderRight: '1px solid #000000' }}>Name Of Work</td>
+                    <td colSpan={3} style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold' }}>{formData.nameOfWork || 'Waste Water Analysis'}</td>
                   </tr>
-                  <tr>
-                    <td style={{ ...tableCellKey, width: '22%' }}>Condition of sample</td>
-                    <td style={{ ...tableCellValue, width: '28%' }}>{formData.conditionOnReceipt}</td>
-                    <td style={{ ...tableCellKey, width: '22%' }}>Sample Collected By</td>
-                    <td style={{ ...tableCellValue, width: '28%' }}>{formData.sampleCollectedBy}</td>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold', borderRight: '1px solid #000000' }}>Details of sample/Mode of Packing</td>
+                    <td colSpan={3} style={{ padding: '0.2rem 0.35rem' }}>{formData.detailsOfSample || formData.packingDetails || 'Sample Sealed in Plastic Bottle'}</td>
                   </tr>
-                  <tr>
-                    <td style={{ ...tableCellKey, width: '22%' }}>Starting Date Of Test</td>
-                    <td style={{ ...tableCellValue, width: '28%' }}>{formatDateDDMMYYYY(formData.startingDateOfTest)}</td>
-                    <td style={{ ...tableCellKey, width: '22%' }}>Completion Date Of Test</td>
-                    <td style={{ ...tableCellValue, width: '28%' }}>{formatDateDDMMYYYY(formData.completionDateOfTest)}</td>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold', borderRight: '1px solid #000000' }}>Report Issued To</td>
+                    <td colSpan={3} style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold' }}>{formData.reportIssuedTo || '-'}</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold', borderRight: '1px solid #000000' }}>Reference No. / Report No.</td>
+                    <td colSpan={3} style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold' }}>{formData.reportNumber || formData.referenceNo || '-'}</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold', borderRight: '1px solid #000000' }}>Date Of Receipt Of Sample</td>
+                    <td colSpan={3} style={{ padding: '0.2rem 0.35rem' }}>{formatDateDDMMYYYY(formData.dateOfReceipt)}</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold', borderRight: '1px solid #000000' }}>Name Of Agency/Company</td>
+                    <td colSpan={3} style={{ padding: '0.2rem 0.35rem' }}>
+                      <div style={{ fontWeight: 'bold' }}>{formData.agencyName || formData.reportIssuedTo}</div>
+                      {formData.agencyAddress && <div style={{ fontSize: '0.68rem', marginTop: '1px' }}>{formData.agencyAddress}</div>}
+                    </td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold', borderRight: '1px solid #000000' }}>Sample Quantity</td>
+                    <td colSpan={3} style={{ padding: '0.2rem 0.35rem' }}>{formData.sampleQuantity || '01 (1 ltr)'}</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold', borderRight: '1px solid #000000' }}>Sampling Location / Type</td>
+                    <td colSpan={3} style={{ padding: '0.2rem 0.35rem' }}>{formData.samplingLocation || 'Inlet CETP'}</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold', borderRight: '1px solid #000000' }}>Condition of sample during receipt</td>
+                    <td colSpan={3} style={{ padding: '0.2rem 0.35rem' }}>{formData.conditionOnReceipt || 'Satisfactory'}</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold', borderRight: '1px solid #000000' }}>Sample Collected / Submitted by.</td>
+                    <td colSpan={3} style={{ padding: '0.2rem 0.35rem' }}>{formData.sampleCollectedBy || 'By Party'}</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold', borderRight: '1px solid #000000' }}>Starting Date Of Test/ Analysis</td>
+                    <td style={{ width: '26%', padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>{formatDateDDMMYYYY(formData.startingDateOfTest)}</td>
+                    <td style={{ width: '24%', padding: '0.2rem 0.35rem', fontWeight: 'bold', borderRight: '1px solid #000000' }}>Completion Date of Test</td>
+                    <td style={{ width: '16%', padding: '0.2rem 0.35rem' }}>{formatDateDDMMYYYY(formData.completionDateOfTest)}</td>
                   </tr>
                 </tbody>
               </table>
 
-              {/* Section Sub-Header Banner */}
-              <div style={{ textAlign: 'center', fontWeight: 800, fontSize: '0.8rem', background: '#f1f5f9', border: '1px solid #000', borderTop: 'none', padding: '0.25rem' }}>
-                {formData.sectionHeader}
+              {/* 4. Section Sub-Header Banner */}
+              <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '0.78rem', border: '1px solid #000000', borderTop: 'none', padding: '0.18rem 0', textTransform: 'uppercase' }}>
+                {formData.sectionHeader || 'WASTE WATER ANALYSIS'}
               </div>
 
-              {/* Test Parameters Results Table */}
-              <table style={{ ...borderedTableStyle, borderTop: 'none' }}>
+              {/* 5. Test Parameters Results Table */}
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.72rem', border: '1px solid #000000', borderTop: 'none', marginBottom: '0' }}>
                 <thead>
-                  <tr style={{ background: '#fafafa', textAlign: 'center', fontWeight: 800 }}>
-                    <th style={{ ...tableHeaderStyle, width: '40px' }}>SR.NO.</th>
-                    <th style={tableHeaderStyle}>TESTS PARAMETERS</th>
-                    <th style={tableHeaderStyle}>REFERENCE METHOD</th>
-                    <th style={{ ...tableHeaderStyle, width: '60px' }}>UNIT</th>
-                    <th style={{ ...tableHeaderStyle, width: '70px' }}>RESULTS</th>
-                    <th style={{ ...tableHeaderStyle, width: '90px' }}>PERMISSIBLE LIMITS</th>
+                  <tr style={{ borderBottom: '1px solid #000000', textAlign: 'center', fontWeight: 'bold' }}>
+                    <th style={{ width: '8%', padding: '0.25rem', borderRight: '1px solid #000000' }}>SR.NO.</th>
+                    <th style={{ width: '28%', padding: '0.25rem', borderRight: '1px solid #000000', textAlign: 'left' }}>TESTS PARAMETERS</th>
+                    <th style={{ width: '32%', padding: '0.25rem', borderRight: '1px solid #000000', textAlign: 'center' }}>REFERENCE METHOD</th>
+                    <th style={{ width: '10%', padding: '0.25rem', borderRight: '1px solid #000000', textAlign: 'center' }}>UNIT</th>
+                    <th style={{ width: '11%', padding: '0.25rem', borderRight: '1px solid #000000', textAlign: 'center' }}>RESULTS</th>
+                    <th style={{ width: '11%', padding: '0.25rem', textAlign: 'center' }}>PERMISSIBLE LIMITS</th>
                   </tr>
                 </thead>
                 <tbody>
                   {parametersList.map((p, index) => (
-                    <tr key={index}>
-                      <td style={{ ...tableCellStyle, textAlign: 'center' }}>{p.srNo || String(index + 1).padStart(2, '0')}</td>
-                      <td style={{ ...tableCellStyle, fontWeight: 600 }}>{p.parameterName}</td>
-                      <td style={tableCellStyle}>{p.referenceMethod}</td>
-                      <td style={{ ...tableCellStyle, textAlign: 'center' }}>{p.unit}</td>
-                      <td style={{ ...tableCellStyle, textAlign: 'center', fontWeight: 800 }}>{p.result}</td>
-                      <td style={{ ...tableCellStyle, textAlign: 'center' }}>{p.permissibleLimit || '-'}</td>
+                    <tr key={index} style={{ borderBottom: '1px solid #000000' }}>
+                      <td style={{ padding: '0.25rem', borderRight: '1px solid #000000', textAlign: 'center' }}>{p.srNo || String(index + 1).padStart(2, '0')}</td>
+                      <td style={{ padding: '0.25rem 0.35rem', borderRight: '1px solid #000000', fontWeight: 'bold' }}>{p.parameterName}</td>
+                      <td style={{ padding: '0.25rem 0.35rem', borderRight: '1px solid #000000', textAlign: 'center' }}>{p.referenceMethod}</td>
+                      <td style={{ padding: '0.25rem', borderRight: '1px solid #000000', textAlign: 'center' }}>{p.unit}</td>
+                      <td style={{ padding: '0.25rem', borderRight: '1px solid #000000', textAlign: 'center' }}>{p.result}</td>
+                      <td style={{ padding: '0.25rem', textAlign: 'center' }}>{p.permissibleLimit || '-'}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
 
-              {/* Terms & Conditions Notice Box */}
-              <div style={{ border: '1px solid #000', borderTop: 'none', padding: '0.35rem 0.5rem', fontSize: '0.6rem', lineHeight: '1.2', background: '#ffffff' }}>
-                <div style={{ fontWeight: 700, textDecoration: 'underline', marginBottom: '0.1rem' }}>
+              {/* 6. Terms & Conditions Box */}
+              <div style={{ border: '1px solid #000000', borderTop: 'none', padding: '0.25rem 0.4rem', fontSize: '0.58rem', lineHeight: '1.2', textAlign: 'justify' }}>
+                <div style={{ fontWeight: 'bold', textDecoration: 'underline', marginBottom: '0.1rem' }}>
                   This Report is Issued Under Following Terms & Conditions: -
                 </div>
                 <div>{formData.termsAndConditions}</div>
               </div>
 
-              {/* Signatures & Stamp Block */}
-              <div style={{ border: '1px solid #000', borderTop: 'none', padding: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', minHeight: '85px' }}>
-                <div style={{ fontSize: '0.68rem' }}>
-                  <div style={{ fontWeight: 700 }}>Reviewed by,</div>
-                  <div style={{ fontStyle: 'italic', color: '#475569' }}>({formData.reviewedByAnalyst})</div>
-                  <div style={{ marginTop: '1.5rem', borderTop: '1px solid #000', paddingTop: '0.1rem', fontWeight: 700 }}>
+              {/* 7. Signatures Block (NO STAMP) */}
+              <div style={{ border: '1px solid #000000', borderTop: 'none', padding: '0.4rem 0.6rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', minHeight: '90px' }}>
+                <div>
+                  <div style={{ fontWeight: 'bold', fontSize: '0.7rem' }}>Reviewed by,</div>
+                  <div style={{ fontSize: '0.68rem', fontWeight: 'bold', color: '#334155' }}>(Sr. Analyst/Analyst)</div>
+                  <div style={{ marginTop: '2.5rem', fontWeight: 'bold', fontSize: '0.7rem' }}>
                     Lab Incharge Signatory.
                   </div>
                 </div>
 
-                {/* Round Stamp Visual */}
-                <div style={stampCircleStyle}>
-                  <div style={{ fontSize: '0.55rem', fontWeight: 800, textAlign: 'center' }}>Jagnath Lab Technologies</div>
-                  <div style={{ fontSize: '0.5rem', color: '#1e3a8a', textAlign: 'center', fontWeight: 700 }}>Environment Audit Cell</div>
-                  <div style={{ fontSize: '0.5rem', textAlign: 'center' }}>★ Gondal - 360311 ★</div>
-                </div>
-
-                <div style={{ fontSize: '0.68rem', textAlign: 'right' }}>
-                  <div style={{ fontWeight: 700 }}>Thanking you in anticipation!</div>
-                  <div style={{ fontWeight: 700 }}>For Jagnath Lab Technologies,</div>
-                  <div style={{ marginTop: '1.25rem', fontWeight: 700 }}>({formData.authorizedSignatory})</div>
-                  <div style={{ borderTop: '1px solid #000', paddingTop: '0.1rem', fontWeight: 800 }}>Authorized Signatory</div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontWeight: 'bold', fontSize: '0.7rem' }}>Thanking you in anticipation!</div>
+                  <div style={{ fontWeight: 'bold', fontSize: '0.7rem' }}>For Jagnath Lab Technologies,</div>
+                  <div style={{ marginTop: '2rem', fontWeight: 'bold', fontSize: '0.7rem' }}>
+                    ({formData.authorizedSignatory || 'Technical/Quality Manager'})
+                  </div>
+                  <div style={{ fontWeight: 'bold', fontSize: '0.7rem' }}>
+                    (Mr. Ankit Rathod/ Mr. Purvin Raiyan)
+                  </div>
+                  <div style={{ fontWeight: 'bold', fontSize: '0.7rem' }}>Authorized Signatory</div>
                 </div>
               </div>
 
-              {/* End of Report Indicator */}
-              <div style={{ textAlign: 'center', fontSize: '0.65rem', fontWeight: 700, margin: '0.5rem 0' }}>
-                --------------------- END OF TEST REPORT ---------------------
+              {/* 8. End of Test Report Marker */}
+              <div style={{ textAlign: 'center', fontSize: '0.62rem', fontWeight: 'bold', margin: '0.4rem 0' }}>
+                --------------------------------- END OF TEST REPORT ---------------------------------
               </div>
 
-              {/* Footer Information */}
-              <div style={{ borderTop: '1px solid #cbd5e1', paddingTop: '0.4rem', fontSize: '0.6rem', display: 'flex', justifyContent: 'space-between', color: '#334155' }}>
-                <div>📍 5-6/B, Nayanjyot Chambers, First Floor, Opp. Vachhera Vada, Gondal-360 311. Dist. : Rajkot. (Guj.)</div>
-                <div>✉ jagnathtechnologies@yahoo.com | 🌐 www.jagnath.com | 📞 +91 8140 5555 15</div>
-              </div>
-              <div style={{ fontSize: '0.55rem', color: '#475569', textAlign: 'center', marginTop: '0.2rem', fontWeight: 700 }}>
-                Environment Consultant & Gujarat Pollution Control Board Schedule-II Auditors
+              {/* 9. Footer Info */}
+              <div style={{ borderTop: '1px solid #64748b', paddingTop: '0.3rem', fontSize: '0.58rem', fontFamily: 'sans-serif' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ color: '#047857', fontWeight: 600 }}>📍 5-6/B, Nayanjyot Chambers, First Floor, Opp. Vachhera Vada, Gondal-360 311. Dist. : Rajkot. (Guj.)</div>
+                  <div style={{ color: '#047857', fontWeight: 600 }}>✉ jagnathtechnologies@yahoo.com</div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1px' }}>
+                  <div style={{ color: '#047857', fontWeight: 600 }}>🌐 www.jagnath.com</div>
+                  <div style={{ color: '#047857', fontWeight: 600 }}>📞 +91 8140 5555 15</div>
+                </div>
+                <div style={{ textAlign: 'center', fontSize: '0.55rem', fontWeight: 'bold', color: '#1e293b', marginTop: '2px' }}>
+                  Environment Consultant & Gujarat Pollution Control Board Schedule-II Auditors
+                </div>
               </div>
 
             </div>

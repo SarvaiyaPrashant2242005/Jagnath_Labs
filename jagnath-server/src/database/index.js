@@ -23,6 +23,7 @@ db.Client = require("../modules/Masters/ClientMasters/client.model");
 db.Parameter = require("../modules/Masters/ParameterMasters/parameter.model");
 db.Category = require("../modules/Masters/CategoryMasters/category.model");
 db.TestRequest = require("../modules/Forms/TestRequestForm/testRequest.model");
+db.TestReport = require("../modules/Forms/TestReportForm/testReport.model");
 db.CategoryParameter = require("../modules/Masters/CategoryParameterMasters/categoryParameter.model");
 db.TestRequestParameter = require("../modules/Transactions/TestRequestParameters/testRequestParameter.model");
 db.PriceMaster = require("../modules/Masters/PriceListMasters/price_master.model");
@@ -51,6 +52,9 @@ db.Category.belongsTo(db.Company, { foreignKey: "companyId", as: "company" });
 
 db.Company.hasMany(db.TestRequest, { foreignKey: "companyId", as: "testRequests" });
 db.TestRequest.belongsTo(db.Company, { foreignKey: "companyId", as: "company" });
+
+db.Company.hasMany(db.TestReport, { foreignKey: "companyId", as: "testReports" });
+db.TestReport.belongsTo(db.Company, { foreignKey: "companyId", as: "company" });
 
 db.Client.hasMany(db.TestRequest, { foreignKey: "clientId", as: "testRequests" });
 db.TestRequest.belongsTo(db.Client, { foreignKey: "clientId", as: "client" });

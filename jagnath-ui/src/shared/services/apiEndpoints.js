@@ -109,6 +109,15 @@ export const TEST_REQUEST_ENDPOINTS = {
   DELETE: (id) => `${API_BASE_URL}/test-request/${id}`,
 };
 
+// ─── Test Report Endpoints ──────────────────────────────────────────────────────
+export const TEST_REPORT_ENDPOINTS = {
+  CREATE: `${API_BASE_URL}/test-report`,
+  GET_ALL: `${API_BASE_URL}/test-report`,
+  GET_BY_ID: (id) => `${API_BASE_URL}/test-report/${id}`,
+  UPDATE: (id) => `${API_BASE_URL}/test-report/${id}`,
+  DELETE: (id) => `${API_BASE_URL}/test-report/${id}`,
+};
+
 // ─── Test Request Parameter (Transaction) Endpoints ─────────────────────────────
 export const TEST_REQUEST_PARAMETER_ENDPOINTS = {
   CREATE: `${API_BASE_URL}/test-request-parameter`,
