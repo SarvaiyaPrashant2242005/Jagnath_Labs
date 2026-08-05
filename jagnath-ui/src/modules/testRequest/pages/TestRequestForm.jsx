@@ -371,17 +371,39 @@ const TestRequestForm = () => {
     }
 
     if (name === 'clientId' && value) {
-      // Auto-fill client details including Plant/Industry Address
-      const selectedClient = clients.find(c => c.id === value);
-      if (selectedClient) {
-        const clientPlantAddress = selectedClient.plantAddress || selectedClient.plant_address || selectedClient.officeAddress || selectedClient.office_address || selectedClient.address || '';
-        setFormData(prev => ({
-          ...prev,
-          address: clientPlantAddress,
-          email: selectedClient.email || '',
-          contactNumber: selectedClient.contactNumber || prev.contactNumber
-        }));
-      }
+      // Fetch latest client details from backend to resolve emails
+      apiService.get(CLIENT_ENDPOINTS.GET_BY_ID(value))
+        .then(res => {
+          const selectedClient = res.data;
+          if (selectedClient) {
+            const clientPlantAddress = selectedClient.plantAddress || selectedClient.plant_address || selectedClient.officeAddress || selectedClient.office_address || selectedClient.address || '';
+            const primaryEmail = (selectedClient.emails && selectedClient.emails.length > 0)
+              ? selectedClient.emails[0]
+              : (selectedClient.email ? selectedClient.email.split(',')[0].trim() : '');
+            setFormData(prev => ({
+              ...prev,
+              address: clientPlantAddress,
+              email: primaryEmail,
+              contactNumber: selectedClient.contactNumber || prev.contactNumber
+            }));
+          }
+        })
+        .catch(err => {
+          console.error("Error fetching latest client details:", err);
+          const selectedClient = clients.find(c => c.id === value);
+          if (selectedClient) {
+            const clientPlantAddress = selectedClient.plantAddress || selectedClient.plant_address || selectedClient.officeAddress || selectedClient.office_address || selectedClient.address || '';
+            const primaryEmail = (selectedClient.emails && selectedClient.emails.length > 0)
+              ? selectedClient.emails[0]
+              : (selectedClient.email ? selectedClient.email.split(',')[0].trim() : '');
+            setFormData(prev => ({
+              ...prev,
+              address: clientPlantAddress,
+              email: primaryEmail,
+              contactNumber: selectedClient.contactNumber || prev.contactNumber
+            }));
+          }
+        });
     }
   };
 
