@@ -50,6 +50,11 @@ const TestRequestParameter = sequelize.define("TestRequestParameter", {
         allowNull: true,
         defaultValue: 0,
     },
+    sequence: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        defaultValue: 0,
+    },
     status: {
         type: DataTypes.STRING,
         defaultValue: "Pending",
