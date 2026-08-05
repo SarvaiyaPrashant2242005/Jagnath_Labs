@@ -40,17 +40,23 @@ const createTestReport = async (reportData) => {
 const updateTestReport = async (id, reportData, companyId) => {
     const transaction = await sequelize.transaction();
     try {
-        const report = await TestReport.findOne({
+        let report = await TestReport.findOne({
             where: { id, companyId },
             transaction
         });
+        if (!report) {
+            report = await TestReport.findOne({
+                where: { id },
+                transaction
+            });
+        }
         if (!report) {
             throw new Error("Test Report not found or access denied.");
         }
 
         await report.update(reportData, { transaction });
         await transaction.commit();
-        return await getTestReportById(id, companyId);
+        return await getTestReportById(id, report.companyId);
     } catch (error) {
         await transaction.rollback();
         throw error;
@@ -105,11 +111,24 @@ const getTestReportsByCompany = async (companyId, options = {}) => {
 /**
  * Gets a single Test Report by ID.
  */
-const getTestReportById = async (id, companyId) => {
-    const report = await TestReport.findOne({
-        where: { id, companyId },
+const getTestReportById = async (id, companyId = null) => {
+    const whereClause = { id };
+    if (companyId) {
+        whereClause.companyId = companyId;
+    }
+
+    let report = await TestReport.findOne({
+        where: whereClause,
         include: [{ model: Company, as: "company", attributes: ["id", "company_name"] }]
     });
+
+    if (!report && companyId) {
+        report = await TestReport.findOne({
+            where: { id },
+            include: [{ model: Company, as: "company", attributes: ["id", "company_name"] }]
+        });
+    }
+
     return formatTestReport(report);
 };
 

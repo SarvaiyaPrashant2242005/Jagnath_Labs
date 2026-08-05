@@ -95,6 +95,69 @@ const TestReportForm = () => {
     fetchTestRequests();
   }, []);
 
+  // Fetch existing Test Report when editing
+  const [fetchingReport, setFetchingReport] = useState(false);
+
+  useEffect(() => {
+    if (isEditing && id) {
+      const fetchTestReport = async () => {
+        setFetchingReport(true);
+        try {
+          const res = await apiService.get(TEST_REPORT_ENDPOINTS.GET_BY_ID(id));
+          if (res?.data) {
+            const report = res.data;
+            setFormData({
+              formatNo: report.formatNo || 'Format No. 7.8 F-02',
+              reportDate: report.reportDate || (report.created_at ? String(report.created_at).split('T')[0] : new Date().toISOString().split('T')[0]),
+              reportNumber: report.reportNumber || '',
+              nameOfWork: report.nameOfWork || '',
+              detailsOfSample: report.detailsOfSample || '',
+              packingDetails: report.packingDetails || '',
+              reportIssuedTo: report.reportIssuedTo || report.agencyName || '',
+              referenceNo: report.referenceNo || report.reportNumber || '',
+              dateOfReceipt: report.dateOfReceipt || '',
+              agencyName: report.agencyName || report.reportIssuedTo || '',
+              agencyAddress: report.agencyAddress || '',
+              sampleQuantity: report.sampleQuantity || '',
+              samplingLocation: report.samplingLocation || '',
+              conditionOnReceipt: report.conditionOnReceipt || 'Satisfactory',
+              sampleCollectedBy: report.sampleCollectedBy || '',
+              startingDateOfTest: report.startingDateOfTest || '',
+              completionDateOfTest: report.completionDateOfTest || '',
+              sectionHeader: report.sectionHeader || (report.nameOfWork ? String(report.nameOfWork).toUpperCase() : ''),
+              reviewedByAnalyst: report.reviewedBy || report.reviewedByAnalyst || 'Sr. Analyst',
+              authorizedSignatory: report.authorizedSignatory || 'Mr. Ankit Rathod/ Mr. Purvin Raiyan',
+              termsAndConditions: report.termsAndConditions || 'The report is analyzed with the quality standards. These results are related to sample collection as specified above. This report in full or part, shall not be published advertised, used for any legal action, unless written consent and prior permission has been secured from the owner, JAGNATH LAB TECHNOLOGIES, GONDAL-RAJKOT.'
+            });
+
+            if (report.testRequestId) {
+              setSelectedTRId(report.testRequestId);
+            }
+
+            if (Array.isArray(report.parametersList) && report.parametersList.length > 0) {
+              setParametersList(report.parametersList);
+            }
+
+            if (report.conditionOnReceipt) {
+              if (['Satisfactory', 'Non-Satisfactory'].includes(report.conditionOnReceipt)) {
+                setSelectedConditionSelect(report.conditionOnReceipt);
+              } else {
+                setSelectedConditionSelect('Other');
+                setCustomConditionText(report.conditionOnReceipt);
+              }
+            }
+          }
+        } catch (err) {
+          console.error('Failed to fetch test report for editing:', err);
+          triggerToast('Failed to load test report data.', 'error');
+        } finally {
+          setFetchingReport(false);
+        }
+      };
+      fetchTestReport();
+    }
+  }, [id, isEditing]);
+
   // Handle selecting a Test Request from dropdown to auto-populate form
   const handleTestRequestSelect = async (trId) => {
     setSelectedTRId(trId);
@@ -274,6 +337,7 @@ const TestReportForm = () => {
       const activeCompId = localStorage.getItem('selectedCompanyId');
       const payload = {
         ...formData,
+        reviewedBy: formData.reviewedByAnalyst || formData.reviewedBy || '',
         parametersList,
         testRequestId: selectedTRId || formData.testRequestId || null,
         companyId: activeCompId || null
@@ -303,6 +367,7 @@ const TestReportForm = () => {
       const activeCompId = localStorage.getItem('selectedCompanyId');
       const payload = {
         ...formData,
+        reviewedBy: formData.reviewedByAnalyst || formData.reviewedBy || '',
         parametersList,
         testRequestId: selectedTRId || formData.testRequestId || null,
         companyId: activeCompId || null
