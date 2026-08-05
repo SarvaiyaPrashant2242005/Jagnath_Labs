@@ -45,9 +45,7 @@ const LocationSampleMaster = () => {
   const [formData, setFormData] = useState({
     name: '',
     status: 'Active',
-    companyName: '',
-    inlet: false,
-    outlet: false
+    companyName: ''
   });
   const [formErrors, setFormErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -148,9 +146,7 @@ const LocationSampleMaster = () => {
     setFormData({
       name: '',
       status: 'Active',
-      companyName: '',
-      inlet: false,
-      outlet: false
+      companyName: ''
     });
     setFormErrors({});
     setEditingId(null);
@@ -192,8 +188,6 @@ const LocationSampleMaster = () => {
       const payload = {
         name: formData.name.trim(),
         status: formData.status,
-        inlet: formData.inlet,
-        outlet: formData.outlet,
         companyId: activeCompId
       };
 
@@ -219,9 +213,7 @@ const LocationSampleMaster = () => {
     setFormData({
       name: loc.name,
       status: loc.status || 'Active',
-      companyName: loc.companyName || '',
-      inlet: !!loc.inlet,
-      outlet: !!loc.outlet
+      companyName: loc.companyName || ''
     });
     setFormErrors({});
     setIsFormOpen(true);
@@ -254,8 +246,6 @@ const LocationSampleMaster = () => {
       'Sr No': idx + 1,
       'Location of Sample': loc.name,
       'Company': loc.companyName || 'N/A',
-      'Inlet': loc.inlet ? 'Yes' : 'No',
-      'Outlet': loc.outlet ? 'Yes' : 'No',
       'Status': loc.status
     }));
 
@@ -336,42 +326,40 @@ const LocationSampleMaster = () => {
               {formErrors.name && <span style={{ color: '#ef4444', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><FaExclamationCircle size={10} /> {formErrors.name}</span>}
             </div>
 
-            {/* Status Option */}
+            {/* Status Sliding Toggle Switch */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
               <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Status</label>
-              <select
-                name="status"
-                value={formData.status}
-                onChange={handleInputChange}
-                style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', backgroundColor: '#ffffff', cursor: 'pointer' }}
-              >
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </select>
-            </div>
-
-            {/* Inlet / Outlet Options */}
-            <div style={{ display: 'flex', gap: '2rem', alignItems: 'center', marginTop: '0.5rem' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600, color: '#475569' }}>
-                <input
-                  type="checkbox"
-                  name="inlet"
-                  checked={formData.inlet}
-                  onChange={handleInputChange}
-                  style={{ width: '1.1rem', height: '1.1rem', cursor: 'pointer', accentColor: '#22c55e' }}
-                />
-                Inlet Location
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600, color: '#475569' }}>
-                <input
-                  type="checkbox"
-                  name="outlet"
-                  checked={formData.outlet}
-                  onChange={handleInputChange}
-                  style={{ width: '1.1rem', height: '1.1rem', cursor: 'pointer', accentColor: '#22c55e' }}
-                />
-                Outlet Location
-              </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', height: '42px' }}>
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, status: prev.status === 'Active' ? 'Inactive' : 'Active' }))}
+                  style={{
+                    width: '46px',
+                    height: '24px',
+                    borderRadius: '12px',
+                    backgroundColor: formData.status === 'Active' ? '#22c55e' : '#cbd5e1',
+                    border: 'none',
+                    position: 'relative',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.2s',
+                    padding: 0
+                  }}
+                >
+                  <div style={{
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '50%',
+                    backgroundColor: '#ffffff',
+                    position: 'absolute',
+                    top: '3px',
+                    left: formData.status === 'Active' ? '25px' : '3px',
+                    transition: 'left 0.2s'
+                  }} />
+                </button>
+                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: formData.status === 'Active' ? '#22c55e' : '#64748b' }}>
+                  {formData.status === 'Active' ? 'ACTIVE' : 'INACTIVE'}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -439,19 +427,17 @@ const LocationSampleMaster = () => {
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600, width: '80px' }}>SR. NO.</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>LOCATION TITLE</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>COMPANY</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600, width: '100px' }}>INLET</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600, width: '100px' }}>OUTLET</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600, width: '120px' }}>STATUS</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>Loading locations of sample...</td>
+                  <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>Loading locations of sample...</td>
                 </tr>
               ) : locations.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>No locations of sample found.</td>
+                  <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>No locations of sample found.</td>
                 </tr>
               ) : (
                 locations.map((loc, index) => (
@@ -475,20 +461,6 @@ const LocationSampleMaster = () => {
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{loc.name}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{loc.companyName || 'Unassigned'}</td>
-                    <td style={{ padding: '0.75rem 1rem' }}>
-                      {loc.inlet ? (
-                        <span style={{ display: 'inline-block', padding: '0.125rem 0.5rem', fontSize: '0.75rem', fontWeight: 600, borderRadius: '12px', backgroundColor: '#dcfce7', color: '#15803d' }}>Yes</span>
-                      ) : (
-                        <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>No</span>
-                      )}
-                    </td>
-                    <td style={{ padding: '0.75rem 1rem' }}>
-                      {loc.outlet ? (
-                        <span style={{ display: 'inline-block', padding: '0.125rem 0.5rem', fontSize: '0.75rem', fontWeight: 600, borderRadius: '12px', backgroundColor: '#dcfce7', color: '#15803d' }}>Yes</span>
-                      ) : (
-                        <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>No</span>
-                      )}
-                    </td>
                     <td style={{ padding: '0.75rem 1rem' }}>
                       <span style={{
                         display: 'inline-block',

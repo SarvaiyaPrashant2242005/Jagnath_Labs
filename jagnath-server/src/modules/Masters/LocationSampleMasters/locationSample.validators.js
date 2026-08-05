@@ -11,16 +11,12 @@ const createLocationSampleSchema = Joi.object({
         "string.empty": "Location Name cannot be empty",
         "any.required": "Location Name is required"
     }),
-    status: Joi.string().valid("Active", "Inactive").default("Active"),
-    inlet: Joi.boolean().optional().default(false),
-    outlet: Joi.boolean().optional().default(false)
+    status: Joi.string().valid("Active", "Inactive").default("Active")
 });
 
 const updateLocationSampleSchema = Joi.object({
     name: Joi.string().trim().min(2).max(150).optional(),
-    status: Joi.string().valid("Active", "Inactive").optional(),
-    inlet: Joi.boolean().optional(),
-    outlet: Joi.boolean().optional()
+    status: Joi.string().valid("Active", "Inactive").optional()
 });
 
 module.exports = {

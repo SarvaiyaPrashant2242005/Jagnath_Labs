@@ -21,8 +21,25 @@ const runMigration = async () => {
     `, { transaction });
 
     if (clientEmailDuplicates.length > 0) {
-      console.warn("⚠️ [Migration Alert] Duplicate Client Emails found:");
-      console.warn(JSON.stringify(clientEmailDuplicates, null, 2));
+      console.warn("⚠️ [Migration Alert] Duplicate Client Emails found. Cleaning up duplicates...");
+      for (const dup of clientEmailDuplicates) {
+        const ids = dup.ids;
+        const keeperId = ids[0];
+        const removeIds = ids.slice(1);
+
+        await sequelize.query(`
+          UPDATE test_requests
+          SET "clientId" = :keeperId
+          WHERE "clientId" IN (:removeIds)
+        `, { replacements: { keeperId, removeIds }, transaction });
+
+        await sequelize.query(`
+          UPDATE clients
+          SET deleted_at = NOW()
+          WHERE id IN (:removeIds)
+        `, { replacements: { removeIds }, transaction });
+      }
+      console.log("✅ Duplicate Client Emails soft-deleted and references remapped.");
     }
 
     // 2. Check duplicate Client contact numbers within the same company
@@ -35,8 +52,25 @@ const runMigration = async () => {
     `, { transaction });
 
     if (clientPhoneDuplicates.length > 0) {
-      console.warn("⚠️ [Migration Alert] Duplicate Client Contact Numbers found:");
-      console.warn(JSON.stringify(clientPhoneDuplicates, null, 2));
+      console.warn("⚠️ [Migration Alert] Duplicate Client Contact Numbers found. Cleaning up duplicates...");
+      for (const dup of clientPhoneDuplicates) {
+        const ids = dup.ids;
+        const keeperId = ids[0];
+        const removeIds = ids.slice(1);
+
+        await sequelize.query(`
+          UPDATE test_requests
+          SET "clientId" = :keeperId
+          WHERE "clientId" IN (:removeIds)
+        `, { replacements: { keeperId, removeIds }, transaction });
+
+        await sequelize.query(`
+          UPDATE clients
+          SET deleted_at = NOW()
+          WHERE id IN (:removeIds)
+        `, { replacements: { removeIds }, transaction });
+      }
+      console.log("✅ Duplicate Client Contact Numbers soft-deleted and references remapped.");
     }
 
     // 3. Check duplicate Categories within the same company
@@ -49,8 +83,37 @@ const runMigration = async () => {
     `, { transaction });
 
     if (categoryDuplicates.length > 0) {
-      console.warn("⚠️ [Migration Alert] Duplicate Categories found:");
-      console.warn(JSON.stringify(categoryDuplicates, null, 2));
+      console.warn("⚠️ [Migration Alert] Duplicate Categories found. Cleaning up duplicates...");
+      for (const dup of categoryDuplicates) {
+        const ids = dup.ids;
+        const keeperId = ids[0];
+        const removeIds = ids.slice(1);
+
+        await sequelize.query(`
+          UPDATE sub_categories
+          SET "categoryId" = :keeperId
+          WHERE "categoryId" IN (:removeIds)
+        `, { replacements: { keeperId, removeIds }, transaction });
+
+        await sequelize.query(`
+          UPDATE category_parameter_mapping
+          SET "categoryId" = :keeperId
+          WHERE "categoryId" IN (:removeIds)
+        `, { replacements: { keeperId, removeIds }, transaction });
+
+        await sequelize.query(`
+          UPDATE price_master
+          SET "category_id" = :keeperId
+          WHERE "category_id" IN (:removeIds)
+        `, { replacements: { keeperId, removeIds }, transaction });
+
+        await sequelize.query(`
+          UPDATE categories
+          SET deleted_at = NOW()
+          WHERE id IN (:removeIds)
+        `, { replacements: { removeIds }, transaction });
+      }
+      console.log("✅ Duplicate Categories soft-deleted and references remapped.");
     }
 
     // 4. Check duplicate Parameters within the same company
@@ -63,9 +126,63 @@ const runMigration = async () => {
     `, { transaction });
 
     if (parameterDuplicates.length > 0) {
-      console.warn("⚠️ [Migration Alert] Duplicate Parameters found:");
-      console.warn(JSON.stringify(parameterDuplicates, null, 2));
+      console.warn("⚠️ [Migration Alert] Duplicate Parameters found. Cleaning up duplicates...");
+      for (const dup of parameterDuplicates) {
+        const ids = dup.ids;
+        const keeperId = ids[0];
+        const removeIds = ids.slice(1);
+
+        await sequelize.query(`
+          UPDATE category_parameter_mapping
+          SET "parameterId" = :keeperId
+          WHERE "parameterId" IN (:removeIds)
+        `, { replacements: { keeperId, removeIds }, transaction });
+
+        await sequelize.query(`
+          UPDATE price_master
+          SET "parameter_id" = :keeperId
+          WHERE "parameter_id" IN (:removeIds)
+        `, { replacements: { keeperId, removeIds }, transaction });
+
+        await sequelize.query(`
+          UPDATE test_request_parameters
+          SET "parameterId" = :keeperId
+          WHERE "parameterId" IN (:removeIds)
+        `, { replacements: { keeperId, removeIds }, transaction });
+
+        await sequelize.query(`
+          UPDATE parameters
+          SET deleted_at = NOW()
+          WHERE id IN (:removeIds)
+        `, { replacements: { removeIds }, transaction });
+      }
+      console.log("✅ Duplicate Parameters soft-deleted and references remapped.");
     }
+
+    // Clean up duplicate entries in join tables created after parameter/category ID remapping
+    await sequelize.query(`
+      UPDATE category_parameter_mapping
+      SET deleted_at = NOW()
+      WHERE id IN (
+        SELECT id FROM (
+          SELECT id, ROW_NUMBER() OVER (PARTITION BY "companyId", "categoryId", "parameterId" ORDER BY created_at ASC) as rnum
+          FROM category_parameter_mapping
+          WHERE deleted_at IS NULL
+        ) t WHERE t.rnum > 1
+      );
+    `, { transaction });
+
+    await sequelize.query(`
+      UPDATE price_master
+      SET deleted_at = NOW()
+      WHERE id IN (
+        SELECT id FROM (
+          SELECT id, ROW_NUMBER() OVER (PARTITION BY "company_id", "category_id", "parameter_id" ORDER BY created_at ASC) as rnum
+          FROM price_master
+          WHERE deleted_at IS NULL
+        ) t WHERE t.rnum > 1
+      );
+    `, { transaction });
 
     // Create unique indexes if no duplicate conflicts or IF NOT EXISTS
     console.log("🛠️ Creating Unique PostgreSQL Indexes...");
