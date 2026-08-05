@@ -6,6 +6,7 @@ const TestRequest = require("./testRequest.model");
 const Company = require("../../Masters/CompanyMasters/company.model");
 const Client = require("../../Masters/ClientMasters/client.model");
 const Caution = require("../../Masters/CautionMasters/caution.model");
+const SubCategory = require("../../Masters/SubCategoryMasters/subCategory.model");
 const Users = require("../../Auth/Users/users.model");
 const sequelize = require("../../../config/database");
 const { Op } = require("sequelize");
@@ -32,6 +33,7 @@ const fieldLabels = {
     sampleIdNumber: "Sample ID Number",
     reportNumber: "Report Number",
     sampleParticular: "Sample Particular",
+    subCategoryId: "Sub Category ID",
     equipmentAvailability: "Equipment Availability",
     referenceStandardAvailability: "Reference Standard Availability",
     sampleAdequacy: "Sample Adequacy",

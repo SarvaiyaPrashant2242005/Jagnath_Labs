@@ -5,10 +5,7 @@
 const Joi = require("joi");
 
 const createClientSchema = Joi.object({
-    companyName: Joi.string().trim().min(1).required().messages({
-        "any.required": "Company Name is required.",
-        "string.empty": "Company Name must not be empty."
-    }),
+    companyName: Joi.string().trim().allow("", null).optional(),
     clientName: Joi.string().min(2).max(100).required().messages({
         "any.required": "Client Name is required."
     }),

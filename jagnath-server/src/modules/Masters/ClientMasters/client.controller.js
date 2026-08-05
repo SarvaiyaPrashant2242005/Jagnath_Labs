@@ -27,13 +27,32 @@ const create = async (req, res) => {
             ));
         }
 
-        // Find the Company using companyName
+        // Find the Company using companyName, x-company-id header, or user default company
         const companyNameVal = value.companyName;
-        const company = await Company.findOne({
-            where: {
-                company_name: companyNameVal
+        const reqCompanyId = req.headers["x-company-id"] || body.companyId;
+
+        let company = null;
+        if (companyNameVal && companyNameVal.trim()) {
+            company = await Company.findOne({
+                where: {
+                    company_name: companyNameVal
+                }
+            });
+        }
+
+        if (!company && reqCompanyId) {
+            company = await Company.findByPk(reqCompanyId);
+        }
+
+        if (!company) {
+            company = await companyService.getCompanyByUserId(userId);
+            if (!company) {
+                const userCompanies = await companyService.getCompaniesByUser(userId, { isSuperAdmin });
+                if (userCompanies && userCompanies.length > 0) {
+                    company = userCompanies[0];
+                }
             }
-        });
+        }
 
         if (!company) {
             return res.status(404).json(errorResponse(
@@ -117,12 +136,16 @@ const update = async (req, res) => {
         const clientData = { ...value };
 
         // If companyName is supplied during update
-        if (value.companyName !== undefined) {
-            const company = await Company.findOne({
+        if (value.companyName !== undefined && value.companyName.trim()) {
+            let company = await Company.findOne({
                 where: {
                     company_name: value.companyName
                 }
             });
+
+            if (!company && req.headers["x-company-id"]) {
+                company = await Company.findByPk(req.headers["x-company-id"]);
+            }
 
             if (!company) {
                 return res.status(404).json(errorResponse(

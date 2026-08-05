@@ -13,7 +13,7 @@ import {
   PRICE_MASTER_ENDPOINTS,
   SUB_CATEGORY_ENDPOINTS
 } from '../../../shared/services/apiEndpoints';
-import { FaPrint, FaSave, FaArrowLeft, FaCheck, FaExclamationCircle, FaEye, FaEyeSlash, FaFilePdf } from 'react-icons/fa';
+import { FaPrint, FaSave, FaArrowLeft, FaCheck, FaExclamationCircle, FaEye, FaEyeSlash, FaFilePdf, FaChevronLeft, FaChevronRight, FaSearch } from 'react-icons/fa';
 
 const TestRequestForm = () => {
   const { id } = useParams();
@@ -29,11 +29,14 @@ const TestRequestForm = () => {
   const [cautions, setCautions] = useState([]);
   const [priceMasterMap, setPriceMasterMap] = useState({});
   
-  // State for dynamic parameter checklist
+  // State for dynamic parameter checklist & pagination
   const [parameters, setParameters] = useState([]);
   const [checkedParameters, setCheckedParameters] = useState({});
   const [subCategoriesLoading, setSubCategoriesLoading] = useState(false);
   const [parametersLoading, setParametersLoading] = useState(false);
+  const [paramPage, setParamPage] = useState(1);
+  const [paramSearch, setParamSearch] = useState('');
+  const [paramPageSize, setParamPageSize] = useState(10);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -53,6 +56,7 @@ const TestRequestForm = () => {
     sampleIdNumber: '',
     reportNumber: '',
     sampleParticular: '', // This will hold categoryId
+    subCategoryId: '',
     equipmentAvailability: 'Available',
     referenceStandardAvailability: 'Available',
     sampleAdequacy: 'Adequate',
@@ -167,6 +171,8 @@ const TestRequestForm = () => {
         const matchingComp = cList.find(c => c.id === tr.companyId || (c.companyName || c.company_name) === tr.companyName) || {};
         const matchingClient = clList.find(c => c.id === tr.clientId || c.clientName === tr.clientName) || {};
 
+        const savedSubCatId = tr.subCategoryId || tr.sub_category_id || '';
+
         setFormData({
           companyId: matchingComp.id || tr.companyId || '',
           clientId: matchingClient.id || tr.clientId || '',
@@ -184,6 +190,7 @@ const TestRequestForm = () => {
           sampleIdNumber: tr.sampleIdNumber || '',
           reportNumber: tr.reportNumber || '',
           sampleParticular: tr.sampleParticular || '',
+          subCategoryId: savedSubCatId,
           equipmentAvailability: tr.equipmentAvailability || 'Available',
           referenceStandardAvailability: tr.referenceStandardAvailability || 'Available',
           sampleAdequacy: tr.sampleAdequacy || 'Adequate',
@@ -201,9 +208,17 @@ const TestRequestForm = () => {
           cautionId: tr.cautionId || ''
         });
 
+        if (savedSubCatId) {
+          setSelectedSubCategory(savedSubCatId);
+        }
+
         if (tr.sampleParticular) {
           fetchSubCategoriesForCategory(tr.sampleParticular);
-          fetchParameters('', tr.sampleParticular);
+          if (savedSubCatId) {
+            fetchParameters(savedSubCatId);
+          } else {
+            setParameters([]);
+          }
         }
 
         // Fetch checked parameters
@@ -255,19 +270,15 @@ const TestRequestForm = () => {
     }
   };
 
-  const fetchParameters = async (subCategoryId, categoryId) => {
+  const fetchParameters = async (subCategoryId) => {
+    if (!subCategoryId) {
+      setParameters([]);
+      setParametersLoading(false);
+      return;
+    }
     setParametersLoading(true);
     try {
-      let url = `${PARAMETER_ENDPOINTS.GET_ALL}?status=Active&all=true`;
-      if (subCategoryId) {
-        url += `&subCategoryId=${subCategoryId}`;
-      } else if (categoryId) {
-        url += `&categoryId=${categoryId}`;
-      } else {
-        setParameters([]);
-        setParametersLoading(false);
-        return;
-      }
+      const url = `${PARAMETER_ENDPOINTS.GET_ALL}?status=Active&all=true&subCategoryId=${subCategoryId}`;
       const res = await apiService.get(url);
       let list = [];
       if (res?.data?.rows) {
@@ -278,6 +289,7 @@ const TestRequestForm = () => {
         list = [res.data];
       }
       setParameters(list.filter(p => p.status === 'Active' || p.status === true || !p.status));
+      setParamPage(1);
     } catch (e) {
       console.error("Error fetching parameters", e);
       setParameters([]);
@@ -289,8 +301,14 @@ const TestRequestForm = () => {
   const handleSubCategoryChange = (e) => {
     const subId = e.target.value;
     setSelectedSubCategory(subId);
+    setFormData(prev => ({ ...prev, subCategoryId: subId }));
+    setParamPage(1);
     setCheckedParameters({});
-    fetchParameters(subId, formData.sampleParticular);
+    if (subId) {
+      fetchParameters(subId);
+    } else {
+      setParameters([]);
+    }
   };
 
   const handleToggleSelectAllParameters = () => {
@@ -317,8 +335,11 @@ const TestRequestForm = () => {
     
     if (name === 'sampleParticular') {
       setSelectedSubCategory('');
+      setFormData(prev => ({ ...prev, subCategoryId: '' }));
       setParameters([]);
       setCheckedParameters({});
+      setParamPage(1);
+      setParamSearch('');
       if (value) {
         fetchSubCategoriesForCategory(value);
         fetchParameters('', value);
@@ -356,6 +377,14 @@ const TestRequestForm = () => {
       triggerToast('Please select a Client.', 'error');
       return false;
     }
+    if (!formData.sampleParticular) {
+      triggerToast('Please select a Discipline Group.', 'error');
+      return false;
+    }
+    if (!selectedSubCategory && !formData.subCategoryId) {
+      triggerToast('Please select a Sub Category.', 'error');
+      return false;
+    }
     return true;
   };
 
@@ -369,6 +398,7 @@ const TestRequestForm = () => {
       // 1. Save Test Request
       const payload = { 
         ...formData, 
+        subCategoryId: selectedSubCategory || formData.subCategoryId || null,
         includeCaution: Boolean(formData.includeCaution),
         cautionId: formData.includeCaution && formData.cautionId ? formData.cautionId : null,
         reportIssueDays: formData.tentativeDays, 
@@ -726,15 +756,15 @@ const TestRequestForm = () => {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                 <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>
-                  Sub Category {subCategoriesLoading && <span style={{ fontSize: '0.75rem', color: '#64748b' }}>(Loading...)</span>}
+                  Sub Category <span style={{color: '#ef4444'}}>*</span> {subCategoriesLoading && <span style={{ fontSize: '0.75rem', color: '#64748b' }}>(Loading...)</span>}
                 </label>
                 <select 
-                  value={selectedSubCategory} 
+                  value={selectedSubCategory || formData.subCategoryId || ''} 
                   onChange={handleSubCategoryChange} 
                   className="premium-input"
                   disabled={!formData.sampleParticular || subCategoriesLoading}
                 >
-                  <option value="">All Sub Categories</option>
+                  <option value="">Select Sub Category</option>
                   {[...subCategories].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
                 {formData.sampleParticular && !subCategoriesLoading && subCategories.length === 0 && (
@@ -745,95 +775,283 @@ const TestRequestForm = () => {
               </div>
             </div>
 
-            {parametersLoading ? (
-              <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
+            {!formData.sampleParticular ? (
+              <div style={{ padding: '2.5rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1', fontWeight: 500 }}>
+                Please select a Discipline Group to begin.
+              </div>
+            ) : (!selectedSubCategory && !formData.subCategoryId) ? (
+              <div style={{ padding: '2.5rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1', fontWeight: 500 }}>
+                Please select a Sub Category to view test parameters.
+              </div>
+            ) : parametersLoading ? (
+              <div style={{ padding: '2.5rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
                 Loading parameters...
               </div>
-            ) : parameters.length === 0 && formData.sampleParticular ? (
-              <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
+            ) : parameters.length === 0 ? (
+              <div style={{ padding: '2.5rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
                 No parameters mapped to this subcategory
               </div>
-            ) : parameters.length > 0 && (
-              <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                <div style={{ padding: '1.25rem', borderBottom: '1px solid #e2e8f0', background: 'linear-gradient(to right, #f8fafc, #ffffff)', fontWeight: 700, color: '#1e293b', fontSize: '1.05rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                  <span>Select Test Parameters to be Analyzed</span>
-                  <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                    <button
-                      type="button"
-                      onClick={handleToggleSelectAllParameters}
-                      style={{
-                        background: '#e0e7ff',
-                        color: '#4338ca',
-                        border: 'none',
-                        borderRadius: '6px',
-                        padding: '0.35rem 0.75rem',
-                        fontSize: '0.8rem',
-                        fontWeight: 600,
-                        cursor: 'pointer'
-                      }}
-                    >
-                      {parameters.filter(param => !selectedSubCategory || param.subCategoryId === selectedSubCategory || param.subCategory?.id === selectedSubCategory).length > 0 &&
-                       parameters.filter(param => !selectedSubCategory || param.subCategoryId === selectedSubCategory || param.subCategory?.id === selectedSubCategory).every(p => !!checkedParameters[p.id])
-                       ? 'Deselect All' : 'Select All'}
-                    </button>
-                    <span style={{ fontSize: '0.85rem', background: '#dcfce7', color: '#166534', padding: '0.25rem 0.75rem', borderRadius: '999px', fontWeight: 700 }}>
-                      Total: ₹{parameters.reduce((sum, param) => sum + (checkedParameters[param.id] ? (priceMasterMap[param.id] || 0) : 0), 0).toFixed(2)}
-                    </span>
-                    <span style={{ fontSize: '0.8rem', background: '#e0e7ff', color: '#4338ca', padding: '0.2rem 0.6rem', borderRadius: '999px' }}>
-                      {Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]).length} Selected
-                    </span>
-                  </div>
-                </div>
-                <div className="master-table-responsive" style={{ maxHeight: '250px', overflowY: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.95rem' }}>
-                    <thead style={{ position: 'sticky', top: 0, background: '#f8fafc', zIndex: 1, boxShadow: '0 1px 0 #e2e8f0' }}>
-                      <tr>
-                        <th style={{ padding: '0.75rem 1rem', textAlign: 'center', width: '80px', color: '#64748b', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Select</th>
-                        <th style={{ padding: '0.75rem 1rem', textAlign: 'left', color: '#64748b', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Parameter Name</th>
-                        <th style={{ padding: '0.75rem 1rem', textAlign: 'left', color: '#64748b', fontWeight: 600, borderBottom: '2px solid #e2e8f0' }}>Test Method</th>
-                        <th style={{ padding: '0.75rem 1rem', textAlign: 'right', color: '#64748b', fontWeight: 600, borderBottom: '2px solid #e2e8f0', width: '120px' }}>Price (₹)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[...parameters]
-                        .filter(param => !selectedSubCategory || param.subCategoryId === selectedSubCategory || param.subCategory?.id === selectedSubCategory)
-                        .sort((a, b) => (a.parameterName || '').localeCompare(b.parameterName || ''))
-                        .map(param => {
-                        const isChecked = !!checkedParameters[param.id];
-                        const paramPrice = priceMasterMap[param.id] || 0;
-                        return (
-                          <tr 
-                            key={param.id} 
-                            onClick={() => handleParameterCheck(param.id)} 
-                            style={{ 
-                              borderBottom: '1px solid #f1f5f9', 
-                              cursor: 'pointer', 
-                              transition: 'all 0.2s ease',
-                              backgroundColor: isChecked ? '#f0fdf4' : '#ffffff' 
-                            }} 
-                            onMouseEnter={(e) => { if(!isChecked) e.currentTarget.style.backgroundColor = '#f8fafc' }} 
-                            onMouseLeave={(e) => { if(!isChecked) e.currentTarget.style.backgroundColor = '#ffffff' }}
+            ) : (() => {
+              const categoryFilteredParams = parameters.filter(param => !selectedSubCategory || param.subCategoryId === selectedSubCategory || param.subCategory?.id === selectedSubCategory);
+              const searchFilteredParams = categoryFilteredParams
+                .filter(param => {
+                  if (!paramSearch.trim()) return true;
+                  const q = paramSearch.toLowerCase();
+                  return (param.parameterName || '').toLowerCase().includes(q) ||
+                         (param.testMethod || '').toLowerCase().includes(q);
+                })
+                .sort((a, b) => (a.parameterName || '').localeCompare(b.parameterName || ''));
+
+              const totalParamItems = searchFilteredParams.length;
+              const totalParamPages = Math.ceil(totalParamItems / paramPageSize) || 1;
+              const safeParamPage = Math.min(Math.max(1, paramPage), totalParamPages);
+              const startParamItem = totalParamItems === 0 ? 0 : (safeParamPage - 1) * paramPageSize + 1;
+              const endParamItem = Math.min(safeParamPage * paramPageSize, totalParamItems);
+
+              const paginatedParams = searchFilteredParams.slice(
+                (safeParamPage - 1) * paramPageSize,
+                safeParamPage * paramPageSize
+              );
+
+              return categoryFilteredParams.length > 0 && (
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+                  {/* Top Bar / Header */}
+                  <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #e2e8f0', background: 'linear-gradient(to right, #f8fafc, #ffffff)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+                    <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '1rem' }}>
+                      Select Test Parameters to be Analyzed
+                    </div>
+                    
+                    <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                      {/* Search box */}
+                      <div style={{ position: 'relative', width: '220px' }}>
+                        <input
+                          type="text"
+                          placeholder="Search parameters..."
+                          value={paramSearch}
+                          onChange={(e) => {
+                            setParamSearch(e.target.value);
+                            setParamPage(1);
+                          }}
+                          style={{
+                            padding: '0.35rem 0.65rem 0.35rem 2rem',
+                            borderRadius: '8px',
+                            border: '1px solid #cbd5e1',
+                            fontSize: '0.85rem',
+                            width: '100%',
+                            outline: 'none',
+                            backgroundColor: '#ffffff'
+                          }}
+                        />
+                        <FaSearch size={12} style={{ position: 'absolute', left: '0.7rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                        {paramSearch && (
+                          <button
+                            type="button"
+                            onClick={() => setParamSearch('')}
+                            style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', color: '#94a3b8', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold' }}
                           >
-                            <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
-                              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                                <div style={{ width: '22px', height: '22px', borderRadius: '6px', border: isChecked ? 'none' : '2px solid #cbd5e1', background: isChecked ? '#22c55e' : 'transparent', display: 'flex', justifyContent: 'center', alignItems: 'center', transition: 'all 0.2s' }}>
-                                  {isChecked && <span style={{ color: 'white', fontSize: '14px', fontWeight: 'bold' }}>✓</span>}
-                                </div>
-                              </div>
-                            </td>
-                            <td style={{ padding: '0.75rem 1rem', color: isChecked ? '#166534' : '#1e293b', fontWeight: isChecked ? 600 : 500 }}>{param.parameterName}</td>
-                            <td style={{ padding: '0.75rem 1rem', color: isChecked ? '#15803d' : '#64748b' }}>{param.testMethod || 'N/A'}</td>
-                            <td style={{ padding: '0.75rem 1rem', textAlign: 'right', color: isChecked ? '#15803d' : '#334155', fontWeight: 600 }}>
-                              ₹{paramPrice.toFixed(2)}
+                            ✕
+                          </button>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleToggleSelectAllParameters}
+                        style={{
+                          background: '#e0e7ff',
+                          color: '#4338ca',
+                          border: 'none',
+                          borderRadius: '8px',
+                          padding: '0.35rem 0.75rem',
+                          fontSize: '0.8rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        {categoryFilteredParams.length > 0 && categoryFilteredParams.every(p => !!checkedParameters[p.id])
+                          ? 'Deselect All' : 'Select All'}
+                      </button>
+
+                      <span style={{ fontSize: '0.85rem', background: '#dcfce7', color: '#166534', padding: '0.3rem 0.75rem', borderRadius: '999px', fontWeight: 700 }}>
+                        Total: ₹{parameters.reduce((sum, param) => sum + (checkedParameters[param.id] ? (priceMasterMap[param.id] || 0) : 0), 0).toFixed(2)}
+                      </span>
+
+                      <span style={{ fontSize: '0.8rem', background: '#e0e7ff', color: '#4338ca', padding: '0.25rem 0.65rem', borderRadius: '999px', fontWeight: 600 }}>
+                        {Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]).length} Selected
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Clean Parameters Table */}
+                  <div style={{ width: '100%', overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.925rem' }}>
+                      <thead>
+                        <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                          <th style={{ padding: '0.75rem 1rem', textAlign: 'center', width: '70px', color: '#64748b', fontWeight: 600 }}>Select</th>
+                          <th style={{ padding: '0.75rem 1rem', textAlign: 'left', color: '#64748b', fontWeight: 600 }}>Parameter Name</th>
+                          <th style={{ padding: '0.75rem 1rem', textAlign: 'left', color: '#64748b', fontWeight: 600 }}>Test Method</th>
+                          <th style={{ padding: '0.75rem 1rem', textAlign: 'right', color: '#64748b', fontWeight: 600, width: '130px' }}>Price (₹)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paginatedParams.length === 0 ? (
+                          <tr>
+                            <td colSpan={4} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                              No parameters match your search criteria.
                             </td>
                           </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                        ) : (
+                          paginatedParams.map(param => {
+                            const isChecked = !!checkedParameters[param.id];
+                            const paramPrice = priceMasterMap[param.id] || 0;
+                            return (
+                              <tr 
+                                key={param.id} 
+                                onClick={() => handleParameterCheck(param.id)} 
+                                style={{ 
+                                  borderBottom: '1px solid #f1f5f9', 
+                                  cursor: 'pointer', 
+                                  transition: 'background-color 0.15s ease',
+                                  backgroundColor: isChecked ? '#f0fdf4' : '#ffffff' 
+                                }} 
+                                onMouseEnter={(e) => { if(!isChecked) e.currentTarget.style.backgroundColor = '#f8fafc' }} 
+                                onMouseLeave={(e) => { if(!isChecked) e.currentTarget.style.backgroundColor = '#ffffff' }}
+                              >
+                                <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                    <div style={{ width: '22px', height: '22px', borderRadius: '6px', border: isChecked ? 'none' : '2px solid #cbd5e1', background: isChecked ? '#22c55e' : 'transparent', display: 'flex', justifyContent: 'center', alignItems: 'center', transition: 'all 0.15s ease' }}>
+                                      {isChecked && <span style={{ color: 'white', fontSize: '13px', fontWeight: 'bold' }}>✓</span>}
+                                    </div>
+                                  </div>
+                                </td>
+                                <td style={{ padding: '0.75rem 1rem', color: isChecked ? '#166534' : '#1e293b', fontWeight: isChecked ? 600 : 500 }}>
+                                  {param.parameterName}
+                                </td>
+                                <td style={{ padding: '0.75rem 1rem', color: isChecked ? '#15803d' : '#64748b' }}>
+                                  {param.testMethod || 'N/A'}
+                                </td>
+                                <td style={{ padding: '0.75rem 1rem', textAlign: 'right', color: isChecked ? '#15803d' : '#334155', fontWeight: 600 }}>
+                                  ₹{paramPrice.toFixed(2)}
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Clean Pagination Footer */}
+                  <div style={{ 
+                    padding: '0.85rem 1.25rem', 
+                    borderTop: '1px solid #e2e8f0', 
+                    background: '#f8fafc', 
+                    display: 'flex', 
+                    justify: 'space-between', 
+                    alignItems: 'center', 
+                    flexWrap: 'wrap', 
+                    gap: '0.75rem' 
+                  }}>
+                    <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                      Showing <strong style={{ color: '#0f172a' }}>{startParamItem}</strong> to <strong style={{ color: '#0f172a' }}>{endParamItem}</strong> of <strong style={{ color: '#0f172a' }}>{totalParamItems}</strong> parameters
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', color: '#64748b' }}>
+                        <span>Rows per page:</span>
+                        <select
+                          value={paramPageSize}
+                          onChange={(e) => {
+                            setParamPageSize(Number(e.target.value));
+                            setParamPage(1);
+                          }}
+                          style={{ padding: '0.25rem 0.4rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.8rem', backgroundColor: '#ffffff', outline: 'none' }}
+                        >
+                          <option value={10}>10</option>
+                          <option value={20}>20</option>
+                          <option value={50}>50</option>
+                        </select>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                        <button
+                          type="button"
+                          onClick={() => setParamPage(p => Math.max(1, p - 1))}
+                          disabled={safeParamPage <= 1}
+                          style={{
+                            padding: '0.35rem 0.65rem',
+                            borderRadius: '6px',
+                            border: '1px solid #cbd5e1',
+                            backgroundColor: safeParamPage <= 1 ? '#f1f5f9' : '#ffffff',
+                            color: safeParamPage <= 1 ? '#94a3b8' : '#334155',
+                            cursor: safeParamPage <= 1 ? 'not-allowed' : 'pointer',
+                            fontWeight: 600,
+                            fontSize: '0.8rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.3rem'
+                          }}
+                        >
+                          <FaChevronLeft size={10} /> Prev
+                        </button>
+
+                        {/* Smart Page Pill Buttons */}
+                        {Array.from({ length: totalParamPages }, (_, i) => i + 1)
+                          .filter(page => page === 1 || page === totalParamPages || Math.abs(page - safeParamPage) <= 1)
+                          .map((page, idx, arr) => {
+                            const prevPage = arr[idx - 1];
+                            const showEllipsis = prevPage && page - prevPage > 1;
+                            return (
+                              <React.Fragment key={page}>
+                                {showEllipsis && <span style={{ color: '#94a3b8', fontSize: '0.8rem', padding: '0 0.15rem' }}>...</span>}
+                                <button
+                                  type="button"
+                                  onClick={() => setParamPage(page)}
+                                  style={{
+                                    padding: '0.35rem 0.6rem',
+                                    borderRadius: '6px',
+                                    border: page === safeParamPage ? '1px solid #8b5cf6' : '1px solid #cbd5e1',
+                                    backgroundColor: page === safeParamPage ? '#8b5cf6' : '#ffffff',
+                                    color: page === safeParamPage ? '#ffffff' : '#334155',
+                                    fontWeight: page === safeParamPage ? 700 : 500,
+                                    cursor: 'pointer',
+                                    fontSize: '0.8rem',
+                                    minWidth: '28px'
+                                  }}
+                                >
+                                  {page}
+                                </button>
+                              </React.Fragment>
+                            );
+                          })}
+
+                        <button
+                          type="button"
+                          onClick={() => setParamPage(p => Math.min(totalParamPages, p + 1))}
+                          disabled={safeParamPage >= totalParamPages}
+                          style={{
+                            padding: '0.35rem 0.65rem',
+                            borderRadius: '6px',
+                            border: '1px solid #cbd5e1',
+                            backgroundColor: safeParamPage >= totalParamPages ? '#f1f5f9' : '#ffffff',
+                            color: safeParamPage >= totalParamPages ? '#94a3b8' : '#334155',
+                            cursor: safeParamPage >= totalParamPages ? 'not-allowed' : 'pointer',
+                            fontWeight: 600,
+                            fontSize: '0.8rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.3rem'
+                          }}
+                        >
+                          Next <FaChevronRight size={10} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
 
           {/* Facility & Technical Feasibility Card */}

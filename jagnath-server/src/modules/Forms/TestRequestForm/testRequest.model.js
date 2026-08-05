@@ -161,6 +161,15 @@ const TestRequest = sequelize.define("TestRequest", {
         },
         field: "caution_id"
     },
+    subCategoryId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: "sub_categories",
+            key: "id"
+        },
+        field: "sub_category_id"
+    },
     status: {
         type: DataTypes.ENUM("Active", "Inactive"),
         defaultValue: "Active",
