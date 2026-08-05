@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { FaBars, FaSignOutAlt, FaBuilding, FaChevronDown, FaUserCircle } from 'react-icons/fa';
 import Sidebar from './Sidebar';
 import SuperAdminSidebar from './SuperAdminSidebar';
@@ -422,10 +422,10 @@ const DashboardLayout = ({ children }) => {
               )}
             </div>
 
-            <button className="header-profile-button" onClick={() => navigate('/profile')} title="My Profile">
+            <Link to="/profile" className="header-profile-button" title="My Profile">
               <FaUserCircle style={{ fontSize: '1.1rem', flexShrink: 0 }} />
               <span className="header-btn-text">Profile</span>
-            </button>
+            </Link>
 
             <button className="header-logout-button" onClick={handleLogoutClick} title="Logout Session">
               <FaSignOutAlt style={{ flexShrink: 0 }} />

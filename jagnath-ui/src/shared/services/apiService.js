@@ -80,14 +80,16 @@ const request = async (url, options = {}) => {
 
     // Handle Token Expiry (401 Unauthorized only)
     if (response.status === 401) {
-      const refreshToken = sessionStorage.getItem("refreshToken");
+      const refreshToken = sessionStorage.getItem("refreshToken") || localStorage.getItem("refreshToken");
 
       // Prevent infinite loops for the refresh endpoint itself or missing refresh token
       if (url === AUTH_ENDPOINTS.REFRESH_TOKEN || !refreshToken) {
         sessionStorage.clear();
         localStorage.removeItem("accessToken");
         localStorage.removeItem("token");
+        localStorage.removeItem("refreshToken");
         localStorage.removeItem("user");
+        localStorage.removeItem("role");
         throw error;
       }
 
