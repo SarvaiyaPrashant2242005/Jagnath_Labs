@@ -29,6 +29,10 @@ const createClientSchema = Joi.object({
     email: Joi.string().pattern(/^([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})(\s*,\s*[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})*$/).allow("", null).optional().messages({
         "string.pattern.base": "Email must be a valid email format or list of comma-separated emails."
     }),
+    emails: Joi.alternatives().try(
+        Joi.array().items(Joi.string().email()),
+        Joi.string().allow("", null)
+    ).optional(),
     gender: Joi.string().valid("Male", "Female", "Other").required().messages({
         "any.only": "Gender must be Male, Female, or Other.",
         "any.required": "Gender is required."
@@ -52,6 +56,10 @@ const updateClientSchema = Joi.object({
     email: Joi.string().pattern(/^([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})(\s*,\s*[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})*$/).allow("", null).optional().messages({
         "string.pattern.base": "Email must be a valid email format or list of comma-separated emails."
     }),
+    emails: Joi.alternatives().try(
+        Joi.array().items(Joi.string().email()),
+        Joi.string().allow("", null)
+    ).optional(),
     gender: Joi.string().valid("Male", "Female", "Other").optional().messages({
         "any.only": "Gender must be Male, Female, or Other."
     }),

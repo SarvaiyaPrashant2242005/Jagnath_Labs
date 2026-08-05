@@ -98,8 +98,10 @@ const ClientMaster = () => {
     city: '',
     state: '',
     email: '',
+    emails: [],
     status: 'Active'
   });
+  const [emailInput, setEmailInput] = useState('');
   const [formErrors, setFormErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -274,6 +276,36 @@ const ClientMaster = () => {
     }
   };
 
+  const handleAddEmail = (e) => {
+    e.preventDefault();
+    if (!emailInput.trim()) return;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailInput.trim())) {
+      triggerToast('Please enter a valid email address.', 'error');
+      return;
+    }
+    if (formData.emails.includes(emailInput.trim())) {
+      triggerToast('Email address already added.', 'error');
+      return;
+    }
+    const updatedEmails = [...formData.emails, emailInput.trim()];
+    setFormData(prev => ({
+      ...prev,
+      emails: updatedEmails,
+      email: updatedEmails.join(', ')
+    }));
+    setEmailInput('');
+  };
+
+  const handleRemoveEmail = (indexToRemove) => {
+    const updatedEmails = formData.emails.filter((_, idx) => idx !== indexToRemove);
+    setFormData(prev => ({
+      ...prev,
+      emails: updatedEmails,
+      email: updatedEmails.join(', ')
+    }));
+  };
+
   // Open Form for Create
   const handleOpenCreate = () => {
     // Default to currently selected company from localStorage if available
@@ -291,8 +323,10 @@ const ClientMaster = () => {
       city: '',
       state: '',
       email: '',
+      emails: [],
       status: 'Active'
     });
+    setEmailInput('');
     setFormErrors({});
     setEditingId(null);
     setIsFormOpen(true);
@@ -310,8 +344,10 @@ const ClientMaster = () => {
       city: client.city || '',
       state: client.state || '',
       email: client.email || '',
+      emails: client.emails || (client.email ? client.email.split(',').map(e => e.trim()).filter(Boolean) : []),
       status: client.status || 'Active'
     });
+    setEmailInput('');
     setFormErrors({});
     setEditingId(client.id);
     setIsFormOpen(true);
@@ -722,16 +758,71 @@ const ClientMaster = () => {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>
-                  Email ID
+                  Email Address(es)
                 </label>
-                <input
-                  type="text"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  placeholder="Enter Email (comma separated for multiple)"
-                  style={{ padding: '0.625rem', border: `1px solid ${formErrors.email ? '#ef4444' : '#cbd5e1'}`, borderRadius: '6px', outline: 'none', height: '42px' }}
-                />
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <input
+                    type="text"
+                    value={emailInput}
+                    onChange={(e) => setEmailInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddEmail(e);
+                      }
+                    }}
+                    placeholder="Enter email address and press Add/Enter"
+                    style={{ flex: 1, padding: '0.625rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', height: '42px' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddEmail}
+                    style={{ padding: '0 1rem', background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', height: '42px' }}
+                  >
+                    Add
+                  </button>
+                </div>
+
+                {/* Email Tag Badges */}
+                {formData.emails && formData.emails.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem' }}>
+                    {formData.emails.map((email, idx) => (
+                      <span
+                        key={idx}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          padding: '0.25rem 0.625rem',
+                          background: '#dcfce7',
+                          color: '#15803d',
+                          borderRadius: '16px',
+                          fontSize: '0.75rem',
+                          fontWeight: 600
+                        }}
+                      >
+                        {email}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveEmail(idx)}
+                          style={{
+                            border: 'none',
+                            background: 'none',
+                            color: '#16a34a',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            fontSize: '0.85rem',
+                            padding: 0,
+                            display: 'inline-flex',
+                            alignItems: 'center'
+                          }}
+                        >
+                          &times;
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* State Dropdown (India) */}

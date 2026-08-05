@@ -3,6 +3,7 @@
  * @description Business logic for Client operations.
  */
 const Client = require("./client.model");
+const ClientEmail = require("./clientEmail.model");
 const Company = require("../CompanyMasters/company.model");
 const Users = require("../../Auth/Users/users.model");
 const sequelize = require("../../../config/database");
@@ -18,13 +19,14 @@ const deleteLogPath = path.join(__dirname, "../../../../logs/Client/Delete.txt")
 const fieldLabels = {
     clientName: "Client Name",
     contactNumber: "Contact Number",
+    gender: "Gender",
+    address: "Address",
     officeAddress: "Office Address",
     plantAddress: "Plant / Industry Address",
-    address: "Address",
     city: "City",
-    gender: "Gender",
-    status: "Status",
-    companyId: "Company ID"
+    state: "State",
+    email: "Email",
+    status: "Status"
 };
 
 /**
@@ -61,6 +63,16 @@ const formatClient = (client) => {
         clientObj.companyName = null;
     }
     delete clientObj.company;
+
+    if (clientObj.clientEmails) {
+        clientObj.emails = clientObj.clientEmails.map(ce => ce.email);
+        clientObj.email = clientObj.emails.join(", ");
+    } else {
+        clientObj.emails = clientObj.email ? clientObj.email.split(',').map(e => e.trim()).filter(Boolean) : [];
+        clientObj.email = clientObj.email || null;
+    }
+    delete clientObj.clientEmails;
+
     return clientObj;
 };
 
@@ -119,9 +131,29 @@ const getChangesBlock = (oldValues, newValues) => {
  * Creates a new client.
  */
 const createClient = async (clientData, userId, reqInfo) => {
+    let emails = [];
+    if (clientData.emails && Array.isArray(clientData.emails)) {
+        emails = clientData.emails;
+    } else if (clientData.email) {
+        emails = clientData.email.split(',').map(e => e.trim()).filter(Boolean);
+    }
+    clientData.email = emails.join(', ');
+
     const transaction = await sequelize.transaction();
     try {
         const newClient = await Client.create(clientData, { transaction });
+
+        if (emails.length > 0) {
+            await ClientEmail.bulkCreate(
+                emails.map(e => ({
+                    clientId: newClient.id,
+                    companyId: newClient.companyId,
+                    email: e,
+                    createdBy: userId
+                })),
+                { transaction }
+            );
+        }
 
         // Fetch company name for logging
         const company = await Company.findByPk(newClient.companyId, { transaction });
@@ -163,6 +195,19 @@ Status      : SUCCESS
  * Updates an existing client.
  */
 const updateClient = async (clientId, clientData, userId, reqInfo) => {
+    let emails = [];
+    let emailsProvided = false;
+    if (clientData.emails && Array.isArray(clientData.emails)) {
+        emails = clientData.emails;
+        emailsProvided = true;
+    } else if (clientData.email !== undefined) {
+        emails = clientData.email ? clientData.email.split(',').map(e => e.trim()).filter(Boolean) : [];
+        emailsProvided = true;
+    }
+    if (emailsProvided) {
+        clientData.email = emails.join(', ');
+    }
+
     const transaction = await sequelize.transaction();
     try {
         const client = await Client.findByPk(clientId, {
@@ -177,6 +222,21 @@ const updateClient = async (clientId, clientData, userId, reqInfo) => {
 
         const updatedClient = await client.update(clientData, { transaction });
         const newValues = getLoggableValues(updatedClient);
+
+        if (emailsProvided) {
+            await ClientEmail.destroy({ where: { clientId }, transaction });
+            if (emails.length > 0) {
+                await ClientEmail.bulkCreate(
+                    emails.map(e => ({
+                        clientId,
+                        companyId: updatedClient.companyId,
+                        email: e,
+                        updatedBy: userId
+                    })),
+                    { transaction }
+                );
+            }
+        }
 
         // Fetch company name for logging
         const company = await Company.findByPk(updatedClient.companyId, { transaction });
@@ -269,11 +329,18 @@ Status      : SUCCESS
 const getClientById = async (clientId) => {
     try {
         const client = await Client.findByPk(clientId, {
-            include: [{
-                model: Company,
-                as: "company",
-                attributes: ["company_name"]
-            }],
+            include: [
+                {
+                    model: Company,
+                    as: "company",
+                    attributes: ["company_name"]
+                },
+                {
+                    model: ClientEmail,
+                    as: "clientEmails",
+                    attributes: ["email"]
+                }
+            ],
             attributes: { exclude: ["deleted_at"] }
         });
         return formatClient(client);
@@ -286,11 +353,18 @@ const getClientsByCompany = async (companyId, options = {}) => {
     try {
         let queryOptions = {
             where: { companyId },
-            include: [{
-                model: Company,
-                as: "company",
-                attributes: ["company_name"]
-            }],
+            include: [
+                {
+                    model: Company,
+                    as: "company",
+                    attributes: ["company_name"]
+                },
+                {
+                    model: ClientEmail,
+                    as: "clientEmails",
+                    attributes: ["email"]
+                }
+            ],
             attributes: { exclude: ["deleted_at"] }
         };
 
@@ -323,6 +397,29 @@ const getClientsByCompany = async (companyId, options = {}) => {
         return clients.map(client => formatClient(client));
     } catch (error) {
         throw error;
+    }
+};
+
+const syncClientEmails = async (clientId, companyId, emailString, userId, transaction) => {
+    if (!emailString) {
+        await ClientEmail.destroy({ where: { clientId }, transaction });
+        return;
+    }
+    const emails = emailString.split(',').map(e => e.trim()).filter(Boolean);
+    // Delete existing
+    await ClientEmail.destroy({ where: { clientId }, transaction });
+    // Bulk create
+    if (emails.length > 0) {
+        await ClientEmail.bulkCreate(
+            emails.map(e => ({
+                clientId,
+                companyId,
+                email: e,
+                createdBy: userId || null,
+                updatedBy: userId || null
+            })),
+            { transaction }
+        );
     }
 };
 
@@ -431,6 +528,7 @@ module.exports = {
                 // Case 1: Neither email nor phone exist -> Insert new client
                 if (!emailMatch && !phoneMatch) {
                     const newClient = await Client.create(clientPayload, { transaction });
+                    await syncClientEmails(newClient.id, companyId, email, userId, transaction);
                     const createdObj = newClient.get ? newClient.get({ plain: true }) : newClient;
                     if (normEmail) clientByEmail.set(normEmail, createdObj);
                     if (normPhone) clientByPhone.set(normPhone, createdObj);
@@ -445,6 +543,7 @@ module.exports = {
                 // Case 2: Both email and phone match the SAME existing client
                 else if (emailMatch && phoneMatch && emailMatch.id === phoneMatch.id) {
                     await Client.update(clientPayload, { where: { id: emailMatch.id }, transaction });
+                    await syncClientEmails(emailMatch.id, companyId, email, userId, transaction);
                     const updatedObj = { ...emailMatch, ...clientPayload };
                     if (normEmail) clientByEmail.set(normEmail, updatedObj);
                     if (normPhone) clientByPhone.set(normPhone, updatedObj);
@@ -459,6 +558,7 @@ module.exports = {
                 // Case 3: Only email matches an existing client
                 else if (emailMatch && !phoneMatch) {
                     await Client.update(clientPayload, { where: { id: emailMatch.id }, transaction });
+                    await syncClientEmails(emailMatch.id, companyId, email, userId, transaction);
                     const updatedObj = { ...emailMatch, ...clientPayload };
                     if (normEmail) clientByEmail.set(normEmail, updatedObj);
                     if (normPhone) clientByPhone.set(normPhone, updatedObj);
@@ -473,6 +573,7 @@ module.exports = {
                 // Case 4: Only phone matches an existing client
                 else if (!emailMatch && phoneMatch) {
                     await Client.update(clientPayload, { where: { id: phoneMatch.id }, transaction });
+                    await syncClientEmails(phoneMatch.id, companyId, email, userId, transaction);
                     const updatedObj = { ...phoneMatch, ...clientPayload };
                     if (normEmail) clientByEmail.set(normEmail, updatedObj);
                     if (normPhone) clientByPhone.set(normPhone, updatedObj);

@@ -20,6 +20,7 @@ db.RefreshTokens = require("../modules/Auth/RefreshTokens/refresh_tokens.model")
 db.Company = require("../modules/Masters/CompanyMasters/company.model");
 db.UserCompanies = require("../modules/Masters/CompanyMasters/user_companies.model");
 db.Client = require("../modules/Masters/ClientMasters/client.model");
+db.ClientEmail = require("../modules/Masters/ClientMasters/clientEmail.model");
 db.Parameter = require("../modules/Masters/ParameterMasters/parameter.model");
 db.Category = require("../modules/Masters/CategoryMasters/category.model");
 db.TestRequest = require("../modules/Forms/TestRequestForm/testRequest.model");
@@ -42,6 +43,12 @@ db.Company.belongsTo(db.Users, { foreignKey: "userId", as: "user" });
 
 db.Company.hasMany(db.Client, { foreignKey: "companyId", as: "clients" });
 db.Client.belongsTo(db.Company, { foreignKey: "companyId", as: "company" });
+
+db.Client.hasMany(db.ClientEmail, { foreignKey: "clientId", as: "clientEmails" });
+db.ClientEmail.belongsTo(db.Client, { foreignKey: "clientId", as: "client" });
+
+db.Company.hasMany(db.ClientEmail, { foreignKey: "companyId", as: "clientEmails" });
+db.ClientEmail.belongsTo(db.Company, { foreignKey: "companyId", as: "company" });
 
 db.Company.hasMany(db.Parameter, { foreignKey: "companyId", as: "parameters" });
 db.Parameter.belongsTo(db.Company, { foreignKey: "companyId", as: "company" });
