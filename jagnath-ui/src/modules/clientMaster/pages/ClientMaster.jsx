@@ -725,11 +725,11 @@ const ClientMaster = () => {
                   Email ID
                 </label>
                 <input
-                  type="email"
+                  type="text"
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  placeholder="Enter Email"
+                  placeholder="Enter Email (comma separated for multiple)"
                   style={{ padding: '0.625rem', border: `1px solid ${formErrors.email ? '#ef4444' : '#cbd5e1'}`, borderRadius: '6px', outline: 'none', height: '42px' }}
                 />
               </div>

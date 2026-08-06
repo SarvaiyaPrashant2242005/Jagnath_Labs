@@ -71,6 +71,15 @@ export const CATEGORY_ENDPOINTS = {
   BULK_IMPORT: `${API_BASE_URL}/category/bulk-import`,
 };
 
+// ─── Location of Sample Endpoints ─────────────────────────────────────────────
+export const LOCATION_SAMPLE_ENDPOINTS = {
+  CREATE: `${API_BASE_URL}/location-sample`,
+  GET_ALL: `${API_BASE_URL}/location-sample`,
+  GET_BY_ID: (id) => `${API_BASE_URL}/location-sample/${id}`,
+  UPDATE: (id) => `${API_BASE_URL}/location-sample/${id}`,
+  DELETE: (id) => `${API_BASE_URL}/location-sample/${id}`,
+};
+
 // ─── Sub Category Endpoints ───────────────────────────────────────────────────
 export const SUB_CATEGORY_ENDPOINTS = {
   CREATE: `${API_BASE_URL}/sub-category`,
@@ -98,6 +107,15 @@ export const TEST_REQUEST_ENDPOINTS = {
   GET_BY_ID: (id) => `${API_BASE_URL}/test-request/${id}`,
   UPDATE: (id) => `${API_BASE_URL}/test-request/${id}`,
   DELETE: (id) => `${API_BASE_URL}/test-request/${id}`,
+};
+
+// ─── Test Report Endpoints ──────────────────────────────────────────────────────
+export const TEST_REPORT_ENDPOINTS = {
+  CREATE: `${API_BASE_URL}/test-report`,
+  GET_ALL: `${API_BASE_URL}/test-report`,
+  GET_BY_ID: (id) => `${API_BASE_URL}/test-report/${id}`,
+  UPDATE: (id) => `${API_BASE_URL}/test-report/${id}`,
+  DELETE: (id) => `${API_BASE_URL}/test-report/${id}`,
 };
 
 // ─── Test Request Parameter (Transaction) Endpoints ─────────────────────────────
@@ -128,6 +146,11 @@ export const CAUTION_ENDPOINTS = {
   GET_BY_ID: (id) => `${API_BASE_URL}/caution/${id}`,
   UPDATE: (id) => `${API_BASE_URL}/caution/${id}`,
   DELETE: (id) => `${API_BASE_URL}/caution/${id}`,
+};
+
+// ─── Dashboard Endpoints ─────────────────────────────────────────────────────────
+export const DASHBOARD_ENDPOINTS = {
+  GET_STATS: `${API_BASE_URL}/dashboard/stats`,
 };
 
 

@@ -11,14 +11,19 @@ const createParameterSchema = Joi.object({
     }),
     description: Joi.string().optional().allow("", null),
     testMethod: Joi.string().optional().allow("", null),
-    status: Joi.string().valid("Active", "Inactive").default("Active").optional().messages({
-        "any.only": "Status must be Active or Inactive."
+    unit: Joi.string().optional().allow("", null),
+    isPermissibleLimitApplicable: Joi.boolean().optional(),
+    permissibleLimit: Joi.string().optional().allow("", null),
+    status: Joi.string().valid("Active", "Inactive").required().messages({
+        "any.only": "Status must be Active or Inactive.",
+        "any.required": "Status is required."
     }),
     companyName: Joi.string().trim().optional().allow("", null),
     companyId: Joi.string().trim().optional().allow("", null),
     categoryId: Joi.string().trim().optional().allow("", null),
-    subCategoryId: Joi.string().trim().optional().allow("", null)
-}).unknown(true);
+    subCategoryId: Joi.string().trim().optional().allow("", null),
+    locationSampleId: Joi.string().trim().optional().allow("", null)
+});
 
 const updateParameterSchema = Joi.object({
     parameterName: Joi.string().optional().messages({
@@ -26,14 +31,18 @@ const updateParameterSchema = Joi.object({
     }),
     description: Joi.string().optional().allow("", null),
     testMethod: Joi.string().optional().allow("", null),
+    unit: Joi.string().optional().allow("", null),
+    isPermissibleLimitApplicable: Joi.boolean().optional(),
+    permissibleLimit: Joi.string().optional().allow("", null),
     status: Joi.string().valid("Active", "Inactive").optional().messages({
         "any.only": "Status must be Active or Inactive."
     }),
     companyName: Joi.string().trim().optional().allow("", null),
     companyId: Joi.string().trim().optional().allow("", null),
     categoryId: Joi.string().trim().optional().allow("", null),
-    subCategoryId: Joi.string().trim().optional().allow("", null)
-}).unknown(true);
+    subCategoryId: Joi.string().trim().optional().allow("", null),
+    locationSampleId: Joi.string().trim().optional().allow("", null)
+});
 
 
 module.exports = {

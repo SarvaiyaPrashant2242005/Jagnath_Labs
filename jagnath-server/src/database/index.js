@@ -23,11 +23,13 @@ db.Client = require("../modules/Masters/ClientMasters/client.model");
 db.Parameter = require("../modules/Masters/ParameterMasters/parameter.model");
 db.Category = require("../modules/Masters/CategoryMasters/category.model");
 db.TestRequest = require("../modules/Forms/TestRequestForm/testRequest.model");
+db.TestReport = require("../modules/Forms/TestReportForm/testReport.model");
 db.CategoryParameter = require("../modules/Masters/CategoryParameterMasters/categoryParameter.model");
 db.TestRequestParameter = require("../modules/Transactions/TestRequestParameters/testRequestParameter.model");
 db.PriceMaster = require("../modules/Masters/PriceListMasters/price_master.model");
 db.Caution = require("../modules/Masters/CautionMasters/caution.model");
 db.SubCategory = require("../modules/Masters/SubCategoryMasters/subCategory.model");
+db.LocationSample = require("../modules/Masters/LocationSampleMasters/locationSample.model");
 
 // Define Associations
 db.Users.hasMany(db.RefreshTokens, { foreignKey: "user_id" });
@@ -50,6 +52,9 @@ db.Category.belongsTo(db.Company, { foreignKey: "companyId", as: "company" });
 
 db.Company.hasMany(db.TestRequest, { foreignKey: "companyId", as: "testRequests" });
 db.TestRequest.belongsTo(db.Company, { foreignKey: "companyId", as: "company" });
+
+db.Company.hasMany(db.TestReport, { foreignKey: "companyId", as: "testReports" });
+db.TestReport.belongsTo(db.Company, { foreignKey: "companyId", as: "company" });
 
 db.Client.hasMany(db.TestRequest, { foreignKey: "clientId", as: "testRequests" });
 db.TestRequest.belongsTo(db.Client, { foreignKey: "clientId", as: "client" });
@@ -90,6 +95,9 @@ db.TestRequest.belongsTo(db.Caution, { foreignKey: "cautionId", as: "caution" })
 db.Category.hasMany(db.SubCategory, { foreignKey: "categoryId", as: "subCategories" });
 db.SubCategory.belongsTo(db.Category, { foreignKey: "categoryId", as: "category" });
 
+db.Category.hasMany(db.TestRequest, { foreignKey: "categoryId", as: "testRequests" });
+db.TestRequest.belongsTo(db.Category, { foreignKey: "categoryId", as: "category" });
+
 db.Company.hasMany(db.SubCategory, { foreignKey: "companyId", as: "subCategories" });
 db.SubCategory.belongsTo(db.Company, { foreignKey: "companyId", as: "company" });
 
@@ -98,5 +106,12 @@ db.Parameter.belongsTo(db.SubCategory, { foreignKey: "subCategoryId", as: "subCa
 
 db.SubCategory.hasMany(db.TestRequest, { foreignKey: "subCategoryId", as: "testRequests" });
 db.TestRequest.belongsTo(db.SubCategory, { foreignKey: "subCategoryId", as: "subCategory" });
+
+// Location of Sample Associations
+db.Company.hasMany(db.LocationSample, { foreignKey: "companyId", as: "locationSamples" });
+db.LocationSample.belongsTo(db.Company, { foreignKey: "companyId", as: "company" });
+
+db.LocationSample.hasMany(db.Parameter, { foreignKey: "locationSampleId", as: "parameters" });
+db.Parameter.belongsTo(db.LocationSample, { foreignKey: "locationSampleId", as: "locationSample" });
 
 module.exports = db;

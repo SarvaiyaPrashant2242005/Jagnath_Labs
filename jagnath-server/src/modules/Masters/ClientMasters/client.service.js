@@ -393,10 +393,15 @@ module.exports = {
 
             for (const item of records) {
                 const raw = item.data || item;
+                const officeAddr = raw.officeAddress || raw.office_address || raw.address || 'N/A';
+                const plantAddr = raw.plantAddress || raw.plant_address || raw.address || 'N/A';
+
                 const data = {
                     clientName: raw.clientName || 'Unnamed Client',
                     contactNumber: raw.contactNumber || 'N/A',
-                    address: raw.address || 'N/A',
+                    officeAddress: officeAddr,
+                    plantAddress: plantAddr,
+                    address: officeAddr,
                     city: raw.city || 'N/A',
                     state: raw.state || 'N/A',
                     email: raw.email && String(raw.email).trim() !== '' ? String(raw.email).trim() : null,
@@ -405,7 +410,7 @@ module.exports = {
                     companyId
                 };
 
-                const { clientName, contactNumber, email, gender, address, city, state, status } = data;
+                const { clientName, contactNumber, email, gender, officeAddress, plantAddress, address, city, state, status } = data;
                 const rawData = raw;
                 const rowNum = item._originalIndex || (records.indexOf(item) + 1);
                 const errors = [];
@@ -449,6 +454,8 @@ module.exports = {
                     contactNumber,
                     email: email || null,
                     gender,
+                    officeAddress,
+                    plantAddress,
                     address,
                     city,
                     state,

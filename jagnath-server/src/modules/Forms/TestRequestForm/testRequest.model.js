@@ -81,8 +81,17 @@ const TestRequest = sequelize.define("TestRequest", {
         allowNull: true,
     },
     sampleParticular: {
-        type: DataTypes.STRING,
+        type: DataTypes.TEXT,
         allowNull: true,
+    },
+    categoryId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: "categories",
+            key: "id"
+        },
+        field: "category_id"
     },
     equipmentAvailability: {
         type: DataTypes.STRING,
@@ -139,7 +148,6 @@ const TestRequest = sequelize.define("TestRequest", {
     formTitle: {
         type: DataTypes.STRING,
         allowNull: true,
-        defaultValue: "WATER & WASTE WATER"
     },
     formType: {
         type: DataTypes.ENUM("NABL", "Regular"),

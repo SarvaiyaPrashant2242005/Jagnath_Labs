@@ -33,6 +33,7 @@ const fieldLabels = {
     sampleIdNumber: "Sample ID Number",
     reportNumber: "Report Number",
     sampleParticular: "Sample Particular",
+    categoryId: "Discipline Group Category ID",
     subCategoryId: "Sub Category ID",
     equipmentAvailability: "Equipment Availability",
     referenceStandardAvailability: "Reference Standard Availability",
@@ -143,6 +144,20 @@ const getChangesBlock = (oldValues, newValues) => {
 const createTestRequest = async (testRequestData, userId, reqInfo) => {
     const transaction = await sequelize.transaction();
     try {
+        if (testRequestData.reportNumber && testRequestData.reportNumber.trim()) {
+            const reportNo = testRequestData.reportNumber.trim();
+            const existingReport = await TestRequest.findOne({
+                where: {
+                    companyId: testRequestData.companyId,
+                    reportNumber: { [Op.iLike]: reportNo }
+                },
+                transaction
+            });
+            if (existingReport) {
+                throw new Error(`Report Number '${reportNo}' already exist, Please enter a unique Report Number.`);
+            }
+        }
+
         const newTR = await TestRequest.create(testRequestData, { transaction });
 
         // Fetch company and client details for logging
@@ -200,6 +215,21 @@ const updateTestRequest = async (trId, testRequestData, userId, companyId, reqIn
         });
         if (!tr) {
             throw new Error("TestRequest not found or access denied.");
+        }
+
+        if (testRequestData.reportNumber && testRequestData.reportNumber.trim()) {
+            const reportNo = testRequestData.reportNumber.trim();
+            const existingReport = await TestRequest.findOne({
+                where: {
+                    companyId,
+                    id: { [Op.ne]: trId },
+                    reportNumber: { [Op.iLike]: reportNo }
+                },
+                transaction
+            });
+            if (existingReport) {
+                throw new Error(`Report Number '${reportNo}' already exist, Please enter a unique Report Number.`);
+            }
         }
 
         const oldValues = getLoggableValues(tr);

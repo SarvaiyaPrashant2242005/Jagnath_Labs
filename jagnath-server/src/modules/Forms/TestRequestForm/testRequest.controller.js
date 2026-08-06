@@ -12,35 +12,6 @@ const { Op } = require("sequelize");
 const { successResponse, errorResponse } = require("../../../utils/response");
 
 /**
- * Helper to resolve companyId from headers, query, body or user default
- */
-const resolveCompanyId = async (req) => {
-    const userId = req.user?.user_id;
-    const isSuperAdmin = req.user?.role === "SuperAdmin" || req.user?.role === "SUPER_ADMIN" || req.user?.role === "SUPERADMIN" || req.user?.role === "Super Admin" || req.user?.email === "admin@jagnath.com";
-
-    const companyIdVal = req.headers["x-company-id"] || req.query?.companyId || req.query?.company_id || req.body?.companyId || req.body?.company_id;
-
-    if (companyIdVal && companyIdVal !== "null" && companyIdVal !== "undefined" && companyIdVal !== "ALL") {
-        const isOwner = await companyService.checkOwnership(companyIdVal, userId, isSuperAdmin);
-        if (isOwner) {
-            return companyIdVal;
-        }
-    }
-
-    const company = await companyService.getCompanyByUserId(userId);
-    if (company) {
-        return company.id;
-    }
-
-    const companies = await companyService.getCompaniesByUser(userId, { isSuperAdmin });
-    if (companies && companies.length > 0) {
-        return companies[0].id;
-    }
-
-    return null;
-};
-
-/**
  * Helper to fetch user's company and ensure they have one
  */
 const getUserCompany = async (userId) => {
@@ -49,6 +20,40 @@ const getUserCompany = async (userId) => {
         throw new Error("No company associated with this user.");
     }
     return company;
+};
+
+const resolveCompanyId = async (body, query, userId, headers = {}, reqUser = {}) => {
+    const isSuperAdmin = reqUser?.role === "SuperAdmin" || reqUser?.role === "SUPER_ADMIN" || reqUser?.role === "SUPERADMIN" || reqUser?.role === "Super Admin" || reqUser?.email === "admin@jagnath.com";
+    const companyIdVal = body?.companyId || body?.company_id || query?.companyId || query?.company_id || headers?.["x-company-id"];
+    const companyNameVal = body?.companyName || query?.companyName;
+
+    if (companyIdVal) {
+        const isOwner = await companyService.checkOwnership(companyIdVal, userId, isSuperAdmin);
+        if (!isOwner) {
+            throw new Error("UNAUTHORIZED_COMPANY");
+        }
+        return companyIdVal;
+    } else if (companyNameVal) {
+        const company = await Company.findOne({ where: { company_name: companyNameVal } });
+        if (!company) {
+            throw new Error("COMPANY_NOT_FOUND");
+        }
+        const isOwner = await companyService.checkOwnership(company.id, userId, isSuperAdmin);
+        if (!isOwner) {
+            throw new Error("UNAUTHORIZED_COMPANY");
+        }
+        return company.id;
+    } else {
+        const company = await companyService.getCompanyByUserId(userId);
+        if (company) {
+            return company.id;
+        }
+        const companies = await companyService.getCompaniesByUser(userId, { isSuperAdmin });
+        if (companies && companies.length > 0) {
+            return companies[0].id;
+        }
+        throw new Error("NO_COMPANY_FOUND");
+    }
 };
 
 /**
@@ -68,8 +73,8 @@ const create = async (req, res) => {
             ));
         }
 
-        // Find the Company using companyId from value or resolved header/query
-        const companyIdVal = value.companyId || (await resolveCompanyId(req));
+        // Find the Company using companyId
+        const companyIdVal = value.companyId;
         const company = await Company.findByPk(companyIdVal);
 
         if (!company) {
@@ -134,7 +139,8 @@ const create = async (req, res) => {
             newTR
         ));
     } catch (err) {
-        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Failed to create test request."));
+        const errorMsg = err.message || "Failed to create test request.";
+        return res.status(400).json(errorResponse("BAD_REQUEST", errorMsg, errorMsg));
     }
 };
 
@@ -144,14 +150,19 @@ const create = async (req, res) => {
 const getAll = async (req, res) => {
     try {
         const userId = req.user.user_id;
-        const companyId = await resolveCompanyId(req);
 
-        if (!companyId) {
+        let companyId;
+        try {
+            companyId = await resolveCompanyId(req.body, req.query, userId, req.headers, req.user);
+        } catch (e) {
+            if (e.message === "UNAUTHORIZED_COMPANY") {
+                return res.status(403).json(errorResponse("FORBIDDEN", "Unauthorized access to this company.", "Unauthorized"));
+            }
             return res.status(200).json(successResponse(
                 "TEST_REQUESTS_FETCHED",
                 "Test requests fetched successfully.",
                 "Test requests fetched successfully.",
-                req.query.limit ? { rows: [], total: 0, page: parseInt(req.query.page) || 1, totalPages: 0 } : []
+                req.query.limit ? { rows: [], total: 0, page: parseInt(req.query.page), totalPages: 0 } : []
             ));
         }
 
@@ -170,7 +181,7 @@ const getAll = async (req, res) => {
             responseData = {
                 rows: result.rows,
                 total: result.count,
-                page: parseInt(options.page) || 1,
+                page: parseInt(options.page),
                 totalPages: Math.ceil(result.count / parseInt(options.limit))
             };
         }
@@ -334,7 +345,8 @@ const update = async (req, res) => {
                 "Test Request not found."
             ));
         }
-        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Failed to update test request."));
+        const errorMsg = err.message || "Failed to update test request.";
+        return res.status(400).json(errorResponse("BAD_REQUEST", errorMsg, errorMsg));
     }
 };
 
@@ -345,10 +357,12 @@ const remove = async (req, res) => {
     try {
         const { id } = req.params;
         const userId = req.user.user_id;
-        const companyId = await resolveCompanyId(req);
 
-        if (!companyId) {
-            return res.status(404).json(errorResponse("NOT_FOUND", "Company not found.", "Company not found."));
+        let company;
+        try {
+            company = await getUserCompany(userId);
+        } catch (e) {
+            return res.status(404).json(errorResponse("NOT_FOUND", e.message, e.message));
         }
 
         const reqInfo = {
@@ -356,7 +370,7 @@ const remove = async (req, res) => {
             userAgent: req.headers["user-agent"]
         };
 
-        await testRequestService.deleteTestRequest(id, userId, companyId, reqInfo);
+        await testRequestService.deleteTestRequest(id, userId, company.id, reqInfo);
 
         return res.status(200).json(successResponse(
             "TEST_REQUEST_DELETED",

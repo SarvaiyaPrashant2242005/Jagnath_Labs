@@ -28,6 +28,15 @@ const Parameter = sequelize.define("Parameter", {
             key: "id",
         }
     },
+    locationSampleId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        field: "location_sample_id",
+        references: {
+            model: "location_of_samples",
+            key: "id",
+        }
+    },
     parameterName: {
         type: DataTypes.STRING,
         allowNull: false,
@@ -39,6 +48,21 @@ const Parameter = sequelize.define("Parameter", {
     testMethod: {
         type: DataTypes.STRING,
         allowNull: true,
+    },
+    unit: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
+    isPermissibleLimitApplicable: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+        allowNull: false,
+        field: "is_permissible_limit_applicable"
+    },
+    permissibleLimit: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        field: "permissible_limit"
     },
     status: {
         type: DataTypes.ENUM("Active", "Inactive"),

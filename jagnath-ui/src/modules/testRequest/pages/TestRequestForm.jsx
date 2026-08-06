@@ -32,6 +32,7 @@ const TestRequestForm = () => {
   // State for dynamic parameter checklist & pagination
   const [parameters, setParameters] = useState([]);
   const [checkedParameters, setCheckedParameters] = useState({});
+  const [selectedParamSequence, setSelectedParamSequence] = useState([]);
   const [subCategoriesLoading, setSubCategoriesLoading] = useState(false);
   const [parametersLoading, setParametersLoading] = useState(false);
   const [paramPage, setParamPage] = useState(1);
@@ -47,7 +48,7 @@ const TestRequestForm = () => {
     locationOfSample: '',
     contactPerson: '',
     contactNumber: '',
-    dateOfCollection: new Date().toISOString().split('T')[0],
+    dateOfCollection: '',
     dateOfReceipt: '',
     sampleCollectedBy: '',
     sampleQuantity: '',
@@ -55,20 +56,21 @@ const TestRequestForm = () => {
     packingDetails: '',
     sampleIdNumber: '',
     reportNumber: '',
-    sampleParticular: '', // This will hold categoryId
+    sampleParticular: '',
+    categoryId: '',
     subCategoryId: '',
     equipmentAvailability: 'Available',
     referenceStandardAvailability: 'Available',
     sampleAdequacy: 'Adequate',
     testMethodAvailability: 'Available',
     trainedPersonAvailability: 'Available',
-    tentativeDays: '15-20 Days',
-    sampleTestingFacilityReviewedBy: 'Quality Manager /Technical Manager',
+    tentativeDays: '',
+    sampleTestingFacilityReviewedBy: '',
     customerRepresentativeName: '',
     sampleReceiverName: '',
-    testProtocol: 'Ground Water/Surface Water/Drinking Water: APHA 23rd Edition 2017\nWaste Water: APHA 23rd Edition 2017',
+    testProtocol: '',
     remarks: '',
-    formTitle: 'WATER & WASTE WATER',
+    formTitle: '',
     formType: 'Regular',
     includeCaution: false,
     cautionId: ''
@@ -96,6 +98,53 @@ const TestRequestForm = () => {
     window.addEventListener('companyChanged', handleCompanyChange);
     return () => window.removeEventListener('companyChanged', handleCompanyChange);
   }, []);
+
+  // Helper to generate next Report No in format RPT-001, RPT-002, etc. based on previous report numbers
+  const generateNextReportNumber = (allRequests) => {
+    if (!allRequests || allRequests.length === 0) {
+      return 'RPT-001';
+    }
+
+    const validReportNos = allRequests
+      .map(r => r.reportNumber || r.report_number || '')
+      .filter(num => num && num.trim().length > 0);
+
+    if (validReportNos.length === 0) {
+      return 'RPT-001';
+    }
+
+    let maxNum = 0;
+    let maxPrefix = 'RPT-';
+    let padLength = 3;
+
+    validReportNos.forEach(repNo => {
+      const match = repNo.trim().match(/^([A-Za-z]+[-_/\s]*)(\d+)$/);
+      if (match) {
+        const prefix = match[1];
+        const numStr = match[2];
+        const numVal = parseInt(numStr, 10);
+        if (!isNaN(numVal) && numVal > maxNum) {
+          maxNum = numVal;
+          maxPrefix = prefix;
+          padLength = Math.max(numStr.length, 3);
+        }
+      } else {
+        const endNumMatch = repNo.trim().match(/(\d+)$/);
+        if (endNumMatch) {
+          const numStr = endNumMatch[1];
+          const numVal = parseInt(numStr, 10);
+          if (!isNaN(numVal) && numVal > maxNum) {
+            maxNum = numVal;
+            padLength = Math.max(numStr.length, 3);
+          }
+        }
+      }
+    });
+
+    const nextNum = maxNum + 1;
+    const paddedNextNum = String(nextNum).padStart(padLength, '0');
+    return `${maxPrefix}${paddedNextNum}`;
+  };
 
   const fetchInitialData = async () => {
     try {
@@ -171,12 +220,52 @@ const TestRequestForm = () => {
         const matchingComp = cList.find(c => c.id === tr.companyId || (c.companyName || c.company_name) === tr.companyName) || {};
         const matchingClient = clList.find(c => c.id === tr.clientId || c.clientName === tr.clientName) || {};
 
-        const savedSubCatId = tr.subCategoryId || tr.sub_category_id || '';
+        let savedSubCatId = tr.subCategoryId || tr.sub_category_id || '';
+        let savedCategoryId = tr.categoryId || tr.category_id || (tr.sampleParticular && tr.sampleParticular.length === 36 ? tr.sampleParticular : '');
+        const savedSampleParticular = (tr.sampleParticular && tr.sampleParticular.length === 36) ? '' : (tr.sampleParticular || '');
+
+        // Fetch checked parameters for this test request
+        const checks = {};
+        const loadedSeq = [];
+        try {
+          const trpRes = await apiService.get(TEST_REQUEST_PARAMETER_ENDPOINTS.GET_ALL);
+          if (trpRes?.data) {
+            const trps = Array.isArray(trpRes.data) ? trpRes.data : (trpRes.data.rows || [trpRes.data]);
+            const matchingTrps = trps.filter(t => String(t.testRequestId) === String(id));
+            matchingTrps.sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
+            matchingTrps.forEach(t => {
+              if (t.parameterId) {
+                checks[t.parameterId] = true;
+                checks[`_id_${t.parameterId}`] = t.id; // Store transaction ID for updates/deletes
+                loadedSeq.push(t.parameterId);
+              }
+            });
+            setCheckedParameters(checks);
+            setSelectedParamSequence(loadedSeq);
+          }
+        } catch (e) {
+          console.error("Error fetching request parameters", e);
+        }
+
+        // If category or subcategory is missing in TR record, try inferring from checked parameters
+        if ((!savedCategoryId || !savedSubCatId) && loadedSeq.length > 0) {
+          try {
+            const paramRes = await apiService.get(`${PARAMETER_ENDPOINTS.GET_ALL}?status=Active&all=true`);
+            const allParams = Array.isArray(paramRes?.data) ? paramRes.data : (paramRes?.data?.rows || []);
+            const matchedParam = allParams.find(p => loadedSeq.includes(p.id));
+            if (matchedParam) {
+              if (!savedCategoryId) savedCategoryId = matchedParam.categoryId || matchedParam.category_id || '';
+              if (!savedSubCatId) savedSubCatId = matchedParam.subCategoryId || matchedParam.sub_category_id || '';
+            }
+          } catch (err) {
+            console.error("Error inferring category from parameters", err);
+          }
+        }
 
         setFormData({
           companyId: matchingComp.id || tr.companyId || '',
           clientId: matchingClient.id || tr.clientId || '',
-          address: tr.address || '',
+          address: tr.address || matchingClient.plantAddress || matchingClient.plant_address || matchingClient.officeAddress || matchingClient.office_address || matchingClient.address || '',
           email: tr.email || '',
           locationOfSample: tr.locationOfSample || '',
           contactPerson: tr.contactPerson || '',
@@ -189,7 +278,8 @@ const TestRequestForm = () => {
           packingDetails: tr.packingDetails || '',
           sampleIdNumber: tr.sampleIdNumber || '',
           reportNumber: tr.reportNumber || '',
-          sampleParticular: tr.sampleParticular || '',
+          sampleParticular: savedSampleParticular,
+          categoryId: savedCategoryId,
           subCategoryId: savedSubCatId,
           equipmentAvailability: tr.equipmentAvailability || 'Available',
           referenceStandardAvailability: tr.referenceStandardAvailability || 'Available',
@@ -212,36 +302,26 @@ const TestRequestForm = () => {
           setSelectedSubCategory(savedSubCatId);
         }
 
-        if (tr.sampleParticular) {
-          fetchSubCategoriesForCategory(tr.sampleParticular);
-          if (savedSubCatId) {
-            fetchParameters(savedSubCatId);
-          } else {
-            setParameters([]);
-          }
+        if (savedCategoryId) {
+          fetchSubCategoriesForCategory(savedCategoryId);
+        }
+        fetchParameters(savedSubCatId, savedCategoryId, loadedSeq);
+      } else {
+        // Pre-select company if we resolved one and auto-generate next Report No (e.g. RPT-001, RPT-002)
+        let autoReportNo = 'RPT-001';
+        try {
+          const allTrsRes = await apiService.get(`${TEST_REQUEST_ENDPOINTS.GET_ALL}?limit=1000${targetCompanyId ? `&companyId=${targetCompanyId}` : ''}`);
+          const trsList = Array.isArray(allTrsRes?.data) ? allTrsRes.data : (allTrsRes?.data?.rows || []);
+          autoReportNo = generateNextReportNumber(trsList);
+        } catch (e) {
+          console.error("Error auto-generating report number", e);
         }
 
-        // Fetch checked parameters
-        try {
-          const trpRes = await apiService.get(TEST_REQUEST_PARAMETER_ENDPOINTS.GET_ALL);
-          if (trpRes?.data) {
-            const trps = Array.isArray(trpRes.data) ? trpRes.data : [trpRes.data];
-            const matchingTrps = trps.filter(t => t.testRequestId === id);
-            const checks = {};
-            matchingTrps.forEach(t => {
-              if (t.parameterId) checks[t.parameterId] = true;
-              checks[`_id_${t.parameterId}`] = t.id; // Store transaction ID for updates/deletes
-            });
-            setCheckedParameters(checks);
-          }
-        } catch (e) {
-          console.error("Error fetching request parameters", e);
-        }
-      } else {
-        // Pre-select company if we resolved one
-        if (targetCompanyId) {
-          setFormData(prev => ({ ...prev, companyId: targetCompanyId }));
-        }
+        setFormData(prev => ({
+          ...prev,
+          companyId: targetCompanyId || prev.companyId,
+          reportNumber: autoReportNo
+        }));
       }
     } catch (err) {
       console.error(err);
@@ -270,15 +350,20 @@ const TestRequestForm = () => {
     }
   };
 
-  const fetchParameters = async (subCategoryId) => {
-    if (!subCategoryId) {
+  const fetchParameters = async (subCategoryId, categoryId, extraIncludeIds = []) => {
+    if (!subCategoryId && !categoryId && (!extraIncludeIds || extraIncludeIds.length === 0)) {
       setParameters([]);
       setParametersLoading(false);
       return;
     }
     setParametersLoading(true);
     try {
-      const url = `${PARAMETER_ENDPOINTS.GET_ALL}?status=Active&all=true&subCategoryId=${subCategoryId}`;
+      let url = `${PARAMETER_ENDPOINTS.GET_ALL}?status=Active&all=true`;
+      if (subCategoryId) {
+        url += `&subCategoryId=${subCategoryId}`;
+      } else if (categoryId) {
+        url += `&categoryId=${categoryId}`;
+      }
       const res = await apiService.get(url);
       let list = [];
       if (res?.data?.rows) {
@@ -288,7 +373,21 @@ const TestRequestForm = () => {
       } else if (res?.data) {
         list = [res.data];
       }
-      setParameters(list.filter(p => p.status === 'Active' || p.status === true || !p.status));
+
+      let activeList = list.filter(p => p.status === 'Active' || p.status === true || !p.status);
+
+      // If there are extra parameter IDs (e.g., from existing TR parameters) missing from activeList, fetch and merge them
+      if (extraIncludeIds && extraIncludeIds.length > 0) {
+        const missingIds = extraIncludeIds.filter(id => !activeList.some(p => p.id === id));
+        if (missingIds.length > 0) {
+          const allRes = await apiService.get(`${PARAMETER_ENDPOINTS.GET_ALL}?status=Active&all=true`);
+          const allList = Array.isArray(allRes?.data) ? allRes.data : (allRes?.data?.rows || []);
+          const extraParams = allList.filter(p => missingIds.includes(p.id));
+          activeList = [...activeList, ...extraParams];
+        }
+      }
+
+      setParameters(activeList);
       setParamPage(1);
     } catch (e) {
       console.error("Error fetching parameters", e);
@@ -305,7 +404,9 @@ const TestRequestForm = () => {
     setParamPage(1);
     setCheckedParameters({});
     if (subId) {
-      fetchParameters(subId);
+      fetchParameters(subId, formData.categoryId);
+    } else if (formData.categoryId) {
+      fetchParameters('', formData.categoryId);
     } else {
       setParameters([]);
     }
@@ -316,6 +417,8 @@ const TestRequestForm = () => {
     if (displayedParams.length === 0) return;
 
     const allChecked = displayedParams.every(p => !!checkedParameters[p.id]);
+    const displayedIds = displayedParams.map(p => p.id);
+
     setCheckedParameters(prev => {
       const next = { ...prev };
       displayedParams.forEach(p => {
@@ -327,15 +430,24 @@ const TestRequestForm = () => {
       });
       return next;
     });
+
+    setSelectedParamSequence(prevSeq => {
+      if (allChecked) {
+        return prevSeq.filter(id => !displayedIds.includes(id));
+      } else {
+        const newIdsToAdd = displayedIds.filter(id => !prevSeq.includes(id));
+        return [...prevSeq, ...newIdsToAdd];
+      }
+    });
   };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
 
-    if (name === 'sampleParticular') {
+    if (name === 'categoryId') {
       setSelectedSubCategory('');
-      setFormData(prev => ({ ...prev, subCategoryId: '' }));
+      setFormData(prev => ({ ...prev, categoryId: value, subCategoryId: '' }));
       setParameters([]);
       setCheckedParameters({});
       setParamPage(1);
@@ -349,11 +461,13 @@ const TestRequestForm = () => {
     }
 
     if (name === 'clientId' && value) {
-      // Auto-fill client details
+      // Auto-fill client details including Plant/Industry Address
       const selectedClient = clients.find(c => c.id === value);
       if (selectedClient) {
+        const clientPlantAddress = selectedClient.plantAddress || selectedClient.plant_address || selectedClient.officeAddress || selectedClient.office_address || selectedClient.address || '';
         setFormData(prev => ({
           ...prev,
+          address: clientPlantAddress,
           email: selectedClient.email || '',
           contactNumber: selectedClient.contactNumber || prev.contactNumber
         }));
@@ -362,10 +476,20 @@ const TestRequestForm = () => {
   };
 
   const handleParameterCheck = (paramId) => {
+    const isCurrentlyChecked = !!checkedParameters[paramId];
+
     setCheckedParameters(prev => ({
       ...prev,
-      [paramId]: !prev[paramId]
+      [paramId]: !isCurrentlyChecked
     }));
+
+    setSelectedParamSequence(prevSeq => {
+      if (!isCurrentlyChecked) {
+        return prevSeq.includes(paramId) ? prevSeq : [...prevSeq, paramId];
+      } else {
+        return prevSeq.filter(id => id !== paramId);
+      }
+    });
   };
 
   const validateForm = () => {
@@ -377,7 +501,8 @@ const TestRequestForm = () => {
       triggerToast('Please select a Client.', 'error');
       return false;
     }
-    if (!formData.sampleParticular) {
+    const activeCatId = formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : '');
+    if (!activeCatId) {
       triggerToast('Please select a Discipline Group.', 'error');
       return false;
     }
@@ -396,8 +521,13 @@ const TestRequestForm = () => {
 
     try {
       // 1. Save Test Request
+      const activeCatId = formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : null);
+      const textSampleParticular = (formData.sampleParticular && formData.sampleParticular.length === 36) ? '' : formData.sampleParticular;
+
       const payload = {
         ...formData,
+        categoryId: activeCatId,
+        sampleParticular: textSampleParticular,
         subCategoryId: selectedSubCategory || formData.subCategoryId || null,
         includeCaution: Boolean(formData.includeCaution),
         cautionId: formData.includeCaution && formData.cautionId ? formData.cautionId : null,
@@ -422,23 +552,37 @@ const TestRequestForm = () => {
         return false;
       }
 
-      // Update saved requestId state & navigate to edit mode so subsequent clicks trigger UPDATE instead of CREATE
+      // Update saved requestId state
       setSavedRequestId(savedTrId);
-      if (!id) {
-        navigate(`/test-requests/edit/${savedTrId}`, { replace: true });
-      }
 
-      // 2. Save Parameters Checklist
-      const currentParamIds = Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]);
+      // 2. Save Parameters Checklist with sequence
+      const checkedParamIds = Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]);
 
-      for (const pId of currentParamIds) {
-        if (!checkedParameters[`_id_${pId}`]) {
+      const orderedParamIds = [
+        ...selectedParamSequence.filter(id => checkedParamIds.includes(id)),
+        ...checkedParamIds.filter(id => !selectedParamSequence.includes(id))
+      ];
+
+      for (let i = 0; i < orderedParamIds.length; i++) {
+        const pId = orderedParamIds[i];
+        const seqNum = i + 1;
+        const trpId = checkedParameters[`_id_${pId}`];
+
+        if (!trpId) {
           const targetParam = parameters.find(p => p.id === pId);
-          await apiService.post(TEST_REQUEST_PARAMETER_ENDPOINTS.CREATE, {
+          const res = await apiService.post(TEST_REQUEST_PARAMETER_ENDPOINTS.CREATE, {
             testRequestId: savedTrId,
             parameterId: pId,
+            sequence: seqNum,
             testMethod: targetParam ? (targetParam.testMethod || targetParam.defaultTestMethod) : null,
             price: priceMasterMap[pId] || 0
+          });
+          if (res?.data?.id) {
+            setCheckedParameters(prev => ({ ...prev, [`_id_${pId}`]: res.data.id }));
+          }
+        } else {
+          await apiService.put(TEST_REQUEST_PARAMETER_ENDPOINTS.UPDATE(trpId), {
+            sequence: seqNum
           });
         }
       }
@@ -446,10 +590,20 @@ const TestRequestForm = () => {
       triggerToast('Test Request saved successfully!', 'success');
       return savedTrId;
     } catch (err) {
-      triggerToast(err.messageToShow || 'Failed to save test request.', 'error');
+      const errorMsg = err?.messageToShow || err?.message || err?.errorMessage || err?.error || (typeof err === 'string' ? err : 'Failed to save test request.');
+      triggerToast(errorMsg, 'error');
       return false;
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleSaveAndNavigate = async () => {
+    const savedId = await handleSave();
+    if (savedId) {
+      setTimeout(() => {
+        navigate('/test-requests');
+      }, 500);
     }
   };
 
@@ -457,6 +611,9 @@ const TestRequestForm = () => {
     const savedId = await handleSave();
     if (savedId) {
       window.open(`#/test-requests/print/${savedId}`, '_blank');
+      setTimeout(() => {
+        navigate('/test-requests');
+      }, 500);
     }
   };
 
@@ -464,6 +621,9 @@ const TestRequestForm = () => {
     const savedId = await handleSave();
     if (savedId) {
       window.open(`#/test-requests/quotation/${savedId}`, '_blank');
+      setTimeout(() => {
+        navigate('/test-requests');
+      }, 500);
     }
   };
 
@@ -519,7 +679,7 @@ const TestRequestForm = () => {
             <span>{showLivePreview ? 'Hide Preview' : 'Live Preview'}</span>
           </button>
           <button
-            onClick={handleSave}
+            onClick={handleSaveAndNavigate}
             disabled={submitting}
             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1.25rem', fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer' }}
           >
@@ -659,7 +819,7 @@ const TestRequestForm = () => {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                 <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Email ID</label>
-                <input type="email" name="email" value={formData.email} onChange={handleChange} className="premium-input" placeholder="e.g. contact@client.com" />
+                <input type="text" name="email" value={formData.email} onChange={handleChange} className="premium-input" placeholder="e.g. contact@client.com, contact2@client.com" />
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
@@ -732,8 +892,32 @@ const TestRequestForm = () => {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Report No.</label>
-                <input type="text" name="reportNumber" value={formData.reportNumber} onChange={handleChange} className="premium-input" placeholder="e.g. RPT-001" />
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Report No. (Auto-Generated)</label>
+                <input
+                  type="text"
+                  name="reportNumber"
+                  value={formData.reportNumber}
+                  onChange={handleChange}
+                  className="premium-input"
+                  placeholder="Auto-generated (e.g. RPT-001)"
+                  readOnly={true}
+                  disabled={true}
+                  style={{ backgroundColor: '#f1f5f9', cursor: 'not-allowed', color: '#475569', fontWeight: 600 }}
+                />
+              </div>
+
+              {/* Sample Particular Field (Long Text Input) */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', gridColumn: '1 / -1' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Sample Particular</label>
+                <textarea
+                  name="sampleParticular"
+                  value={formData.sampleParticular}
+                  onChange={handleChange}
+                  className="premium-input"
+                  rows={3}
+                  placeholder="Enter sample particulars / description..."
+                  style={{ minHeight: '80px', resize: 'vertical' }}
+                ></textarea>
               </div>
             </div>
           </div>
@@ -748,7 +932,7 @@ const TestRequestForm = () => {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                 <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Discipline Group <span style={{ color: '#ef4444' }}>*</span></label>
-                <select name="sampleParticular" value={formData.sampleParticular} onChange={handleChange} className="premium-input">
+                <select name="categoryId" value={formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : '')} onChange={handleChange} className="premium-input">
                   <option value="">Select Discipline Group</option>
                   {[...categories].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
@@ -762,12 +946,12 @@ const TestRequestForm = () => {
                   value={selectedSubCategory || formData.subCategoryId || ''}
                   onChange={handleSubCategoryChange}
                   className="premium-input"
-                  disabled={!formData.sampleParticular || subCategoriesLoading}
+                  disabled={(!formData.categoryId && (!formData.sampleParticular || formData.sampleParticular.length !== 36)) || subCategoriesLoading}
                 >
                   <option value="">Select Sub Category</option>
                   {[...subCategories].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
-                {formData.sampleParticular && !subCategoriesLoading && subCategories.length === 0 && (
+                {(formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36)) && !subCategoriesLoading && subCategories.length === 0 && (
                   <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic' }}>
                     No subcategories available for this discipline group
                   </span>
@@ -775,11 +959,11 @@ const TestRequestForm = () => {
               </div>
             </div>
 
-            {!formData.sampleParticular ? (
+            {!formData.categoryId && (!formData.sampleParticular || formData.sampleParticular.length !== 36) ? (
               <div style={{ padding: '2.5rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1', fontWeight: 500 }}>
                 Please select a Discipline Group to begin.
               </div>
-            ) : (!selectedSubCategory && !formData.subCategoryId) ? (
+            ) : (!selectedSubCategory && !formData.subCategoryId && subCategories.length > 0 && parameters.length === 0) ? (
               <div style={{ padding: '2.5rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1', fontWeight: 500 }}>
                 Please select a Sub Category to view test parameters.
               </div>
@@ -789,10 +973,15 @@ const TestRequestForm = () => {
               </div>
             ) : parameters.length === 0 ? (
               <div style={{ padding: '2.5rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
-                No parameters mapped to this subcategory
+                No parameters mapped to this selection
               </div>
             ) : (() => {
-              const categoryFilteredParams = parameters.filter(param => !selectedSubCategory || param.subCategoryId === selectedSubCategory || param.subCategory?.id === selectedSubCategory);
+              const categoryFilteredParams = parameters.filter(param =>
+                !selectedSubCategory ||
+                param.subCategoryId === selectedSubCategory ||
+                param.subCategory?.id === selectedSubCategory ||
+                checkedParameters[param.id]
+              );
               const searchFilteredParams = categoryFilteredParams
                 .filter(param => {
                   if (!paramSearch.trim()) return true;
@@ -888,7 +1077,15 @@ const TestRequestForm = () => {
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.925rem' }}>
                       <thead>
                         <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                          <th style={{ padding: '0.75rem 1rem', textAlign: 'center', width: '70px', color: '#64748b', fontWeight: 600 }}>Select</th>
+                          <th style={{ padding: '0.75rem 1rem', textAlign: 'center', width: '70px', color: '#64748b', fontWeight: 600 }}>
+                            <input
+                              type="checkbox"
+                              checked={categoryFilteredParams.length > 0 && categoryFilteredParams.every(p => !!checkedParameters[p.id])}
+                              onChange={handleToggleSelectAllParameters}
+                              title={categoryFilteredParams.length > 0 && categoryFilteredParams.every(p => !!checkedParameters[p.id]) ? "Deselect All" : "Select All"}
+                              style={{ width: '1.1rem', height: '1.1rem', cursor: 'pointer', accentColor: '#22c55e' }}
+                            />
+                          </th>
                           <th style={{ padding: '0.75rem 1rem', textAlign: 'left', color: '#64748b', fontWeight: 600 }}>Parameter Name</th>
                           <th style={{ padding: '0.75rem 1rem', textAlign: 'left', color: '#64748b', fontWeight: 600 }}>Test Method</th>
                           <th style={{ padding: '0.75rem 1rem', textAlign: 'right', color: '#64748b', fontWeight: 600, width: '130px' }}>Price (₹)</th>
@@ -1221,7 +1418,7 @@ const TestRequestForm = () => {
             </button>
             <button
               type="button"
-              onClick={handleSave}
+              onClick={handleSaveAndNavigate}
               disabled={submitting}
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.6rem 1.25rem', fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer' }}
             >
@@ -1383,8 +1580,8 @@ const TestRequestForm = () => {
                     </td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Sample Particular (Cat)</td>
-                    <td style={{ padding: '3px 4px' }}>{selCategory.name || 'N/A'}</td>
+                    <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Sample Particular</td>
+                    <td style={{ padding: '3px 4px', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{formData.sampleParticular || selCategory.name || 'N/A'}</td>
                   </tr>
 
                   {/* Feasibility table inner block */}
@@ -1462,30 +1659,127 @@ const TestRequestForm = () => {
                 </tbody>
               </table>
 
-              {/* Selected Parameters Checklist */}
-              {Object.values(checkedParameters).some(Boolean) && (
-                <div style={{ marginTop: '8px', border: '1px solid #000000', padding: '4px' }}>
-                  <div style={{ fontWeight: 'bold', fontSize: '7px', textTransform: 'uppercase', marginBottom: '3px', borderBottom: '1px solid #000000', paddingBottom: '2px' }}>
-                    Selected Parameters ({parameters.filter(p => checkedParameters[p.id]).length})
-                  </div>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '7px' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <th style={{ textAlign: 'left', padding: '1px' }}>Parameter Name</th>
-                        <th style={{ textAlign: 'left', padding: '1px' }}>Test Method</th>
+              {/* Footer Page 1 */}
+              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '7px', marginTop: 'auto' }}>
+                <tbody>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}>Doc No: JLT/ 7.1 F-01</td>
+                    <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}></td>
+                    <td style={{ width: '33.33%', padding: '2px 3px', textAlign: 'right' }}>Page 1 of 2</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Format No. 7.1 F-01</td>
+                    <td colSpan={2} style={{ padding: '2px 3px' }}>Format: Test Request Form (Water & Waste Water)</td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Prepared By: TM</td>
+                    <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Approved By: QM</td>
+                    <td style={{ padding: '2px 3px' }}>Issue By/Reviewed By: TM</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* PAGE BREAK / SPACER */}
+            <div style={{ margin: '2rem 0', borderTop: '2px dashed #cbd5e1', position: 'relative' }}>
+              <span style={{ position: 'absolute', top: '-10px', left: '50%', transform: 'translateX(-50%)', background: '#f8fafc', padding: '0 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Page 2 Preview</span>
+            </div>
+
+            {/* PAGE 2 */}
+            <div style={{
+              background: '#ffffff',
+              border: '1px solid #000000',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+              padding: '1.25rem',
+              fontSize: '10px',
+              fontFamily: '"Plus Jakarta Sans", "Inter", sans-serif',
+              color: '#000000',
+              lineHeight: '1.3',
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: '297mm',
+              boxSizing: 'border-box'
+            }}>
+              {/* Header block (repeated from Page 1) */}
+              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', marginBottom: '8px' }}>
+                <tbody>
+                  <tr>
+                    <td style={{ width: '45%', border: '1px solid #000000', padding: '4px', verticalAlign: 'middle', textAlign: 'center' }}>
+                      <img src="/Images/Navbar_Logo.png" alt="Logo" style={{ height: '50px', objectFit: 'contain', display: 'block', margin: '0 auto' }} />
+                    </td>
+                    <td style={{ width: '25%', border: '1px solid #000000', padding: '4px', textAlign: 'center', fontWeight: 'bold', fontSize: '10px' }}>
+                      FORMATS
+                    </td>
+                    <td style={{ width: '30%', border: '1px solid #000000', padding: '0' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '7px' }}>
+                        <tbody>
+                          <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Amendment No.</td><td style={{ padding: '2px 3px' }}>00</td></tr>
+                          <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Amendment Date</td><td style={{ padding: '2px 3px' }}>--</td></tr>
+                          <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Issue No.</td><td style={{ padding: '2px 3px' }}>01</td></tr>
+                          <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Issue Date</td><td style={{ padding: '2px 3px' }}>01/09/2018</td></tr>
+                          <tr><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Format No.</td><td style={{ padding: '2px 3px' }}>7.1 F-01</td></tr>
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div style={{ fontWeight: 'bold', fontSize: '8px', marginBottom: '8px', border: '1px solid #000000', borderTop: 'none', background: '#f8fafc', padding: '3px', textAlign: 'center' }}>
+                Test Parameter to Be Analyzed: - {selCategory.name || 'WATER & WASTE WATER'}
+              </div>
+
+              {/* Parameters Grid */}
+              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '8px', marginBottom: '8px' }}>
+                <thead>
+                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid #000000' }}>
+                    <th style={{ width: '8%', padding: '3px', borderRight: '1px solid #000000', textAlign: 'center' }}>Sr. No.</th>
+                    <th style={{ width: '42%', padding: '3px', borderRight: '1px solid #000000', textAlign: 'left' }}>Test Parameters</th>
+                    <th style={{ width: '10%', padding: '3px', borderRight: '1px solid #000000', textAlign: 'center' }}>Tick √</th>
+                    <th style={{ width: '40%', padding: '3px', textAlign: 'center' }}>Test Method</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Array.from({ length: Math.max(20, parameters.length) }).map((_, i) => {
+                    const param = parameters[i];
+                    const isChecked = param ? !!checkedParameters[param.id] : false;
+                    return (
+                      <tr key={i} style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ padding: '2px', borderRight: '1px solid #000000', textAlign: 'center' }}>{i + 1}.</td>
+                        <td style={{ padding: '2px 4px', borderRight: '1px solid #000000', textAlign: 'left' }}>{param ? (param.parameterName || param.name) : ''}</td>
+                        <td style={{ padding: '2px', borderRight: '1px solid #000000', textAlign: 'center', fontWeight: 'bold', color: '#15803d' }}>{isChecked ? '√' : ''}</td>
+                        <td style={{ padding: '2px 4px', textAlign: 'left' }}>{param ? (param.testMethod || '') : ''}</td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {parameters.filter(p => checkedParameters[p.id]).map(param => (
-                        <tr key={param.id} style={{ borderBottom: '1px dashed #e2e8f0' }}>
-                          <td style={{ padding: '1px', fontWeight: '600' }}>{param.parameterName}</td>
-                          <td style={{ padding: '1px', color: '#64748b' }}>{param.testMethod || 'N/A'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                    );
+                  })}
+                </tbody>
+              </table>
+
+              {/* Approved By Technical Manager */}
+              <div style={{ textAlign: 'right', marginTop: '1.5rem', fontWeight: 'bold', fontSize: '8px', paddingRight: '1.5rem' }}>
+                Approved By<br />
+                Technical Manager
+              </div>
+
+              {/* Footer Page 2 */}
+              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '7px', marginTop: 'auto' }}>
+                <tbody>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}>Doc No: JLT/ 7.1 F-01</td>
+                    <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}></td>
+                    <td style={{ width: '33.33%', padding: '2px 3px', textAlign: 'right' }}>Page 2 of 2</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Format No. 7.1 F-01</td>
+                    <td colSpan={2} style={{ padding: '2px 3px' }}>Format: Test Request Form (Water & Waste Water)</td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Prepared By: TM</td>
+                    <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Approved By: QM</td>
+                    <td style={{ padding: '2px 3px' }}>Issue By/Reviewed By: TM</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         )}

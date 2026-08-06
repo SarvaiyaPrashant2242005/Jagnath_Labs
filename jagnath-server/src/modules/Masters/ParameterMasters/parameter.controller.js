@@ -109,10 +109,14 @@ const create = async (req, res) => {
             parameterName: value.parameterName,
             description: value.description,
             testMethod: value.testMethod,
+            unit: value.unit,
+            isPermissibleLimitApplicable: value.isPermissibleLimitApplicable,
+            permissibleLimit: value.permissibleLimit,
             status: value.status || "Active",
             companyId,
             categoryId: value.categoryId,
-            subCategoryId: value.subCategoryId || null
+            subCategoryId: value.subCategoryId || null,
+            locationSampleId: value.locationSampleId || null
         };
 
         const reqInfo = {
@@ -288,10 +292,14 @@ const update = async (req, res) => {
             parameterName: value.parameterName,
             description: value.description,
             testMethod: value.testMethod,
+            unit: value.unit,
+            isPermissibleLimitApplicable: value.isPermissibleLimitApplicable,
+            permissibleLimit: value.permissibleLimit,
             status: value.status,
             companyId: targetCompanyId,
             categoryId: value.categoryId,
-            subCategoryId: value.subCategoryId || null
+            subCategoryId: value.subCategoryId || null,
+            locationSampleId: value.locationSampleId !== undefined ? value.locationSampleId : null
         };
 
         const reqInfo = {

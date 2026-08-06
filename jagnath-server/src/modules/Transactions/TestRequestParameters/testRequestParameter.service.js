@@ -378,7 +378,8 @@ const getAllTransactions = async (companyId = null) => {
                     attributes: ["parameterName"]
                 }
             ],
-            attributes: { exclude: ["deleted_at"] }
+            attributes: { exclude: ["deleted_at"] },
+            order: [['sequence', 'ASC'], ['created_at', 'ASC']]
         });
         return trps.map(t => formatTransaction(t));
     } catch (error) {
@@ -414,7 +415,8 @@ const getParametersByTestRequest = async (testRequestId, companyId = null) => {
                     attributes: ["parameterName"]
                 }
             ],
-            attributes: { exclude: ["deleted_at"] }
+            attributes: { exclude: ["deleted_at"] },
+            order: [['sequence', 'ASC'], ['created_at', 'ASC']]
         });
         return trps.map(t => formatTransaction(t));
     } catch (error) {

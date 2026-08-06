@@ -72,8 +72,9 @@ export const MASTER_SCHEMAS = {
       { key: 'contactNumber', label: 'Contact Number *', required: true, type: 'string', aliases: ['contactnumber', 'contactnumber*', 'contactno', 'contactno.', 'mobilenumber', 'mobile', 'phone', 'contact_number', 'Contact Number *', 'Contact No'] },
       { key: 'email', label: 'Email', required: false, type: 'email', aliases: ['email', 'emailaddress', 'email_address', 'Email Address'] },
       { key: 'gender', label: 'Gender', required: false, type: 'select', options: ['Male', 'Female', 'Other'], aliases: ['gender', 'Gender'] },
-      { key: 'address', label: 'Address', required: false, type: 'string', aliases: ['address', 'communicationaddress', 'communication_address', 'Address', 'Communication Address'] },
-      { key: 'city', label: 'City', required: false, type: 'string', aliases: ['city', 'City'] },
+      { key: 'officeAddress', label: 'Office Address *', required: true, type: 'string', aliases: ['officeaddress', 'officeaddress*', 'office_address', 'address', 'Address', 'Office Address'] },
+      { key: 'plantAddress', label: 'Plant / Industry Address *', required: true, type: 'string', aliases: ['plantaddress', 'plantaddress*', 'plant_address', 'industryaddress', 'Plant / Industry Address'] },
+      { key: 'city', label: 'City *', required: true, type: 'string', aliases: ['city', 'city*', 'City *', 'City'] },
       { key: 'state', label: 'State', required: false, type: 'string', aliases: ['state', 'State'] },
       { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'], aliases: ['status', 'Status'] }
     ],
@@ -83,8 +84,9 @@ export const MASTER_SCHEMAS = {
         'Contact Number *': '9876543210',
         'Email': 'contact@alphatech.com',
         'Gender': 'Male',
-        'Address': '123 Tech Park',
-        'City': 'Surat',
+        'Office Address *': '123 Tech Park, Ring Road',
+        'Plant / Industry Address *': 'Plot 45, GIDC Industrial Estate',
+        'City *': 'Surat',
         'State': 'Gujarat',
         'Status': 'Active'
       },
@@ -93,9 +95,33 @@ export const MASTER_SCHEMAS = {
         'Contact Number *': '9123456789',
         'Email': 'info@greeneco.org',
         'Gender': 'Female',
-        'Address': '45 Eco Zone',
-        'City': 'Ahmedabad',
+        'Office Address *': '45 Eco Tower, SG Highway',
+        'Plant / Industry Address *': 'Phase 2, Sanand Industrial Area',
+        'City *': 'Ahmedabad',
         'State': 'Gujarat',
+        'Status': 'Active'
+      }
+    ]
+  },
+
+  locationSample: {
+    title: 'Location of Sample Master',
+    filename: 'Location_Sample_Master_Template.xlsx',
+    uniqueKeys: ['name'],
+    headers: [
+      { key: 'name', label: 'Location Name *', required: true, type: 'string', aliases: ['locationname', 'locationname*', 'name', 'location_name', 'Location Name *'] },
+      { key: 'description', label: 'Description', required: false, type: 'string', aliases: ['description', 'Description'] },
+      { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'], aliases: ['status', 'Status'] }
+    ],
+    sampleData: [
+      {
+        'Location Name *': 'Tap Water Inlet',
+        'Description': 'Main municipal water supply tap at facility entrance',
+        'Status': 'Active'
+      },
+      {
+        'Location Name *': 'Effluent Treatment Plant Discharge',
+        'Description': 'Final outlet pipe after primary and secondary treatment',
         'Status': 'Active'
       }
     ]
@@ -157,26 +183,35 @@ export const MASTER_SCHEMAS = {
     headers: [
       { key: 'categoryName', label: 'Discipline Group *', required: true, type: 'string', aliases: ['disciplinegroup', 'disciplinegroup*', 'disciplinegroupname', 'groupname', 'category', 'categoryname', 'Discipline Group *'] },
       { key: 'subCategoryName', label: 'Sub Category', required: false, type: 'string', aliases: ['subcategory', 'subcategoryname', 'subcategory_name', 'Sub Category'] },
+      { key: 'locationOfSample', label: 'Location of Sample', required: false, type: 'string', aliases: ['locationofsample', 'location', 'locationsample', 'locationsamplename', 'location_of_sample', 'Location of Sample', 'Location'] },
       { key: 'parameterName', label: 'Parameter Name *', required: true, type: 'string', aliases: ['parametername', 'parametername*', 'name', 'parameter', 'Parameter Name *'] },
-      { key: 'testMethod', label: 'Test Method', required: false, type: 'string', aliases: ['testmethod', 'test_method', 'Test Method'] },
-      { key: 'description', label: 'Description', required: false, type: 'string', aliases: ['description', 'Description'] },
+      { key: 'testMethod', label: 'Test Method', required: false, type: 'string', aliases: ['testmethod', 'test_method', 'referencemethod', 'Test Method'] },
+      { key: 'unit', label: 'Unit', required: false, type: 'string', aliases: ['unit', 'units', 'Unit'] },
+      { key: 'isPermissibleLimitApplicable', label: 'Permissible Limit Applicable?', required: false, type: 'select', options: ['Yes', 'No'], aliases: ['permissiblelimitapplicable', 'permissiblelimitapplicable?', 'ispermissiblelimitapplicable', 'ispermissiblelimitapplicable?', 'Permissible Limit Applicable?'] },
+      { key: 'permissibleLimit', label: 'Permissible Limit', required: false, type: 'string', aliases: ['permissiblelimit', 'limit', 'Permissible Limit'] },
       { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'], aliases: ['status', 'Status'] }
     ],
     sampleData: [
       {
-        'Discipline Group *': 'Drinking Water',
+        'Discipline Group *': 'WATER TESTING',
         'Sub Category': 'Physical Parameters',
+        'Location of Sample': 'Drinking Water',
         'Parameter Name *': 'pH Level',
         'Test Method': 'APHA, 23rd Edition 2017/4500-H-B',
-        'Description': 'Acidity or alkalinity measure of water',
+        'Unit': 'pH',
+        'Permissible Limit Applicable?': 'Yes',
+        'Permissible Limit': '6.5 - 8.5',
         'Status': 'Active'
       },
       {
-        'Discipline Group *': 'Drinking Water',
+        'Discipline Group *': 'WATER TESTING',
         'Sub Category': 'Physical Parameters',
+        'Location of Sample': 'Waste Water',
         'Parameter Name *': 'Total Dissolved Solids (TDS)',
         'Test Method': 'IS 3025 (Part 16)',
-        'Description': 'Inorganic salts and small amounts of organic matter dissolved in water',
+        'Unit': 'mg/L',
+        'Permissible Limit Applicable?': 'Yes',
+        'Permissible Limit': '500',
         'Status': 'Active'
       }
     ]

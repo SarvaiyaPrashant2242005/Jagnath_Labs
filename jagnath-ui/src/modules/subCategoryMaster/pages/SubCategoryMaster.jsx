@@ -478,7 +478,7 @@ const SubCategoryMaster = () => {
                   style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.categoryId ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none', backgroundColor: '#ffffff' }}
                 >
                   <option value="">Select Discipline Group</option>
-                  {categories.map(cat => (
+                  {[...categories].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(cat => (
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
                 </select>
@@ -591,7 +591,7 @@ const SubCategoryMaster = () => {
               style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem' }}
             >
               <option value="">ALL DISCIPLINE GROUPS</option>
-              {categories.map(cat => (
+              {[...categories].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(cat => (
                 <option key={cat.id} value={cat.id}>{cat.name}</option>
               ))}
             </select>

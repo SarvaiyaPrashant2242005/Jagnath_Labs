@@ -5,7 +5,7 @@ import {
   FaFilePdf, FaPrint, FaChevronDown, FaTimes
 } from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
-import { PARAMETER_ENDPOINTS, COMPANY_ENDPOINTS, CATEGORY_ENDPOINTS, SUB_CATEGORY_ENDPOINTS } from '../../../shared/services/apiEndpoints';
+import { PARAMETER_ENDPOINTS, COMPANY_ENDPOINTS, CATEGORY_ENDPOINTS, SUB_CATEGORY_ENDPOINTS, LOCATION_SAMPLE_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 import Pagination from '../../../shared/components/Pagination';
 import BulkImportModal from '../../../shared/components/BulkImport/BulkImportModal';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
@@ -17,6 +17,7 @@ const ParameterMaster = () => {
   const [companies, setCompanies] = useState([]);
   const [categoriesList, setCategoriesList] = useState([]);
   const [subCategoriesList, setSubCategoriesList] = useState([]);
+  const [locationSamplesList, setLocationSamplesList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
 
@@ -51,12 +52,15 @@ const ParameterMaster = () => {
   // Form inputs state
   const [formData, setFormData] = useState({
     parameterName: '',
-    description: '',
+    unit: '',
+    isPermissibleLimitApplicable: false,
+    permissibleLimit: '',
     testMethod: '',
     status: 'Active',
     companyName: '',
     categoryId: '',
-    subCategoryId: ''
+    subCategoryId: '',
+    locationSampleId: ''
   });
   const [formErrors, setFormErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -183,6 +187,23 @@ const ParameterMaster = () => {
     }
   };
 
+  // Fetch active location samples to populate dropdown options
+  const fetchLocationSamplesForDropdown = async () => {
+    try {
+      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
+      const url = activeCompId ? `${LOCATION_SAMPLE_ENDPOINTS.GET_ALL}?companyId=${activeCompId}&status=Active` : `${LOCATION_SAMPLE_ENDPOINTS.GET_ALL}?status=Active`;
+      const response = await apiService.get(url);
+      if (response && response.data) {
+        const locs = Array.isArray(response.data) ? response.data : (response.data.rows || [response.data]);
+        setLocationSamplesList(locs);
+      } else {
+        setLocationSamplesList([]);
+      }
+    } catch (err) {
+      setLocationSamplesList([]);
+    }
+  };
+
   useEffect(() => {
     fetchSubCategoriesForDropdown(formData.categoryId);
   }, [formData.categoryId, isFormOpen]);
@@ -260,12 +281,14 @@ const ParameterMaster = () => {
     const initializeData = async () => {
       await fetchCompanies();
       await fetchCategoriesForDropdown();
+      await fetchLocationSamplesForDropdown();
       await fetchParameters();
     };
     initializeData();
 
     const handleCompanyChange = () => {
       fetchCategoriesForDropdown();
+      fetchLocationSamplesForDropdown();
       fetchParameters();
     };
     window.addEventListener('companyChanged', handleCompanyChange);
@@ -302,12 +325,15 @@ const ParameterMaster = () => {
     }
     setFormData({
       parameterName: '',
-      description: '',
+      unit: '',
+      isPermissibleLimitApplicable: false,
+      permissibleLimit: '',
       testMethod: '',
       status: 'Active',
       companyName: defaultCompanyName,
       categoryId: initialCatId,
-      subCategoryId: ''
+      subCategoryId: '',
+      locationSampleId: ''
     });
     setFormErrors({});
     setEditingId(null);
@@ -321,12 +347,15 @@ const ParameterMaster = () => {
     }
     setFormData({
       parameterName: param.parameterName || '',
-      description: param.description || '',
+      unit: param.unit || '',
+      isPermissibleLimitApplicable: param.isPermissibleLimitApplicable === true || param.is_permissible_limit_applicable === true,
+      permissibleLimit: param.permissibleLimit || param.permissible_limit || '',
       testMethod: param.testMethod || '',
       status: param.status || 'Active',
       companyName: param.companyName || (param.company ? (param.company.companyName || param.company.company_name) : ''),
       categoryId: param.categoryId || '',
-      subCategoryId: param.subCategoryId || ''
+      subCategoryId: param.subCategoryId || '',
+      locationSampleId: param.locationSampleId || ''
     });
     setFormErrors({});
     setEditingId(param.id);
@@ -351,13 +380,16 @@ const ParameterMaster = () => {
 
     const payload = {
       parameterName: formData.parameterName,
-      description: formData.description,
+      unit: formData.unit,
+      isPermissibleLimitApplicable: formData.isPermissibleLimitApplicable,
+      permissibleLimit: formData.isPermissibleLimitApplicable ? formData.permissibleLimit : '',
       testMethod: formData.testMethod,
       status: formData.status,
       companyId: activeCompId || null,
       companyName: activeCompanyName || formData.companyName,
       categoryId: formData.categoryId || null,
-      subCategoryId: formData.subCategoryId || null
+      subCategoryId: formData.subCategoryId || null,
+      locationSampleId: formData.locationSampleId || null
     };
 
     try {
@@ -418,65 +450,95 @@ const ParameterMaster = () => {
     }
   };
 
+  // Fetch all parameters matching current filters for complete data export
+  const fetchAllExportData = async () => {
+    try {
+      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
+      const params = new URLSearchParams({
+        limit: 5000,
+        search: searchQuery,
+        status: statusFilter
+      });
+      if (activeCompId) params.append('companyId', activeCompId);
+      if (categoryFilter) params.append('categoryId', categoryFilter);
+      if (subCategoryFilter) params.append('subCategoryId', subCategoryFilter);
+
+      const response = await apiService.get(`${PARAMETER_ENDPOINTS.GET_ALL}?${params.toString()}`);
+      if (response && response.data) {
+        if (response.data.rows) return response.data.rows;
+        return Array.isArray(response.data) ? response.data : [response.data];
+      }
+      return parameters;
+    } catch {
+      return parameters;
+    }
+  };
+
+  // Helper to map parameter record to bulk import template columns format
+  const mapParameterToTemplateRow = (p) => {
+    const isLimitApp = p.isPermissibleLimitApplicable === true || p.is_permissible_limit_applicable === true;
+    return [
+      p.categoryName || p.category_name || '',
+      p.subCategoryName || p.sub_category_name || '',
+      p.locationSampleName || p.location_sample_name || p.locationOfSample || '',
+      p.parameterName || p.parameter_name || '',
+      p.testMethod || p.test_method || '',
+      p.unit || '',
+      isLimitApp ? 'Yes' : 'No',
+      isLimitApp ? (p.permissibleLimit || p.permissible_limit || '') : (p.permissibleLimit || p.permissible_limit || ''),
+      p.status || 'Active'
+    ];
+  };
+
+  const exportTemplateHeaders = [
+    'Discipline Group *',
+    'Sub Category',
+    'Location of Sample',
+    'Parameter Name *',
+    'Test Method',
+    'Unit',
+    'Permissible Limit Applicable?',
+    'Permissible Limit',
+    'Status'
+  ];
+
   // CSV Export
-  const handleDownloadCSV = () => {
-    if (parameters.length === 0) return;
-    const headers = ['Parameter Name', 'Category', 'Test Method', 'Description', 'Status'];
-    const rows = parameters.map(p => [
-      p.parameterName,
-      p.categoryName || 'Unassigned',
-      p.testMethod || 'N/A',
-      p.description || 'None',
-      p.status
-    ]);
-    downloadCSV(headers, rows, 'Parameters_Report.csv');
+  const handleDownloadCSV = async () => {
+    const exportData = await fetchAllExportData();
+    if (!exportData || exportData.length === 0) return;
+    const rows = exportData.map(mapParameterToTemplateRow);
+    downloadCSV(exportTemplateHeaders, rows, 'Parameters_Report.csv');
     setShowDownloadDropdown(false);
   };
 
-  // Excel Export
-  const handleDownloadExcel = () => {
-    if (parameters.length === 0) return;
-    const headers = ['Parameter Name', 'Category', 'Test Method', 'Description', 'Status'];
-    const rows = parameters.map(p => [
-      p.parameterName,
-      p.categoryName || 'Unassigned',
-      p.testMethod || 'N/A',
-      p.description || 'None',
-      p.status
-    ]);
-    downloadExcel(headers, rows, 'Parameters_Report.xlsx');
+  // Excel Export (matches exact bulk import template format with filled data)
+  const handleDownloadExcel = async () => {
+    const exportData = await fetchAllExportData();
+    if (!exportData || exportData.length === 0) return;
+    const rows = exportData.map(mapParameterToTemplateRow);
+    downloadExcel(exportTemplateHeaders, rows, 'Parameter_Master_Export.xlsx');
     setShowDownloadDropdown(false);
   };
 
   // Copy to Clipboard
-  const handleCopy = () => {
-    if (parameters.length === 0) return;
-    const headers = ['Parameter Name', 'Category', 'Test Method', 'Description', 'Status'];
-    const rows = parameters.map(p => [
-      p.parameterName,
-      p.categoryName || 'Unassigned',
-      p.testMethod || 'N/A',
-      p.description || 'None',
-      p.status
-    ]);
-    const text = [headers.join('\t'), ...rows.map(r => r.join('\t'))].join('\n');
+  const handleCopy = async () => {
+    const exportData = await fetchAllExportData();
+    if (!exportData || exportData.length === 0) return;
+    const rows = exportData.map(mapParameterToTemplateRow);
+    const text = [exportTemplateHeaders.join('\t'), ...rows.map(r => r.join('\t'))].join('\n');
     navigator.clipboard.writeText(text);
     triggerToast('Copied to clipboard successfully.', 'success');
     setShowDownloadDropdown(false);
   };
 
   // PDF Export
-  const handlePrintPDF = () => {
-    if (parameters.length === 0) return;
+  const handlePrintPDF = async () => {
+    const exportData = await fetchAllExportData();
+    if (!exportData || exportData.length === 0) return;
     const printWindow = window.open('', '_blank');
-    const headers = ['Parameter Name', 'Category', 'Test Method', 'Description', 'Status'];
-    const rows = parameters.map(p => `
+    const rows = exportData.map(mapParameterToTemplateRow).map(r => `
       <tr>
-        <td>${p.parameterName}</td>
-        <td>${p.categoryName || 'Unassigned'}</td>
-        <td>${p.testMethod || 'N/A'}</td>
-        <td>${p.description || 'None'}</td>
-        <td>${p.status}</td>
+        ${r.map(cell => `<td>${cell || '-'}</td>`).join('')}
       </tr>
     `).join('');
 
@@ -487,15 +549,15 @@ const ParameterMaster = () => {
           <style>
             body { font-family: sans-serif; padding: 20px; }
             table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: left; font-size: 13px; }
-            th { background-color: #f8fafc; }
+            th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: left; font-size: 12px; }
+            th { background-color: #f8fafc; font-weight: bold; }
           </style>
         </head>
         <body>
-          <h2>Parameters Report</h2>
+          <h2>Parameter Master Report</h2>
           <table>
             <thead>
-              <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
+              <tr>${exportTemplateHeaders.map(h => `<th>${h}</th>`).join('')}</tr>
             </thead>
             <tbody>
               ${rows}
@@ -705,6 +767,22 @@ const ParameterMaster = () => {
                 </select>
               </div>
 
+              {/* Location of Sample Dropdown */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Location of Sample</label>
+                <select
+                  name="locationSampleId"
+                  value={formData.locationSampleId}
+                  onChange={handleInputChange}
+                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', cursor: 'pointer', outline: 'none', backgroundColor: '#ffffff' }}
+                >
+                  <option value="">Select Location of Sample</option>
+                  {[...locationSamplesList].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(loc => (
+                    <option key={loc.id} value={loc.id}>{loc.name}</option>
+                  ))}
+                </select>
+              </div>
+
               {/* Parameter Name */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Parameter Name *</label>
@@ -734,18 +812,56 @@ const ParameterMaster = () => {
                 />
               </div>
 
-              {/* Description */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: 'span 2' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Description</label>
-                <textarea
-                  name="description"
-                  value={formData.description}
+              {/* Unit */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Unit</label>
+                <input
+                  type="text"
+                  name="unit"
+                  value={formData.unit}
                   onChange={handleInputChange}
-                  placeholder="Optional description of the test parameter"
-                  rows={2}
-                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
+                  placeholder="e.g. mg/L, %, pH"
+                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', fontFamily: 'inherit' }}
                 />
               </div>
+
+              {/* Permissible Limit Applicable Switch / Radio */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Permissible Limit Applicable?</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', height: '42px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600, color: '#1e293b' }}>
+                    <input
+                      type="radio"
+                      name="isPermissibleLimitApplicable"
+                      checked={formData.isPermissibleLimitApplicable === true}
+                      onChange={() => setFormData(prev => ({ ...prev, isPermissibleLimitApplicable: true }))}
+                    /> Yes
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600, color: '#64748b' }}>
+                    <input
+                      type="radio"
+                      name="isPermissibleLimitApplicable"
+                      checked={formData.isPermissibleLimitApplicable === false}
+                      onChange={() => setFormData(prev => ({ ...prev, isPermissibleLimitApplicable: false, permissibleLimit: '' }))}
+                    /> No
+                  </label>
+                </div>
+              </div>
+
+              {/* Permissible Limit Value (Shown if Applicable) */}
+              {formData.isPermissibleLimitApplicable && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Permissible Limit Value *</label>
+                  <input
+                    type="text"
+                    name="permissibleLimit"
+                    value={formData.permissibleLimit}
+                    onChange={handleInputChange}
+                    placeholder="e.g. 6.5 - 8.5 or Max 100 mg/L"
+                    style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', fontFamily: 'inherit' }}
+                  />
+                </div>
+              )}
 
               {/* Status sliding toggle switch */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
@@ -896,20 +1012,23 @@ const ParameterMaster = () => {
                     <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>PARAMETER NAME</th>
                     <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>DISCIPLINE GROUP</th>
                     <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SUB CATEGORY</th>
+                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>LOCATION OF SAMPLE</th>
                     <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>TEST METHOD</th>
+                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>UNIT</th>
+                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>PERMISSIBLE LIMIT</th>
                     <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATUS</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                      <td colSpan={10} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                         Loading parameters...
                       </td>
                     </tr>
                   ) : parameters.length === 0 ? (
                     <tr>
-                      <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                      <td colSpan={10} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                         No parameters found.
                       </td>
                     </tr>
@@ -941,7 +1060,12 @@ const ParameterMaster = () => {
                         <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{param.parameterName}</td>
                         <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.categoryName || (param.category ? param.category.categoryName : 'Unassigned')}</td>
                         <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.subCategoryName || 'Unassigned'}</td>
+                        <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.locationSampleName || 'N/A'}</td>
                         <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.testMethod || 'N/A'}</td>
+                        <td style={{ padding: '0.75rem 1rem', color: '#334155', fontWeight: 600 }}>{param.unit || '-'}</td>
+                        <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>
+                          {param.isPermissibleLimitApplicable || param.is_permissible_limit_applicable ? (param.permissibleLimit || param.permissible_limit || 'Applicable') : '-'}
+                        </td>
                         <td style={{ padding: '0.75rem 1rem' }}>
                           <span style={{
                             display: 'inline-block',

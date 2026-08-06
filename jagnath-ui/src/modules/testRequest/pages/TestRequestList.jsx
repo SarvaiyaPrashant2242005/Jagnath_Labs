@@ -68,6 +68,7 @@ const TestRequestList = () => {
   };
 
   const getCategoryName = (req) => {
+    if (req.formTitle) return req.formTitle;
     if (req.sampleParticularName && !req.sampleParticularName.match(/^[0-9a-f]{8}-[0-9a-f]{4}-/i)) {
       return req.sampleParticularName;
     }
@@ -77,7 +78,7 @@ const TestRequestList = () => {
     if (req.sampleParticular && !req.sampleParticular.match(/^[0-9a-f]{8}-[0-9a-f]{4}-/i)) {
       return req.sampleParticular;
     }
-    return 'N/A';
+    return 'WATER & WASTE WATER';
   };
 
   const formatDateDDMMYYYY = (dateStr) => {
@@ -331,7 +332,7 @@ const TestRequestList = () => {
               style={{ padding: '0.5rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', backgroundColor: '#ffffff' }}
             >
               <option value="">ALL CUSTOMERS</option>
-              {clients.map((c) => (
+              {[...clients].sort((a, b) => (a.clientName || '').localeCompare(b.clientName || '')).map((c) => (
                 <option key={c.id} value={c.id}>{c.clientName}</option>
               ))}
             </select>
@@ -364,7 +365,8 @@ const TestRequestList = () => {
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ACTIONS</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CLIENT / CUSTOMER</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CATEGORY</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>TITLE</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>REPORT NO.</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>DATE OF RECEIPT</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>COLLECTED BY</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATUS</th>
@@ -373,13 +375,13 @@ const TestRequestList = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan={8} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                     Loading test requests...
                   </td>
                 </tr>
               ) : requests.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan={8} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                     No test requests found.
                   </td>
                 </tr>
@@ -424,6 +426,7 @@ const TestRequestList = () => {
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{req.clientName || 'N/A'}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{getCategoryName(req)}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{req.reportNumber || 'N/A'}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{formatDateDDMMYYYY(req.dateOfReceipt || req.dateOfCollection)}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{req.sampleCollectedBy || 'N/A'}</td>
                     <td style={{ padding: '0.75rem 1rem' }}>

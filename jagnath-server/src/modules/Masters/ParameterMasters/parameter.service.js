@@ -8,6 +8,7 @@ const Category = require("../CategoryMasters/category.model");
 const SubCategory = require("../SubCategoryMasters/subCategory.model");
 const CategoryParameter = require("../CategoryParameterMasters/categoryParameter.model");
 const Users = require("../../Auth/Users/users.model");
+const LocationSample = require("../LocationSampleMasters/locationSample.model");
 const sequelize = require("../../../config/database");
 const { Op } = require("sequelize");
 const path = require("path");
@@ -69,6 +70,13 @@ const formatParameter = (param) => {
         paramObj.subCategoryName = null;
     }
     delete paramObj.subCategory;
+
+    if (paramObj.locationSample) {
+        paramObj.locationSampleName = paramObj.locationSample.name;
+    } else {
+        paramObj.locationSampleName = null;
+    }
+    delete paramObj.locationSample;
 
     return paramObj;
 };
@@ -153,6 +161,9 @@ const createParameter = async (parameterData, userId, reqInfo) => {
             await newParameter.update({
                 description: paramFields.description || newParameter.description,
                 testMethod: paramFields.testMethod || newParameter.testMethod,
+                unit: paramFields.unit !== undefined ? paramFields.unit : newParameter.unit,
+                isPermissibleLimitApplicable: paramFields.isPermissibleLimitApplicable !== undefined ? paramFields.isPermissibleLimitApplicable : newParameter.isPermissibleLimitApplicable,
+                permissibleLimit: paramFields.permissibleLimit !== undefined ? paramFields.permissibleLimit : newParameter.permissibleLimit,
                 status: paramFields.status || newParameter.status
             }, { transaction });
         }
@@ -361,6 +372,11 @@ const getParameterById = async (parameterId, companyId) => {
                     attributes: ["id", "name"]
                 },
                 {
+                    model: LocationSample,
+                    as: "locationSample",
+                    attributes: ["id", "name"]
+                },
+                {
                     model: CategoryParameter,
                     as: "categoryParameters",
                     include: [{
@@ -394,6 +410,11 @@ const getParametersByCompany = async (companyId, options = {}) => {
                 {
                     model: SubCategory,
                     as: "subCategory",
+                    attributes: ["id", "name"]
+                },
+                {
+                    model: LocationSample,
+                    as: "locationSample",
                     attributes: ["id", "name"]
                 },
                 {
@@ -492,12 +513,40 @@ module.exports = {
                     subCategoryId = subCat.id;
                 }
 
+                // Resolve location of sample mapping if locationOfSample is provided
+                let locationSampleId = null;
+                const rawLocName = (data.locationOfSample || data.locationSampleName || data.locationOfSampleName || data.locationSample || "").trim();
+                if (rawLocName) {
+                    let loc = await LocationSample.findOne({
+                        where: { name: { [Op.iLike]: rawLocName }, companyId },
+                        transaction
+                    });
+                    if (!loc) {
+                        loc = await LocationSample.create({ name: rawLocName, companyId, status: "Active" }, { transaction });
+                    }
+                    locationSampleId = loc.id;
+                }
+
+                // Parse isPermissibleLimitApplicable
+                let isPermissibleLimitApplicable = false;
+                const rawLimitApp = data.isPermissibleLimitApplicable || data.permissibleLimitApplicable || data.is_permissible_limit_applicable;
+                if (rawLimitApp !== undefined && rawLimitApp !== null) {
+                    const strVal = String(rawLimitApp).trim().toLowerCase();
+                    if (strVal === 'yes' || strVal === 'true' || strVal === '1' || rawLimitApp === true) {
+                        isPermissibleLimitApplicable = true;
+                    }
+                }
+
                 const paramPayload = {
                     companyId,
                     parameterName: paramName,
                     subCategoryId: subCategoryId || data.subCategoryId || null,
+                    locationSampleId: locationSampleId || data.locationSampleId || null,
                     description: data.description || null,
-                    testMethod: data.testMethod || null,
+                    testMethod: data.testMethod || data.testing_method || data.referenceMethod || null,
+                    unit: data.unit || null,
+                    isPermissibleLimitApplicable,
+                    permissibleLimit: data.permissibleLimit || data.permissible_limit || data.limit || null,
                     status: (data.status && ['Active', 'Inactive'].includes(String(data.status).trim())) ? String(data.status).trim() : 'Active'
                 };
 
