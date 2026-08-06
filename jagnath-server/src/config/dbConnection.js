@@ -40,6 +40,9 @@ const connectDB = async () => {
         const { runMigration: runMigration04 } = require("../database/migrations/04_create_test_reports_table");
         await runMigration04();
 
+        const { runMigration: runMigration05 } = require("../database/migrations/05_update_parameter_unique_index_with_location");
+        await runMigration05();
+
         // 4. Seed default data if needed
         const { seedDefaultUser } = require("../database/seeders");
         await seedDefaultUser();

@@ -56,7 +56,7 @@ const formatErrorMessage = (err, defaultMsg = "Operation failed.", reqBody = {})
     if (err.name === "SequelizeUniqueConstraintError" || err.name === "SequelizeValidationError") {
         const paramName = reqBody.parameterName || "Parameter";
         if (err.name === "SequelizeUniqueConstraintError") {
-            return `Parameter '${paramName}' already exists under this Sub Category / Discipline Group.`;
+            return `Parameter '${paramName}' already exists under this Sub Category / Location of Sample / Discipline Group.`;
         }
         if (err.errors && err.errors.length > 0) {
             const firstErr = err.errors[0];
@@ -64,7 +64,7 @@ const formatErrorMessage = (err, defaultMsg = "Operation failed.", reqBody = {})
                 return firstErr.message;
             }
         }
-        return `Parameter '${paramName}' already exists under this Sub Category / Discipline Group.`;
+        return `Parameter '${paramName}' already exists under this Sub Category / Location of Sample / Discipline Group.`;
     }
 
     if (err.message && err.message !== "Validation error") {
