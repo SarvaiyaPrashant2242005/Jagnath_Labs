@@ -451,65 +451,95 @@ const ParameterMaster = () => {
     }
   };
 
+  // Fetch all parameters matching current filters for complete data export
+  const fetchAllExportData = async () => {
+    try {
+      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
+      const params = new URLSearchParams({
+        limit: 5000,
+        search: searchQuery,
+        status: statusFilter
+      });
+      if (activeCompId) params.append('companyId', activeCompId);
+      if (categoryFilter) params.append('categoryId', categoryFilter);
+      if (subCategoryFilter) params.append('subCategoryId', subCategoryFilter);
+
+      const response = await apiService.get(`${PARAMETER_ENDPOINTS.GET_ALL}?${params.toString()}`);
+      if (response && response.data) {
+        if (response.data.rows) return response.data.rows;
+        return Array.isArray(response.data) ? response.data : [response.data];
+      }
+      return parameters;
+    } catch {
+      return parameters;
+    }
+  };
+
+  // Helper to map parameter record to bulk import template columns format
+  const mapParameterToTemplateRow = (p) => {
+    const isLimitApp = p.isPermissibleLimitApplicable === true || p.is_permissible_limit_applicable === true;
+    return [
+      p.categoryName || p.category_name || '',
+      p.subCategoryName || p.sub_category_name || '',
+      p.locationSampleName || p.location_sample_name || p.locationOfSample || '',
+      p.parameterName || p.parameter_name || '',
+      p.testMethod || p.test_method || '',
+      p.unit || '',
+      isLimitApp ? 'Yes' : 'No',
+      isLimitApp ? (p.permissibleLimit || p.permissible_limit || '') : (p.permissibleLimit || p.permissible_limit || ''),
+      p.status || 'Active'
+    ];
+  };
+
+  const exportTemplateHeaders = [
+    'Discipline Group *',
+    'Sub Category',
+    'Location of Sample',
+    'Parameter Name *',
+    'Test Method',
+    'Unit',
+    'Permissible Limit Applicable?',
+    'Permissible Limit',
+    'Status'
+  ];
+
   // CSV Export
-  const handleDownloadCSV = () => {
-    if (parameters.length === 0) return;
-    const headers = ['Parameter Name', 'Category', 'Test Method', 'Description', 'Status'];
-    const rows = parameters.map(p => [
-      p.parameterName,
-      p.categoryName || 'Unassigned',
-      p.testMethod || 'N/A',
-      p.description || 'None',
-      p.status
-    ]);
-    downloadCSV(headers, rows, 'Parameters_Report.csv');
+  const handleDownloadCSV = async () => {
+    const exportData = await fetchAllExportData();
+    if (!exportData || exportData.length === 0) return;
+    const rows = exportData.map(mapParameterToTemplateRow);
+    downloadCSV(exportTemplateHeaders, rows, 'Parameters_Report.csv');
     setShowDownloadDropdown(false);
   };
 
-  // Excel Export
-  const handleDownloadExcel = () => {
-    if (parameters.length === 0) return;
-    const headers = ['Parameter Name', 'Category', 'Test Method', 'Description', 'Status'];
-    const rows = parameters.map(p => [
-      p.parameterName,
-      p.categoryName || 'Unassigned',
-      p.testMethod || 'N/A',
-      p.description || 'None',
-      p.status
-    ]);
-    downloadExcel(headers, rows, 'Parameters_Report.xlsx');
+  // Excel Export (matches exact bulk import template format with filled data)
+  const handleDownloadExcel = async () => {
+    const exportData = await fetchAllExportData();
+    if (!exportData || exportData.length === 0) return;
+    const rows = exportData.map(mapParameterToTemplateRow);
+    downloadExcel(exportTemplateHeaders, rows, 'Parameter_Master_Export.xlsx');
     setShowDownloadDropdown(false);
   };
 
   // Copy to Clipboard
-  const handleCopy = () => {
-    if (parameters.length === 0) return;
-    const headers = ['Parameter Name', 'Category', 'Test Method', 'Description', 'Status'];
-    const rows = parameters.map(p => [
-      p.parameterName,
-      p.categoryName || 'Unassigned',
-      p.testMethod || 'N/A',
-      p.description || 'None',
-      p.status
-    ]);
-    const text = [headers.join('\t'), ...rows.map(r => r.join('\t'))].join('\n');
+  const handleCopy = async () => {
+    const exportData = await fetchAllExportData();
+    if (!exportData || exportData.length === 0) return;
+    const rows = exportData.map(mapParameterToTemplateRow);
+    const text = [exportTemplateHeaders.join('\t'), ...rows.map(r => r.join('\t'))].join('\n');
     navigator.clipboard.writeText(text);
     triggerToast('Copied to clipboard successfully.', 'success');
     setShowDownloadDropdown(false);
   };
 
   // PDF Export
-  const handlePrintPDF = () => {
-    if (parameters.length === 0) return;
+  const handlePrintPDF = async () => {
+    const exportData = await fetchAllExportData();
+    if (!exportData || exportData.length === 0) return;
     const printWindow = window.open('', '_blank');
-    const headers = ['Parameter Name', 'Category', 'Test Method', 'Description', 'Status'];
-    const rows = parameters.map(p => `
+    const rows = exportData.map(mapParameterToTemplateRow).map(r => `
       <tr>
-        <td>${p.parameterName}</td>
-        <td>${p.categoryName || 'Unassigned'}</td>
-        <td>${p.testMethod || 'N/A'}</td>
-        <td>${p.description || 'None'}</td>
-        <td>${p.status}</td>
+        ${r.map(cell => `<td>${cell || '-'}</td>`).join('')}
       </tr>
     `).join('');
 
@@ -520,15 +550,15 @@ const ParameterMaster = () => {
           <style>
             body { font-family: sans-serif; padding: 20px; }
             table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: left; font-size: 13px; }
-            th { background-color: #f8fafc; }
+            th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: left; font-size: 12px; }
+            th { background-color: #f8fafc; font-weight: bold; }
           </style>
         </head>
         <body>
-          <h2>Parameters Report</h2>
+          <h2>Parameter Master Report</h2>
           <table>
             <thead>
-              <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
+              <tr>${exportTemplateHeaders.map(h => `<th>${h}</th>`).join('')}</tr>
             </thead>
             <tbody>
               ${rows}

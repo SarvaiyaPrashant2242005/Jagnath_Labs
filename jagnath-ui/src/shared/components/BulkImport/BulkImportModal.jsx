@@ -228,7 +228,13 @@ const BulkImportModal = ({
       case 'city': return '130px';
       case 'state': return '130px';
       case 'categoryName': return '200px';
+      case 'subCategoryName': return '180px';
+      case 'locationOfSample': return '180px';
       case 'parameterName': return '200px';
+      case 'testMethod': return '190px';
+      case 'unit': return '100px';
+      case 'isPermissibleLimitApplicable': return '190px';
+      case 'permissibleLimit': return '150px';
       case 'description': return '220px';
       case 'gender': return '110px';
       case 'status': return '110px';

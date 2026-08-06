@@ -157,26 +157,35 @@ export const MASTER_SCHEMAS = {
     headers: [
       { key: 'categoryName', label: 'Discipline Group *', required: true, type: 'string', aliases: ['disciplinegroup', 'disciplinegroup*', 'disciplinegroupname', 'groupname', 'category', 'categoryname', 'Discipline Group *'] },
       { key: 'subCategoryName', label: 'Sub Category', required: false, type: 'string', aliases: ['subcategory', 'subcategoryname', 'subcategory_name', 'Sub Category'] },
+      { key: 'locationOfSample', label: 'Location of Sample', required: false, type: 'string', aliases: ['locationofsample', 'location', 'locationsample', 'locationsamplename', 'location_of_sample', 'Location of Sample', 'Location'] },
       { key: 'parameterName', label: 'Parameter Name *', required: true, type: 'string', aliases: ['parametername', 'parametername*', 'name', 'parameter', 'Parameter Name *'] },
-      { key: 'testMethod', label: 'Test Method', required: false, type: 'string', aliases: ['testmethod', 'test_method', 'Test Method'] },
-      { key: 'description', label: 'Description', required: false, type: 'string', aliases: ['description', 'Description'] },
+      { key: 'testMethod', label: 'Test Method', required: false, type: 'string', aliases: ['testmethod', 'test_method', 'referencemethod', 'Test Method'] },
+      { key: 'unit', label: 'Unit', required: false, type: 'string', aliases: ['unit', 'units', 'Unit'] },
+      { key: 'isPermissibleLimitApplicable', label: 'Permissible Limit Applicable?', required: false, type: 'select', options: ['Yes', 'No'], aliases: ['permissiblelimitapplicable', 'permissiblelimitapplicable?', 'ispermissiblelimitapplicable', 'ispermissiblelimitapplicable?', 'Permissible Limit Applicable?'] },
+      { key: 'permissibleLimit', label: 'Permissible Limit', required: false, type: 'string', aliases: ['permissiblelimit', 'limit', 'Permissible Limit'] },
       { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'], aliases: ['status', 'Status'] }
     ],
     sampleData: [
       {
-        'Discipline Group *': 'Drinking Water',
+        'Discipline Group *': 'WATER TESTING',
         'Sub Category': 'Physical Parameters',
+        'Location of Sample': 'Drinking Water',
         'Parameter Name *': 'pH Level',
         'Test Method': 'APHA, 23rd Edition 2017/4500-H-B',
-        'Description': 'Acidity or alkalinity measure of water',
+        'Unit': 'pH',
+        'Permissible Limit Applicable?': 'Yes',
+        'Permissible Limit': '6.5 - 8.5',
         'Status': 'Active'
       },
       {
-        'Discipline Group *': 'Drinking Water',
+        'Discipline Group *': 'WATER TESTING',
         'Sub Category': 'Physical Parameters',
+        'Location of Sample': 'Waste Water',
         'Parameter Name *': 'Total Dissolved Solids (TDS)',
         'Test Method': 'IS 3025 (Part 16)',
-        'Description': 'Inorganic salts and small amounts of organic matter dissolved in water',
+        'Unit': 'mg/L',
+        'Permissible Limit Applicable?': 'Yes',
+        'Permissible Limit': '500',
         'Status': 'Active'
       }
     ]

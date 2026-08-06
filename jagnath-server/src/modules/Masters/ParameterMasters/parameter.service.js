@@ -507,12 +507,40 @@ module.exports = {
                     subCategoryId = subCat.id;
                 }
 
+                // Resolve location of sample mapping if locationOfSample is provided
+                let locationSampleId = null;
+                const rawLocName = (data.locationOfSample || data.locationSampleName || data.locationOfSampleName || data.locationSample || "").trim();
+                if (rawLocName) {
+                    let loc = await LocationSample.findOne({
+                        where: { name: { [Op.iLike]: rawLocName }, companyId },
+                        transaction
+                    });
+                    if (!loc) {
+                        loc = await LocationSample.create({ name: rawLocName, companyId, status: "Active" }, { transaction });
+                    }
+                    locationSampleId = loc.id;
+                }
+
+                // Parse isPermissibleLimitApplicable
+                let isPermissibleLimitApplicable = false;
+                const rawLimitApp = data.isPermissibleLimitApplicable || data.permissibleLimitApplicable || data.is_permissible_limit_applicable;
+                if (rawLimitApp !== undefined && rawLimitApp !== null) {
+                    const strVal = String(rawLimitApp).trim().toLowerCase();
+                    if (strVal === 'yes' || strVal === 'true' || strVal === '1' || rawLimitApp === true) {
+                        isPermissibleLimitApplicable = true;
+                    }
+                }
+
                 const paramPayload = {
                     companyId,
                     parameterName: paramName,
                     subCategoryId: subCategoryId || data.subCategoryId || null,
+                    locationSampleId: locationSampleId || data.locationSampleId || null,
                     description: data.description || null,
-                    testMethod: data.testMethod || null,
+                    testMethod: data.testMethod || data.testing_method || data.referenceMethod || null,
+                    unit: data.unit || null,
+                    isPermissibleLimitApplicable,
+                    permissibleLimit: data.permissibleLimit || data.permissible_limit || data.limit || null,
                     status: (data.status && ['Active', 'Inactive'].includes(String(data.status).trim())) ? String(data.status).trim() : 'Active'
                 };
 
