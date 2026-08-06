@@ -33,9 +33,27 @@ const DashboardView = () => {
 };
 
 
+// Helper to get active token across tab sessions
+const getActiveToken = () => {
+  const token = sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken') || localStorage.getItem('token');
+  if (token && !sessionStorage.getItem('accessToken')) {
+    sessionStorage.setItem('accessToken', token);
+    sessionStorage.setItem('token', token);
+  }
+  const refresh = localStorage.getItem('refreshToken');
+  if (refresh && !sessionStorage.getItem('refreshToken')) {
+    sessionStorage.setItem('refreshToken', refresh);
+  }
+  const user = localStorage.getItem('user');
+  if (user && !sessionStorage.getItem('user')) {
+    sessionStorage.setItem('user', user);
+  }
+  return token;
+};
+
 // Protected Route Wrapper Component
 const ProtectedRoute = ({ children }) => {
-  const token = sessionStorage.getItem('accessToken');
+  const token = getActiveToken();
   const user = getStoredUser();
   const isAuthenticated = !!(token && user);
 
@@ -48,7 +66,7 @@ const ProtectedRoute = ({ children }) => {
 
 // Protected Print Route (No Dashboard Layout)
 const ProtectedPrintRoute = ({ children }) => {
-  const token = sessionStorage.getItem('accessToken');
+  const token = getActiveToken();
   const user = getStoredUser();
   const isAuthenticated = !!(token && user);
 
@@ -61,7 +79,7 @@ const ProtectedPrintRoute = ({ children }) => {
 
 // Redirect Route if already authenticated
 const PublicRoute = ({ children }) => {
-  const token = sessionStorage.getItem('accessToken');
+  const token = getActiveToken();
   const user = getStoredUser();
   const isAuthenticated = !!(token && user);
 
@@ -120,6 +138,14 @@ function App() {
         />
         <Route
           path="/company"
+          element={
+            <ProtectedRoute>
+              <CompanyMaster />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/companies"
           element={
             <ProtectedRoute>
               <CompanyMaster />

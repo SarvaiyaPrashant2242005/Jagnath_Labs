@@ -48,13 +48,13 @@ const TestReportForm = () => {
     agencyAddress: '',
     sampleQuantity: '',
     samplingLocation: '',
-    conditionOnReceipt: 'Satisfactory',
+    conditionOnReceipt: '',
     sampleCollectedBy: '',
     startingDateOfTest: '',
     completionDateOfTest: '',
     sectionHeader: '',
-    reviewedByAnalyst: 'Sr. Analyst',
-    authorizedSignatory: 'Mr. Ankit Rathod/ Mr. Purvin Raiyan',
+    reviewedByAnalyst: '',
+    authorizedSignatory: '',
     termsAndConditions: 'The report is analyzed with the quality standards. These results are related to sample collection as specified above. This report in full or part, shall not be published advertised, used for any legal action, unless written consent and prior permission has been secured from the owner, JAGNATH LAB TECHNOLOGIES, GONDAL-RAJKOT.'
   });
 
@@ -163,78 +163,81 @@ const TestReportForm = () => {
     setSelectedTRId(trId);
     if (!trId) return;
 
-    const targetTR = testRequests.find(tr => String(tr.id) === String(trId));
-    if (targetTR) {
-      const receiptDate = targetTR.dateOfReceipt || targetTR.dateOfCollection || formData.dateOfReceipt;
-      const sampleParticularVal = targetTR.sampleParticularName || targetTR.sampleParticular || 'N/A';
+    try {
+      // 1. Fetch full Test Request record from server for complete metadata
+      let targetTR = testRequests.find(tr => String(tr.id) === String(trId));
+      try {
+        const fullTrRes = await apiService.get(TEST_REQUEST_ENDPOINTS.GET_BY_ID(trId));
+        if (fullTrRes?.data) {
+          targetTR = { ...targetTR, ...fullTrRes.data };
+        }
+      } catch (e) {
+        console.warn('Failed to fetch detailed TR record, using dropdown data', e);
+      }
+
+      if (!targetTR) return;
+
+      const trIndex = testRequests.findIndex(t => String(t.id) === String(trId));
+      const reportNoDisplay = targetTR.reportNumber || `RPT-${String(trIndex >= 0 ? trIndex + 1 : 1).padStart(3, '0')}`;
+      const receiptDate = targetTR.dateOfReceipt || targetTR.dateOfCollection || formData.dateOfReceipt || new Date().toISOString().split('T')[0];
+      const sampleParticularVal = targetTR.sampleParticularName || targetTR.sampleParticular || 'Water Sample';
       const packingDetailsVal = targetTR.packingDetails || 'Sample Sealed in Plastic Bottle';
-      const trTitle = targetTR.formTitle || targetTR.title || formData.nameOfWork;
+      const trTitle = targetTR.formTitle || targetTR.title || formData.nameOfWork || 'WATER & WASTE WATER';
+      const clientNameVal = targetTR.clientName || targetTR.client?.clientName || formData.reportIssuedTo;
+      const clientAddressVal = targetTR.address || targetTR.client?.address || formData.agencyAddress;
 
       setFormData(prev => ({
         ...prev,
-        reportNumber: targetTR.reportNumber || prev.reportNumber,
-        referenceNo: targetTR.reportNumber || prev.reportNumber,
-        reportIssuedTo: targetTR.clientName || prev.reportIssuedTo,
-        agencyName: targetTR.clientName || prev.agencyName,
-        agencyAddress: targetTR.address || prev.agencyAddress,
+        reportNumber: reportNoDisplay,
+        referenceNo: reportNoDisplay,
+        reportIssuedTo: clientNameVal,
+        agencyName: clientNameVal,
+        agencyAddress: clientAddressVal,
         detailsOfSample: sampleParticularVal,
         packingDetails: packingDetailsVal,
         dateOfReceipt: receiptDate,
-        sampleQuantity: targetTR.sampleQuantity || prev.sampleQuantity,
-        samplingLocation: targetTR.locationOfSample || prev.samplingLocation,
-        sampleCollectedBy: targetTR.sampleCollectedBy || prev.sampleCollectedBy,
+        sampleQuantity: targetTR.sampleQuantity || 'Standard Bottle',
+        samplingLocation: targetTR.locationOfSample || 'Site Location',
+        sampleCollectedBy: targetTR.sampleCollectedBy || 'Client / Representative',
         nameOfWork: trTitle,
-        startingDateOfTest: receiptDate > prev.startingDateOfTest ? receiptDate : prev.startingDateOfTest,
-        completionDateOfTest: receiptDate > prev.completionDateOfTest ? receiptDate : prev.completionDateOfTest,
+        startingDateOfTest: receiptDate,
+        completionDateOfTest: receiptDate,
         sectionHeader: trTitle.toUpperCase()
       }));
 
-      // Dynamically fetch parameters associated with selected Test Request / Category
+      // 2. Fetch parameters checked in this Test Request
       try {
-        let fetchedParams = [];
-        const activeCatId = targetTR.categoryId || (targetTR.sampleParticular && targetTR.sampleParticular.length > 20 ? targetTR.sampleParticular : null);
-
-        if (activeCatId) {
-          const paramRes = await apiService.get(CATEGORY_PARAMETER_ENDPOINTS.GET_BY_CATEGORY(activeCatId));
-          if (paramRes?.data) {
-            fetchedParams = Array.isArray(paramRes.data) ? paramRes.data : (paramRes.data?.rows || [paramRes.data]);
-          }
-        }
-
-        // Cross-reference with selected test request parameters
-        const trpRes = await apiService.get(TEST_REQUEST_PARAMETER_ENDPOINTS.GET_ALL);
+        const trpRes = await apiService.get(`${TEST_REQUEST_PARAMETER_ENDPOINTS.GET_ALL}?testRequestId=${trId}`);
         if (trpRes?.data) {
-          const trps = Array.isArray(trpRes.data) ? trpRes.data : (trpRes.data?.rows || [trpRes.data]);
-          const matchingTrps = trps.filter(t => String(t.testRequestId) === String(targetTR.id));
-          if (matchingTrps.length > 0 && fetchedParams.length > 0) {
-            const checks = {};
-            matchingTrps.forEach(t => { if (t.parameterId) checks[t.parameterId] = true; });
-            const checkedOnly = fetchedParams.filter(p => checks[p.id]);
-            if (checkedOnly.length > 0) fetchedParams = checkedOnly;
+          const trpList = Array.isArray(trpRes.data) ? trpRes.data : (trpRes.data?.rows || [trpRes.data]);
+          if (trpList.length > 0) {
+            const formatted = trpList.map((p, idx) => {
+              const isLimitApp = p.isPermissibleLimitApplicable === true || p.is_permissible_limit_applicable === true;
+              const limitVal = isLimitApp ? (p.permissibleLimit || p.permissible_limit || 'Applicable') : '-';
+              const paramLoc = p.locationOfSample || p.location_of_sample || p.locationSampleName || p.location_sample_name || p.parameter?.locationSample?.name || targetTR.locationOfSample || '-';
+              return {
+                srNo: String(idx + 1).padStart(2, '0'),
+                parameterName: p.parameterName || p.parameter_name || `Parameter ${idx + 1}`,
+                locationOfSample: paramLoc,
+                referenceMethod: p.testMethod || p.test_method || 'APHA, 24th Edition 2023',
+                unit: p.unit || '-',
+                result: p.result || '',
+                permissibleLimit: limitVal
+              };
+            });
+            setParametersList(formatted);
+            triggerToast(`Auto-filled details & ${formatted.length} parameters from Test Request #${reportNoDisplay}`, 'success');
+            return;
           }
-        }
-
-        // If parameters are found, populate parametersList dynamically
-        if (fetchedParams.length > 0) {
-          const formatted = fetchedParams.map((p, idx) => {
-            const isLimitApp = p.isPermissibleLimitApplicable === true || p.is_permissible_limit_applicable === true;
-            const limitVal = isLimitApp ? (p.permissibleLimit || p.permissible_limit || p.limit || 'Applicable') : '-';
-            return {
-              srNo: String(idx + 1).padStart(2, '0'),
-              parameterName: p.parameterName || p.name || p.parameter_name || `Parameter ${idx + 1}`,
-              referenceMethod: p.referenceMethod || p.testing_method || p.method || 'APHA, 24th Edition 2023',
-              unit: p.unit || '-',
-              result: '',
-              permissibleLimit: limitVal
-            };
-          });
-          setParametersList(formatted);
         }
       } catch (err) {
-        console.error('Dynamic parameters fetch error for selected TR:', err);
+        console.error('Failed to fetch TR parameters:', err);
       }
 
-      triggerToast(`Auto-filled details & dynamic parameters from Test Request #${targetTR.reportNumber || targetTR.id.slice(0, 6)}`, 'success');
+      triggerToast(`Auto-filled details from Test Request #${reportNoDisplay}`, 'success');
+    } catch (err) {
+      console.error('Error selecting test request:', err);
+      triggerToast('Error auto-filling details from test request', 'error');
     }
   };
 
@@ -317,6 +320,7 @@ const TestReportForm = () => {
       {
         srNo: nextSrNo,
         parameterName: '',
+        locationOfSample: formData.samplingLocation || '-',
         referenceMethod: '',
         unit: 'mg/L',
         result: '',
@@ -409,7 +413,7 @@ const TestReportForm = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', position: 'relative' }}>
-      
+
       {/* Toast Notification */}
       {toast.show && (
         <div style={{
@@ -482,7 +486,7 @@ const TestReportForm = () => {
 
         {/* Left Column: Form Inputs */}
         <div style={{ flex: showLivePreview ? '1 1 55%' : '1 1 100%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '1.5rem', transition: 'all 0.3s' }}>
-          
+
           {/* Card 1: Auto-Fill from Test Request Selection */}
           <div style={{ background: 'linear-gradient(135deg, #eff6ff 0%, #ffffff 100%)', borderRadius: '16px', padding: '1.5rem', border: '1px solid #bfdbfe', boxShadow: '0 4px 15px -2px rgba(59, 130, 246, 0.08)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
@@ -744,6 +748,7 @@ const TestReportForm = () => {
                   <tr style={{ background: '#f8fafc', borderBottom: '2px solid #cbd5e1', color: '#334155' }}>
                     <th style={{ padding: '0.5rem', width: '50px' }}>SR.</th>
                     <th style={{ padding: '0.5rem' }}>TEST PARAMETER</th>
+                    <th style={{ padding: '0.5rem' }}>LOCATION OF SAMPLE</th>
                     <th style={{ padding: '0.5rem' }}>REFERENCE METHOD</th>
                     <th style={{ padding: '0.5rem', width: '80px' }}>UNIT</th>
                     <th style={{ padding: '0.5rem', width: '100px' }}>RESULT</th>
@@ -768,6 +773,15 @@ const TestReportForm = () => {
                           onChange={(e) => handleParamChange(idx, 'parameterName', e.target.value)}
                           placeholder="Parameter name"
                           style={{ ...tableInputStyle, fontWeight: 600 }}
+                        />
+                      </td>
+                      <td style={{ padding: '0.4rem' }}>
+                        <input
+                          type="text"
+                          value={param.locationOfSample || ''}
+                          onChange={(e) => handleParamChange(idx, 'locationOfSample', e.target.value)}
+                          placeholder="Location of sample"
+                          style={tableInputStyle}
                         />
                       </td>
                       <td style={{ padding: '0.4rem' }}>
@@ -878,7 +892,7 @@ const TestReportForm = () => {
               lineHeight: '1.3',
               boxSizing: 'border-box'
             }}>
-              
+
               {/* 1. Header with Logo ONLY */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
                 <div>

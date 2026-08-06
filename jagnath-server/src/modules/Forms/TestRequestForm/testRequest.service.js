@@ -138,6 +138,19 @@ const getChangesBlock = (oldValues, newValues) => {
     return "\nChanges\n\n" + lines.join("\n\n");
 };
 
+const generateNextReportNumber = async (companyId, transaction) => {
+    const totalCount = await TestRequest.count({ where: { companyId }, transaction });
+    let nextNum = totalCount + 1;
+    let candidate = `RPT-${String(nextNum).padStart(3, '0')}`;
+    let exists = await TestRequest.findOne({ where: { companyId, reportNumber: candidate }, transaction });
+    while (exists) {
+        nextNum++;
+        candidate = `RPT-${String(nextNum).padStart(3, '0')}`;
+        exists = await TestRequest.findOne({ where: { companyId, reportNumber: candidate }, transaction });
+    }
+    return candidate;
+};
+
 /**
  * Creates a new TestRequest.
  */
@@ -156,6 +169,8 @@ const createTestRequest = async (testRequestData, userId, reqInfo) => {
             if (existingReport) {
                 throw new Error(`Report Number '${reportNo}' already exist, Please enter a unique Report Number.`);
             }
+        } else {
+            testRequestData.reportNumber = await generateNextReportNumber(testRequestData.companyId, transaction);
         }
 
         const newTR = await TestRequest.create(testRequestData, { transaction });
@@ -417,20 +432,21 @@ const getTestRequestsByCompany = async (companyId, options = {}) => {
             queryOptions.where.status = options.status;
         }
 
+        if (options.search && options.search.trim()) {
+            const searchPattern = `%${options.search.trim()}%`;
+            queryOptions.where = {
+                ...queryOptions.where,
+                [Op.or]: [
+                    { sampleIdNumber: { [Op.iLike]: searchPattern } },
+                    { reportNumber: { [Op.iLike]: searchPattern } },
+                    { sampleCollectedBy: { [Op.iLike]: searchPattern } }
+                ]
+            };
+        }
+
         if (options.limit && options.page) {
             queryOptions.limit = parseInt(options.limit);
             queryOptions.offset = (parseInt(options.page) - 1) * queryOptions.limit;
-
-            if (options.search) {
-                queryOptions.where = {
-                    ...queryOptions.where,
-                    [Op.or]: [
-                        { sampleIdNumber: { [Op.iLike]: `%${options.search}%` } },
-                        { reportNumber: { [Op.iLike]: `%${options.search}%` } },
-                        { sampleCollectedBy: { [Op.iLike]: `%${options.search}%` } }
-                    ]
-                };
-            }
 
             const result = await TestRequest.findAndCountAll(queryOptions);
             return {

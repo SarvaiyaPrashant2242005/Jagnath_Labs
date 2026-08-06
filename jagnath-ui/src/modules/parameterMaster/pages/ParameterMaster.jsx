@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   FaSlidersH, FaPlus, FaDownload, FaEdit, FaTrash, FaCheck,
   FaExclamationCircle, FaFileExcel, FaCopy, FaFileCsv,
@@ -37,6 +37,11 @@ const ParameterMaster = () => {
   // Form visibility and editing state
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
+
+  // Saved parameters auto-fill state
+  const [allSavedParameters, setAllSavedParameters] = useState([]);
+  const [selectedExistingParamId, setSelectedExistingParamId] = useState('');
+  const [isManualNameEntry, setIsManualNameEntry] = useState(false);
 
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -175,7 +180,6 @@ const ParameterMaster = () => {
       const params = new URLSearchParams({ status: 'Active', limit: 100 });
       if (activeCompId) params.append('companyId', activeCompId);
       if (catId) params.append('categoryId', catId);
-
       const response = await apiService.get(`${SUB_CATEGORY_ENDPOINTS.GET_ALL}?${params.toString()}`);
       if (response && response.data) {
         const subs = Array.isArray(response.data) ? response.data : [response.data];
@@ -205,9 +209,82 @@ const ParameterMaster = () => {
     }
   };
 
+  // Fetch saved parameters for auto-fill dropdown
+  const fetchSavedParametersForForm = async () => {
+    try {
+      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
+      const params = new URLSearchParams({ limit: 5000 });
+      if (activeCompId) params.append('companyId', activeCompId);
+
+      const response = await apiService.get(`${PARAMETER_ENDPOINTS.GET_ALL}?${params.toString()}`);
+      if (response && response.data) {
+        const list = Array.isArray(response.data) ? response.data : (response.data.rows || [response.data]);
+        setAllSavedParameters(list);
+      } else {
+        setAllSavedParameters([]);
+      }
+    } catch {
+      setAllSavedParameters([]);
+    }
+  };
+
   useEffect(() => {
-    fetchSubCategoriesForDropdown(formData.categoryId);
+    if (isFormOpen) {
+      fetchSubCategoriesForDropdown(formData.categoryId);
+      fetchSavedParametersForForm();
+    }
   }, [formData.categoryId, isFormOpen]);
+
+  // Unique list of saved parameters for dropdown selection
+  const uniqueSavedParameters = useMemo(() => {
+    const map = new Map();
+    allSavedParameters.forEach(p => {
+      if (p.parameterName) {
+        const key = p.parameterName.toLowerCase().trim();
+        if (!map.has(key)) {
+          map.set(key, p);
+        }
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => (a.parameterName || '').localeCompare(b.parameterName || ''));
+  }, [allSavedParameters]);
+
+  const handleSelectExistingParameter = (e) => {
+    const selectedId = e.target.value;
+    if (selectedId === '__CUSTOM_MANUAL__') {
+      setIsManualNameEntry(true);
+      setSelectedExistingParamId('');
+      setFormData(prev => ({ ...prev, parameterName: '' }));
+      return;
+    }
+
+    setSelectedExistingParamId(selectedId);
+    if (!selectedId) {
+      setFormData(prev => ({ ...prev, parameterName: '', testMethod: '', unit: '', permissibleLimit: '' }));
+      return;
+    }
+
+    const matched = allSavedParameters.find(p => String(p.id) === String(selectedId));
+    if (matched) {
+      const newCatId = formData.categoryId || matched.categoryId || '';
+      const newSubCatId = formData.subCategoryId || matched.subCategoryId || '';
+
+      if (newCatId && newCatId !== formData.categoryId) {
+        fetchSubCategoriesForDropdown(newCatId);
+      }
+
+      setFormData(prev => ({
+        ...prev,
+        parameterName: matched.parameterName || '',
+        testMethod: matched.testMethod || '',
+        unit: matched.unit || '',
+        isPermissibleLimitApplicable: matched.isPermissibleLimitApplicable === true || matched.is_permissible_limit_applicable === true,
+        permissibleLimit: matched.permissibleLimit || matched.permissible_limit || '',
+        categoryId: newCatId,
+        subCategoryId: newSubCatId
+      }));
+    }
+  };
 
   // Fetch all parameters
   const fetchParameters = async () => {
@@ -230,7 +307,6 @@ const ParameterMaster = () => {
       if (subCategoryFilter) {
         params.append('subCategoryId', subCategoryFilter);
       }
-
       const url = `${PARAMETER_ENDPOINTS.GET_ALL}?${params.toString()}`;
       const response = await apiService.get(url);
       if (response && response.data) {
@@ -339,6 +415,8 @@ const ParameterMaster = () => {
     });
     setFormErrors({});
     setEditingId(null);
+    setSelectedExistingParamId('');
+    setIsManualNameEntry(false);
     setIsFormOpen(true);
   };
 
@@ -361,6 +439,8 @@ const ParameterMaster = () => {
     });
     setFormErrors({});
     setEditingId(param.id);
+    setSelectedExistingParamId('');
+    setIsManualNameEntry(true);
     setIsFormOpen(true);
   };
 
@@ -387,6 +467,7 @@ const ParameterMaster = () => {
       permissibleLimit: formData.isPermissibleLimitApplicable ? formData.permissibleLimit : '',
       testMethod: formData.testMethod,
       status: formData.status,
+      companyId: activeCompId || null,
       companyName: activeCompanyName || formData.companyName,
       categoryId: formData.categoryId || null,
       subCategoryId: formData.subCategoryId || null,
@@ -404,7 +485,7 @@ const ParameterMaster = () => {
       setIsFormOpen(false);
       fetchParameters();
     } catch (err) {
-      triggerToast(err.messageToShow || err.message || 'Operation failed. Please try again.', 'error');
+      triggerToast(err.messageToShow || err.message || err.error?.userMessage || err.error?.message || 'Operation failed. Please try again.', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -721,7 +802,6 @@ const ParameterMaster = () => {
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
-
               {/* Discipline Group Dropdown & Quick Add Link */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -785,17 +865,65 @@ const ParameterMaster = () => {
                 </select>
               </div>
 
-              {/* Parameter Name */}
+              {/* Parameter Name Dropdown OR Manual Entry Text Input */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Parameter Name *</label>
-                <input
-                  type="text"
-                  name="parameterName"
-                  value={formData.parameterName}
-                  onChange={handleInputChange}
-                  placeholder="e.g. pH Level"
-                  style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.parameterName ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none' }}
-                />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Parameter Name *</label>
+                  {!editingId && uniqueSavedParameters.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newManual = !isManualNameEntry;
+                        setIsManualNameEntry(newManual);
+                        setSelectedExistingParamId('');
+                        if (newManual) {
+                          setFormData(prev => ({ ...prev, parameterName: '' }));
+                        }
+                      }}
+                      style={{ background: 'none', border: 'none', color: '#22c55e', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}
+                    >
+                      {isManualNameEntry ? '≡ Select Saved Parameter' : '+ Manual Entry'}
+                    </button>
+                  )}
+                </div>
+
+                {!isManualNameEntry && uniqueSavedParameters.length > 0 && !editingId ? (
+                  <select
+                    name="parameterName"
+                    value={selectedExistingParamId}
+                    onChange={(e) => {
+                      const selectedVal = e.target.value;
+                      if (selectedVal === '__CUSTOM_MANUAL__') {
+                        setIsManualNameEntry(true);
+                        setSelectedExistingParamId('');
+                        setFormData(prev => ({ ...prev, parameterName: '' }));
+                        return;
+                      }
+                      handleSelectExistingParameter(e);
+                    }}
+                    style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.parameterName ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', cursor: 'pointer', outline: 'none', backgroundColor: '#ffffff' }}
+                  >
+                    <option value="">Select Parameter Name</option>
+                    {uniqueSavedParameters.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.parameterName} {p.testMethod ? `(${p.testMethod})` : ''}
+                      </option>
+                    ))}
+                    <option value="__CUSTOM_MANUAL__" style={{ fontWeight: 600, color: '#22c55e' }}>
+                      + Enter Custom Parameter Name (Manual)...
+                    </option>
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    name="parameterName"
+                    value={formData.parameterName}
+                    onChange={handleInputChange}
+                    placeholder="e.g. pH Level"
+                    style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.parameterName ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none' }}
+                  />
+                )}
+
                 {formErrors.parameterName && (
                   <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 500 }}>{formErrors.parameterName}</span>
                 )}

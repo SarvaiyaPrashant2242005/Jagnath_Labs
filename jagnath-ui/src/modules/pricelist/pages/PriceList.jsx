@@ -606,7 +606,6 @@ const PriceMasterPage = () => {
 
           <form onSubmit={handleFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
-
               {/* Discipline Group Dropdown & Quick Add Link */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -638,15 +637,18 @@ const PriceMasterPage = () => {
                   <option value="">-- Select Discipline Group --</option>
                   {[...categories].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map((c) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-                {formErrors.categoryId && (
-                  <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 500 }}>{formErrors.categoryId}</span>
-                )}
-              </div>
+                  ))
+                  }
+                </select >
+                {
+                  formErrors.categoryId && (
+                    <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 500 }}>{formErrors.categoryId}</span>
+                  )
+                }
+              </div >
 
               {/* Sub Category Dropdown */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+              < div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Sub Category</label>
                 <select
                   value={formData.subCategoryId}
@@ -657,12 +659,13 @@ const PriceMasterPage = () => {
                   <option value="">-- Select Sub Category --</option>
                   {[...subCategories].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map((s) => (
                     <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
-              </div>
+                  ))
+                  }
+                </select >
+              </div >
 
               {/* Parameter Dropdown & Quick Add Link */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+              < div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Parameter *</label>
                   {!editingId && (
@@ -688,13 +691,15 @@ const PriceMasterPage = () => {
                     </option>
                   ))}
                 </select>
-                {formErrors.parameterId && (
-                  <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 500 }}>{formErrors.parameterId}</span>
-                )}
-              </div>
+                {
+                  formErrors.parameterId && (
+                    <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 500 }}>{formErrors.parameterId}</span>
+                  )
+                }
+              </div >
 
               {/* Price Input */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+              < div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Price (₹) *</label>
                 <input
                   type="number"
@@ -705,13 +710,15 @@ const PriceMasterPage = () => {
                   onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                   style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.price ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none' }}
                 />
-                {formErrors.price && (
-                  <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 500 }}>{formErrors.price}</span>
-                )}
-              </div>
+                {
+                  formErrors.price && (
+                    <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 500 }}>{formErrors.price}</span>
+                  )
+                }
+              </div >
 
               {/* Status Sliding Toggle Switch */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+              < div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Status</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', height: '42px' }}>
                   <button
@@ -744,12 +751,12 @@ const PriceMasterPage = () => {
                     {formData.status === 'Active' ? 'ACTIVE' : 'INACTIVE'}
                   </span>
                 </div>
-              </div>
+              </div >
 
-            </div>
+            </div >
 
             {/* Action Buttons */}
-            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+            < div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
               <button
                 type="button"
                 onClick={() => setIsFormOpen(false)}
@@ -765,10 +772,10 @@ const PriceMasterPage = () => {
                 <FaSave />
                 <span>{submitting ? 'Saving...' : 'Save'}</span>
               </button>
-            </div>
+            </div >
 
-          </form>
-        </div>
+          </form >
+        </div >
       )}
 
       {/* Main Table View Card */}
@@ -908,7 +915,7 @@ const PriceMasterPage = () => {
                       >
                         <FaTrash size={12} />
                       </button>
-                    </td>
+                    </td >
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 500 }}>
                       {item.category ? item.category.name : '-'}
@@ -940,179 +947,186 @@ const PriceMasterPage = () => {
                         {item.status}
                       </span>
                     </td>
-                  </tr>
+                  </tr >
                 ))
               )}
-            </tbody>
-          </table>
-        </div>
+            </tbody >
+          </table >
+        </div >
 
         {/* Mobile Cards View */}
-        <div className="show-on-mobile">
-          {loading ? (
-            <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-              Loading price master records...
-            </div>
-          ) : prices.length === 0 ? (
-            <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-              No prices found.
-            </div>
-          ) : (
-            <div className="master-card-grid">
-              {prices.map((item) => (
-                <div key={item.id} className="master-record-card" onClick={() => handleOpenEdit(item)}>
-                  <div className="master-record-card-header">
-                    <div>
-                      <div className="master-record-title">{item.parameter?.name || item.parameter?.parameterName || 'Parameter'}</div>
-                      <div className="master-record-subtitle">
-                        {item.category?.name} {item.parameter?.subCategory ? `• ${item.parameter.subCategory.name}` : ''} • ₹{Number(item.price || 0).toFixed(2)}
+        < div className="show-on-mobile" >
+          {
+            loading ? (
+              <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }} >
+                Loading price master records...
+              </div >
+            ) : prices.length === 0 ? (
+              <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                No prices found.
+              </div>
+            ) : (
+              <div className="master-card-grid">
+                {prices.map((item) => (
+                  <div key={item.id} className="master-record-card" onClick={() => handleOpenEdit(item)}>
+                    <div className="master-record-card-header">
+                      <div>
+                        <div className="master-record-title">{item.parameter?.name || item.parameter?.parameterName || 'Parameter'}</div>
+                        <div className="master-record-subtitle">
+                          {item.category?.name} {item.parameter?.subCategory ? `• ${item.parameter.subCategory.name}` : ''} • ₹{Number(item.price || 0).toFixed(2)}
+                        </div>
                       </div>
+                      <span style={{
+                        padding: '0.2rem 0.6rem',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        borderRadius: '12px',
+                        backgroundColor: item.status === 'Active' ? '#dcfce7' : '#fee2e2',
+                        color: item.status === 'Active' ? '#15803d' : '#991b1b'
+                      }}>
+                        {item.status}
+                      </span>
                     </div>
-                    <span style={{
-                      padding: '0.2rem 0.6rem',
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      borderRadius: '12px',
-                      backgroundColor: item.status === 'Active' ? '#dcfce7' : '#fee2e2',
-                      color: item.status === 'Active' ? '#15803d' : '#991b1b'
-                    }}>
-                      {item.status}
-                    </span>
-                  </div>
 
-                  <div className="master-record-actions">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleOpenEdit(item); }}
-                      style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-                    >
-                      <FaEdit size={12} /> Edit
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleDelete(item.id, item.parameter?.parameterName || item.parameter?.name); }}
-                      style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-                    >
-                      <FaTrash size={12} /> Delete
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                    <div className="master-record-actions">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleOpenEdit(item); }}
+                        style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                      >
+                        <FaEdit size={12} /> Edit
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDelete(item.id, item.parameter?.parameterName || item.parameter?.name); }}
+                        style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                      >
+                        <FaTrash size={12} /> Delete
+                      </button>
+                    </div >
+                  </div >
+                ))}
+              </div >
+            )}
+        </div >
 
         {/* Pagination */}
-        {!loading && totalItems > 0 && (
-          <div style={{ marginTop: '1.25rem' }}>
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              pageSize={pageSize}
-              totalItems={totalItems}
-              onPageChange={(page) => setCurrentPage(page)}
-              onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
-            />
-          </div>
-        )}
+        {
+          !loading && totalItems > 0 && (
+            <div style={{ marginTop: '1.25rem' }}>
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                pageSize={pageSize}
+                totalItems={totalItems}
+                onPageChange={(page) => setCurrentPage(page)}
+                onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
+              />
+            </div>
+          )
+        }
 
-      </div>
+      </div >
 
       {/* Quick Add Category Modal */}
-      {isAddCatModalOpen && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(15, 23, 42, 0.5)',
-          backdropFilter: 'blur(4px)',
-          zIndex: 9999,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: '1rem'
-        }}>
-          <div style={{ background: '#ffffff', borderRadius: '12px', width: '100%', maxWidth: '420px', border: '1px solid #e2e8f0', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.25rem', borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Add New Category</h3>
-              <button onClick={() => setIsAddCatModalOpen(false)} style={{ border: 'none', background: 'none', color: '#64748b', cursor: 'pointer' }}><FaTimes /></button>
+      {
+        isAddCatModalOpen && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.5)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 9999,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: '1rem'
+          }}>
+            <div style={{ background: '#ffffff', borderRadius: '12px', width: '100%', maxWidth: '420px', border: '1px solid #e2e8f0', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.25rem', borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Add New Category</h3>
+                <button onClick={() => setIsAddCatModalOpen(false)} style={{ border: 'none', background: 'none', color: '#64748b', cursor: 'pointer' }}><FaTimes /></button>
+              </div>
+              <form onSubmit={handleCreateCategoryDirect} style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Category Name *</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Environmental Water Test"
+                    value={newCatName}
+                    onChange={(e) => setNewCatName(e.target.value)}
+                    autoFocus
+                    required
+                    style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.9rem', outline: 'none' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+                  <button type="button" onClick={() => setIsAddCatModalOpen(false)} style={{ padding: '0.45rem 1rem', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#ffffff', color: '#475569', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+                  <button type="submit" disabled={isSavingCat} style={{ padding: '0.45rem 1.2rem', border: 'none', borderRadius: '6px', backgroundColor: '#22c55e', color: '#ffffff', fontWeight: 600, cursor: 'pointer', opacity: isSavingCat ? 0.7 : 1 }}>{isSavingCat ? 'Saving...' : 'Create Category'}</button>
+                </div>
+              </form>
             </div>
-            <form onSubmit={handleCreateCategoryDirect} style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Category Name *</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Environmental Water Test"
-                  value={newCatName}
-                  onChange={(e) => setNewCatName(e.target.value)}
-                  autoFocus
-                  required
-                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.9rem', outline: 'none' }}
-                />
-              </div>
-              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
-                <button type="button" onClick={() => setIsAddCatModalOpen(false)} style={{ padding: '0.45rem 1rem', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#ffffff', color: '#475569', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
-                <button type="submit" disabled={isSavingCat} style={{ padding: '0.45rem 1.2rem', border: 'none', borderRadius: '6px', backgroundColor: '#22c55e', color: '#ffffff', fontWeight: 600, cursor: 'pointer', opacity: isSavingCat ? 0.7 : 1 }}>{isSavingCat ? 'Saving...' : 'Create Category'}</button>
-              </div>
-            </form>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Quick Add Parameter Modal */}
-      {isAddParamModalOpen && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(15, 23, 42, 0.5)',
-          backdropFilter: 'blur(4px)',
-          zIndex: 9999,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: '1rem'
-        }}>
-          <div style={{ background: '#ffffff', borderRadius: '12px', width: '100%', maxWidth: '440px', border: '1px solid #e2e8f0', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.25rem', borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Add New Parameter</h3>
-              <button onClick={() => setIsAddParamModalOpen(false)} style={{ border: 'none', background: 'none', color: '#64748b', cursor: 'pointer' }}><FaTimes /></button>
+      {
+        isAddParamModalOpen && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.5)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 9999,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: '1rem'
+          }}>
+            <div style={{ background: '#ffffff', borderRadius: '12px', width: '100%', maxWidth: '440px', border: '1px solid #e2e8f0', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.25rem', borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Add New Parameter</h3>
+                <button onClick={() => setIsAddParamModalOpen(false)} style={{ border: 'none', background: 'none', color: '#64748b', cursor: 'pointer' }}><FaTimes /></button>
+              </div>
+              <form onSubmit={handleCreateParameterDirect} style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Parameter Name *</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Biochemical Oxygen Demand (BOD)"
+                    value={newParamName}
+                    onChange={(e) => setNewParamName(e.target.value)}
+                    autoFocus
+                    required
+                    style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.9rem', outline: 'none' }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Test Method / Standard (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. IS 3025 (Part 44)"
+                    value={newParamTestMethod}
+                    onChange={(e) => setNewParamTestMethod(e.target.value)}
+                    style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.9rem', outline: 'none' }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+                  <button type="button" onClick={() => setIsAddParamModalOpen(false)} style={{ padding: '0.45rem 1rem', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#ffffff', color: '#475569', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+                  <button type="submit" disabled={isSavingParam} style={{ padding: '0.45rem 1.2rem', border: 'none', borderRadius: '6px', backgroundColor: '#22c55e', color: '#ffffff', fontWeight: 600, cursor: 'pointer', opacity: isSavingParam ? 0.7 : 1 }}>{isSavingParam ? 'Saving...' : 'Create Parameter'}</button>
+                </div>
+              </form>
             </div>
-            <form onSubmit={handleCreateParameterDirect} style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Parameter Name *</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Biochemical Oxygen Demand (BOD)"
-                  value={newParamName}
-                  onChange={(e) => setNewParamName(e.target.value)}
-                  autoFocus
-                  required
-                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.9rem', outline: 'none' }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Test Method / Standard (Optional)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. IS 3025 (Part 44)"
-                  value={newParamTestMethod}
-                  onChange={(e) => setNewParamTestMethod(e.target.value)}
-                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.9rem', outline: 'none' }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
-                <button type="button" onClick={() => setIsAddParamModalOpen(false)} style={{ padding: '0.45rem 1rem', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#ffffff', color: '#475569', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
-                <button type="submit" disabled={isSavingParam} style={{ padding: '0.45rem 1.2rem', border: 'none', borderRadius: '6px', backgroundColor: '#22c55e', color: '#ffffff', fontWeight: 600, cursor: 'pointer', opacity: isSavingParam ? 0.7 : 1 }}>{isSavingParam ? 'Saving...' : 'Create Parameter'}</button>
-              </div>
-            </form>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Bulk Excel Import Modal */}
       <BulkImportModal
@@ -1150,7 +1164,7 @@ const PriceMasterPage = () => {
         loading={deleting}
       />
 
-    </div>
+    </div >
   );
 };
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   FaFolder, FaPlus, FaDownload, FaEdit, FaTrash, FaCheck,
   FaExclamationCircle, FaFileExcel, FaCopy, FaFileCsv,
-  FaPrint, FaChevronDown, FaMapMarkerAlt
+  FaFilePdf, FaPrint, FaChevronDown, FaMapMarkerAlt
 } from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
 import { LOCATION_SAMPLE_ENDPOINTS, COMPANY_ENDPOINTS } from '../../../shared/services/apiEndpoints';
@@ -132,7 +132,7 @@ const LocationSampleMaster = () => {
   useEffect(() => {
     fetchCompanies();
     fetchLocations();
-  }, [currentPage, pageSize, statusFilter]);
+  }, [currentPage, pageSize, statusFilter, searchQuery]);
 
   // Handle Search Input Debounce/Trigger
   const handleSearchSubmit = (e) => {
@@ -151,6 +151,17 @@ const LocationSampleMaster = () => {
     setFormErrors({});
     setEditingId(null);
     setIsFormOpen(false);
+  };
+
+  const handleOpenCreate = () => {
+    setEditingId(null);
+    setFormData({
+      name: '',
+      status: 'Active',
+      companyName: ''
+    });
+    setFormErrors({});
+    setIsFormOpen(true);
   };
 
   // Handle manual input change
@@ -240,71 +251,221 @@ const LocationSampleMaster = () => {
     }
   };
 
-  // Export to Excel / CSV
-  const handleExport = (type) => {
+  // Export handlers
+  const handleDownloadExcel = () => {
+    if (locations.length === 0) return;
     const exportData = locations.map((loc, idx) => ({
       'Sr No': idx + 1,
       'Location of Sample': loc.name,
       'Company': loc.companyName || 'N/A',
       'Status': loc.status
     }));
+    downloadExcel(exportData, 'LocationOfSample_Master.xlsx');
+    triggerToast('Excel report generated successfully', 'success');
+    setShowDownloadDropdown(false);
+  };
 
-    const namePrefix = 'LocationOfSample_Master';
-    if (type === 'excel') {
-      downloadExcel(exportData, namePrefix);
-      triggerToast('Excel report generated successfully');
-    } else {
-      downloadCSV(exportData, namePrefix);
-      triggerToast('CSV report generated successfully');
-    }
+  const handleDownloadCSV = () => {
+    if (locations.length === 0) return;
+    const exportData = locations.map((loc, idx) => ({
+      'Sr No': idx + 1,
+      'Location of Sample': loc.name,
+      'Company': loc.companyName || 'N/A',
+      'Status': loc.status
+    }));
+    downloadCSV(exportData, 'LocationOfSample_Master.csv');
+    triggerToast('CSV report generated successfully', 'success');
+    setShowDownloadDropdown(false);
+  };
+
+  const handleCopy = () => {
+    if (locations.length === 0) return;
+    const headers = ['Sr No', 'Location of Sample', 'Company', 'Status'];
+    const rows = locations.map((loc, idx) => [
+      idx + 1,
+      loc.name,
+      loc.companyName || 'N/A',
+      loc.status
+    ]);
+    const text = [headers.join('\t'), ...rows.map(r => r.join('\t'))].join('\n');
+    navigator.clipboard.writeText(text);
+    triggerToast('Copied to clipboard successfully.', 'success');
+    setShowDownloadDropdown(false);
+  };
+
+  const handlePrintPDF = () => {
+    if (locations.length === 0) return;
+    const printWindow = window.open('', '_blank');
+    const rows = locations.map((loc, idx) => `
+      <tr>
+        <td>${idx + 1}</td>
+        <td>${loc.name}</td>
+        <td>${loc.companyName || 'N/A'}</td>
+        <td>${loc.status}</td>
+      </tr>
+    `).join('');
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Location of Sample Report</title>
+          <style>
+            body { font-family: sans-serif; padding: 20px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: left; font-size: 13px; }
+            th { background-color: #f8fafc; }
+          </style>
+        </head>
+        <body>
+          <h2>Location of Sample Report</h2>
+          <table>
+            <thead>
+              <tr><th>Sr No</th><th>Location Title</th><th>Company</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+              ${rows}
+            </tbody>
+          </table>
+          <script>
+            window.onload = function() {
+              window.print();
+              window.close();
+            }
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    setShowDownloadDropdown(false);
+  };
+
+  const handlePrint = () => {
+    window.print();
     setShowDownloadDropdown(false);
   };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       
-      {/* Title Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{ background: '#dcfce7', color: '#16a34a', padding: '0.75rem', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <FaMapMarkerAlt size={20} />
-          </div>
-          <div>
-            <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, color: '#0f172a' }}>Location of Sample Master</h2>
-            <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.875rem', color: '#64748b' }}>Configure LIMS sample location names and metadata mappings</p>
-          </div>
+      {/* Toast Notification Container in Upper Right Corner */}
+      {toast.show && (
+        <div style={{
+          position: 'fixed',
+          top: '24px',
+          right: '24px',
+          backgroundColor: toast.type === 'success' ? '#10b981' : '#ef4444',
+          color: '#ffffff',
+          padding: '0.75rem 1.5rem',
+          borderRadius: '8px',
+          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          fontWeight: 600,
+          fontSize: '0.9rem',
+          transition: 'all 0.3s ease-in-out',
+        }}>
+          {toast.type === 'success' ? <FaCheck /> : <FaExclamationCircle />}
+          <span>{toast.message}</span>
         </div>
+      )}
 
-        {/* Action Button Headers */}
-        <div style={{ display: 'flex', gap: '0.75rem', position: 'relative' }} ref={dropdownRef}>
-          <button
-            onClick={() => setShowDownloadDropdown(!showDownloadDropdown)}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.625rem 1rem', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#475569', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' }}
-          >
-            <FaDownload /> Export Report <FaChevronDown size={10} />
-          </button>
-          
-          {showDownloadDropdown && (
-            <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: '0.5rem', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', zIndex: 50, minWidth: '160px', display: 'flex', flexDirection: 'column', padding: '0.25rem' }}>
-              <button onClick={() => handleExport('excel')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.5rem 0.75rem', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', color: '#334155', fontSize: '0.875rem', borderRadius: '6px' }} className="dropdown-item-hover">
-                <FaFileExcel style={{ color: '#107c41' }} /> Excel Worksheet
-              </button>
-              <button onClick={() => handleExport('csv')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.5rem 0.75rem', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', color: '#334155', fontSize: '0.875rem', borderRadius: '6px' }} className="dropdown-item-hover">
-                <FaFileCsv style={{ color: '#0078d4' }} /> CSV Plain Text
-              </button>
-            </div>
+      {/* Title & Top Action Bar matching CategoryMaster & CompanyMaster */}
+      <div className="master-top-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' }}>
+        <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+          <FaMapMarkerAlt style={{ color: '#22c55e' }} />
+          <span>Location of Sample Master</span>
+        </h2>
+        
+        <div className="master-top-bar-actions" style={{ display: 'flex', gap: '0.75rem', position: 'relative' }} ref={dropdownRef}>
+          {!isFormOpen && (
+            <button
+              onClick={handleOpenCreate}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1rem', fontWeight: 600, cursor: 'pointer' }}
+            >
+              <FaPlus />
+              <span>Location of Sample</span>
+            </button>
           )}
 
+          {/* Premium Download Button */}
           <button
-            onClick={() => setIsFormOpen(!isFormOpen)}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.625rem 1rem', background: '#22c55e', border: 'none', borderRadius: '8px', color: '#ffffff', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', transition: 'background-color 0.15s' }}
+            onClick={() => setShowDownloadDropdown(!showDownloadDropdown)}
+            disabled={locations.length === 0}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              backgroundColor: '#22c55e',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '0.5rem 1.25rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              opacity: locations.length === 0 ? 0.6 : 1,
+              boxShadow: '0 2px 4px rgba(34, 197, 94, 0.2)'
+            }}
           >
-            <FaPlus /> {isFormOpen ? 'Close Panel' : 'Add Location'}
+            <FaDownload />
+            <span>Download</span>
+            <FaChevronDown style={{ fontSize: '0.75rem', opacity: 0.8 }} />
           </button>
+
+          {/* Download Dropdown List Container */}
+          {showDownloadDropdown && (
+            <div style={{
+              position: 'absolute',
+              top: '100%',
+              right: 0,
+              marginTop: '0.5rem',
+              width: '160px',
+              backgroundColor: '#ffffff',
+              border: '1px solid #cbd5e1',
+              borderRadius: '8px',
+              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+              zIndex: 100,
+              overflow: 'hidden',
+              padding: '4px 0'
+            }}>
+              {[
+                { name: 'Excel', action: handleDownloadExcel, icon: <FaFileExcel style={{ color: '#16a34a' }} /> },
+                { name: 'Copy', action: handleCopy, icon: <FaCopy style={{ color: '#475569' }} /> },
+                { name: 'CSV', action: handleDownloadCSV, icon: <FaFileCsv style={{ color: '#2563eb' }} /> },
+                { name: 'PDF', action: handlePrintPDF, icon: <FaFilePdf style={{ color: '#dc2626' }} /> },
+                { name: 'Print', action: handlePrint, icon: <FaPrint style={{ color: '#7c3aed' }} /> }
+              ].map(opt => (
+                <button
+                  key={opt.name}
+                  onClick={opt.action}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    width: '100%',
+                    padding: '0.625rem 1rem',
+                    border: 'none',
+                    backgroundColor: 'transparent',
+                    color: '#334155',
+                    fontSize: '0.875rem',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.15s'
+                  }}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = '#f1f5f9'}
+                  onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                >
+                  {opt.icon}
+                  <span>{opt.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Slideout/Dropdown Form Panel */}
+      {/* Dropdown Form Panel */}
       {isFormOpen && (
         <form onSubmit={handleSubmit} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#0f172a' }}>
@@ -312,7 +473,7 @@ const LocationSampleMaster = () => {
           </h3>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
-            {/* Title / Name */}
+            {/* Location Title / Name */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
               <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Location Title *</label>
               <input
@@ -384,43 +545,36 @@ const LocationSampleMaster = () => {
       )}
 
       {/* Main Grid View Container */}
-      <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)' }}>
+      <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
         
-        {/* Toolbar Filter / Search */}
-        <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid #f1f5f9', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', background: '#fafafa' }}>
-          
-          <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '0.5rem', flex: 1, maxWidth: '420px' }}>
-            <input
-              type="text"
-              placeholder="Search by location title..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ padding: '0.5rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.875rem', outline: 'none', width: '100%' }}
-            />
-            <button
-              type="submit"
-              style={{ padding: '0.5rem 1rem', background: '#22c55e', border: 'none', borderRadius: '8px', color: '#ffffff', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}
-            >
-              Search
-            </button>
-          </form>
-
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+        {/* Table Filters & Search Bar */}
+        <div className="master-table-filters" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+          <div style={{ fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>
+            Total Locations: {totalItems}
+          </div>
+          <div className="master-filter-inputs" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             <select
               value={statusFilter}
               onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-              style={{ padding: '0.5rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.875rem', outline: 'none', backgroundColor: '#ffffff', cursor: 'pointer' }}
+              style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem' }}
             >
-              <option value="ALL">ALL STATUSES</option>
+              <option value="ALL">ALL STATUS</option>
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
             </select>
+            <input
+              type="text"
+              placeholder="Search..."
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+              style={{ padding: '0.5rem 1rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', width: '200px' }}
+            />
           </div>
         </div>
 
         {/* Desktop Table View */}
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
+        <div className="show-on-desktop master-table-responsive" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600, width: '100px' }}>ACTIONS</th>
@@ -441,7 +595,12 @@ const LocationSampleMaster = () => {
                 </tr>
               ) : (
                 locations.map((loc, index) => (
-                  <tr key={loc.id} style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background-color 0.15s' }} className="company-table-row">
+                  <tr
+                    key={loc.id}
+                    onClick={() => handleOpenEdit(loc)}
+                    style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background-color 0.15s' }}
+                    className="company-table-row"
+                  >
                     <td style={{ padding: '0.75rem 1rem', display: 'flex', gap: '0.5rem' }}>
                       <button
                         onClick={(e) => { e.stopPropagation(); handleOpenEdit(loc); }}
@@ -481,8 +640,58 @@ const LocationSampleMaster = () => {
           </table>
         </div>
 
+        {/* Mobile Cards View */}
+        <div className="show-on-mobile">
+          {loading ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+              Loading locations of sample...
+            </div>
+          ) : locations.length === 0 ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+              No locations of sample found.
+            </div>
+          ) : (
+            <div className="master-card-grid">
+              {locations.map((loc, index) => (
+                <div key={loc.id} className="master-record-card" onClick={() => handleOpenEdit(loc)}>
+                  <div className="master-record-card-header">
+                    <div>
+                      <div className="master-record-title">{loc.name}</div>
+                      <div className="master-record-subtitle">{loc.companyName || 'Unassigned'}</div>
+                    </div>
+                    <span style={{
+                      padding: '0.2rem 0.6rem',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      borderRadius: '12px',
+                      backgroundColor: loc.status === 'Active' ? '#dcfce7' : '#fee2e2',
+                      color: loc.status === 'Active' ? '#15803d' : '#991b1b'
+                    }}>
+                      {loc.status}
+                    </span>
+                  </div>
+                  <div className="master-record-actions">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleOpenEdit(loc); }}
+                      style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                    >
+                      <FaEdit size={12} /> Edit
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDelete(loc.id, loc.name); }}
+                      style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                    >
+                      <FaTrash size={12} /> Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Footer / Pagination Controls */}
-        <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fafafa' }}>
+        <div style={{ padding: '1rem 0 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
             Total Locations: {totalItems}
           </div>
@@ -507,28 +716,6 @@ const LocationSampleMaster = () => {
         onCancel={() => setDeleteModal({ isOpen: false, id: null, name: '' })}
         type="danger"
       />
-
-      {/* Floating Toast Notification */}
-      {toast.show && (
-        <div style={{
-          position: 'fixed',
-          bottom: '2rem',
-          right: '2rem',
-          background: toast.type === 'success' ? '#10b981' : '#ef4444',
-          color: '#ffffff',
-          padding: '0.75rem 1.5rem',
-          borderRadius: '8px',
-          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          zIndex: 9999,
-          fontSize: '0.9rem',
-          fontWeight: 600
-        }}>
-          <FaCheck /> {toast.message}
-        </div>
-      )}
     </div>
   );
 };

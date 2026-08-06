@@ -48,6 +48,33 @@ const resolveCompanyId = async (body, query, userId, headers = {}, reqUser = {})
 };
 
 /**
+ * Helper to extract user-friendly error message from Sequelize or standard errors
+ */
+const formatErrorMessage = (err, defaultMsg = "Operation failed.", reqBody = {}) => {
+    if (!err) return defaultMsg;
+
+    if (err.name === "SequelizeUniqueConstraintError" || err.name === "SequelizeValidationError") {
+        const paramName = reqBody.parameterName || "Parameter";
+        if (err.name === "SequelizeUniqueConstraintError") {
+            return `Parameter '${paramName}' already exists under this Sub Category / Location of Sample / Discipline Group.`;
+        }
+        if (err.errors && err.errors.length > 0) {
+            const firstErr = err.errors[0];
+            if (firstErr.message && firstErr.message !== "Validation error") {
+                return firstErr.message;
+            }
+        }
+        return `Parameter '${paramName}' already exists under this Sub Category / Location of Sample / Discipline Group.`;
+    }
+
+    if (err.message && err.message !== "Validation error") {
+        return err.message;
+    }
+
+    return defaultMsg;
+};
+
+/**
  * Create a new parameter.
  */
 const create = async (req, res) => {
@@ -57,10 +84,11 @@ const create = async (req, res) => {
 
         const { error, value } = createParameterSchema.validate(body);
         if (error) {
+            const valMsg = error.details && error.details[0] ? error.details[0].message : "Validation error";
             return res.status(400).json(errorResponse(
                 "VALIDATION_ERROR",
-                error.details[0].message,
-                error.details[0].message
+                valMsg,
+                valMsg
             ));
         }
 
@@ -105,7 +133,8 @@ const create = async (req, res) => {
             newParam
         ));
     } catch (err) {
-        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Failed to create parameter."));
+        const userMsg = formatErrorMessage(err, "Failed to create parameter.", req.body);
+        return res.status(400).json(errorResponse("VALIDATION_ERROR", userMsg, userMsg));
     }
 };
 
@@ -287,7 +316,8 @@ const update = async (req, res) => {
             updatedParam
         ));
     } catch (err) {
-        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Failed to update parameter."));
+        const userMsg = formatErrorMessage(err, "Failed to update parameter.");
+        return res.status(400).json(errorResponse("VALIDATION_ERROR", userMsg, userMsg));
     }
 };
 
@@ -332,7 +362,7 @@ const remove = async (req, res) => {
             null
         ));
     } catch (err) {
-        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Failed to delete parameter."));
+        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, err.message || "Failed to delete parameter."));
     }
 };
 

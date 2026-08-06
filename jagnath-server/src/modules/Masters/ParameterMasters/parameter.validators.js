@@ -18,8 +18,8 @@ const createParameterSchema = Joi.object({
         "any.only": "Status must be Active or Inactive.",
         "any.required": "Status is required."
     }),
-    companyName: Joi.string().trim().optional(),
-    companyId: Joi.string().trim().optional(),
+    companyName: Joi.string().trim().optional().allow("", null),
+    companyId: Joi.string().trim().optional().allow("", null),
     categoryId: Joi.string().trim().optional().allow("", null),
     subCategoryId: Joi.string().trim().optional().allow("", null),
     locationSampleId: Joi.string().trim().optional().allow("", null)
@@ -37,8 +37,8 @@ const updateParameterSchema = Joi.object({
     status: Joi.string().valid("Active", "Inactive").optional().messages({
         "any.only": "Status must be Active or Inactive."
     }),
-    companyName: Joi.string().trim().optional(),
-    companyId: Joi.string().trim().optional(),
+    companyName: Joi.string().trim().optional().allow("", null),
+    companyId: Joi.string().trim().optional().allow("", null),
     categoryId: Joi.string().trim().optional().allow("", null),
     subCategoryId: Joi.string().trim().optional().allow("", null),
     locationSampleId: Joi.string().trim().optional().allow("", null)

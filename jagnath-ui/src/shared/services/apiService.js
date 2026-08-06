@@ -73,21 +73,53 @@ const request = async (url, options = {}) => {
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    const error = data || {
-      success: false,
-      message: `HTTP ${response.status}: ${response.statusText}`,
+    const extractMsg = (errObj) => {
+      if (!errObj) return null;
+      if (typeof errObj === "string") return errObj;
+      if (errObj.error?.details && Array.isArray(errObj.error.details) && errObj.error.details[0]?.message) {
+        return errObj.error.details[0].message;
+      }
+      if (errObj.details && Array.isArray(errObj.details) && errObj.details[0]?.message) {
+        return errObj.details[0].message;
+      }
+      const candidates = [
+        errObj.errorMessage,
+        errObj.messageToShow,
+        errObj.error?.userMessage,
+        errObj.error?.message,
+        errObj.userMessage,
+        errObj.message,
+        typeof errObj.error === "string" ? errObj.error : null
+      ];
+      for (const msg of candidates) {
+        if (msg && typeof msg === "string" && msg.trim() !== "Validation error" && msg.trim() !== "VALIDATION_ERROR") {
+          return msg.trim();
+        }
+      }
+      return errObj.errorMessage || errObj.messageToShow || errObj.message || null;
     };
+
+    const errorMsg = extractMsg(data) || `HTTP ${response.status}: ${response.statusText}`;
+
+    const error = data && typeof data === "object" ? data : {
+      success: false,
+      message: errorMsg,
+    };
+    error.messageToShow = errorMsg;
+    error.message = errorMsg;
 
     // Handle Token Expiry (401 Unauthorized only)
     if (response.status === 401) {
-      const refreshToken = sessionStorage.getItem("refreshToken");
+      const refreshToken = sessionStorage.getItem("refreshToken") || localStorage.getItem("refreshToken");
 
       // Prevent infinite loops for the refresh endpoint itself or missing refresh token
       if (url === AUTH_ENDPOINTS.REFRESH_TOKEN || !refreshToken) {
         sessionStorage.clear();
         localStorage.removeItem("accessToken");
         localStorage.removeItem("token");
+        localStorage.removeItem("refreshToken");
         localStorage.removeItem("user");
+        localStorage.removeItem("role");
         throw error;
       }
 

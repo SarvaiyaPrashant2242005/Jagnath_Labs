@@ -382,7 +382,7 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
     // Map Excel header labels to internal keys using central header normalization & aliases
     Object.keys(row).forEach(rawHeader => {
       const normRaw = normalizeExcelHeader(rawHeader);
-      
+
       // Look for a matching schema header field
       const matchedField = schema.headers.find(h => {
         if (normalizeExcelHeader(h.key) === normRaw) return true;

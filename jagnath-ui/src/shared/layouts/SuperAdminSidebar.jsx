@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { FaChartPie, FaBuilding, FaUserShield, FaUserCircle, FaTimes, FaShieldAlt } from 'react-icons/fa';
 
 /**
@@ -127,6 +128,27 @@ const SuperAdminSidebar = ({ activeTab, onTabChange, sidebarRef, isOpen = true, 
               display: flex;
             }
           }
+
+          .menu-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.6rem 0.75rem !important;
+            color: #94a3b8;
+            font-size: 0.875rem;
+            font-weight: 500;
+            border-radius: 8px;
+            margin-bottom: 0.15rem !important;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-height: 40px;
+            text-decoration: none !important;
+          }
+
+          .menu-item:hover, .menu-item.active {
+            color: #ffffff;
+            background-color: rgba(255, 255, 255, 0.05);
+          }
         `}</style>
 
         <div className="sidebar-nav-container">
@@ -176,7 +198,8 @@ const SuperAdminSidebar = ({ activeTab, onTabChange, sidebarRef, isOpen = true, 
 
             {/* 1. Super Admin Dashboard */}
             <div className="menu-group">
-              <div
+              <Link
+                to="/dashboard"
                 className={`menu-item ${activeTab === 'dashboard' ? 'active' : ''}`}
                 onClick={() => handleItemClick('dashboard')}
               >
@@ -184,12 +207,13 @@ const SuperAdminSidebar = ({ activeTab, onTabChange, sidebarRef, isOpen = true, 
                   <FaChartPie className="menu-icon" />
                   <span>Platform Dashboard</span>
                 </div>
-              </div>
+              </Link>
             </div>
 
             {/* 2. Companies Management */}
             <div className="menu-group">
-              <div
+              <Link
+                to="/company"
                 className={`menu-item ${activeTab === 'companies' ? 'active' : ''}`}
                 onClick={() => handleItemClick('companies')}
               >
@@ -197,12 +221,13 @@ const SuperAdminSidebar = ({ activeTab, onTabChange, sidebarRef, isOpen = true, 
                   <FaBuilding className="menu-icon" />
                   <span>Companies</span>
                 </div>
-              </div>
+              </Link>
             </div>
 
             {/* 3. User & Access Management */}
             <div className="menu-group">
-              <div
+              <Link
+                to="/users"
                 className={`menu-item ${activeTab === 'users' ? 'active' : ''}`}
                 onClick={() => handleItemClick('users')}
               >
@@ -210,14 +235,15 @@ const SuperAdminSidebar = ({ activeTab, onTabChange, sidebarRef, isOpen = true, 
                   <FaUserShield className="menu-icon" />
                   <span>Users & Access</span>
                 </div>
-              </div>
+              </Link>
             </div>
 
             <div className="menu-label" style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.68rem', paddingLeft: '1rem', marginTop: '1.5rem', marginBottom: '0.5rem' }}>ACCOUNT</div>
 
             {/* 4. Profile */}
             <div className="menu-group">
-              <div
+              <Link
+                to="/profile"
                 className={`menu-item ${activeTab === 'profile' ? 'active' : ''}`}
                 onClick={() => handleItemClick('profile')}
               >
@@ -225,7 +251,7 @@ const SuperAdminSidebar = ({ activeTab, onTabChange, sidebarRef, isOpen = true, 
                   <FaUserCircle className="menu-icon" />
                   <span>Profile Settings</span>
                 </div>
-              </div>
+              </Link>
             </div>
           </nav>
         </div>

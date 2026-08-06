@@ -859,274 +859,274 @@ const ClientMaster = () => {
         </div>
       )}
 
-{/* Filter and Table view */ }
-<div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+      {/* Filter and Table view */}
+      <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
 
-  {/* Table Filters */}
-  <div className="master-table-filters" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-      <div style={{ fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>
-        Total Clients: {totalItems}
-      </div>
-      {selectedIds.length > 0 && (
-        <button
-          onClick={handleBulkDelete}
-          style={{
-            background: '#ef4444',
-            color: '#ffffff',
-            border: 'none',
-            borderRadius: '6px',
-            padding: '0.4rem 0.85rem',
-            fontWeight: 600,
-            fontSize: '0.85rem',
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.4rem',
-            boxShadow: '0 1px 2px rgba(239, 68, 68, 0.2)'
-          }}
-        >
-          <FaTrash size={12} /> Delete Selected ({selectedIds.length})
-        </button>
-      )}
-    </div>
-    <div className="master-filter-inputs" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-      <select
-        value={statusFilter}
-        onChange={(e) => setStatusFilter(e.target.value)}
-        style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem' }}
-      >
-        <option value="ALL">ALL STATUS</option>
-        <option value="Active">Active</option>
-        <option value="Inactive">Inactive</option>
-      </select>
-      <input
-        type="text"
-        placeholder="Search..."
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        style={{ padding: '0.5rem 1rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', width: '200px' }}
-      />
-    </div>
-  </div>
-
-  {/* Desktop Table View */}
-  <div className="show-on-desktop master-table-responsive" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
-      <thead>
-        <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-          <th style={{ padding: '0.75rem 0.75rem', width: '40px', textAlign: 'center' }}>
-            <input
-              type="checkbox"
-              checked={clients.length > 0 && selectedIds.length === clients.length}
-              onChange={handleSelectAll}
-              style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-            />
-          </th>
-          <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ACTIONS</th>
-          <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
-          <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CLIENT NAME</th>
-          <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>EMAIL</th>
-          <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CONTACT</th>
-          <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>OFFICE ADDRESS</th>
-          <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>PLANT ADDRESS</th>
-          <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CITY</th>
-          <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATE</th>
-          <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATUS</th>
-        </tr>
-      </thead>
-      <tbody>
-        {loading ? (
-          <tr>
-            <td colSpan={11} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-              Loading clients...
-            </td>
-          </tr>
-        ) : clients.length === 0 ? (
-          <tr>
-            <td colSpan={11} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-              No clients found.
-            </td>
-          </tr>
-        ) : (
-          clients.map((client, index) => (
-            <tr
-              key={client.id}
-              onClick={() => handleOpenEdit(client)}
-              style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background-color 0.15s' }}
-              className="company-table-row"
-            >
-              <td style={{ padding: '0.75rem 0.75rem', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
-                <input
-                  type="checkbox"
-                  checked={selectedIds.includes(client.id)}
-                  onChange={(e) => handleSelectRow(client.id, e)}
-                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                />
-              </td>
-              <td style={{ padding: '0.75rem 1rem', display: 'flex', gap: '0.5rem' }}>
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleOpenEdit(client); }}
-                  style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
-                  title="Edit"
-                >
-                  <FaEdit size={12} />
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleDelete(client.id, client.clientName); }}
-                  style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
-                  title="Delete"
-                >
-                  <FaTrash size={12} />
-                </button>
-              </td>
-              <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
-              <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{client.clientName}</td>
-              <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.email || 'N/A'}</td>
-              <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.contactNumber}</td>
-              <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.officeAddress || client.address || 'N/A'}</td>
-              <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.plantAddress || client.address || 'N/A'}</td>
-              <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.city}</td>
-              <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.state || 'N/A'}</td>
-              <td style={{ padding: '0.75rem 1rem' }}>
-                <span style={{
-                  display: 'inline-block',
-                  padding: '0.125rem 0.5rem',
-                  fontSize: '0.75rem',
+        {/* Table Filters */}
+        <div className="master-table-filters" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div style={{ fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>
+              Total Clients: {totalItems}
+            </div>
+            {selectedIds.length > 0 && (
+              <button
+                onClick={handleBulkDelete}
+                style={{
+                  background: '#ef4444',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '0.4rem 0.85rem',
                   fontWeight: 600,
-                  borderRadius: '12px',
-                  backgroundColor: client.status === 'Active' ? '#dcfce7' : '#fee2e2',
-                  color: client.status === 'Active' ? '#15803d' : '#991b1b'
-                }}>
-                  {client.status}
-                </span>
-              </td>
-            </tr>
-          ))
-        )}
-      </tbody>
-    </table>
-  </div>
-
-  {/* Mobile Cards View */}
-  <div className="show-on-mobile">
-    {loading ? (
-      <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-        Loading clients...
-      </div>
-    ) : clients.length === 0 ? (
-      <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-        No clients found.
-      </div>
-    ) : (
-      <div className="master-card-grid">
-        {clients.map((client, index) => (
-          <div key={client.id} className="master-record-card" onClick={() => handleOpenEdit(client)}>
-            <div className="master-record-card-header">
-              <div>
-                <div className="master-record-title">{client.clientName}</div>
-                <div className="master-record-subtitle">#{(currentPage - 1) * pageSize + index + 1} • {client.companyName || 'N/A'}</div>
-              </div>
-              <span style={{
-                padding: '0.2rem 0.6rem',
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                borderRadius: '12px',
-                backgroundColor: client.status === 'Active' ? '#dcfce7' : '#fee2e2',
-                color: client.status === 'Active' ? '#15803d' : '#991b1b'
-              }}>
-                {client.status}
-              </span>
-            </div>
-
-            <div className="master-record-details">
-              <div className="master-record-detail-item">
-                <span className="master-record-label">Contact</span>
-                <span className="master-record-value">{client.contactNumber || 'N/A'}</span>
-              </div>
-              <div className="master-record-detail-item">
-                <span className="master-record-label">Email</span>
-                <span className="master-record-value">{client.email || 'N/A'}</span>
-              </div>
-              <div className="master-record-detail-item">
-                <span className="master-record-label">City</span>
-                <span className="master-record-value">{client.city || 'N/A'}</span>
-              </div>
-              <div className="master-record-detail-item">
-                <span className="master-record-label">State</span>
-                <span className="master-record-value">{client.state || 'N/A'}</span>
-              </div>
-            </div>
-
-            <div className="master-record-actions">
-              <button
-                onClick={(e) => { e.stopPropagation(); handleOpenEdit(client); }}
-                style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  boxShadow: '0 1px 2px rgba(239, 68, 68, 0.2)'
+                }}
               >
-                <FaEdit size={12} /> Edit
+                <FaTrash size={12} /> Delete Selected ({selectedIds.length})
               </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); handleDelete(client.id, client.clientName); }}
-                style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-              >
-                <FaTrash size={12} /> Delete
-              </button>
-            </div>
+            )}
           </div>
-        ))}
+          <div className="master-filter-inputs" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem' }}
+            >
+              <option value="ALL">ALL STATUS</option>
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+            <input
+              type="text"
+              placeholder="Search..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ padding: '0.5rem 1rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', width: '200px' }}
+            />
+          </div>
+        </div>
+
+        {/* Desktop Table View */}
+        <div className="show-on-desktop master-table-responsive" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+            <thead>
+              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                <th style={{ padding: '0.75rem 0.75rem', width: '40px', textAlign: 'center' }}>
+                  <input
+                    type="checkbox"
+                    checked={clients.length > 0 && selectedIds.length === clients.length}
+                    onChange={handleSelectAll}
+                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                  />
+                </th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ACTIONS</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CLIENT NAME</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>EMAIL</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CONTACT</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>OFFICE ADDRESS</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>PLANT ADDRESS</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CITY</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATE</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATUS</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={11} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                    Loading clients...
+                  </td>
+                </tr>
+              ) : clients.length === 0 ? (
+                <tr>
+                  <td colSpan={11} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                    No clients found.
+                  </td>
+                </tr>
+              ) : (
+                clients.map((client, index) => (
+                  <tr
+                    key={client.id}
+                    onClick={() => handleOpenEdit(client)}
+                    style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background-color 0.15s' }}
+                    className="company-table-row"
+                  >
+                    <td style={{ padding: '0.75rem 0.75rem', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(client.id)}
+                        onChange={(e) => handleSelectRow(client.id, e)}
+                        style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                      />
+                    </td>
+                    <td style={{ padding: '0.75rem 1rem', display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleOpenEdit(client); }}
+                        style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
+                        title="Edit"
+                      >
+                        <FaEdit size={12} />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDelete(client.id, client.clientName); }}
+                        style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
+                        title="Delete"
+                      >
+                        <FaTrash size={12} />
+                      </button>
+                    </td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{client.clientName}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.email || 'N/A'}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.contactNumber}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.officeAddress || client.address || 'N/A'}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.plantAddress || client.address || 'N/A'}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.city}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.state || 'N/A'}</td>
+                    <td style={{ padding: '0.75rem 1rem' }}>
+                      <span style={{
+                        display: 'inline-block',
+                        padding: '0.125rem 0.5rem',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        borderRadius: '12px',
+                        backgroundColor: client.status === 'Active' ? '#dcfce7' : '#fee2e2',
+                        color: client.status === 'Active' ? '#15803d' : '#991b1b'
+                      }}>
+                        {client.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile Cards View */}
+        <div className="show-on-mobile">
+          {loading ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+              Loading clients...
+            </div>
+          ) : clients.length === 0 ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+              No clients found.
+            </div>
+          ) : (
+            <div className="master-card-grid">
+              {clients.map((client, index) => (
+                <div key={client.id} className="master-record-card" onClick={() => handleOpenEdit(client)}>
+                  <div className="master-record-card-header">
+                    <div>
+                      <div className="master-record-title">{client.clientName}</div>
+                      <div className="master-record-subtitle">#{(currentPage - 1) * pageSize + index + 1} • {client.companyName || 'N/A'}</div>
+                    </div>
+                    <span style={{
+                      padding: '0.2rem 0.6rem',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      borderRadius: '12px',
+                      backgroundColor: client.status === 'Active' ? '#dcfce7' : '#fee2e2',
+                      color: client.status === 'Active' ? '#15803d' : '#991b1b'
+                    }}>
+                      {client.status}
+                    </span>
+                  </div>
+
+                  <div className="master-record-details">
+                    <div className="master-record-detail-item">
+                      <span className="master-record-label">Contact</span>
+                      <span className="master-record-value">{client.contactNumber || 'N/A'}</span>
+                    </div>
+                    <div className="master-record-detail-item">
+                      <span className="master-record-label">Email</span>
+                      <span className="master-record-value">{client.email || 'N/A'}</span>
+                    </div>
+                    <div className="master-record-detail-item">
+                      <span className="master-record-label">City</span>
+                      <span className="master-record-value">{client.city || 'N/A'}</span>
+                    </div>
+                    <div className="master-record-detail-item">
+                      <span className="master-record-label">State</span>
+                      <span className="master-record-value">{client.state || 'N/A'}</span>
+                    </div>
+                  </div>
+
+                  <div className="master-record-actions">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleOpenEdit(client); }}
+                      style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                    >
+                      <FaEdit size={12} /> Edit
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDelete(client.id, client.clientName); }}
+                      style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                    >
+                      <FaTrash size={12} /> Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Pagination Controls */}
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setCurrentPage(1);
+          }}
+        />
       </div>
-    )}
-  </div>
 
-  {/* Pagination Controls */}
-  <Pagination
-    currentPage={currentPage}
-    totalPages={totalPages}
-    totalItems={totalItems}
-    pageSize={pageSize}
-    onPageChange={setCurrentPage}
-    onPageSizeChange={(size) => {
-      setPageSize(size);
-      setCurrentPage(1);
-    }}
-  />
-</div>
+      {/* Bulk Excel Import Modal */}
+      <BulkImportModal
+        isOpen={isBulkImportOpen}
+        onClose={() => setIsBulkImportOpen(false)}
+        masterType="client"
+        existingDbRecords={clients}
+        onImportSuccess={async (validRows) => {
+          const res = await apiService.post(CLIENT_ENDPOINTS.BULK_IMPORT, { rows: validRows });
+          if (res && res.success) {
+            triggerToast(res.message || 'Clients imported successfully!', 'success');
+            fetchClients(currentPage, pageSize, searchQuery, statusFilter);
+          } else {
+            throw new Error(res?.message || 'Failed to import clients.');
+          }
+        }}
+      />
 
-{/* Bulk Excel Import Modal */ }
-<BulkImportModal
-  isOpen={isBulkImportOpen}
-  onClose={() => setIsBulkImportOpen(false)}
-  masterType="client"
-  existingDbRecords={clients}
-  onImportSuccess={async (validRows) => {
-    const res = await apiService.post(CLIENT_ENDPOINTS.BULK_IMPORT, { rows: validRows });
-    if (res && res.success) {
-      triggerToast(res.message || 'Clients imported successfully!', 'success');
-      fetchClients(currentPage, pageSize, searchQuery, statusFilter);
-    } else {
-      throw new Error(res?.message || 'Failed to import clients.');
-    }
-  }}
-/>
-
-{/* Reusable Delete Confirmation Modal */ }
-<ConfirmDialog
-  isOpen={deleteModal.isOpen}
-  onClose={() => setDeleteModal({ isOpen: false, id: null, name: '' })}
-  onConfirm={confirmDelete}
-  title="Delete Client"
-  message={
-    deleteModal.name ? (
-      <>Are you sure you want to delete client <strong>{deleteModal.name}</strong>? This action cannot be undone.</>
-    ) : (
-      'Are you sure you want to delete this client? This action cannot be undone.'
-    )
-  }
-  confirmText="Delete Client"
-  cancelText="Cancel"
-  variant="danger"
-  loading={deleting}
-/>
+      {/* Reusable Delete Confirmation Modal */}
+      <ConfirmDialog
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, id: null, name: '' })}
+        onConfirm={confirmDelete}
+        title="Delete Client"
+        message={
+          deleteModal.name ? (
+            <>Are you sure you want to delete client <strong>{deleteModal.name}</strong>? This action cannot be undone.</>
+          ) : (
+            'Are you sure you want to delete this client? This action cannot be undone.'
+          )
+        }
+        confirmText="Delete Client"
+        cancelText="Cancel"
+        variant="danger"
+        loading={deleting}
+      />
     </div>
   );
 };

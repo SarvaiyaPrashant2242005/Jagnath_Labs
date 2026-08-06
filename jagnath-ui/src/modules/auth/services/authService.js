@@ -42,21 +42,29 @@ export const loginUser = async (credentials) => {
 };
 
 /**
- * Clear all auth-related data from sessionStorage.
+ * Clear all auth-related data from sessionStorage and localStorage.
  */
 export const logoutUser = () => {
   sessionStorage.removeItem("accessToken");
+  sessionStorage.removeItem("token");
   sessionStorage.removeItem("refreshToken");
   sessionStorage.removeItem("user");
+
+  localStorage.removeItem("accessToken");
+  localStorage.removeItem("token");
+  localStorage.removeItem("refreshToken");
+  localStorage.removeItem("user");
+  localStorage.removeItem("role");
 };
 
 /**
  * Retrieve the currently stored user object (if any).
+ * Checks sessionStorage first, falls back to localStorage for cross-tab support.
  * @returns {object|null}
  */
 export const getStoredUser = () => {
   try {
-    const raw = sessionStorage.getItem("user");
+    const raw = sessionStorage.getItem("user") || localStorage.getItem("user");
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;

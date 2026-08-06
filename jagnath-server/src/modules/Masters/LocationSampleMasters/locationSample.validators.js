@@ -15,6 +15,7 @@ const createLocationSampleSchema = Joi.object({
 });
 
 const updateLocationSampleSchema = Joi.object({
+    companyId: Joi.string().uuid().optional().allow("", null),
     name: Joi.string().trim().min(2).max(150).optional(),
     status: Joi.string().valid("Active", "Inactive").optional()
 });

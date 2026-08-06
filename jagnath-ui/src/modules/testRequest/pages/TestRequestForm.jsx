@@ -11,7 +11,8 @@ import {
   COMPANY_ENDPOINTS,
   CAUTION_ENDPOINTS,
   PRICE_MASTER_ENDPOINTS,
-  SUB_CATEGORY_ENDPOINTS
+  SUB_CATEGORY_ENDPOINTS,
+  LOCATION_SAMPLE_ENDPOINTS
 } from '../../../shared/services/apiEndpoints';
 import { FaPrint, FaSave, FaArrowLeft, FaCheck, FaExclamationCircle, FaEye, FaEyeSlash, FaFilePdf, FaChevronLeft, FaChevronRight, FaSearch } from 'react-icons/fa';
 
@@ -27,6 +28,8 @@ const TestRequestForm = () => {
   const [subCategories, setSubCategories] = useState([]);
   const [selectedSubCategory, setSelectedSubCategory] = useState('');
   const [cautions, setCautions] = useState([]);
+  const [locationSamples, setLocationSamples] = useState([]);
+  const [selectedParamLocation, setSelectedParamLocation] = useState('');
   const [priceMasterMap, setPriceMasterMap] = useState({});
 
   // State for dynamic parameter checklist & pagination
@@ -90,6 +93,8 @@ const TestRequestForm = () => {
   };
 
   useEffect(() => {
+    fetchCautions();
+    fetchLocationSamples();
     fetchInitialData();
 
     const handleCompanyChange = () => {
@@ -144,6 +149,34 @@ const TestRequestForm = () => {
     const nextNum = maxNum + 1;
     const paddedNextNum = String(nextNum).padStart(padLength, '0');
     return `${maxPrefix}${paddedNextNum}`;
+  };
+
+  const fetchCautions = async () => {
+    try {
+      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
+      const url = activeCompId ? `${CAUTION_ENDPOINTS.GET_ALL}?companyId=${activeCompId}` : CAUTION_ENDPOINTS.GET_ALL;
+      const res = await apiService.get(url);
+      if (res?.data) {
+        const list = Array.isArray(res.data) ? res.data : (res.data.rows || []);
+        setCautions(list.filter(c => c.status === 'Active'));
+      }
+    } catch (err) {
+      console.error("Error fetching cautions", err);
+    }
+  };
+
+  const fetchLocationSamples = async () => {
+    try {
+      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
+      const url = activeCompId ? `${LOCATION_SAMPLE_ENDPOINTS.GET_ALL}?companyId=${activeCompId}&status=Active` : `${LOCATION_SAMPLE_ENDPOINTS.GET_ALL}?status=Active`;
+      const res = await apiService.get(url);
+      if (res?.data) {
+        const list = Array.isArray(res.data) ? res.data : (res.data.rows || [res.data]);
+        setLocationSamples(list);
+      }
+    } catch (err) {
+      console.error("Error fetching location samples", err);
+    }
   };
 
   const fetchInitialData = async () => {
@@ -557,7 +590,7 @@ const TestRequestForm = () => {
 
       // 2. Save Parameters Checklist with sequence
       const checkedParamIds = Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]);
-      
+
       const orderedParamIds = [
         ...selectedParamSequence.filter(id => checkedParamIds.includes(id)),
         ...checkedParamIds.filter(id => !selectedParamSequence.includes(id))
@@ -824,7 +857,20 @@ const TestRequestForm = () => {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                 <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Location of Sample</label>
-                <input type="text" name="locationOfSample" value={formData.locationOfSample} onChange={handleChange} className="premium-input" placeholder="Sample site or location" />
+                <select
+                  name="locationOfSample"
+                  value={formData.locationOfSample}
+                  onChange={handleChange}
+                  className="premium-input"
+                >
+                  <option value="">Select Location of Sample</option>
+                  {[...locationSamples].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(loc => (
+                    <option key={loc.id} value={loc.name}>{loc.name}</option>
+                  ))}
+                  {formData.locationOfSample && !locationSamples.some(l => l.name === formData.locationOfSample) && (
+                    <option value={formData.locationOfSample}>{formData.locationOfSample}</option>
+                  )}
+                </select>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
@@ -957,6 +1003,22 @@ const TestRequestForm = () => {
                   </span>
                 )}
               </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>
+                  Location of Sample
+                </label>
+                <select
+                  value={selectedParamLocation}
+                  onChange={(e) => setSelectedParamLocation(e.target.value)}
+                  className="premium-input"
+                >
+                  <option value="">All Locations of Sample</option>
+                  {[...locationSamples].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(loc => (
+                    <option key={loc.id} value={loc.id}>{loc.name}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {!formData.categoryId && (!formData.sampleParticular || formData.sampleParticular.length !== 36) ? (
@@ -976,12 +1038,16 @@ const TestRequestForm = () => {
                 No parameters mapped to this selection
               </div>
             ) : (() => {
-              const categoryFilteredParams = parameters.filter(param =>
-                !selectedSubCategory ||
-                param.subCategoryId === selectedSubCategory ||
-                param.subCategory?.id === selectedSubCategory ||
-                checkedParameters[param.id]
-              );
+              const categoryFilteredParams = parameters.filter(param => {
+                const matchesSubCat = !selectedSubCategory ||
+                  param.subCategoryId === selectedSubCategory ||
+                  param.subCategory?.id === selectedSubCategory ||
+                  checkedParameters[param.id];
+                const matchesLoc = !selectedParamLocation ||
+                  String(param.locationSampleId || param.location_sample_id) === String(selectedParamLocation) ||
+                  checkedParameters[param.id];
+                return matchesSubCat && matchesLoc;
+              });
               const searchFilteredParams = categoryFilteredParams
                 .filter(param => {
                   if (!paramSearch.trim()) return true;
