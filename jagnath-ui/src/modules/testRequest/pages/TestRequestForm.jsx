@@ -99,6 +99,53 @@ const TestRequestForm = () => {
     return () => window.removeEventListener('companyChanged', handleCompanyChange);
   }, []);
 
+  // Helper to generate next Report No in format RPT-001, RPT-002, etc. based on previous report numbers
+  const generateNextReportNumber = (allRequests) => {
+    if (!allRequests || allRequests.length === 0) {
+      return 'RPT-001';
+    }
+
+    const validReportNos = allRequests
+      .map(r => r.reportNumber || r.report_number || '')
+      .filter(num => num && num.trim().length > 0);
+
+    if (validReportNos.length === 0) {
+      return 'RPT-001';
+    }
+
+    let maxNum = 0;
+    let maxPrefix = 'RPT-';
+    let padLength = 3;
+
+    validReportNos.forEach(repNo => {
+      const match = repNo.trim().match(/^([A-Za-z]+[-_/\s]*)(\d+)$/);
+      if (match) {
+        const prefix = match[1];
+        const numStr = match[2];
+        const numVal = parseInt(numStr, 10);
+        if (!isNaN(numVal) && numVal > maxNum) {
+          maxNum = numVal;
+          maxPrefix = prefix;
+          padLength = Math.max(numStr.length, 3);
+        }
+      } else {
+        const endNumMatch = repNo.trim().match(/(\d+)$/);
+        if (endNumMatch) {
+          const numStr = endNumMatch[1];
+          const numVal = parseInt(numStr, 10);
+          if (!isNaN(numVal) && numVal > maxNum) {
+            maxNum = numVal;
+            padLength = Math.max(numStr.length, 3);
+          }
+        }
+      }
+    });
+
+    const nextNum = maxNum + 1;
+    const paddedNextNum = String(nextNum).padStart(padLength, '0');
+    return `${maxPrefix}${paddedNextNum}`;
+  };
+
   const fetchInitialData = async () => {
     try {
       setLoading(true);
@@ -260,10 +307,21 @@ const TestRequestForm = () => {
         }
         fetchParameters(savedSubCatId, savedCategoryId, loadedSeq);
       } else {
-        // Pre-select company if we resolved one
-        if (targetCompanyId) {
-          setFormData(prev => ({ ...prev, companyId: targetCompanyId }));
+        // Pre-select company if we resolved one and auto-generate next Report No (e.g. RPT-001, RPT-002)
+        let autoReportNo = 'RPT-001';
+        try {
+          const allTrsRes = await apiService.get(`${TEST_REQUEST_ENDPOINTS.GET_ALL}?limit=1000${targetCompanyId ? `&companyId=${targetCompanyId}` : ''}`);
+          const trsList = Array.isArray(allTrsRes?.data) ? allTrsRes.data : (allTrsRes?.data?.rows || []);
+          autoReportNo = generateNextReportNumber(trsList);
+        } catch (e) {
+          console.error("Error auto-generating report number", e);
         }
+
+        setFormData(prev => ({
+          ...prev,
+          companyId: targetCompanyId || prev.companyId,
+          reportNumber: autoReportNo
+        }));
       }
     } catch (err) {
       console.error(err);
@@ -834,8 +892,18 @@ const TestRequestForm = () => {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Report No.</label>
-                <input type="text" name="reportNumber" value={formData.reportNumber} onChange={handleChange} className="premium-input" placeholder="e.g. RPT-001" />
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Report No. (Auto-Generated)</label>
+                <input
+                  type="text"
+                  name="reportNumber"
+                  value={formData.reportNumber}
+                  onChange={handleChange}
+                  className="premium-input"
+                  placeholder="Auto-generated (e.g. RPT-001)"
+                  readOnly={true}
+                  disabled={true}
+                  style={{ backgroundColor: '#f1f5f9', cursor: 'not-allowed', color: '#475569', fontWeight: 600 }}
+                />
               </div>
 
               {/* Sample Particular Field (Long Text Input) */}

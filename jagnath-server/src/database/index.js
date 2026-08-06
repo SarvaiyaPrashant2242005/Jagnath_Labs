@@ -95,6 +95,9 @@ db.TestRequest.belongsTo(db.Caution, { foreignKey: "cautionId", as: "caution" })
 db.Category.hasMany(db.SubCategory, { foreignKey: "categoryId", as: "subCategories" });
 db.SubCategory.belongsTo(db.Category, { foreignKey: "categoryId", as: "category" });
 
+db.Category.hasMany(db.TestRequest, { foreignKey: "categoryId", as: "testRequests" });
+db.TestRequest.belongsTo(db.Category, { foreignKey: "categoryId", as: "category" });
+
 db.Company.hasMany(db.SubCategory, { foreignKey: "companyId", as: "subCategories" });
 db.SubCategory.belongsTo(db.Company, { foreignKey: "companyId", as: "company" });
 

@@ -148,5 +148,10 @@ export const CAUTION_ENDPOINTS = {
   DELETE: (id) => `${API_BASE_URL}/caution/${id}`,
 };
 
+// ─── Dashboard Endpoints ─────────────────────────────────────────────────────────
+export const DASHBOARD_ENDPOINTS = {
+  GET_STATS: `${API_BASE_URL}/dashboard/stats`,
+};
+
 
 
