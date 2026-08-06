@@ -11,11 +11,16 @@ import BulkImportModal from '../../../shared/components/BulkImport/BulkImportMod
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 import { downloadCSV, downloadExcel } from '../../../shared/utils/exportUtils';
 
+import InlineMasterModal from '../../../shared/components/InlineMasterModal/InlineMasterModal';
+import AddMasterButton from '../../../shared/components/InlineMasterModal/AddMasterButton';
+
 /**
  * @component SubCategoryMaster
  * @description Master management UI for Sub Categories. Matches exact UI/UX color schemes & structure of Discipline Group Master.
  */
 const SubCategoryMaster = () => {
+  // Inline Master Modal State
+  const [inlineModal, setInlineModal] = useState({ isOpen: false, type: null, parentData: {} });
   // State
   const [subCategories, setSubCategories] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -470,7 +475,10 @@ const SubCategoryMaster = () => {
 
               {/* Discipline Group Dropdown */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Discipline Group *</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Discipline Group *</label>
+                  <AddMasterButton label="Add New Group" onClick={() => setInlineModal({ isOpen: true, type: 'category', parentData: {} })} />
+                </div>
                 <select
                   name="categoryId"
                   value={formData.categoryId}
@@ -785,6 +793,29 @@ const SubCategoryMaster = () => {
         }}
       />
 
+      {/* Inline Master Creation Modal */}
+      <InlineMasterModal
+        isOpen={inlineModal.isOpen}
+        onClose={() => setInlineModal({ isOpen: false, type: null, parentData: {} })}
+        masterType={inlineModal.type}
+        parentData={inlineModal.parentData}
+        onSuccess={async (createdItem) => {
+          if (inlineModal.type === 'category') {
+            try {
+              const res = await apiService.get(CATEGORY_ENDPOINTS.GET_ALL);
+              if (res?.data) {
+                const list = Array.isArray(res.data) ? res.data : [res.data];
+                setCategories(list.filter(cat => cat.status === 'Active'));
+              }
+            } catch (e) {
+              console.error("Error refreshing categories", e);
+            }
+            if (createdItem?.id) {
+              setFormData(prev => ({ ...prev, categoryId: createdItem.id }));
+            }
+          }
+        }}
+      />
     </div>
   );
 };

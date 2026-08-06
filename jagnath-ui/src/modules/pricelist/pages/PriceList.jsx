@@ -12,7 +12,12 @@ import BulkImportModal from '../../../shared/components/BulkImport/BulkImportMod
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 import { downloadCSV, downloadExcel } from '../../../shared/utils/exportUtils';
 
+import InlineMasterModal from '../../../shared/components/InlineMasterModal/InlineMasterModal';
+import AddMasterButton from '../../../shared/components/InlineMasterModal/AddMasterButton';
+
 const PriceMasterPage = () => {
+  // Inline master modal state
+  const [inlineModal, setInlineModal] = useState({ isOpen: false, type: null, parentData: {} });
   // Data States
   const [prices, setPrices] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -648,8 +653,22 @@ const PriceMasterPage = () => {
               </div >
 
               {/* Sub Category Dropdown */}
-              < div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Sub Category</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Sub Category</label>
+                  {!editingId && (
+                    <AddMasterButton
+                      label="Add New Sub Category"
+                      onClick={() => {
+                        if (!formData.categoryId) {
+                          triggerToast('Please select a Discipline Group first.', 'error');
+                          return;
+                        }
+                        setInlineModal({ isOpen: true, type: 'subCategory', parentData: { categoryId: formData.categoryId } });
+                      }}
+                    />
+                  )}
+                </div>
                 <select
                   value={formData.subCategoryId}
                   disabled={!formData.categoryId}
@@ -1164,6 +1183,28 @@ const PriceMasterPage = () => {
         loading={deleting}
       />
 
+      {/* Inline Master Creation Modal */}
+      <InlineMasterModal
+        isOpen={inlineModal.isOpen}
+        onClose={() => setInlineModal({ isOpen: false, type: null, parentData: {} })}
+        masterType={inlineModal.type}
+        parentData={inlineModal.parentData}
+        onSuccess={async (createdItem) => {
+          if (inlineModal.type === 'subCategory') {
+            if (formData.categoryId) {
+              try {
+                const res = await apiService.get(`${SUB_CATEGORY_ENDPOINTS.GET_ALL}?categoryId=${formData.categoryId}`);
+                setSubCategories(res?.data || []);
+              } catch (e) {
+                console.error("Error fetching subcategories", e);
+              }
+            }
+            if (createdItem?.id) {
+              setFormData(prev => ({ ...prev, subCategoryId: createdItem.id }));
+            }
+          }
+        }}
+      />
     </div >
   );
 };

@@ -11,7 +11,12 @@ import BulkImportModal from '../../../shared/components/BulkImport/BulkImportMod
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 import { downloadCSV, downloadExcel } from '../../../shared/utils/exportUtils';
 
+import InlineMasterModal from '../../../shared/components/InlineMasterModal/InlineMasterModal';
+import AddMasterButton from '../../../shared/components/InlineMasterModal/AddMasterButton';
+
 const ParameterMaster = () => {
+  // Inline master modal state
+  const [inlineModal, setInlineModal] = useState({ isOpen: false, type: null, parentData: {} });
   // Parameter, Company & Category states
   const [parameters, setParameters] = useState([]);
   const [companies, setCompanies] = useState([]);
@@ -835,7 +840,19 @@ const ParameterMaster = () => {
 
               {/* Sub Category Dropdown */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Sub Category</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Sub Category</label>
+                  <AddMasterButton
+                    label="Add New Sub Category"
+                    onClick={() => {
+                      if (!formData.categoryId) {
+                        triggerToast('Please select a Discipline Group first.', 'error');
+                        return;
+                      }
+                      setInlineModal({ isOpen: true, type: 'subCategory', parentData: { categoryId: formData.categoryId } });
+                    }}
+                  />
+                </div>
                 <select
                   name="subCategoryId"
                   value={formData.subCategoryId}
@@ -851,7 +868,13 @@ const ParameterMaster = () => {
 
               {/* Location of Sample Dropdown */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Location of Sample</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Location of Sample</label>
+                  <AddMasterButton
+                    label="Add New Location"
+                    onClick={() => setInlineModal({ isOpen: true, type: 'locationSample', parentData: {} })}
+                  />
+                </div>
                 <select
                   name="locationSampleId"
                   value={formData.locationSampleId}
@@ -1406,6 +1429,28 @@ const ParameterMaster = () => {
         loading={deleting}
       />
 
+      {/* Inline Master Creation Modal */}
+      <InlineMasterModal
+        isOpen={inlineModal.isOpen}
+        onClose={() => setInlineModal({ isOpen: false, type: null, parentData: {} })}
+        masterType={inlineModal.type}
+        parentData={inlineModal.parentData}
+        onSuccess={(createdItem) => {
+          if (inlineModal.type === 'subCategory') {
+            if (formData.categoryId) {
+              fetchSubCategoriesForDropdown(formData.categoryId);
+            }
+            if (createdItem?.id) {
+              setFormData(prev => ({ ...prev, subCategoryId: createdItem.id }));
+            }
+          } else if (inlineModal.type === 'locationSample') {
+            fetchLocationSamplesForDropdown();
+            if (createdItem?.id) {
+              setFormData(prev => ({ ...prev, locationSampleId: createdItem.id }));
+            }
+          }
+        }}
+      />
     </div>
   );
 };

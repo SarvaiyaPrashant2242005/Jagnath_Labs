@@ -14,12 +14,16 @@ import {
   SUB_CATEGORY_ENDPOINTS,
   LOCATION_SAMPLE_ENDPOINTS
 } from '../../../shared/services/apiEndpoints';
-import { FaPrint, FaSave, FaArrowLeft, FaCheck, FaExclamationCircle, FaEye, FaEyeSlash, FaFilePdf, FaChevronLeft, FaChevronRight, FaSearch } from 'react-icons/fa';
+import InlineMasterModal from '../../../shared/components/InlineMasterModal/InlineMasterModal';
+import AddMasterButton from '../../../shared/components/InlineMasterModal/AddMasterButton';
 
 const TestRequestForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const isEditing = !!id;
+
+  // Inline Master Modal State
+  const [inlineModal, setInlineModal] = useState({ isOpen: false, type: null, parentData: {} });
 
   // State for dropdown options
   const [companies, setCompanies] = useState([]);
@@ -151,9 +155,37 @@ const TestRequestForm = () => {
     return `${maxPrefix}${paddedNextNum}`;
   };
 
+  const fetchCategories = async () => {
+    try {
+      const activeCompId = formData.companyId || localStorage.getItem('selectedCompanyId') || '';
+      const url = activeCompId ? `${CATEGORY_ENDPOINTS.GET_ALL}?companyId=${activeCompId}` : CATEGORY_ENDPOINTS.GET_ALL;
+      const res = await apiService.get(url);
+      if (res?.data) {
+        const catList = Array.isArray(res.data) ? res.data : [res.data];
+        setCategories(catList.filter(cat => cat.status === 'Active'));
+      }
+    } catch (err) {
+      console.error("Error fetching categories", err);
+    }
+  };
+
+  const fetchClients = async (companyId = formData.companyId) => {
+    try {
+      const targetCompanyId = companyId || localStorage.getItem('selectedCompanyId') || '';
+      const url = targetCompanyId ? `${CLIENT_ENDPOINTS.GET_ALL}?companyId=${targetCompanyId}` : CLIENT_ENDPOINTS.GET_ALL;
+      const res = await apiService.get(url);
+      if (res?.data) {
+        const clList = Array.isArray(res.data) ? res.data : [res.data];
+        setClients(clList.filter(c => c.status === 'Active'));
+      }
+    } catch (err) {
+      console.error("Error fetching clients", err);
+    }
+  };
+
   const fetchCautions = async () => {
     try {
-      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
+      const activeCompId = formData.companyId || localStorage.getItem('selectedCompanyId') || '';
       const url = activeCompId ? `${CAUTION_ENDPOINTS.GET_ALL}?companyId=${activeCompId}` : CAUTION_ENDPOINTS.GET_ALL;
       const res = await apiService.get(url);
       if (res?.data) {
@@ -167,7 +199,7 @@ const TestRequestForm = () => {
 
   const fetchLocationSamples = async () => {
     try {
-      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
+      const activeCompId = formData.companyId || localStorage.getItem('selectedCompanyId') || '';
       const url = activeCompId ? `${LOCATION_SAMPLE_ENDPOINTS.GET_ALL}?companyId=${activeCompId}&status=Active` : `${LOCATION_SAMPLE_ENDPOINTS.GET_ALL}?status=Active`;
       const res = await apiService.get(url);
       if (res?.data) {
@@ -763,7 +795,10 @@ const TestRequestForm = () => {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Customer / Client <span style={{ color: '#ef4444' }}>*</span></label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Customer / Client <span style={{ color: '#ef4444' }}>*</span></label>
+                  <AddMasterButton label="Add New Client" onClick={() => setInlineModal({ isOpen: true, type: 'client', parentData: { companyId: formData.companyId } })} />
+                </div>
                 <select name="clientId" value={formData.clientId} onChange={handleChange} className="premium-input">
                   <option value="">Select Client</option>
                   {[...clients].sort((a, b) => (a.clientName || '').localeCompare(b.clientName || '')).map(c => <option key={c.id} value={c.id}>{c.clientName}</option>)}
@@ -830,7 +865,10 @@ const TestRequestForm = () => {
               {/* Select Caution Dropdown */}
               {formData.includeCaution && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                  <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Select Caution <span style={{ color: '#ef4444' }}>*</span></label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Select Caution <span style={{ color: '#ef4444' }}>*</span></label>
+                    <AddMasterButton label="Add New Caution" onClick={() => setInlineModal({ isOpen: true, type: 'caution', parentData: { companyId: formData.companyId } })} />
+                  </div>
                   <select
                     name="cautionId"
                     value={formData.cautionId}
@@ -977,7 +1015,10 @@ const TestRequestForm = () => {
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Discipline Group <span style={{ color: '#ef4444' }}>*</span></label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Discipline Group <span style={{ color: '#ef4444' }}>*</span></label>
+                  <AddMasterButton label="Add New Group" onClick={() => setInlineModal({ isOpen: true, type: 'category', parentData: { companyId: formData.companyId } })} />
+                </div>
                 <select name="categoryId" value={formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : '')} onChange={handleChange} className="premium-input">
                   <option value="">Select Discipline Group</option>
                   {[...categories].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -985,9 +1026,22 @@ const TestRequestForm = () => {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>
-                  Sub Category <span style={{ color: '#ef4444' }}>*</span> {subCategoriesLoading && <span style={{ fontSize: '0.75rem', color: '#64748b' }}>(Loading...)</span>}
-                </label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>
+                    Sub Category <span style={{ color: '#ef4444' }}>*</span> {subCategoriesLoading && <span style={{ fontSize: '0.75rem', color: '#64748b' }}>(Loading...)</span>}
+                  </label>
+                  <AddMasterButton
+                    label="Add New Sub Category"
+                    onClick={() => {
+                      const activeCatId = formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : '');
+                      if (!activeCatId) {
+                        triggerToast('Please select a Discipline Group first.', 'error');
+                        return;
+                      }
+                      setInlineModal({ isOpen: true, type: 'subCategory', parentData: { categoryId: activeCatId, companyId: formData.companyId } });
+                    }}
+                  />
+                </div>
                 <select
                   value={selectedSubCategory || formData.subCategoryId || ''}
                   onChange={handleSubCategoryChange}
@@ -1005,9 +1059,12 @@ const TestRequestForm = () => {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>
-                  Location of Sample
-                </label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>
+                    Location of Sample
+                  </label>
+                  <AddMasterButton label="Add New Location" onClick={() => setInlineModal({ isOpen: true, type: 'locationSample', parentData: { companyId: formData.companyId } })} />
+                </div>
                 <select
                   value={selectedParamLocation}
                   onChange={(e) => setSelectedParamLocation(e.target.value)}
@@ -1849,6 +1906,57 @@ const TestRequestForm = () => {
             </div>
           </div>
         )}
+
+        {/* Inline Master Creation Modal */}
+        <InlineMasterModal
+          isOpen={inlineModal.isOpen}
+          onClose={() => setInlineModal({ isOpen: false, type: null, parentData: {} })}
+          masterType={inlineModal.type}
+          parentData={inlineModal.parentData}
+          onSuccess={(createdItem) => {
+            if (inlineModal.type === 'category') {
+              fetchCategories();
+              if (createdItem?.id) {
+                setFormData(prev => ({ ...prev, categoryId: createdItem.id, subCategoryId: '' }));
+                setSelectedSubCategory('');
+                fetchSubCategoriesForCategory(createdItem.id);
+                fetchParameters('', createdItem.id);
+              }
+            } else if (inlineModal.type === 'subCategory') {
+              const catId = inlineModal.parentData?.categoryId || formData.categoryId;
+              if (catId) {
+                fetchSubCategoriesForCategory(catId);
+              }
+              if (createdItem?.id) {
+                setSelectedSubCategory(createdItem.id);
+                setFormData(prev => ({ ...prev, subCategoryId: createdItem.id }));
+                fetchParameters(createdItem.id);
+              }
+            } else if (inlineModal.type === 'locationSample') {
+              fetchLocationSamples();
+              if (createdItem?.id) {
+                setSelectedParamLocation(createdItem.id);
+                setFormData(prev => ({ ...prev, locationOfSample: createdItem.name || prev.locationOfSample }));
+              }
+            } else if (inlineModal.type === 'client') {
+              fetchClients();
+              if (createdItem?.id) {
+                setFormData(prev => ({
+                  ...prev,
+                  clientId: createdItem.id,
+                  address: createdItem.plantAddress || createdItem.plant_address || createdItem.officeAddress || createdItem.office_address || createdItem.address || prev.address,
+                  email: createdItem.email || prev.email,
+                  contactNumber: createdItem.contactNumber || prev.contactNumber
+                }));
+              }
+            } else if (inlineModal.type === 'caution') {
+              fetchCautions();
+              if (createdItem?.id) {
+                setFormData(prev => ({ ...prev, includeCaution: true, cautionId: createdItem.id }));
+              }
+            }
+          }}
+        />
       </div>
     </div>
   );
