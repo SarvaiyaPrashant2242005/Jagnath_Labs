@@ -72,8 +72,9 @@ export const MASTER_SCHEMAS = {
       { key: 'contactNumber', label: 'Contact Number *', required: true, type: 'string', aliases: ['contactnumber', 'contactnumber*', 'contactno', 'contactno.', 'mobilenumber', 'mobile', 'phone', 'contact_number', 'Contact Number *', 'Contact No'] },
       { key: 'email', label: 'Email', required: false, type: 'email', aliases: ['email', 'emailaddress', 'email_address', 'Email Address'] },
       { key: 'gender', label: 'Gender', required: false, type: 'select', options: ['Male', 'Female', 'Other'], aliases: ['gender', 'Gender'] },
-      { key: 'address', label: 'Address', required: false, type: 'string', aliases: ['address', 'communicationaddress', 'communication_address', 'Address', 'Communication Address'] },
-      { key: 'city', label: 'City', required: false, type: 'string', aliases: ['city', 'City'] },
+      { key: 'officeAddress', label: 'Office Address *', required: true, type: 'string', aliases: ['officeaddress', 'officeaddress*', 'office_address', 'address', 'Address', 'Office Address'] },
+      { key: 'plantAddress', label: 'Plant / Industry Address *', required: true, type: 'string', aliases: ['plantaddress', 'plantaddress*', 'plant_address', 'industryaddress', 'Plant / Industry Address'] },
+      { key: 'city', label: 'City *', required: true, type: 'string', aliases: ['city', 'city*', 'City *', 'City'] },
       { key: 'state', label: 'State', required: false, type: 'string', aliases: ['state', 'State'] },
       { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'], aliases: ['status', 'Status'] }
     ],
@@ -83,8 +84,9 @@ export const MASTER_SCHEMAS = {
         'Contact Number *': '9876543210',
         'Email': 'contact@alphatech.com',
         'Gender': 'Male',
-        'Address': '123 Tech Park',
-        'City': 'Surat',
+        'Office Address *': '123 Tech Park, Ring Road',
+        'Plant / Industry Address *': 'Plot 45, GIDC Industrial Estate',
+        'City *': 'Surat',
         'State': 'Gujarat',
         'Status': 'Active'
       },
@@ -93,9 +95,33 @@ export const MASTER_SCHEMAS = {
         'Contact Number *': '9123456789',
         'Email': 'info@greeneco.org',
         'Gender': 'Female',
-        'Address': '45 Eco Zone',
-        'City': 'Ahmedabad',
+        'Office Address *': '45 Eco Tower, SG Highway',
+        'Plant / Industry Address *': 'Phase 2, Sanand Industrial Area',
+        'City *': 'Ahmedabad',
         'State': 'Gujarat',
+        'Status': 'Active'
+      }
+    ]
+  },
+
+  locationSample: {
+    title: 'Location of Sample Master',
+    filename: 'Location_Sample_Master_Template.xlsx',
+    uniqueKeys: ['name'],
+    headers: [
+      { key: 'name', label: 'Location Name *', required: true, type: 'string', aliases: ['locationname', 'locationname*', 'name', 'location_name', 'Location Name *'] },
+      { key: 'description', label: 'Description', required: false, type: 'string', aliases: ['description', 'Description'] },
+      { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'], aliases: ['status', 'Status'] }
+    ],
+    sampleData: [
+      {
+        'Location Name *': 'Tap Water Inlet',
+        'Description': 'Main municipal water supply tap at facility entrance',
+        'Status': 'Active'
+      },
+      {
+        'Location Name *': 'Effluent Treatment Plant Discharge',
+        'Description': 'Final outlet pipe after primary and secondary treatment',
         'Status': 'Active'
       }
     ]
