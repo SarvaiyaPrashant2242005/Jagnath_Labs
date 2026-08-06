@@ -79,7 +79,7 @@ const Dashboard = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', position: 'relative' }}>
-      
+
       {/* 1. Header Toolbar & Quick Action Buttons */}
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '0.25rem' }}>
         <div>
@@ -88,30 +88,7 @@ const Dashboard = () => {
         </div>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
-          <button
-            type="button"
-            onClick={() => fetchDashboardStats(true)}
-            disabled={refreshing}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              background: '#ffffff',
-              color: '#334155',
-              border: '1px solid #cbd5e1',
-              borderRadius: '10px',
-              padding: '0.6rem 1rem',
-              fontWeight: 600,
-              fontSize: '0.85rem',
-              cursor: refreshing ? 'not-allowed' : 'pointer',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-              transition: 'all 0.2s'
-            }}
-            title="Refresh Statistics"
-          >
-            <FaSync style={{ animation: refreshing ? 'spin 1s linear infinite' : 'none', color: '#2563eb' }} />
-            <span>{refreshing ? 'Syncing...' : 'Sync Data'}</span>
-          </button>
+
 
           <button
             type="button"
@@ -163,7 +140,7 @@ const Dashboard = () => {
 
       {/* 2. Top 4 KPI Metrics Cards Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
-        
+
         {/* KPI 1: Test Requests */}
         <div
           onClick={() => navigate('/test-requests')}
@@ -296,7 +273,7 @@ const Dashboard = () => {
 
       {/* 3. Main Side-by-Side Workflows Layout Grid (50% / 50% Split) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.5rem', alignItems: 'stretch' }}>
-        
+
         {/* LEFT CARD: Recent Test Requests (TRF) - Max 5 */}
         <div style={{ background: '#ffffff', borderRadius: '18px', padding: '1.5rem', border: '1px solid #e2e8f0', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.04)', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem' }}>
