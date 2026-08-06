@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { FaTimes } from 'react-icons/fa';
+import { FaTimes, FaCheck, FaExclamationCircle } from 'react-icons/fa';
 import apiService from '../../services/apiService';
-import { triggerToast } from '../../services/toastService';
 import {
   CATEGORY_ENDPOINTS,
   SUB_CATEGORY_ENDPOINTS,
@@ -24,6 +23,14 @@ const InlineMasterModal = ({
 }) => {
   const [formData, setFormData] = useState({});
   const [isSaving, setIsSaving] = useState(false);
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+
+  const triggerToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast({ show: false, message: '', type: 'success' });
+    }, 2500);
+  };
 
   // Reset form state on opening
   useEffect(() => {
@@ -275,9 +282,31 @@ const InlineMasterModal = ({
             >
               {isSaving ? 'Creating...' : config.btnText}
             </button>
-          </div>
         </form>
       </div>
+
+      {/* Toast Notification Banner */}
+      {toast.show && (
+        <div style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          backgroundColor: toast.type === 'error' ? '#ef4444' : '#10b981',
+          color: '#ffffff',
+          padding: '0.75rem 1.25rem',
+          borderRadius: '8px',
+          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          zIndex: 10000,
+          fontSize: '0.9rem',
+          fontWeight: 600
+        }}>
+          {toast.type === 'error' ? <FaExclamationCircle /> : <FaCheck />}
+          <span>{toast.message}</span>
+        </div>
+      )}
     </div>
   );
 };
