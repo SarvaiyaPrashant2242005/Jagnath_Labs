@@ -316,6 +316,7 @@ const TestRequestForm = () => {
         } catch (e) {
           console.error("Error auto-generating report number", e);
         }
+        }
 
         setFormData(prev => ({
           ...prev,

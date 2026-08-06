@@ -438,8 +438,8 @@ const getParametersByCompany = async (companyId, options = {}) => {
         }
 
         if (options.categoryId) {
-            queryOptions.include[2].where = { categoryId: options.categoryId };
-            queryOptions.include[2].required = true;
+            queryOptions.include[3].where = { categoryId: options.categoryId };
+            queryOptions.include[3].required = true;
         }
 
         if (options.limit && options.page) {
