@@ -53,6 +53,10 @@ const formatTransaction = (trp) => {
     }
     if (trpObj.parameter) {
         trpObj.parameterName = trpObj.parameter.parameterName;
+        trpObj.testMethod = trpObj.testMethod || trpObj.parameter.testMethod;
+        trpObj.unit = trpObj.unit || trpObj.parameter.unit;
+        trpObj.isPermissibleLimitApplicable = trpObj.parameter.isPermissibleLimitApplicable;
+        trpObj.permissibleLimit = trpObj.parameter.permissibleLimit;
     } else {
         trpObj.parameterName = null;
     }
@@ -412,7 +416,7 @@ const getParametersByTestRequest = async (testRequestId, companyId = null) => {
                 {
                     model: Parameter,
                     as: "parameter",
-                    attributes: ["parameterName"]
+                    attributes: ["id", "parameterName", "testMethod", "unit", "isPermissibleLimitApplicable", "permissibleLimit"]
                 }
             ],
             attributes: { exclude: ["deleted_at"] },

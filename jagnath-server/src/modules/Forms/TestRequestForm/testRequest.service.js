@@ -138,6 +138,19 @@ const getChangesBlock = (oldValues, newValues) => {
     return "\nChanges\n\n" + lines.join("\n\n");
 };
 
+const generateNextReportNumber = async (companyId, transaction) => {
+    const totalCount = await TestRequest.count({ where: { companyId }, transaction });
+    let nextNum = totalCount + 1;
+    let candidate = `RPT-${String(nextNum).padStart(3, '0')}`;
+    let exists = await TestRequest.findOne({ where: { companyId, reportNumber: candidate }, transaction });
+    while (exists) {
+        nextNum++;
+        candidate = `RPT-${String(nextNum).padStart(3, '0')}`;
+        exists = await TestRequest.findOne({ where: { companyId, reportNumber: candidate }, transaction });
+    }
+    return candidate;
+};
+
 /**
  * Creates a new TestRequest.
  */
@@ -156,6 +169,8 @@ const createTestRequest = async (testRequestData, userId, reqInfo) => {
             if (existingReport) {
                 throw new Error(`Report Number '${reportNo}' already exist, Please enter a unique Report Number.`);
             }
+        } else {
+            testRequestData.reportNumber = await generateNextReportNumber(testRequestData.companyId, transaction);
         }
 
         const newTR = await TestRequest.create(testRequestData, { transaction });
