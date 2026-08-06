@@ -29,6 +29,7 @@ const TestRequestForm = () => {
   const [selectedSubCategory, setSelectedSubCategory] = useState('');
   const [cautions, setCautions] = useState([]);
   const [locationSamples, setLocationSamples] = useState([]);
+  const [selectedParamLocation, setSelectedParamLocation] = useState('');
   const [priceMasterMap, setPriceMasterMap] = useState({});
 
   // State for dynamic parameter checklist & pagination
@@ -1002,6 +1003,22 @@ const TestRequestForm = () => {
                   </span>
                 )}
               </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>
+                  Location of Sample
+                </label>
+                <select
+                  value={selectedParamLocation}
+                  onChange={(e) => setSelectedParamLocation(e.target.value)}
+                  className="premium-input"
+                >
+                  <option value="">All Locations of Sample</option>
+                  {[...locationSamples].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(loc => (
+                    <option key={loc.id} value={loc.id}>{loc.name}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {!formData.categoryId && (!formData.sampleParticular || formData.sampleParticular.length !== 36) ? (
@@ -1021,12 +1038,16 @@ const TestRequestForm = () => {
                 No parameters mapped to this selection
               </div>
             ) : (() => {
-              const categoryFilteredParams = parameters.filter(param =>
-                !selectedSubCategory ||
-                param.subCategoryId === selectedSubCategory ||
-                param.subCategory?.id === selectedSubCategory ||
-                checkedParameters[param.id]
-              );
+              const categoryFilteredParams = parameters.filter(param => {
+                const matchesSubCat = !selectedSubCategory ||
+                  param.subCategoryId === selectedSubCategory ||
+                  param.subCategory?.id === selectedSubCategory ||
+                  checkedParameters[param.id];
+                const matchesLoc = !selectedParamLocation ||
+                  String(param.locationSampleId || param.location_sample_id) === String(selectedParamLocation) ||
+                  checkedParameters[param.id];
+                return matchesSubCat && matchesLoc;
+              });
               const searchFilteredParams = categoryFilteredParams
                 .filter(param => {
                   if (!paramSearch.trim()) return true;
