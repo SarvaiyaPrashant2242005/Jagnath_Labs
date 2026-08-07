@@ -384,9 +384,18 @@ const getCompaniesByUser = async (userId, options = {}) => {
         whereClause.status = options.status;
     }
 
+    let orderClause = [['created_at', 'DESC']];
+    if (options.sortBy) {
+        const allowedSortFields = ["company_code", "company_name", "company_email", "contact_number", "address", "status", "created_at", "createdAt"];
+        if (allowedSortFields.includes(options.sortBy)) {
+            const orderDirection = options.sortOrder === "desc" || options.sortOrder === "DESC" ? "DESC" : "ASC";
+            orderClause = [[options.sortBy, orderDirection]];
+        }
+    }
+
     let queryOptions = {
         where: whereClause,
-        order: [['created_at', 'DESC']]
+        order: orderClause
     };
 
     if (options.limit && options.page) {

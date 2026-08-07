@@ -93,74 +93,83 @@ const TestReportPrint = () => {
         </div>
 
         {/* Divider Line */}
-        <div style={{ borderBottom: '1.5px solid #000', marginBottom: '6px' }}></div>
+        <div style={{ borderBottom: '1.5px solid #000', marginBottom: '2px' }}></div>
 
         {/* Document Title */}
-        <div style={{ textAlign: 'center', fontSize: '1.2rem', fontWeight: 'bold', textDecoration: 'underline', marginBottom: '4px' }}>
+        <div style={{ textAlign: 'center', fontSize: '1.15rem', fontWeight: 'bold', textDecoration: 'underline', marginBottom: '2px' }}>
           TEST REPORT
         </div>
 
-        {/* Format No. & Date Line */}
-        <div style={{ textAlign: 'right', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '4px' }}>
-          <span>{report.formatNo || 'Format No. 7.8 F-02'}</span>
-          <span style={{ marginLeft: '2rem' }}>Date: - {formatDateDDMMYYYY(report.formatDate || report.dateOfReceipt || new Date().toISOString())}</span>
-        </div>
+        {/* Second Divider Line */}
+        <div style={{ borderBottom: '1.5px solid #000', marginBottom: '4px' }}></div>
 
         {/* Main Metadata Grid Table */}
         <table className="print-report-table">
           <tbody>
             <tr>
-              <td colSpan={4} style={{ fontWeight: 'bold', fontSize: '0.85rem' }}>
-                {report.reportNumber || report.referenceNo || 'JLT010726RR00307'}
+              <td colSpan={4} style={{ textAlign: 'right', fontWeight: 'bold', borderBottom: '1px solid #000' }}>
+                {report.formatNo || 'Format No. 7.8 F-02'}
               </td>
             </tr>
             <tr>
-              <td style={{ width: '32%', fontWeight: 'bold' }}>Name Of Work</td>
+              <td colSpan={2} style={{ fontWeight: 'bold', fontSize: '0.82rem', borderBottom: '1px solid #000' }}>
+                {report.reportNumber || report.referenceNo || 'JLT010726RR00307'}
+              </td>
+              <td colSpan={2} style={{ textAlign: 'right', fontWeight: 'bold', fontSize: '0.82rem', borderBottom: '1px solid #000' }}>
+                Date: - {formatDateDDMMYYYY(report.formatDate || report.dateOfReceipt || new Date().toISOString())}
+              </td>
+            </tr>
+            <tr>
+              <td style={{ width: '32%' }}>Name Of Work</td>
               <td colSpan={3} style={{ fontWeight: 'bold' }}>{report.nameOfWork || report.title || 'Waste Water Analysis'}</td>
             </tr>
             <tr>
-              <td style={{ fontWeight: 'bold' }}>Details of sample/Mode of Packing</td>
-              <td colSpan={3}>{report.detailsOfSample || report.packingDetails || 'Sample Sealed in Plastic Bottle'}</td>
+              <td>Details of sample</td>
+              <td colSpan={3}>{report.detailsOfSample || '-'}</td>
             </tr>
             <tr>
-              <td style={{ fontWeight: 'bold' }}>Report Issued To</td>
+              <td>Mode of Packing</td>
+              <td colSpan={3}>{report.packingDetails || 'Sample Sealed in Plastic Bottle'}</td>
+            </tr>
+            <tr>
+              <td>Report Issued To</td>
               <td colSpan={3} style={{ fontWeight: 'bold' }}>{report.reportIssuedTo || report.agencyName || '-'}</td>
             </tr>
             <tr>
-              <td style={{ fontWeight: 'bold' }}>Reference No. / Report No.</td>
+              <td>Reference No. / Report No.</td>
               <td colSpan={3} style={{ fontWeight: 'bold' }}>{report.reportNumber || report.referenceNo || '-'}</td>
             </tr>
             <tr>
-              <td style={{ fontWeight: 'bold' }}>Date Of Receipt Of Sample</td>
+              <td>Date Of Receipt Of Sample</td>
               <td colSpan={3}>{formatDateDDMMYYYY(report.dateOfReceipt)}</td>
             </tr>
             <tr>
-              <td style={{ fontWeight: 'bold' }}>Name Of Agency/Company</td>
+              <td>Name Of Agency/Company</td>
               <td colSpan={3}>
                 <div style={{ fontWeight: 'bold' }}>{report.agencyName || report.reportIssuedTo}</div>
                 {report.agencyAddress && <div style={{ fontSize: '0.75rem', marginTop: '1px' }}>{report.agencyAddress}</div>}
               </td>
             </tr>
             <tr>
-              <td style={{ fontWeight: 'bold' }}>Sample Quantity</td>
+              <td>Sample Quantity</td>
               <td colSpan={3}>{report.sampleQuantity || '01 (1 ltr)'}</td>
             </tr>
             <tr>
-              <td style={{ fontWeight: 'bold' }}>Sampling Location / Type</td>
+              <td>Sampling Location / Type</td>
               <td colSpan={3}>{report.samplingLocation || 'Inlet CETP'}</td>
             </tr>
             <tr>
-              <td style={{ fontWeight: 'bold' }}>Condition of sample during receipt</td>
+              <td>Condition of sample during receipt</td>
               <td colSpan={3}>{report.conditionOnReceipt || 'Satisfactory'}</td>
             </tr>
             <tr>
-              <td style={{ fontWeight: 'bold' }}>Sample Collected / Submitted by.</td>
+              <td>Sample Collected / Submitted by.</td>
               <td colSpan={3}>{report.sampleCollectedBy || 'By Party'}</td>
             </tr>
             <tr>
-              <td style={{ fontWeight: 'bold' }}>Starting Date Of Test/ Analysis</td>
+              <td style={{ width: '32%' }}>Starting Date Of Test/ Analysis</td>
               <td style={{ width: '28%' }}>{formatDateDDMMYYYY(report.startingDateOfTest)}</td>
-              <td style={{ width: '22%', fontWeight: 'bold' }}>Completion Date of Test</td>
+              <td style={{ width: '22%' }}>Completion Date of Test</td>
               <td style={{ width: '18%' }}>{formatDateDDMMYYYY(report.completionDateOfTest)}</td>
             </tr>
           </tbody>
@@ -180,7 +189,7 @@ const TestReportPrint = () => {
               <th style={{ width: '32%', textAlign: 'center' }}>REFERENCE METHOD</th>
               <th style={{ width: '10%', textAlign: 'center' }}>UNIT</th>
               <th style={{ width: '11%', textAlign: 'center' }}>RESULTS</th>
-              <th style={{ width: '11%', textAlign: 'center' }}>PERMISSIBLE LIMITS</th>
+              <th style={{ width: '11%', textAlign: 'center' }}>PERMISIBLE LIMITS</th>
             </tr>
           </thead>
           <tbody>
@@ -280,12 +289,12 @@ const TestReportPrint = () => {
           background-color: #ffffff;
           width: 210mm;
           min-height: 297mm;
-          padding: 12mm 15mm;
+          padding: 6mm 8mm;
           box-shadow: 0 4px 10px rgba(0,0,0,0.15);
           box-sizing: border-box;
           font-family: "Times New Roman", Times, serif;
           color: #000;
-          line-height: 1.3;
+          line-height: 1.2;
         }
 
         .print-report-table {
@@ -297,13 +306,13 @@ const TestReportPrint = () => {
 
         .print-report-table td, .print-report-table th {
           border: 1px solid #000;
-          padding: 3px 5px;
+          padding: 2px 4px;
         }
 
         @media print {
           @page {
             size: A4 portrait;
-            margin: 8mm 10mm;
+            margin: 4mm 6mm;
           }
           html, body { 
             width: 100% !important;

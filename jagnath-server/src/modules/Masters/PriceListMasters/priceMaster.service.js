@@ -97,6 +97,28 @@ const getPricesByCompany = async (companyId, options = {}) => {
         };
     }
 
+    let orderClause = [["created_at", "DESC"]];
+    if (options.sortBy) {
+        const orderDirection = options.sortOrder === "desc" || options.sortOrder === "DESC" ? "DESC" : "ASC";
+        if (options.sortBy === "categoryId" || options.sortBy === "category") {
+            orderClause = [[{ model: Category, as: "category" }, "name", orderDirection]];
+        } else if (options.sortBy === "parameter") {
+            orderClause = [[{ model: Parameter, as: "parameter" }, "parameterName", orderDirection]];
+        } else if (options.sortBy === "subCategory") {
+            orderClause = [[
+                { model: Parameter, as: "parameter" },
+                { model: db.SubCategory, as: "subCategory" },
+                "name",
+                orderDirection
+            ]];
+        } else {
+            const allowedSortFields = ["price", "status", "created_at", "createdAt"];
+            if (allowedSortFields.includes(options.sortBy)) {
+                orderClause = [[options.sortBy, orderDirection]];
+            }
+        }
+    }
+
     if (limit) {
         const pageNum = parseInt(page) || 1;
         const limitNum = parseInt(limit) || 10;
@@ -106,7 +128,7 @@ const getPricesByCompany = async (companyId, options = {}) => {
             where,
             include,
             distinct: true,
-            order: [["created_at", "DESC"]],
+            order: orderClause,
             limit: limitNum,
             offset
         });
@@ -117,7 +139,7 @@ const getPricesByCompany = async (companyId, options = {}) => {
     const prices = await PriceMaster.findAll({
         where,
         include,
-        order: [["created_at", "DESC"]]
+        order: orderClause
     });
 
     return prices;

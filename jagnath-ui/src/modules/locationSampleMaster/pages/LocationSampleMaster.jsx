@@ -37,6 +37,10 @@ const LocationSampleMaster = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
 
+  // Sorting State
+  const [sortField, setSortField] = useState(null);
+  const [sortDirection, setSortDirection] = useState(null); // 'asc', 'desc', or null
+
   // Download Dropdown toggle
   const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
   const dropdownRef = useRef(null);
@@ -98,6 +102,10 @@ const LocationSampleMaster = () => {
       if (activeCompId) {
         params.append('companyId', activeCompId);
       }
+      if (sortField && sortDirection) {
+        params.append('sortBy', sortField);
+        params.append('sortOrder', sortDirection);
+      }
       const response = await apiService.get(`${LOCATION_SAMPLE_ENDPOINTS.GET_ALL}?${params.toString()}`);
       if (response && response.data) {
         if (response.data.rows !== undefined) {
@@ -118,6 +126,44 @@ const LocationSampleMaster = () => {
     }
   };
 
+  const handleSort = (field) => {
+    if (sortField !== field) {
+      setSortField(field);
+      setSortDirection('asc');
+    } else if (sortDirection === 'asc') {
+      setSortDirection('desc');
+    } else {
+      setSortField(null);
+      setSortDirection(null);
+    }
+  };
+
+  const renderSortableHeader = (label, field) => {
+    const isSorted = sortField === field;
+    return (
+      <th
+        onClick={() => handleSort(field)}
+        style={{
+          padding: '0.75rem 1rem',
+          color: '#475569',
+          fontWeight: 600,
+          cursor: 'pointer',
+          userSelect: 'none',
+          transition: 'background-color 0.15s'
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <span>{label}</span>
+          <span style={{ fontSize: '0.7rem', color: isSorted ? '#2563eb' : '#cbd5e1', transition: 'color 0.15s' }}>
+            {isSorted ? (sortDirection === 'asc' ? '▲' : '▼') : '↕'}
+          </span>
+        </div>
+      </th>
+    );
+  };
+
   // Listen for global company switch
   useEffect(() => {
     const handleCompanyChange = () => {
@@ -132,7 +178,7 @@ const LocationSampleMaster = () => {
   useEffect(() => {
     fetchCompanies();
     fetchLocations();
-  }, [currentPage, pageSize, statusFilter, searchQuery]);
+  }, [currentPage, pageSize, statusFilter, searchQuery, sortField, sortDirection]);
 
   // Handle Search Input Debounce/Trigger
   const handleSearchSubmit = (e) => {
@@ -579,9 +625,9 @@ const LocationSampleMaster = () => {
               <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600, width: '100px' }}>ACTIONS</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600, width: '80px' }}>SR. NO.</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>LOCATION TITLE</th>
+                {renderSortableHeader('LOCATION TITLE', 'name')}
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>COMPANY</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600, width: '120px' }}>STATUS</th>
+                {renderSortableHeader('STATUS', 'status')}
               </tr>
             </thead>
             <tbody>

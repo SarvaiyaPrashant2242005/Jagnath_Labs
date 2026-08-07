@@ -119,6 +119,8 @@ const getMyCompanies = async (req, res) => {
             limit: req.query.limit,
             search: req.query.search,
             status: req.query.status,
+            sortBy: req.query.sortBy,
+            sortOrder: req.query.sortOrder,
             isSuperAdmin
         };
 

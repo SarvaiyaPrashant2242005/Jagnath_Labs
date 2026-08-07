@@ -321,6 +321,17 @@ const getClientsByCompany = async (companyId, options = {}) => {
             attributes: { exclude: ["deleted_at"] }
         };
 
+        // Apply sorting rules
+        if (options.sortBy) {
+            const allowedSortFields = ["clientName", "email", "contactNumber", "officeAddress", "plantAddress", "city", "state", "status", "created_at", "createdAt"];
+            if (allowedSortFields.includes(options.sortBy)) {
+                const orderDirection = options.sortOrder === "desc" || options.sortOrder === "DESC" ? "DESC" : "ASC";
+                queryOptions.order = [[options.sortBy, orderDirection]];
+            }
+        } else {
+            queryOptions.order = [['created_at', 'DESC']];
+        }
+
         if (options.limit && options.page) {
             queryOptions.limit = parseInt(options.limit);
             queryOptions.offset = (parseInt(options.page) - 1) * queryOptions.limit;

@@ -120,6 +120,15 @@ const getAllSubCategories = async (query, companyId) => {
         whereClause.name = { [Op.iLike]: `%${query.search.trim()}%` };
     }
 
+    let orderClause = [["created_at", "DESC"]];
+    if (query.sortBy) {
+        const allowedSortFields = ["name", "status", "categoryId", "created_at", "createdAt"];
+        if (allowedSortFields.includes(query.sortBy)) {
+            const orderDirection = query.sortOrder === "desc" || query.sortOrder === "DESC" ? "DESC" : "ASC";
+            orderClause = [[query.sortBy, orderDirection]];
+        }
+    }
+
     const queryOptions = {
         where: whereClause,
         include: [
@@ -129,7 +138,7 @@ const getAllSubCategories = async (query, companyId) => {
                 attributes: ["id", "name"]
             }
         ],
-        order: [["created_at", "DESC"]]
+        order: orderClause
     };
 
     if (!isAll) {

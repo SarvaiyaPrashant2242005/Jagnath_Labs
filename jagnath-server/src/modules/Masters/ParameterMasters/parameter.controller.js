@@ -169,7 +169,9 @@ const getAll = async (req, res) => {
             search: req.query.search,
             status: req.query.status,
             categoryId: req.query.categoryId,
-            subCategoryId: req.query.subCategoryId
+            subCategoryId: req.query.subCategoryId,
+            sortBy: req.query.sortBy,
+            sortOrder: req.query.sortOrder
         };
 
         const result = await parameterService.getParametersByCompany(companyId, options);

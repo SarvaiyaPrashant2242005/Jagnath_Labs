@@ -47,6 +47,10 @@ const SubCategoryMaster = () => {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
 
+  // Sorting State
+  const [sortField, setSortField] = useState(null);
+  const [sortDirection, setSortDirection] = useState(null); // 'asc', 'desc', or null
+
   // Download Dropdown toggle
   const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
   const dropdownRef = useRef(null);
@@ -153,12 +157,72 @@ const SubCategoryMaster = () => {
     });
   }, [subCategories, categoryFilter, statusFilter, searchQuery]);
 
-  const totalItems = filteredSubCategories.length;
+  const handleSort = (field) => {
+    if (sortField !== field) {
+      setSortField(field);
+      setSortDirection('asc');
+    } else if (sortDirection === 'asc') {
+      setSortDirection('desc');
+    } else {
+      setSortField(null);
+      setSortDirection(null);
+    }
+  };
+
+  const renderSortableHeader = (label, field) => {
+    const isSorted = sortField === field;
+    return (
+      <th
+        onClick={() => handleSort(field)}
+        style={{
+          padding: '0.75rem 1rem',
+          color: '#475569',
+          fontWeight: 600,
+          cursor: 'pointer',
+          userSelect: 'none',
+          transition: 'background-color 0.15s'
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <span>{label}</span>
+          <span style={{ fontSize: '0.7rem', color: isSorted ? '#2563eb' : '#cbd5e1', transition: 'color 0.15s' }}>
+            {isSorted ? (sortDirection === 'asc' ? '▲' : '▼') : '↕'}
+          </span>
+        </div>
+      </th>
+    );
+  };
+
+  const sortedSubCategories = useMemo(() => {
+    if (!sortField || !sortDirection) return filteredSubCategories;
+    const sorted = [...filteredSubCategories];
+    sorted.sort((a, b) => {
+      let valA = '';
+      let valB = '';
+      if (sortField === 'categoryId') {
+        valA = a.category?.name || a.category?.categoryName || '';
+        valB = b.category?.name || b.category?.categoryName || '';
+      } else {
+        valA = a[sortField] || '';
+        valB = b[sortField] || '';
+      }
+      valA = String(valA).toLowerCase();
+      valB = String(valB).toLowerCase();
+      if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+      if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [filteredSubCategories, sortField, sortDirection]);
+
+  const totalItems = sortedSubCategories.length;
   const totalPages = Math.ceil(totalItems / pageSize) || 1;
   const paginatedSubCategories = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
-    return filteredSubCategories.slice(start, start + pageSize);
-  }, [filteredSubCategories, currentPage, pageSize]);
+    return sortedSubCategories.slice(start, start + pageSize);
+  }, [sortedSubCategories, currentPage, pageSize]);
 
 
   useEffect(() => {
@@ -661,9 +725,9 @@ const SubCategoryMaster = () => {
               <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ACTIONS</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>DISCIPLINE GROUP</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SUB CATEGORY NAME</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATUS</th>
+                {renderSortableHeader('DISCIPLINE GROUP', 'categoryId')}
+                {renderSortableHeader('SUB CATEGORY NAME', 'name')}
+                {renderSortableHeader('STATUS', 'status')}
               </tr>
             </thead>
             <tbody>

@@ -139,13 +139,21 @@ const getChangesBlock = (oldValues, newValues) => {
 };
 
 const generateNextReportNumber = async (companyId, transaction) => {
+    const now = new Date();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const yy = String(now.getFullYear()).slice(-2); // e.g. "26"
+    const dateStr = `${mm}${yy}`; // e.g. "0826"
+    
+    // Starting index is 320.
+    const baseNumber = 320;
     const totalCount = await TestRequest.count({ where: { companyId }, transaction });
-    let nextNum = totalCount + 1;
-    let candidate = `RPT-${String(nextNum).padStart(3, '0')}`;
+    let nextNum = baseNumber + totalCount;
+    
+    let candidate = `JLT01${dateStr}RR${String(nextNum).padStart(5, '0')}`;
     let exists = await TestRequest.findOne({ where: { companyId, reportNumber: candidate }, transaction });
     while (exists) {
         nextNum++;
-        candidate = `RPT-${String(nextNum).padStart(3, '0')}`;
+        candidate = `JLT01${dateStr}RR${String(nextNum).padStart(5, '0')}`;
         exists = await TestRequest.findOne({ where: { companyId, reportNumber: candidate }, transaction });
     }
     return candidate;

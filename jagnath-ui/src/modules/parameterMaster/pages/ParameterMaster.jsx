@@ -57,6 +57,10 @@ const ParameterMaster = () => {
   const [subCategoryFilter, setSubCategoryFilter] = useState('');
   const [subCategoriesFilterList, setSubCategoriesFilterList] = useState([]);
 
+  // Sorting State
+  const [sortField, setSortField] = useState(null);
+  const [sortDirection, setSortDirection] = useState(null); // 'asc', 'desc', or null
+
   // Download Dropdown toggle
   const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
   const dropdownRef = useRef(null);
@@ -430,22 +434,91 @@ const ParameterMaster = () => {
     });
 
     // Sort Latest Added First (descending order by timestamp or ID)
-    return [...list].sort((a, b) => {
-      const timeA = new Date(a.createdAt || a.created_at || a.updatedAt || a.updated_at || 0).getTime();
-      const timeB = new Date(b.createdAt || b.created_at || b.updatedAt || b.updated_at || 0).getTime();
-      if (timeA !== timeB && timeA > 0 && timeB > 0) {
-        return timeB - timeA;
-      }
-      return String(b.id || '').localeCompare(String(a.id || ''));
-    });
+    return list;
   }, [parameters, categoryFilter, subCategoryFilter, statusFilter, searchQuery]);
 
-  const totalItems = filteredParameters.length;
+  const handleSort = (field) => {
+    if (sortField !== field) {
+      setSortField(field);
+      setSortDirection('asc');
+    } else if (sortDirection === 'asc') {
+      setSortDirection('desc');
+    } else {
+      setSortField(null);
+      setSortDirection(null);
+    }
+  };
+
+  const renderSortableHeader = (label, field) => {
+    const isSorted = sortField === field;
+    return (
+      <th
+        onClick={() => handleSort(field)}
+        style={{
+          padding: '0.75rem 1rem',
+          color: '#475569',
+          fontWeight: 600,
+          cursor: 'pointer',
+          userSelect: 'none',
+          transition: 'background-color 0.15s'
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <span>{label}</span>
+          <span style={{ fontSize: '0.7rem', color: isSorted ? '#2563eb' : '#cbd5e1', transition: 'color 0.15s' }}>
+            {isSorted ? (sortDirection === 'asc' ? '▲' : '▼') : '↕'}
+          </span>
+        </div>
+      </th>
+    );
+  };
+
+  const sortedParameters = useMemo(() => {
+    if (!sortField || !sortDirection) {
+      // Sort Latest Added First (descending order by timestamp or ID)
+      return [...filteredParameters].sort((a, b) => {
+        const timeA = new Date(a.createdAt || a.created_at || a.updatedAt || a.updated_at || 0).getTime();
+        const timeB = new Date(b.createdAt || b.created_at || b.updatedAt || b.updated_at || 0).getTime();
+        if (timeA !== timeB && timeA > 0 && timeB > 0) {
+          return timeB - timeA;
+        }
+        return String(b.id || '').localeCompare(String(a.id || ''));
+      });
+    }
+    const sorted = [...filteredParameters];
+    sorted.sort((a, b) => {
+      let valA = '';
+      let valB = '';
+      if (sortField === 'categoryId') {
+        valA = a.category?.name || a.category?.categoryName || '';
+        valB = b.category?.name || b.category?.categoryName || '';
+      } else if (sortField === 'subCategoryId') {
+        valA = a.subCategory?.name || a.subCategory?.categoryName || '';
+        valB = b.subCategory?.name || b.subCategory?.categoryName || '';
+      } else if (sortField === 'locationSampleId') {
+        valA = a.locationSample?.name || a.locationSample?.categoryName || '';
+        valB = b.locationSample?.name || b.locationSample?.categoryName || '';
+      } else {
+        valA = a[sortField] || '';
+        valB = b[sortField] || '';
+      }
+      valA = String(valA).toLowerCase();
+      valB = String(valB).toLowerCase();
+      if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+      if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [filteredParameters, sortField, sortDirection]);
+
+  const totalItems = sortedParameters.length;
   const totalPages = Math.ceil(totalItems / pageSize) || 1;
   const paginatedParameters = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
-    return filteredParameters.slice(start, start + pageSize);
-  }, [filteredParameters, currentPage, pageSize]);
+    return sortedParameters.slice(start, start + pageSize);
+  }, [sortedParameters, currentPage, pageSize]);
 
   const fetchSubCategoriesForToolbarFilter = async (catId) => {
     if (!catId) {
@@ -1250,14 +1323,14 @@ const ParameterMaster = () => {
                   <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                     <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ACTIONS</th>
                     <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
-                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>PARAMETER NAME</th>
-                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>DISCIPLINE GROUP</th>
-                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SUB CATEGORY</th>
-                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>LOCATION OF SAMPLE</th>
-                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>TEST METHOD</th>
-                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>UNIT</th>
-                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>PERMISSIBLE LIMIT</th>
-                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATUS</th>
+                    {renderSortableHeader('PARAMETER NAME', 'parameterName')}
+                    {renderSortableHeader('DISCIPLINE GROUP', 'categoryId')}
+                    {renderSortableHeader('SUB CATEGORY', 'subCategoryId')}
+                    {renderSortableHeader('LOCATION OF SAMPLE', 'locationSampleId')}
+                    {renderSortableHeader('TEST METHOD', 'testMethod')}
+                    {renderSortableHeader('UNIT', 'unit')}
+                    {renderSortableHeader('PERMISSIBLE LIMIT', 'permissibleLimit')}
+                    {renderSortableHeader('STATUS', 'status')}
                   </tr>
                 </thead>
                 <tbody>

@@ -431,6 +431,16 @@ const getParametersByCompany = async (companyId, options = {}) => {
             distinct: true
         };
 
+        if (options.sortBy) {
+            const allowedSortFields = ["parameterName", "testMethod", "unit", "permissibleLimit", "status", "created_at", "createdAt"];
+            if (allowedSortFields.includes(options.sortBy)) {
+                const orderDirection = options.sortOrder === "desc" || options.sortOrder === "DESC" ? "DESC" : "ASC";
+                queryOptions.order = [[options.sortBy, orderDirection]];
+            }
+        } else {
+            queryOptions.order = [['created_at', 'DESC']];
+        }
+
         if (options.search) {
             queryOptions.where.parameterName = { [Op.iLike]: `%${options.search}%` };
         }

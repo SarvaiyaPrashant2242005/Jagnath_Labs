@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   FaTag, FaPlus, FaDownload, FaEdit, FaTrash, FaCheck,
   FaExclamationCircle, FaFileExcel, FaCopy, FaFileCsv,
@@ -77,6 +77,10 @@ const PriceMasterPage = () => {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [selectedCategory, setSelectedCategory] = useState('');
 
+  // Sorting State
+  const [sortField, setSortField] = useState(null);
+  const [sortDirection, setSortDirection] = useState(null); // 'asc', 'desc', or null
+
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -120,7 +124,7 @@ const PriceMasterPage = () => {
 
   useEffect(() => {
     fetchPrices();
-  }, [currentPage, pageSize, searchQuery, statusFilter, selectedCategory]);
+  }, [currentPage, pageSize, searchQuery, statusFilter, selectedCategory, sortField, sortDirection]);
 
   // Filter and sort parameters dropdown based on selected category & subCategory in form
   const sortedAndFilteredParameters = useMemo(() => {
@@ -241,6 +245,10 @@ const PriceMasterPage = () => {
         status: statusFilter,
         categoryId: selectedCategory
       };
+      if (sortField && sortDirection) {
+        params.sortBy = sortField;
+        params.sortOrder = sortDirection;
+      }
 
       const res = await priceMasterService.getAll(params);
       if (res?.data) {
@@ -259,6 +267,44 @@ const PriceMasterPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSort = (field) => {
+    if (sortField !== field) {
+      setSortField(field);
+      setSortDirection('asc');
+    } else if (sortDirection === 'asc') {
+      setSortDirection('desc');
+    } else {
+      setSortField(null);
+      setSortDirection(null);
+    }
+  };
+
+  const renderSortableHeader = (label, field) => {
+    const isSorted = sortField === field;
+    return (
+      <th
+        onClick={() => handleSort(field)}
+        style={{
+          padding: '0.75rem 1rem',
+          color: '#475569',
+          fontWeight: 600,
+          cursor: 'pointer',
+          userSelect: 'none',
+          transition: 'background-color 0.15s'
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <span>{label}</span>
+          <span style={{ fontSize: '0.7rem', color: isSorted ? '#2563eb' : '#cbd5e1', transition: 'color 0.15s' }}>
+            {isSorted ? (sortDirection === 'asc' ? '▲' : '▼') : '↕'}
+          </span>
+        </div>
+      </th>
+    );
   };
 
   // Quick Add Category Handler
@@ -924,11 +970,11 @@ const PriceMasterPage = () => {
                 </th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ACTIONS</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>DISCIPLINE GROUP</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SUB CATEGORY</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>PARAMETER</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600, textAlign: 'right' }}>PRICE (₹)</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600, textAlign: 'center' }}>STATUS</th>
+                {renderSortableHeader('DISCIPLINE GROUP', 'categoryId')}
+                {renderSortableHeader('SUB CATEGORY', 'subCategory')}
+                {renderSortableHeader('PARAMETER', 'parameter')}
+                {renderSortableHeader('PRICE (₹)', 'price')}
+                {renderSortableHeader('STATUS', 'status')}
               </tr>
             </thead>
             <tbody>

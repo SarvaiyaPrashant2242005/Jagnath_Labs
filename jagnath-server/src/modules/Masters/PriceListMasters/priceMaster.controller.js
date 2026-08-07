@@ -141,7 +141,9 @@ const getAll = async (req, res) => {
             limit: req.query.limit,
             search: req.query.search,
             status: req.query.status,
-            categoryId: req.query.categoryId
+            categoryId: req.query.categoryId,
+            sortBy: req.query.sortBy,
+            sortOrder: req.query.sortOrder
         };
 
         const result = await priceMasterService.getPricesByCompany(companyId, options);

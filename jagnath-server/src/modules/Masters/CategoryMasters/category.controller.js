@@ -131,7 +131,9 @@ const getAll = async (req, res) => {
             page: req.query.page,
             limit: req.query.limit,
             search: req.query.search,
-            status: req.query.status
+            status: req.query.status,
+            sortBy: req.query.sortBy,
+            sortOrder: req.query.sortOrder
         };
 
         const result = await categoryService.getCategoriesByCompany(companyId, options);

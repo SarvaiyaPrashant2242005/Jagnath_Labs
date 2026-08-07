@@ -83,6 +83,10 @@ const ClientMaster = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
 
+  // Sorting State
+  const [sortField, setSortField] = useState(null);
+  const [sortDirection, setSortDirection] = useState(null); // 'asc', 'desc', or null
+
   // Download Dropdown toggle
   const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
   const dropdownRef = useRef(null);
@@ -188,6 +192,10 @@ const ClientMaster = () => {
       if (activeCompId) {
         params.append('companyId', activeCompId);
       }
+      if (sortField && sortDirection) {
+        params.append('sortBy', sortField);
+        params.append('sortOrder', sortDirection);
+      }
 
       const url = `${CLIENT_ENDPOINTS.GET_ALL}?${params.toString()}`;
       const response = await apiService.get(url);
@@ -220,9 +228,47 @@ const ClientMaster = () => {
     }
   };
 
+  const handleSort = (field) => {
+    if (sortField !== field) {
+      setSortField(field);
+      setSortDirection('asc');
+    } else if (sortDirection === 'asc') {
+      setSortDirection('desc');
+    } else {
+      setSortField(null);
+      setSortDirection(null);
+    }
+  };
+
+  const renderSortableHeader = (label, field) => {
+    const isSorted = sortField === field;
+    return (
+      <th
+        onClick={() => handleSort(field)}
+        style={{
+          padding: '0.75rem 1rem',
+          color: '#475569',
+          fontWeight: 600,
+          cursor: 'pointer',
+          userSelect: 'none',
+          transition: 'background-color 0.15s'
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <span>{label}</span>
+          <span style={{ fontSize: '0.7rem', color: isSorted ? '#2563eb' : '#cbd5e1', transition: 'color 0.15s' }}>
+            {isSorted ? (sortDirection === 'asc' ? '▲' : '▼') : '↕'}
+          </span>
+        </div>
+      </th>
+    );
+  };
+
   useEffect(() => {
     fetchClients();
-  }, [currentPage, pageSize, searchQuery, statusFilter]);
+  }, [currentPage, pageSize, searchQuery, statusFilter, sortField, sortDirection]);
 
   useEffect(() => {
     const initializeData = async () => {
@@ -925,14 +971,14 @@ const ClientMaster = () => {
                 </th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ACTIONS</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CLIENT NAME</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>EMAIL</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CONTACT</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>OFFICE ADDRESS</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>PLANT ADDRESS</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CITY</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATE</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATUS</th>
+                {renderSortableHeader('CLIENT NAME', 'clientName')}
+                {renderSortableHeader('EMAIL', 'email')}
+                {renderSortableHeader('CONTACT', 'contactNumber')}
+                {renderSortableHeader('OFFICE ADDRESS', 'officeAddress')}
+                {renderSortableHeader('PLANT ADDRESS', 'plantAddress')}
+                {renderSortableHeader('CITY', 'city')}
+                {renderSortableHeader('STATE', 'state')}
+                {renderSortableHeader('STATUS', 'status')}
               </tr>
             </thead>
             <tbody>

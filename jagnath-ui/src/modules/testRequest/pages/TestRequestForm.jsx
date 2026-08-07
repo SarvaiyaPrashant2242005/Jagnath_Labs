@@ -114,51 +114,36 @@ const TestRequestForm = () => {
     return () => window.removeEventListener('companyChanged', handleCompanyChange);
   }, []);
 
-  // Helper to generate next Report No in format RPT-001, RPT-002, etc. based on previous report numbers
+  // Helper to generate next Report No in format JLT01[MM][YY]RR[XXXXX] starting at 00320
   const generateNextReportNumber = (allRequests) => {
+    const now = new Date();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const yy = String(now.getFullYear()).slice(-2);
+    const dateStr = `${mm}${yy}`;
+    const prefix = `JLT01${dateStr}RR`;
+
     if (!allRequests || allRequests.length === 0) {
-      return 'RPT-001';
+      return `${prefix}00320`;
     }
 
     const validReportNos = allRequests
       .map(r => r.reportNumber || r.report_number || '')
-      .filter(num => num && num.trim().length > 0);
+      .filter(num => num && num.startsWith(prefix));
 
-    if (validReportNos.length === 0) {
-      return 'RPT-001';
-    }
-
-    let maxNum = 0;
-    let maxPrefix = 'RPT-';
-    let padLength = 3;
+    let maxNum = 319; // next will be 320
 
     validReportNos.forEach(repNo => {
-      const match = repNo.trim().match(/^([A-Za-z]+[-_/\s]*)(\d+)$/);
-      if (match) {
-        const prefix = match[1];
-        const numStr = match[2];
-        const numVal = parseInt(numStr, 10);
-        if (!isNaN(numVal) && numVal > maxNum) {
-          maxNum = numVal;
-          maxPrefix = prefix;
-          padLength = Math.max(numStr.length, 3);
-        }
-      } else {
-        const endNumMatch = repNo.trim().match(/(\d+)$/);
-        if (endNumMatch) {
-          const numStr = endNumMatch[1];
-          const numVal = parseInt(numStr, 10);
-          if (!isNaN(numVal) && numVal > maxNum) {
-            maxNum = numVal;
-            padLength = Math.max(numStr.length, 3);
-          }
+      const parts = repNo.split('RR');
+      if (parts.length === 2) {
+        const seqVal = parseInt(parts[1], 10);
+        if (!isNaN(seqVal) && seqVal > maxNum) {
+          maxNum = seqVal;
         }
       }
     });
 
     const nextNum = maxNum + 1;
-    const paddedNextNum = String(nextNum).padStart(padLength, '0');
-    return `${maxPrefix}${paddedNextNum}`;
+    return `${prefix}${String(nextNum).padStart(5, '0')}`;
   };
 
   const fetchCategories = async () => {
@@ -378,8 +363,11 @@ const TestRequestForm = () => {
         }
         fetchParameters(savedSubCatId, savedCategoryId, loadedSeq);
       } else {
-        // Pre-select company if we resolved one and auto-generate next Report No (e.g. RPT-001, RPT-002)
-        let autoReportNo = 'RPT-001';
+        // Pre-select company if we resolved one and auto-generate next Report No (e.g. JLT010826RR00320)
+        const nowForFallback = new Date();
+        const mmForFallback = String(nowForFallback.getMonth() + 1).padStart(2, '0');
+        const yyForFallback = String(nowForFallback.getFullYear()).slice(-2);
+        let autoReportNo = `JLT01${mmForFallback}${yyForFallback}RR00320`;
         try {
           const allTrsRes = await apiService.get(`${TEST_REQUEST_ENDPOINTS.GET_ALL}?limit=1000${targetCompanyId ? `&companyId=${targetCompanyId}` : ''}`);
           const trsList = Array.isArray(allTrsRes?.data) ? allTrsRes.data : (allTrsRes?.data?.rows || []);
@@ -1004,7 +992,7 @@ const TestRequestForm = () => {
                   value={formData.reportNumber}
                   onChange={handleChange}
                   className="premium-input"
-                  placeholder="Auto-generated (e.g. RPT-001)"
+                  placeholder="Auto-generated (e.g. JLT010826RR00320)"
                   readOnly={true}
                   disabled={true}
                   style={{ backgroundColor: '#f1f5f9', cursor: 'not-allowed', color: '#475569', fontWeight: 600 }}

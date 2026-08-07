@@ -179,7 +179,11 @@ const TestReportForm = () => {
       if (!targetTR) return;
 
       const trIndex = testRequests.findIndex(t => String(t.id) === String(trId));
-      const reportNoDisplay = targetTR.reportNumber || `RPT-${String(trIndex >= 0 ? trIndex + 1 : 1).padStart(3, '0')}`;
+      const now = new Date();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const yy = String(now.getFullYear()).slice(-2);
+      const fallbackReportNo = `JLT01${mm}${yy}RR${String(320 + (trIndex >= 0 ? trIndex : 0)).padStart(5, '0')}`;
+      const reportNoDisplay = targetTR.reportNumber || fallbackReportNo;
       const receiptDate = targetTR.dateOfReceipt || targetTR.dateOfCollection || formData.dateOfReceipt || new Date().toISOString().split('T')[0];
       const sampleParticularVal = targetTR.sampleParticularName || targetTR.sampleParticular || 'Water Sample';
       const packingDetailsVal = targetTR.packingDetails || 'Sample Sealed in Plastic Bottle';
@@ -872,92 +876,101 @@ const TestReportForm = () => {
             <div ref={printRef} className="printable-report-sheet" style={{
               background: '#ffffff',
               borderRadius: '8px',
-              padding: '1.5rem',
+              padding: '0.4rem 0.6rem',
               boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
               border: '1px solid #e2e8f0',
               fontFamily: '"Times New Roman", Times, serif',
               color: '#000000',
-              lineHeight: '1.3',
+              lineHeight: '1.2',
               boxSizing: 'border-box'
             }}>
 
               {/* 1. Header with Logo ONLY */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
                 <div>
                   <img src="/Images/Navbar_Logo.png" alt="Jagnath Logo" style={{ height: '52px', objectFit: 'contain' }} />
                 </div>
               </div>
 
               {/* Horizontal Line */}
-              <div style={{ borderBottom: '1.5px solid #000000', marginBottom: '0.4rem' }}></div>
+              <div style={{ borderBottom: '1.5px solid #000000', marginBottom: '2px' }}></div>
 
               {/* 2. Document Title */}
-              <div style={{ textAlign: 'center', fontSize: '1.15rem', fontWeight: 'bold', textDecoration: 'underline', marginBottom: '0.3rem' }}>
+              <div style={{ textAlign: 'center', fontSize: '1.15rem', fontWeight: 'bold', textDecoration: 'underline', marginBottom: '2px' }}>
                 TEST REPORT
               </div>
 
-              {/* Format No. & Date Line */}
-              <div style={{ textAlign: 'right', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '0.2rem' }}>
-                <span>{formData.formatNo || 'Format No. 7.8 F-02'}</span>
-                <span style={{ marginLeft: '1.5rem' }}>Date: - {formatDateDDMMYYYY(formData.formatDate || formData.dateOfReceipt || new Date().toISOString())}</span>
-              </div>
+              {/* Horizontal Divider Line */}
+              <div style={{ borderBottom: '1.5px solid #000000', marginBottom: '4px' }}></div>
 
               {/* 3. Metadata Grid Table */}
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', border: '1px solid #000000', marginBottom: '0' }}>
                 <tbody>
                   <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td colSpan={4} style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold', fontSize: '0.78rem' }}>
-                      {formData.reportNumber || formData.referenceNo || 'JLT010726RR00307'}
+                    <td colSpan={4} style={{ padding: '0.2rem 0.35rem', textAlign: 'right', fontWeight: 'bold', borderBottom: '1px solid #000' }}>
+                      {formData.formatNo || 'Format No. 7.8 F-02'}
                     </td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ width: '34%', padding: '0.2rem 0.35rem', fontWeight: 'bold', borderRight: '1px solid #000000' }}>Name Of Work</td>
+                    <td colSpan={2} style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold', fontSize: '0.78rem', borderBottom: '1px solid #000' }}>
+                      {formData.reportNumber || formData.referenceNo || 'JLT010726RR00307'}
+                    </td>
+                    <td colSpan={2} style={{ padding: '0.2rem 0.35rem', textAlign: 'right', fontWeight: 'bold', fontSize: '0.78rem', borderBottom: '1px solid #000' }}>
+                      Date: - {formatDateDDMMYYYY(formData.formatDate || formData.dateOfReceipt || new Date().toISOString())}
+                    </td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ width: '32%', padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>Name Of Work</td>
                     <td colSpan={3} style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold' }}>{formData.nameOfWork || 'Waste Water Analysis'}</td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold', borderRight: '1px solid #000000' }}>Details of sample/Mode of Packing</td>
-                    <td colSpan={3} style={{ padding: '0.2rem 0.35rem' }}>{formData.detailsOfSample || formData.packingDetails || 'Sample Sealed in Plastic Bottle'}</td>
+                    <td style={{ padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>Details of sample</td>
+                    <td colSpan={3} style={{ padding: '0.2rem 0.35rem' }}>{formData.detailsOfSample || '-'}</td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold', borderRight: '1px solid #000000' }}>Report Issued To</td>
+                    <td style={{ padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>Mode of Packing</td>
+                    <td colSpan={3} style={{ padding: '0.2rem 0.35rem' }}>{formData.packingDetails || 'Sample Sealed in Plastic Bottle'}</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>Report Issued To</td>
                     <td colSpan={3} style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold' }}>{formData.reportIssuedTo || '-'}</td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold', borderRight: '1px solid #000000' }}>Reference No. / Report No.</td>
+                    <td style={{ padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>Reference No. / Report No.</td>
                     <td colSpan={3} style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold' }}>{formData.reportNumber || formData.referenceNo || '-'}</td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold', borderRight: '1px solid #000000' }}>Date Of Receipt Of Sample</td>
+                    <td style={{ padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>Date Of Receipt Of Sample</td>
                     <td colSpan={3} style={{ padding: '0.2rem 0.35rem' }}>{formatDateDDMMYYYY(formData.dateOfReceipt)}</td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold', borderRight: '1px solid #000000' }}>Name Of Agency/Company</td>
+                    <td style={{ padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>Name Of Agency/Company</td>
                     <td colSpan={3} style={{ padding: '0.2rem 0.35rem' }}>
                       <div style={{ fontWeight: 'bold' }}>{formData.agencyName || formData.reportIssuedTo}</div>
                       {formData.agencyAddress && <div style={{ fontSize: '0.68rem', marginTop: '1px' }}>{formData.agencyAddress}</div>}
                     </td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold', borderRight: '1px solid #000000' }}>Sample Quantity</td>
+                    <td style={{ padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>Sample Quantity</td>
                     <td colSpan={3} style={{ padding: '0.2rem 0.35rem' }}>{formData.sampleQuantity || '01 (1 ltr)'}</td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold', borderRight: '1px solid #000000' }}>Sampling Location / Type</td>
+                    <td style={{ padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>Sampling Location / Type</td>
                     <td colSpan={3} style={{ padding: '0.2rem 0.35rem' }}>{formData.samplingLocation || 'Inlet CETP'}</td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold', borderRight: '1px solid #000000' }}>Condition of sample during receipt</td>
+                    <td style={{ padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>Condition of sample during receipt</td>
                     <td colSpan={3} style={{ padding: '0.2rem 0.35rem' }}>{formData.conditionOnReceipt || 'Satisfactory'}</td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold', borderRight: '1px solid #000000' }}>Sample Collected / Submitted by.</td>
+                    <td style={{ padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>Sample Collected / Submitted by.</td>
                     <td colSpan={3} style={{ padding: '0.2rem 0.35rem' }}>{formData.sampleCollectedBy || 'By Party'}</td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold', borderRight: '1px solid #000000' }}>Starting Date Of Test/ Analysis</td>
-                    <td style={{ width: '26%', padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>{formatDateDDMMYYYY(formData.startingDateOfTest)}</td>
-                    <td style={{ width: '24%', padding: '0.2rem 0.35rem', fontWeight: 'bold', borderRight: '1px solid #000000' }}>Completion Date of Test</td>
-                    <td style={{ width: '16%', padding: '0.2rem 0.35rem' }}>{formatDateDDMMYYYY(formData.completionDateOfTest)}</td>
+                    <td style={{ width: '32%', padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>Starting Date Of Test/ Analysis</td>
+                    <td style={{ width: '28%', padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>{formatDateDDMMYYYY(formData.startingDateOfTest)}</td>
+                    <td style={{ width: '22%', padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>Completion Date of Test</td>
+                    <td style={{ width: '18%', padding: '0.2rem 0.35rem' }}>{formatDateDDMMYYYY(formData.completionDateOfTest)}</td>
                   </tr>
                 </tbody>
               </table>
@@ -976,7 +989,7 @@ const TestReportForm = () => {
                     <th style={{ width: '32%', padding: '0.25rem', borderRight: '1px solid #000000', textAlign: 'center' }}>REFERENCE METHOD</th>
                     <th style={{ width: '10%', padding: '0.25rem', borderRight: '1px solid #000000', textAlign: 'center' }}>UNIT</th>
                     <th style={{ width: '11%', padding: '0.25rem', borderRight: '1px solid #000000', textAlign: 'center' }}>RESULTS</th>
-                    <th style={{ width: '11%', padding: '0.25rem', textAlign: 'center' }}>PERMISSIBLE LIMITS</th>
+                    <th style={{ width: '11%', padding: '0.25rem', textAlign: 'center' }}>PERMISIBLE LIMITS</th>
                   </tr>
                 </thead>
                 <tbody>
