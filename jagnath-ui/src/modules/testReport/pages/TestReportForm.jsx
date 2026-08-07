@@ -748,7 +748,6 @@ const TestReportForm = () => {
                   <tr style={{ background: '#f8fafc', borderBottom: '2px solid #cbd5e1', color: '#334155' }}>
                     <th style={{ padding: '0.5rem', width: '50px' }}>SR.</th>
                     <th style={{ padding: '0.5rem' }}>TEST PARAMETER</th>
-                    <th style={{ padding: '0.5rem' }}>LOCATION OF SAMPLE</th>
                     <th style={{ padding: '0.5rem' }}>REFERENCE METHOD</th>
                     <th style={{ padding: '0.5rem', width: '80px' }}>UNIT</th>
                     <th style={{ padding: '0.5rem', width: '100px' }}>RESULT</th>
@@ -773,15 +772,6 @@ const TestReportForm = () => {
                           onChange={(e) => handleParamChange(idx, 'parameterName', e.target.value)}
                           placeholder="Parameter name"
                           style={{ ...tableInputStyle, fontWeight: 600 }}
-                        />
-                      </td>
-                      <td style={{ padding: '0.4rem' }}>
-                        <input
-                          type="text"
-                          value={param.locationOfSample || ''}
-                          onChange={(e) => handleParamChange(idx, 'locationOfSample', e.target.value)}
-                          placeholder="Location of sample"
-                          style={tableInputStyle}
                         />
                       </td>
                       <td style={{ padding: '0.4rem' }}>

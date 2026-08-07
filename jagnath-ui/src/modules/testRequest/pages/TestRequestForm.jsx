@@ -1,5 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import {
+  FaArrowLeft, FaCheck, FaExclamationCircle, FaEye, FaEyeSlash,
+  FaSave, FaPrint, FaPlus, FaTrash, FaTimes, FaSpinner, FaFilePdf,
+  FaSearch, FaChevronLeft, FaChevronRight
+} from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
 import {
   CLIENT_ENDPOINTS,
