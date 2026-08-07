@@ -282,6 +282,7 @@ const InlineMasterModal = ({
             >
               {isSaving ? 'Creating...' : config.btnText}
             </button>
+          </div>
         </form>
       </div>
 
