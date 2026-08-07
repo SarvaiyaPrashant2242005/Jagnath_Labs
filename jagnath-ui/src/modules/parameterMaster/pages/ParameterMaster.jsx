@@ -611,6 +611,7 @@ const ParameterMaster = () => {
     setSelectedExistingParamId('');
     setIsManualNameEntry(false);
     setIsFormOpen(true);
+    document.querySelector('.dashboard-content-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -636,6 +637,7 @@ const ParameterMaster = () => {
     setSelectedExistingParamId('');
     setIsManualNameEntry(true);
     setIsFormOpen(true);
+    document.querySelector('.dashboard-content-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 

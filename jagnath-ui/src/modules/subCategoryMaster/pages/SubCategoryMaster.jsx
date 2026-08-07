@@ -254,6 +254,7 @@ const SubCategoryMaster = () => {
     });
     setFormErrors({});
     setIsFormOpen(true);
+    document.querySelector('.dashboard-content-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -267,6 +268,7 @@ const SubCategoryMaster = () => {
     });
     setFormErrors({});
     setIsFormOpen(true);
+    document.querySelector('.dashboard-content-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 

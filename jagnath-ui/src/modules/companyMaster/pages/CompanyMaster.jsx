@@ -341,6 +341,8 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
     setAssignMode('existing');
     setEditingId(null);
     setIsFormOpen(true);
+    document.querySelector('.dashboard-content-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Open Form for Edit
@@ -362,6 +364,8 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
     setAssignMode('existing');
     setEditingId(company.id);
     setIsFormOpen(true);
+    document.querySelector('.dashboard-content-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Submit Handler using multipart FormData

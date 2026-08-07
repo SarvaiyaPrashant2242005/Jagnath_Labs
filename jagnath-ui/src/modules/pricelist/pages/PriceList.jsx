@@ -406,6 +406,8 @@ const PriceMasterPage = () => {
     });
     setFormErrors({});
     setIsFormOpen(true);
+    document.querySelector('.dashboard-content-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Open Edit Form
@@ -422,6 +424,8 @@ const PriceMasterPage = () => {
     });
     setFormErrors({});
     setIsFormOpen(true);
+    document.querySelector('.dashboard-content-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleFormSubmit = async (e) => {

@@ -342,6 +342,8 @@ const ClientMaster = () => {
     setFormErrors({});
     setEditingId(null);
     setIsFormOpen(true);
+    document.querySelector('.dashboard-content-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Open Form for Edit
@@ -361,6 +363,8 @@ const ClientMaster = () => {
     setFormErrors({});
     setEditingId(client.id);
     setIsFormOpen(true);
+    document.querySelector('.dashboard-content-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Submit Handler
