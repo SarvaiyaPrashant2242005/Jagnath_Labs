@@ -135,6 +135,12 @@ const TestReport = sequelize.define("TestReport", {
         type: DataTypes.STRING,
         defaultValue: "Completed",
         allowNull: false,
+    },
+    showPermissibleLimits: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: true,
+        allowNull: false,
+        field: "show_permissible_limits"
     }
 }, {
     tableName: "test_reports",

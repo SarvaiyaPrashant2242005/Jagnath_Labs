@@ -56,7 +56,8 @@ const TestReportForm = () => {
     sectionHeader: '',
     reviewedByAnalyst: '',
     authorizedSignatory: '',
-    termsAndConditions: 'The report is analyzed with the quality standards. These results are related to sample collection as specified above. This report in full or part, shall not be published advertised, used for any legal action, unless written consent and prior permission has been secured from the owner, JAGNATH LAB TECHNOLOGIES, GONDAL-RAJKOT.'
+    termsAndConditions: 'The report is analyzed with the quality standards. These results are related to sample collection as specified above. This report in full or part, shall not be published advertised, used for any legal action, unless written consent and prior permission has been secured from the owner, JAGNATH LAB TECHNOLOGIES, GONDAL-RAJKOT.',
+    showPermissibleLimits: true
   });
 
   // Dynamic Parameters Results Table State
@@ -67,6 +68,7 @@ const TestReportForm = () => {
   const [withHeaderFooter, setWithHeaderFooter] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const [confirmModal, setConfirmModal] = useState({ show: false, action: null }); // For permissible limit confirmation
   const printRef = useRef();
 
   const triggerToast = (message, type = 'success') => {
@@ -129,7 +131,8 @@ const TestReportForm = () => {
               sectionHeader: report.sectionHeader || (report.nameOfWork ? String(report.nameOfWork).toUpperCase() : ''),
               reviewedByAnalyst: report.reviewedBy || report.reviewedByAnalyst || 'Sr. Analyst',
               authorizedSignatory: report.authorizedSignatory || 'Mr. Ankit Rathod/ Mr. Purvin Raiyan',
-              termsAndConditions: report.termsAndConditions || 'The report is analyzed with the quality standards. These results are related to sample collection as specified above. This report in full or part, shall not be published advertised, used for any legal action, unless written consent and prior permission has been secured from the owner, JAGNATH LAB TECHNOLOGIES, GONDAL-RAJKOT.'
+              termsAndConditions: report.termsAndConditions || 'The report is analyzed with the quality standards. These results are related to sample collection as specified above. This report in full or part, shall not be published advertised, used for any legal action, unless written consent and prior permission has been secured from the owner, JAGNATH LAB TECHNOLOGIES, GONDAL-RAJKOT.',
+              showPermissibleLimits: report.showPermissibleLimits !== undefined ? report.showPermissibleLimits : true
             });
 
             if (report.testRequestId) {
@@ -342,7 +345,8 @@ const TestReportForm = () => {
   };
 
   // Save Report Handler
-  const handleSave = async () => {
+  // Core save logic (called directly or after confirmation)
+  const executeSave = async () => {
     setSubmitting(true);
     try {
       const activeCompId = localStorage.getItem('selectedCompanyId');
@@ -372,7 +376,8 @@ const TestReportForm = () => {
     }
   };
 
-  const handleSaveAndPrint = async () => {
+  // Core save-and-print logic
+  const executeSaveAndPrint = async () => {
     setSubmitting(true);
     try {
       const activeCompId = localStorage.getItem('selectedCompanyId');
@@ -406,6 +411,36 @@ const TestReportForm = () => {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // Public handlers — show confirmation if permissible limits is OFF
+  const handleSave = () => {
+    if (!formData.showPermissibleLimits) {
+      setConfirmModal({ show: true, action: 'save' });
+    } else {
+      executeSave();
+    }
+  };
+
+  const handleSaveAndPrint = () => {
+    if (!formData.showPermissibleLimits) {
+      setConfirmModal({ show: true, action: 'saveAndPrint' });
+    } else {
+      executeSaveAndPrint();
+    }
+  };
+
+  const handleConfirmYes = () => {
+    setConfirmModal({ show: false, action: null });
+    if (confirmModal.action === 'save') {
+      executeSave();
+    } else if (confirmModal.action === 'saveAndPrint') {
+      executeSaveAndPrint();
+    }
+  };
+
+  const handleConfirmCancel = () => {
+    setConfirmModal({ show: false, action: null });
   };
 
   const formatDateDDMMYYYY = (dateStr) => {
@@ -732,13 +767,46 @@ const TestReportForm = () => {
                 <FaFlask style={{ color: '#3b82f6', fontSize: '1.2rem' }} />
                 <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Test Parameters & Results</h3>
               </div>
-              <button
-                type="button"
-                onClick={handleAddParamRow}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', backgroundColor: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.85rem', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}
-              >
-                <FaPlus size={11} /> Add Parameter Row
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                {/* Permissible Limit Toggle */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontFamily: 'sans-serif' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Show Permissible Limit:</span>
+                  <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '40px', height: '22px' }}>
+                    <input
+                      type="checkbox"
+                      checked={formData.showPermissibleLimits}
+                      onChange={(e) => setFormData(prev => ({ ...prev, showPermissibleLimits: e.target.checked }))}
+                      style={{ opacity: 0, width: 0, height: 0 }}
+                    />
+                    <span className="slider round" style={{
+                      position: 'absolute',
+                      cursor: 'pointer',
+                      top: 0, left: 0, right: 0, bottom: 0,
+                      backgroundColor: formData.showPermissibleLimits ? '#22c55e' : '#cbd5e1',
+                      transition: '.4s',
+                      borderRadius: '34px'
+                    }}>
+                      <span className="slider-thumb" style={{
+                        position: 'absolute',
+                        height: '16px', width: '16px',
+                        left: formData.showPermissibleLimits ? '20px' : '4px',
+                        bottom: '3px',
+                        backgroundColor: 'white',
+                        transition: '.4s',
+                        borderRadius: '50%',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                      }} />
+                    </span>
+                  </label>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddParamRow}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', backgroundColor: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.85rem', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  <FaPlus size={11} /> Add Parameter Row
+                </button>
+              </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
@@ -755,7 +823,7 @@ const TestReportForm = () => {
                     <th style={{ padding: '0.5rem' }}>REFERENCE METHOD</th>
                     <th style={{ padding: '0.5rem', width: '80px' }}>UNIT</th>
                     <th style={{ padding: '0.5rem', width: '100px' }}>RESULT</th>
-                    <th style={{ padding: '0.5rem', width: '110px' }}>PERMISSIBLE LIMIT</th>
+                    {formData.showPermissibleLimits && <th style={{ padding: '0.5rem', width: '110px' }}>PERMISSIBLE LIMIT</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -805,15 +873,17 @@ const TestReportForm = () => {
                           style={{ ...tableInputStyle, fontWeight: 700, color: '#1e293b' }}
                         />
                       </td>
-                      <td style={{ padding: '0.4rem' }}>
-                        <input
-                          type="text"
-                          value={param.permissibleLimit}
-                          onChange={(e) => handleParamChange(idx, 'permissibleLimit', e.target.value)}
-                          placeholder="Limit"
-                          style={tableInputStyle}
-                        />
-                      </td>
+                      {formData.showPermissibleLimits && (
+                        <td style={{ padding: '0.4rem' }}>
+                          <input
+                            type="text"
+                            value={param.permissibleLimit}
+                            onChange={(e) => handleParamChange(idx, 'permissibleLimit', e.target.value)}
+                            placeholder="Limit"
+                            style={tableInputStyle}
+                          />
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -1027,11 +1097,11 @@ const TestReportForm = () => {
                 <thead>
                   <tr style={{ borderBottom: '1px solid #000000', textAlign: 'center', fontWeight: 'bold' }}>
                     <th style={{ width: '8%', padding: '0.25rem', borderRight: '1px solid #000000' }}>SR.NO.</th>
-                    <th style={{ width: '28%', padding: '0.25rem', borderRight: '1px solid #000000', textAlign: 'left' }}>TESTS PARAMETERS</th>
-                    <th style={{ width: '32%', padding: '0.25rem', borderRight: '1px solid #000000', textAlign: 'center' }}>REFERENCE METHOD</th>
+                    <th style={{ width: formData.showPermissibleLimits ? '28%' : '34%', padding: '0.25rem', borderRight: '1px solid #000000', textAlign: 'left' }}>TESTS PARAMETERS</th>
+                    <th style={{ width: formData.showPermissibleLimits ? '32%' : '37%', padding: '0.25rem', borderRight: '1px solid #000000', textAlign: 'center' }}>REFERENCE METHOD</th>
                     <th style={{ width: '10%', padding: '0.25rem', borderRight: '1px solid #000000', textAlign: 'center' }}>UNIT</th>
-                    <th style={{ width: '11%', padding: '0.25rem', borderRight: '1px solid #000000', textAlign: 'center' }}>RESULTS</th>
-                    <th style={{ width: '11%', padding: '0.25rem', textAlign: 'center' }}>PERMISIBLE LIMITS</th>
+                    <th style={{ width: formData.showPermissibleLimits ? '11%' : '11%', padding: '0.25rem', borderRight: formData.showPermissibleLimits ? '1px solid #000000' : 'none', textAlign: 'center' }}>RESULTS</th>
+                    {formData.showPermissibleLimits && <th style={{ width: '11%', padding: '0.25rem', textAlign: 'center' }}>PERMISIBLE LIMITS</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -1041,8 +1111,8 @@ const TestReportForm = () => {
                       <td style={{ padding: '0.25rem 0.35rem', borderRight: '1px solid #000000', fontWeight: 'bold' }}>{p.parameterName}</td>
                       <td style={{ padding: '0.25rem 0.35rem', borderRight: '1px solid #000000', textAlign: 'center' }}>{p.referenceMethod}</td>
                       <td style={{ padding: '0.25rem', borderRight: '1px solid #000000', textAlign: 'center' }}>{p.unit}</td>
-                      <td style={{ padding: '0.25rem', borderRight: '1px solid #000000', textAlign: 'center' }}>{p.result}</td>
-                      <td style={{ padding: '0.25rem', textAlign: 'center' }}>{p.permissibleLimit || '-'}</td>
+                      <td style={{ padding: '0.25rem', borderRight: formData.showPermissibleLimits ? '1px solid #000000' : 'none', textAlign: 'center' }}>{p.result}</td>
+                      {formData.showPermissibleLimits && <td style={{ padding: '0.25rem', textAlign: 'center' }}>{p.permissibleLimit || '-'}</td>}
                     </tr>
                   ))}
                 </tbody>
@@ -1108,6 +1178,77 @@ const TestReportForm = () => {
         )}
 
       </div>
+
+      {/* Confirmation Modal for Permissible Limits */}
+      {confirmModal.show && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '16px',
+            padding: '2rem 2.5rem',
+            maxWidth: '420px',
+            width: '90%',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            textAlign: 'center',
+            fontFamily: 'sans-serif',
+            animation: 'fadeIn 0.2s ease'
+          }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>⚠️</div>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a', margin: '0 0 0.5rem 0' }}>
+              Save Without Permissible Limit?
+            </h3>
+            <p style={{ fontSize: '0.9rem', color: '#475569', lineHeight: 1.5, margin: '0 0 1.5rem 0' }}>
+              You have turned <strong>OFF</strong> the Permissible Limit column. The report will be saved and printed <strong>without</strong> the Permissible Limit section.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+              <button
+                onClick={handleConfirmCancel}
+                style={{
+                  flex: 1,
+                  padding: '0.6rem 1rem',
+                  borderRadius: '10px',
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  color: '#334155',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmYes}
+                style={{
+                  flex: 1,
+                  padding: '0.6rem 1rem',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: '#ef4444',
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  color: '#ffffff',
+                  boxShadow: '0 2px 8px rgba(239, 68, 68, 0.3)',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                Yes, Save Without
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

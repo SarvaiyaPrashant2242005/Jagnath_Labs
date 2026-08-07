@@ -69,7 +69,8 @@ const create = async (req, res) => {
             reviewedBy: value.reviewedBy || "",
             authorizedSignatory: value.authorizedSignatory || "",
             parametersList: value.parametersList || [],
-            status: value.status || "Completed"
+            status: value.status || "Completed",
+            showPermissibleLimits: value.showPermissibleLimits !== undefined ? value.showPermissibleLimits : true
         };
 
         const newReport = await testReportService.createTestReport(reportData);
@@ -120,7 +121,8 @@ const update = async (req, res) => {
             reviewedBy: value.reviewedBy !== undefined ? value.reviewedBy : report.reviewedBy,
             authorizedSignatory: value.authorizedSignatory !== undefined ? value.authorizedSignatory : report.authorizedSignatory,
             parametersList: value.parametersList !== undefined ? value.parametersList : report.parametersList,
-            status: value.status || report.status
+            status: value.status || report.status,
+            showPermissibleLimits: value.showPermissibleLimits !== undefined ? value.showPermissibleLimits : report.showPermissibleLimits
         };
 
         const updatedReport = await testReportService.updateTestReport(id, reportData, companyId);

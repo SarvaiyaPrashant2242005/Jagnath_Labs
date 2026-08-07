@@ -34,6 +34,7 @@ const createTestReportSchema = Joi.object({
     authorizedSignatory: Joi.string().optional().allow("", null),
     parametersList: Joi.array().optional().default([]),
     status: Joi.string().optional().default("Completed"),
+    showPermissibleLimits: Joi.boolean().optional().default(true),
     companyName: Joi.string().optional().allow("", null),
     companyId: Joi.string().optional().allow("", null)
 }).unknown(true);
@@ -62,6 +63,7 @@ const updateTestReportSchema = Joi.object({
     authorizedSignatory: Joi.string().optional().allow("", null),
     parametersList: Joi.array().optional(),
     status: Joi.string().optional(),
+    showPermissibleLimits: Joi.boolean().optional(),
     companyName: Joi.string().optional().allow("", null),
     companyId: Joi.string().optional().allow("", null)
 }).unknown(true);

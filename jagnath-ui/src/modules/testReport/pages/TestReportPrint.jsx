@@ -290,17 +290,17 @@ const TestReportPrint = () => {
           <thead>
             <tr style={{ textAlign: 'center', fontWeight: 'bold' }}>
               <th style={{ width: '8%' }}>SR.NO.</th>
-              <th style={{ width: '28%', textAlign: 'left' }}>TESTS PARAMETERS</th>
-              <th style={{ width: '32%', textAlign: 'center' }}>REFERENCE METHOD</th>
+              <th style={{ width: report.showPermissibleLimits !== false ? '28%' : '34%', textAlign: 'left' }}>TESTS PARAMETERS</th>
+              <th style={{ width: report.showPermissibleLimits !== false ? '32%' : '37%', textAlign: 'center' }}>REFERENCE METHOD</th>
               <th style={{ width: '10%', textAlign: 'center' }}>UNIT</th>
               <th style={{ width: '11%', textAlign: 'center' }}>RESULTS</th>
-              <th style={{ width: '11%', textAlign: 'center' }}>PERMISIBLE LIMITS</th>
+              {report.showPermissibleLimits !== false && <th style={{ width: '11%', textAlign: 'center' }}>PERMISIBLE LIMITS</th>}
             </tr>
           </thead>
           <tbody>
             {parameters.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ padding: '1rem', textAlign: 'center', color: '#64748b' }}>No parameters recorded</td>
+                <td colSpan={report.showPermissibleLimits !== false ? 6 : 5} style={{ padding: '1rem', textAlign: 'center', color: '#64748b' }}>No parameters recorded</td>
               </tr>
             ) : (
               parameters.map((param, index) => (
@@ -310,7 +310,7 @@ const TestReportPrint = () => {
                   <td style={{ textAlign: 'center' }}>{param.referenceMethod || '-'}</td>
                   <td style={{ textAlign: 'center' }}>{param.unit || '-'}</td>
                   <td style={{ textAlign: 'center' }}>{param.result || '-'}</td>
-                  <td style={{ textAlign: 'center' }}>{param.permissibleLimit || '-'}</td>
+                  {report.showPermissibleLimits !== false && <td style={{ textAlign: 'center' }}>{param.permissibleLimit || '-'}</td>}
                 </tr>
               ))
             )}
