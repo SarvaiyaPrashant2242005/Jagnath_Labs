@@ -11,6 +11,11 @@ const TestReportPrint = () => {
   const { id } = useParams();
   const navigate = useNavigate();
 
+  // Parse query parameter to determine default layout
+  const queryParams = new URLSearchParams(window.location.search);
+  const initialNoHeaderFooter = queryParams.get('noHeaderFooter') === 'true';
+  const [withHeaderFooter, setWithHeaderFooter] = useState(!initialNoHeaderFooter);
+
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -80,20 +85,120 @@ const TestReportPrint = () => {
 
   const defaultTerms = "The report is analyzed with the quality standards. These results are related to sample collection as specified above. This report in full or part, shall not be published advertised, used for any legal action, unless written consent and prior permission has been secured from the owner, JAGNATH LAB TECHNOLOGIES, GONDAL-RAJKOT. We are authorized to take strict action if the data and result of report is to be changed/corrected by any external source or body. Report varies according to samples and their composition of the materials. JLTs strictly maintains confidentiality of all the test results and analysis and customer supplied products/samples and will not reveal this information to third party unless required for statutory/legal compliance. The report is referring only to the tested sample and for applicable parameters. The sample is destroyed after retention time (15 Days) unless otherwise specified specially. Subject to Gondal Jurdiction.";
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
     <div className="print-container">
+      {/* Top Floating Control Bar - HIDDEN DURING PRINT */}
+      <div className="print-control-bar" style={{
+        width: '100%',
+        maxWidth: '210mm',
+        background: 'rgba(255, 255, 255, 0.9)',
+        backdropFilter: 'blur(8px)',
+        border: '1px solid #cbd5e1',
+        borderRadius: '12px',
+        padding: '0.6rem 1.25rem',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '1rem',
+        boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155', fontFamily: 'sans-serif' }}>
+            Report Print Layout:
+          </span>
+          <div style={{ display: 'flex', gap: '4px', background: '#e2e8f0', padding: '2px', borderRadius: '8px', fontFamily: 'sans-serif' }}>
+            <button
+              onClick={() => setWithHeaderFooter(true)}
+              style={{
+                border: 'none',
+                borderRadius: '6px',
+                padding: '0.3rem 0.6rem',
+                fontSize: '0.78rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                background: withHeaderFooter ? '#ffffff' : 'transparent',
+                color: withHeaderFooter ? '#1e293b' : '#64748b',
+                boxShadow: withHeaderFooter ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              Normal (With Header/Footer)
+            </button>
+            <button
+              onClick={() => setWithHeaderFooter(false)}
+              style={{
+                border: 'none',
+                borderRadius: '6px',
+                padding: '0.3rem 0.6rem',
+                fontSize: '0.78rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                background: !withHeaderFooter ? '#ffffff' : 'transparent',
+                color: !withHeaderFooter ? '#1e293b' : '#64748b',
+                boxShadow: !withHeaderFooter ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              Letterhead (No Header/Footer)
+            </button>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: '0.5rem', fontFamily: 'sans-serif' }}>
+          <button
+            onClick={() => navigate('/test-reports')}
+            style={{
+              border: '1px solid #cbd5e1',
+              background: '#ffffff',
+              borderRadius: '8px',
+              padding: '0.35rem 0.75rem',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              color: '#334155'
+            }}
+          >
+            Back to List
+          </button>
+          <button
+            onClick={handlePrint}
+            style={{
+              border: 'none',
+              background: '#22c55e',
+              borderRadius: '8px',
+              padding: '0.35rem 1rem',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              color: '#ffffff',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+            }}
+          >
+            🖨 Print / Save PDF
+          </button>
+        </div>
+      </div>
+
       {/* ======================= A4 PRINT PAGE ======================= */}
       <div className="print-page">
         
         {/* Top Header Logo Row */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-          <div>
-            <img src="/Images/Navbar_Logo.png" alt="Jagnath Logo" style={{ height: '60px', objectFit: 'contain' }} />
-          </div>
-        </div>
-
-        {/* Divider Line */}
-        <div style={{ borderBottom: '1.5px solid #000', marginBottom: '2px' }}></div>
+        {withHeaderFooter ? (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+              <div>
+                <img src="/Images/Navbar_Logo.png" alt="Jagnath Logo" style={{ height: '60px', objectFit: 'contain' }} />
+              </div>
+            </div>
+            {/* Divider Line */}
+            <div style={{ borderBottom: '1.5px solid #000', marginBottom: '2px' }}></div>
+          </>
+        ) : (
+          <div style={{ height: '45px', marginBottom: '2px' }}></div> // Spacer for letterhead header
+        )}
 
         {/* Document Title */}
         <div style={{ textAlign: 'center', fontSize: '1.15rem', fontWeight: 'bold', textDecoration: 'underline', marginBottom: '2px' }}>
@@ -249,27 +354,31 @@ const TestReportPrint = () => {
         </div>
 
         {/* Footer Information */}
-        <div style={{ borderTop: '1px solid #64748b', paddingTop: '4px', fontSize: '0.68rem', fontFamily: 'sans-serif' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ color: '#047857', fontWeight: 600 }}>
-              📍 5-6/B, Nayanjyot Chambers, First Floor, Opp. Vachhera Vada, Gondal-360 311. Dist. : Rajkot. (Guj.)
+        {withHeaderFooter ? (
+          <div style={{ borderTop: '1px solid #64748b', paddingTop: '4px', fontSize: '0.68rem', fontFamily: 'sans-serif' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ color: '#047857', fontWeight: 600 }}>
+                📍 5-6/B, Nayanjyot Chambers, First Floor, Opp. Vachhera Vada, Gondal-360 311. Dist. : Rajkot. (Guj.)
+              </div>
+              <div style={{ color: '#047857', fontWeight: 600 }}>
+                ✉ jagnathtechnologies@yahoo.com
+              </div>
             </div>
-            <div style={{ color: '#047857', fontWeight: 600 }}>
-              ✉ jagnathtechnologies@yahoo.com
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px' }}>
+              <div style={{ color: '#047857', fontWeight: 600 }}>
+                🌐 www.jagnath.com
+              </div>
+              <div style={{ color: '#047857', fontWeight: 600 }}>
+                📞 +91 8140 5555 15
+              </div>
+            </div>
+            <div style={{ textAlign: 'center', fontSize: '0.65rem', fontWeight: 'bold', color: '#1e293b', marginTop: '4px' }}>
+              Environment Consultant & Gujarat Pollution Control Board Schedule-II Auditors
             </div>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px' }}>
-            <div style={{ color: '#047857', fontWeight: 600 }}>
-              🌐 www.jagnath.com
-            </div>
-            <div style={{ color: '#047857', fontWeight: 600 }}>
-              📞 +91 8140 5555 15
-            </div>
-          </div>
-          <div style={{ textAlign: 'center', fontSize: '0.65rem', fontWeight: 'bold', color: '#1e293b', marginTop: '4px' }}>
-            Environment Consultant & Gujarat Pollution Control Board Schedule-II Auditors
-          </div>
-        </div>
+        ) : (
+          <div style={{ height: '30px' }}></div> // Spacer for letterhead footer
+        )}
 
       </div>
 
@@ -310,6 +419,9 @@ const TestReportPrint = () => {
         }
 
         @media print {
+          .print-control-bar {
+            display: none !important;
+          }
           @page {
             size: A4 portrait;
             margin: 4mm 6mm;

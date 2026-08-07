@@ -64,6 +64,7 @@ const TestReportForm = () => {
 
   // UI state
   const [showLivePreview, setShowLivePreview] = useState(true);
+  const [withHeaderFooter, setWithHeaderFooter] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const printRef = useRef();
@@ -185,7 +186,8 @@ const TestReportForm = () => {
       const fallbackReportNo = `JLT01${mm}${yy}RR${String(320 + (trIndex >= 0 ? trIndex : 0)).padStart(5, '0')}`;
       const reportNoDisplay = targetTR.reportNumber || fallbackReportNo;
       const receiptDate = targetTR.dateOfReceipt || targetTR.dateOfCollection || formData.dateOfReceipt || new Date().toISOString().split('T')[0];
-      const sampleParticularVal = targetTR.sampleParticularName || targetTR.sampleParticular || 'Water Sample';
+      const isUuid = targetTR.sampleParticular && targetTR.sampleParticular.length === 36;
+      const sampleParticularVal = (!isUuid && targetTR.sampleParticular) || targetTR.sampleParticularName || 'Water Sample';
       const packingDetailsVal = targetTR.packingDetails || 'Sample Sealed in Plastic Bottle';
       const trTitle = targetTR.formTitle || targetTR.title || formData.nameOfWork || 'WATER & WASTE WATER';
       const clientNameVal = targetTR.clientName || targetTR.client?.clientName || formData.reportIssuedTo;
@@ -394,7 +396,7 @@ const TestReportForm = () => {
       triggerToast('Report saved! Redirecting to PDF print view...', 'success');
       setTimeout(() => {
         if (savedReportId) {
-          navigate(`/test-reports/print/${savedReportId}`);
+          navigate(`/test-reports/print/${savedReportId}?noHeaderFooter=${!withHeaderFooter}`);
         } else {
           window.print();
         }
@@ -867,9 +869,44 @@ const TestReportForm = () => {
               <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 LIVE DOCUMENT PREVIEW
               </span>
-              <span style={{ fontSize: '0.75rem', background: '#dcfce7', color: '#15803d', padding: '0.2rem 0.6rem', borderRadius: '12px', fontWeight: 700 }}>
-                A4 Format
-              </span>
+              <div style={{ display: 'flex', gap: '4px', background: '#e2e8f0', padding: '2px', borderRadius: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setWithHeaderFooter(true)}
+                  style={{
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '0.25rem 0.5rem',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    background: withHeaderFooter ? '#ffffff' : 'transparent',
+                    color: withHeaderFooter ? '#1e293b' : '#64748b',
+                    boxShadow: withHeaderFooter ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  With Header/Footer
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWithHeaderFooter(false)}
+                  style={{
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '0.25rem 0.5rem',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    background: !withHeaderFooter ? '#ffffff' : 'transparent',
+                    color: !withHeaderFooter ? '#1e293b' : '#64748b',
+                    boxShadow: !withHeaderFooter ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  Without Header/Footer
+                </button>
+              </div>
             </div>
 
             {/* A4 Document Box */}
@@ -886,14 +923,19 @@ const TestReportForm = () => {
             }}>
 
               {/* 1. Header with Logo ONLY */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
-                <div>
-                  <img src="/Images/Navbar_Logo.png" alt="Jagnath Logo" style={{ height: '52px', objectFit: 'contain' }} />
-                </div>
-              </div>
-
-              {/* Horizontal Line */}
-              <div style={{ borderBottom: '1.5px solid #000000', marginBottom: '2px' }}></div>
+              {withHeaderFooter ? (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                    <div>
+                      <img src="/Images/Navbar_Logo.png" alt="Jagnath Logo" style={{ height: '52px', objectFit: 'contain' }} />
+                    </div>
+                  </div>
+                  {/* Horizontal Line */}
+                  <div style={{ borderBottom: '1.5px solid #000000', marginBottom: '2px' }}></div>
+                </>
+              ) : (
+                <div style={{ height: '40px', marginBottom: '2px' }}></div> // Blank space to clear letterhead top
+              )}
 
               {/* 2. Document Title */}
               <div style={{ textAlign: 'center', fontSize: '1.15rem', fontWeight: 'bold', textDecoration: 'underline', marginBottom: '2px' }}>
@@ -1043,19 +1085,23 @@ const TestReportForm = () => {
               </div>
 
               {/* 9. Footer Info */}
-              <div style={{ borderTop: '1px solid #64748b', paddingTop: '0.3rem', fontSize: '0.58rem', fontFamily: 'sans-serif' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ color: '#047857', fontWeight: 600 }}>📍 5-6/B, Nayanjyot Chambers, First Floor, Opp. Vachhera Vada, Gondal-360 311. Dist. : Rajkot. (Guj.)</div>
-                  <div style={{ color: '#047857', fontWeight: 600 }}>✉ jagnathtechnologies@yahoo.com</div>
+              {withHeaderFooter ? (
+                <div style={{ borderTop: '1px solid #64748b', paddingTop: '0.3rem', fontSize: '0.58rem', fontFamily: 'sans-serif' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ color: '#047857', fontWeight: 600 }}>📍 5-6/B, Nayanjyot Chambers, First Floor, Opp. Vachhera Vada, Gondal-360 311. Dist. : Rajkot. (Guj.)</div>
+                    <div style={{ color: '#047857', fontWeight: 600 }}>✉ jagnathtechnologies@yahoo.com</div>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1px' }}>
+                    <div style={{ color: '#047857', fontWeight: 600 }}>🌐 www.jagnath.com</div>
+                    <div style={{ color: '#047857', fontWeight: 600 }}>📞 +91 8140 5555 15</div>
+                  </div>
+                  <div style={{ textAlign: 'center', fontSize: '0.55rem', fontWeight: 'bold', color: '#1e293b', marginTop: '2px' }}>
+                    Environment Consultant & Gujarat Pollution Control Board Schedule-II Auditors
+                  </div>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1px' }}>
-                  <div style={{ color: '#047857', fontWeight: 600 }}>🌐 www.jagnath.com</div>
-                  <div style={{ color: '#047857', fontWeight: 600 }}>📞 +91 8140 5555 15</div>
-                </div>
-                <div style={{ textAlign: 'center', fontSize: '0.55rem', fontWeight: 'bold', color: '#1e293b', marginTop: '2px' }}>
-                  Environment Consultant & Gujarat Pollution Control Board Schedule-II Auditors
-                </div>
-              </div>
+              ) : (
+                <div style={{ height: '30px' }}></div>
+              )}
 
             </div>
           </div>
