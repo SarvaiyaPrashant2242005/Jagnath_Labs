@@ -14,10 +14,13 @@ import { downloadCSV, downloadExcel } from '../../../shared/utils/exportUtils';
 import InlineMasterModal from '../../../shared/components/InlineMasterModal/InlineMasterModal';
 import AddMasterButton from '../../../shared/components/InlineMasterModal/AddMasterButton';
 import SearchableSelect from '../../../shared/components/Select/SearchableSelect';
+import DisciplineGroupAssignModal from '../../../shared/components/DisciplineGroupAssignModal/DisciplineGroupAssignModal';
+import { FaTags } from 'react-icons/fa';
 
 const ParameterMaster = () => {
   // Inline master modal state
   const [inlineModal, setInlineModal] = useState({ isOpen: false, type: null, parentData: {} });
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   // Parameter, Company & Category states
   const [parameters, setParameters] = useState([]);
   const [companies, setCompanies] = useState([]);
@@ -34,8 +37,6 @@ const ParameterMaster = () => {
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [totalItems, setTotalItems] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
 
   // Toast notifications state
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
@@ -166,11 +167,12 @@ const ParameterMaster = () => {
   const fetchCategoriesForDropdown = async () => {
     try {
       const activeCompId = localStorage.getItem('selectedCompanyId') || '';
-      const url = activeCompId ? `${CATEGORY_ENDPOINTS.GET_ALL}?companyId=${activeCompId}` : CATEGORY_ENDPOINTS.GET_ALL;
+      const url = activeCompId ? `${CATEGORY_ENDPOINTS.GET_ALL}?companyId=${activeCompId}&limit=1000&all=true` : `${CATEGORY_ENDPOINTS.GET_ALL}?limit=1000&all=true`;
       const response = await apiService.get(url);
       if (response && response.data) {
-        const categories = Array.isArray(response.data) ? response.data : [response.data];
-        setCategoriesList(categories.filter(cat => cat.status === 'Active'));
+        const raw = response.data;
+        const categories = Array.isArray(raw) ? raw : (raw.rows || raw.categories || raw.data || []);
+        setCategoriesList(Array.isArray(categories) ? categories.filter(cat => cat.status === 'Active' || cat.status === true || !cat.status) : []);
       } else {
         setCategoriesList([]);
       }
@@ -183,13 +185,33 @@ const ParameterMaster = () => {
   const fetchSubCategoriesForDropdown = async (catId = '') => {
     try {
       const activeCompId = localStorage.getItem('selectedCompanyId') || '';
-      const params = new URLSearchParams({ status: 'Active', limit: 100 });
+      const params = new URLSearchParams({ limit: 5000, all: 'true' });
       if (activeCompId) params.append('companyId', activeCompId);
-      if (catId) params.append('categoryId', catId);
+
       const response = await apiService.get(`${SUB_CATEGORY_ENDPOINTS.GET_ALL}?${params.toString()}`);
       if (response && response.data) {
-        const subs = Array.isArray(response.data) ? response.data : [response.data];
-        setSubCategoriesList(subs.filter(s => s.status === 'Active'));
+        const raw = response.data;
+        let subs = Array.isArray(raw) ? raw : (raw.rows || raw.subCategories || raw.data || []);
+        if (!Array.isArray(subs)) subs = [];
+
+        let activeSubs = subs.filter(s => s.status === 'Active' || s.status === true || !s.status);
+
+        if (catId) {
+          const selectedCat = categoriesList.find(c => String(c.id) === String(catId));
+          const catName = selectedCat ? (selectedCat.name || selectedCat.categoryName || '').toLowerCase().trim() : '';
+
+          const matched = activeSubs.filter(s => {
+            const sCatId = s.categoryId || s.category_id || (s.category ? s.category.id : '');
+            const sCatName = (s.category?.name || s.category?.categoryName || s.categoryName || '').toLowerCase().trim();
+            const idMatch = sCatId && String(sCatId) === String(catId);
+            const nameMatch = catName && sCatName && sCatName === catName;
+            return idMatch || nameMatch;
+          });
+
+          activeSubs = matched.length > 0 ? matched : activeSubs;
+        }
+
+        setSubCategoriesList(activeSubs);
       } else {
         setSubCategoriesList([]);
       }
@@ -343,57 +365,87 @@ const ParameterMaster = () => {
   };
 
 
-  // Fetch all parameters
+  // Fetch all parameters once (pure UI filtering)
   const fetchParameters = async () => {
     setLoading(true);
     try {
       const activeCompId = localStorage.getItem('selectedCompanyId') || '';
-      const isCards = viewMode === 'cards';
-      const params = new URLSearchParams({
-        page: isCards ? 1 : currentPage,
-        limit: isCards ? 1000 : pageSize,
-        search: searchQuery,
-        status: statusFilter
-      });
+      const params = new URLSearchParams({ limit: 5000, all: 'true' });
       if (activeCompId) {
         params.append('companyId', activeCompId);
-      }
-      if (categoryFilter) {
-        params.append('categoryId', categoryFilter);
-      }
-      if (subCategoryFilter) {
-        params.append('subCategoryId', subCategoryFilter);
       }
       const url = `${PARAMETER_ENDPOINTS.GET_ALL}?${params.toString()}`;
       const response = await apiService.get(url);
       if (response && response.data) {
-        if (response.data.rows !== undefined) {
-          setParameters(response.data.rows);
-          setTotalItems(response.data.total);
-          setTotalPages(response.data.totalPages);
-        } else {
-          const paramList = Array.isArray(response.data) ? response.data : [response.data];
-          setParameters(paramList);
-          setTotalItems(paramList.length);
-          setTotalPages(1);
-        }
+        const raw = response.data;
+        const list = Array.isArray(raw) ? raw : (raw.rows || raw.parameters || raw.data || []);
+        setParameters(Array.isArray(list) ? list : []);
       } else {
         setParameters([]);
-        setTotalItems(0);
-        setTotalPages(0);
       }
     } catch (err) {
       if (err.status !== 404 && err.errorCode !== 'NOT_FOUND') {
         triggerToast(err.messageToShow || err.message || 'Failed to fetch parameters.', 'error');
       } else {
         setParameters([]);
-        setTotalItems(0);
-        setTotalPages(0);
       }
     } finally {
       setLoading(false);
     }
   };
+
+  // Pure UI-side Filtering & Sorting (Latest Added First) for Parameters
+  const filteredParameters = useMemo(() => {
+    const list = parameters.filter(p => {
+      // 1. Discipline Group Filter
+      if (categoryFilter) {
+        const pCatId = p.categoryId || p.category_id || (p.category ? p.category.id : '');
+        if (String(pCatId) !== String(categoryFilter)) return false;
+      }
+
+      // 2. Sub Category Filter
+      if (subCategoryFilter) {
+        const pSubCatId = p.subCategoryId || p.sub_category_id || (p.subCategory ? p.subCategory.id : '');
+        if (String(pSubCatId) !== String(subCategoryFilter)) return false;
+      }
+
+      // 3. Status Filter
+      if (statusFilter !== 'ALL') {
+        const statusStr = (p.status || 'Active').toString().toLowerCase();
+        if (statusStr !== statusFilter.toLowerCase()) return false;
+      }
+
+      // 4. Search Query Filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const nameMatch = (p.parameterName || p.name || '').toLowerCase().includes(q);
+        const methodMatch = (p.testMethod || '').toLowerCase().includes(q);
+        const unitMatch = (p.unit || '').toLowerCase().includes(q);
+        const catMatch = (p.category?.name || '').toLowerCase().includes(q);
+        const subMatch = (p.subCategory?.name || '').toLowerCase().includes(q);
+        if (!nameMatch && !methodMatch && !unitMatch && !catMatch && !subMatch) return false;
+      }
+
+      return true;
+    });
+
+    // Sort Latest Added First (descending order by timestamp or ID)
+    return [...list].sort((a, b) => {
+      const timeA = new Date(a.createdAt || a.created_at || a.updatedAt || a.updated_at || 0).getTime();
+      const timeB = new Date(b.createdAt || b.created_at || b.updatedAt || b.updated_at || 0).getTime();
+      if (timeA !== timeB && timeA > 0 && timeB > 0) {
+        return timeB - timeA;
+      }
+      return String(b.id || '').localeCompare(String(a.id || ''));
+    });
+  }, [parameters, categoryFilter, subCategoryFilter, statusFilter, searchQuery]);
+
+  const totalItems = filteredParameters.length;
+  const totalPages = Math.ceil(totalItems / pageSize) || 1;
+  const paginatedParameters = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredParameters.slice(start, start + pageSize);
+  }, [filteredParameters, currentPage, pageSize]);
 
   const fetchSubCategoriesForToolbarFilter = async (catId) => {
     if (!catId) {
@@ -401,8 +453,19 @@ const ParameterMaster = () => {
       return;
     }
     try {
-      const response = await apiService.get(`${SUB_CATEGORY_ENDPOINTS.GET_ALL}?categoryId=${catId}&status=Active`);
-      setSubCategoriesFilterList(response?.data || []);
+      const response = await apiService.get(`${SUB_CATEGORY_ENDPOINTS.GET_ALL}?limit=5000&all=true`);
+      if (response && response.data) {
+        const raw = response.data;
+        let list = Array.isArray(raw) ? raw : (raw.rows || raw.subCategories || raw.data || []);
+        if (!Array.isArray(list)) list = [];
+        const matched = list.filter(s => {
+          const sCatId = s.categoryId || s.category_id || (s.category ? s.category.id : '');
+          return String(sCatId) === String(catId);
+        });
+        setSubCategoriesFilterList(matched);
+      } else {
+        setSubCategoriesFilterList([]);
+      }
     } catch {
       setSubCategoriesFilterList([]);
     }
@@ -410,7 +473,7 @@ const ParameterMaster = () => {
 
   useEffect(() => {
     fetchParameters();
-  }, [currentPage, pageSize, searchQuery, statusFilter, categoryFilter, subCategoryFilter, viewMode]);
+  }, []);
 
   useEffect(() => {
     const initializeData = async () => {
@@ -475,6 +538,7 @@ const ParameterMaster = () => {
     setSelectedExistingParamId('');
     setIsManualNameEntry(false);
     setIsFormOpen(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Open Form for Edit
@@ -499,6 +563,7 @@ const ParameterMaster = () => {
     setSelectedExistingParamId('');
     setIsManualNameEntry(true);
     setIsFormOpen(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Submit Handler
@@ -540,6 +605,7 @@ const ParameterMaster = () => {
         triggerToast('Parameter created successfully.', 'success');
       }
       setIsFormOpen(false);
+      setCurrentPage(1);
       fetchParameters();
     } catch (err) {
       triggerToast(err.messageToShow || err.message || err.error?.userMessage || err.error?.message || 'Operation failed. Please try again.', 'error');
@@ -591,26 +657,7 @@ const ParameterMaster = () => {
 
   // Fetch all parameters matching current filters for complete data export
   const fetchAllExportData = async () => {
-    try {
-      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
-      const params = new URLSearchParams({
-        limit: 5000,
-        search: searchQuery,
-        status: statusFilter
-      });
-      if (activeCompId) params.append('companyId', activeCompId);
-      if (categoryFilter) params.append('categoryId', categoryFilter);
-      if (subCategoryFilter) params.append('subCategoryId', subCategoryFilter);
-
-      const response = await apiService.get(`${PARAMETER_ENDPOINTS.GET_ALL}?${params.toString()}`);
-      if (response && response.data) {
-        if (response.data.rows) return response.data.rows;
-        return Array.isArray(response.data) ? response.data : [response.data];
-      }
-      return parameters;
-    } catch {
-      return parameters;
-    }
+    return filteredParameters;
   };
 
   // Helper to map parameter record to bulk import template columns format
@@ -771,6 +818,13 @@ const ParameterMaster = () => {
                 <FaFileExcel />
                 <span>Bulk Import</span>
               </button>
+              {/* <button
+                onClick={() => setIsAssignModalOpen(true)}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#7c3aed', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1rem', fontWeight: 600, cursor: 'pointer', boxShadow: '0 2px 4px rgba(124, 58, 237, 0.2)' }}
+              >
+                <FaTags />
+                <span>Assign Groups</span>
+              </button> */}
             </>
           )}
 
@@ -1220,14 +1274,14 @@ const ParameterMaster = () => {
                         Loading parameters...
                       </td>
                     </tr>
-                  ) : parameters.length === 0 ? (
+                  ) : paginatedParameters.length === 0 ? (
                     <tr>
                       <td colSpan={10} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                         No parameters found.
                       </td>
                     </tr>
                   ) : (
-                    parameters.map((param, index) => (
+                    paginatedParameters.map((param, index) => (
                       <tr
                         key={param.id}
                         onClick={() => handleOpenEdit(param)}
@@ -1286,13 +1340,13 @@ const ParameterMaster = () => {
                 <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                   Loading parameters...
                 </div>
-              ) : parameters.length === 0 ? (
+              ) : paginatedParameters.length === 0 ? (
                 <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                   No parameters found.
                 </div>
               ) : (
                 <div className="master-card-grid">
-                  {parameters.map((param, index) => (
+                  {paginatedParameters.map((param, index) => (
                     <div key={param.id} className="master-record-card" onClick={() => handleOpenEdit(param)}>
                       <div className="master-record-card-header">
                         <div>
@@ -1342,13 +1396,13 @@ const ParameterMaster = () => {
           <div style={{ minHeight: '300px' }}>
             {loading ? (
               <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>Loading parameters...</div>
-            ) : parameters.length === 0 ? (
+            ) : filteredParameters.length === 0 ? (
               <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>No parameters found.</div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem', alignItems: 'start' }}>
                 {Object.entries(
-                  parameters.reduce((acc, param) => {
-                    const cat = param.categoryName || 'Unassigned';
+                  filteredParameters.reduce((acc, param) => {
+                    const cat = param.categoryName || (param.category ? param.category.categoryName : 'Unassigned');
                     if (!acc[cat]) acc[cat] = [];
                     acc[cat].push(param);
                     return acc;
@@ -1491,6 +1545,15 @@ const ParameterMaster = () => {
             }
           }
         }}
+      />
+      <DisciplineGroupAssignModal
+        isOpen={isAssignModalOpen}
+        onClose={() => setIsAssignModalOpen(false)}
+        parameters={parameters}
+        categories={categoriesList}
+        subCategories={subCategoriesList}
+        locationSamples={locationSamplesList}
+        onSuccess={fetchParameters}
       />
     </div>
   );

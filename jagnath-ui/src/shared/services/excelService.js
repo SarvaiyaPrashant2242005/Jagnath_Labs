@@ -548,3 +548,18 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
 
   return evaluatedRows;
 };
+
+const excelService = {
+  MASTER_SCHEMAS,
+  downloadTemplate,
+  parseExcelFile,
+  exportFailedRowsToExcel,
+  validateMasterRows,
+  normalizeExcelHeader,
+  normalizeEmail,
+  normalizePhone,
+  normalizeString,
+  sanitizeSpreadsheetValue
+};
+
+export default excelService;

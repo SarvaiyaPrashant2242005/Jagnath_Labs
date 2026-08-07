@@ -167,10 +167,28 @@ const PriceMasterPage = () => {
     const fetchSubCats = async () => {
       try {
         const url = formData.categoryId
-          ? `${SUB_CATEGORY_ENDPOINTS.GET_ALL}?categoryId=${formData.categoryId}`
-          : SUB_CATEGORY_ENDPOINTS.GET_ALL;
+          ? `${SUB_CATEGORY_ENDPOINTS.GET_ALL}?categoryId=${formData.categoryId}&limit=1000&all=true`
+          : `${SUB_CATEGORY_ENDPOINTS.GET_ALL}?limit=1000&all=true`;
         const res = await apiService.get(url);
-        setSubCategories(res?.data || []);
+        if (res && res.data) {
+          const raw = res.data;
+          let list = Array.isArray(raw) ? raw : (raw.rows || raw.subCategories || raw.data || []);
+          if (!Array.isArray(list)) list = [];
+
+          if (formData.categoryId) {
+            const matched = list.filter(s => {
+              const sCatId = s.categoryId || s.category_id || (s.category ? s.category.id : '');
+              return String(sCatId) === String(formData.categoryId);
+            });
+            if (matched.length > 0 || list.length > 0) {
+              list = matched.length > 0 ? matched : list;
+            }
+          }
+
+          setSubCategories(list);
+        } else {
+          setSubCategories([]);
+        }
       } catch {
         setSubCategories([]);
       }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   FaFolder, FaPlus, FaDownload, FaEdit, FaTrash, FaCheck,
   FaExclamationCircle, FaFileExcel, FaCopy, FaFileCsv,
@@ -34,8 +34,6 @@ const SubCategoryMaster = () => {
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [totalItems, setTotalItems] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
 
   // Toast notifications state
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
@@ -86,41 +84,37 @@ const SubCategoryMaster = () => {
   const fetchCategories = async () => {
     try {
       const activeCompId = localStorage.getItem('selectedCompanyId') || '';
-      const params = new URLSearchParams({ limit: 100, status: 'Active' });
+      const params = new URLSearchParams({ limit: 1000, status: 'Active', all: 'true' });
       if (activeCompId) params.append('companyId', activeCompId);
 
       const response = await apiService.get(`${CATEGORY_ENDPOINTS.GET_ALL}?${params.toString()}`);
       if (response && response.data) {
-        setCategories(response.data);
+        const raw = response.data;
+        const catList = Array.isArray(raw) ? raw : (raw.rows || raw.categories || raw.data || []);
+        setCategories(Array.isArray(catList) ? catList : []);
+      } else {
+        setCategories([]);
       }
     } catch (err) {
       setCategories([]);
     }
   };
 
-  // Fetch Sub Categories
+  // Fetch all Sub Categories once (UI-side filtering)
   const fetchSubCategories = async () => {
     setLoading(true);
     try {
       const activeCompId = localStorage.getItem('selectedCompanyId') || '';
-      const params = new URLSearchParams({
-        page: currentPage,
-        limit: pageSize,
-        search: searchQuery,
-        status: statusFilter
-      });
+      const params = new URLSearchParams({ limit: 5000, all: 'true' });
       if (activeCompId) params.append('companyId', activeCompId);
-      if (categoryFilter) params.append('categoryId', categoryFilter);
 
       const url = `${SUB_CATEGORY_ENDPOINTS.GET_ALL}?${params.toString()}`;
       const response = await apiService.get(url);
 
       if (response && response.data) {
-        setSubCategories(response.data);
-        if (response.meta) {
-          setTotalItems(response.meta.totalItems || response.data.length);
-          setTotalPages(response.meta.totalPages || 1);
-        }
+        const raw = response.data;
+        const list = Array.isArray(raw) ? raw : (raw.rows || raw.subCategories || raw.data || []);
+        setSubCategories(Array.isArray(list) ? list : []);
       } else {
         setSubCategories([]);
       }
@@ -130,6 +124,42 @@ const SubCategoryMaster = () => {
       setLoading(false);
     }
   };
+
+  // Pure UI-side Filtering
+  const filteredSubCategories = useMemo(() => {
+    return subCategories.filter(s => {
+      // 1. Category / Discipline Group Filter
+      if (categoryFilter) {
+        const sCatId = s.categoryId || s.category_id || (s.category ? s.category.id : '');
+        if (String(sCatId) !== String(categoryFilter)) return false;
+      }
+
+      // 2. Status Filter
+      if (statusFilter !== 'ALL') {
+        const statusStr = (s.status || 'Active').toString().toLowerCase();
+        if (statusStr !== statusFilter.toLowerCase()) return false;
+      }
+
+      // 3. Search Query Filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const nameMatch = (s.name || '').toLowerCase().includes(q);
+        const descMatch = (s.description || '').toLowerCase().includes(q);
+        const catNameMatch = (s.category?.name || s.category?.categoryName || '').toLowerCase().includes(q);
+        if (!nameMatch && !descMatch && !catNameMatch) return false;
+      }
+
+      return true;
+    });
+  }, [subCategories, categoryFilter, statusFilter, searchQuery]);
+
+  const totalItems = filteredSubCategories.length;
+  const totalPages = Math.ceil(totalItems / pageSize) || 1;
+  const paginatedSubCategories = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredSubCategories.slice(start, start + pageSize);
+  }, [filteredSubCategories, currentPage, pageSize]);
+
 
   useEffect(() => {
     fetchCategories();
@@ -160,6 +190,7 @@ const SubCategoryMaster = () => {
     });
     setFormErrors({});
     setIsFormOpen(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleOpenEdit = (item) => {
@@ -172,6 +203,7 @@ const SubCategoryMaster = () => {
     });
     setFormErrors({});
     setIsFormOpen(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleInputChange = (e) => {
@@ -243,9 +275,9 @@ const SubCategoryMaster = () => {
 
   // Export handlers matching CategoryMaster
   const handleDownloadExcel = () => {
-    if (subCategories.length === 0) return;
+    if (filteredSubCategories.length === 0) return;
     const headers = ['Discipline Group', 'Sub Category Name', 'Description', 'Status'];
-    const rows = subCategories.map(sc => [
+    const rows = filteredSubCategories.map(sc => [
       sc.category ? sc.category.name : 'N/A',
       sc.name,
       sc.description || 'None',
@@ -256,9 +288,9 @@ const SubCategoryMaster = () => {
   };
 
   const handleDownloadCSV = () => {
-    if (subCategories.length === 0) return;
+    if (filteredSubCategories.length === 0) return;
     const headers = ['Discipline Group', 'Sub Category Name', 'Description', 'Status'];
-    const rows = subCategories.map(sc => [
+    const rows = filteredSubCategories.map(sc => [
       sc.category ? sc.category.name : 'N/A',
       sc.name,
       sc.description || 'None',
@@ -641,14 +673,14 @@ const SubCategoryMaster = () => {
                     Loading Sub Categories...
                   </td>
                 </tr>
-              ) : subCategories.length === 0 ? (
+              ) : paginatedSubCategories.length === 0 ? (
                 <tr>
                   <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                     No Sub Categories found.
                   </td>
                 </tr>
               ) : (
-                subCategories.map((item, index) => (
+                paginatedSubCategories.map((item, index) => (
                   <tr
                     key={item.id}
                     onClick={() => handleOpenEdit(item)}
@@ -698,11 +730,11 @@ const SubCategoryMaster = () => {
         <div className="show-on-mobile">
           {loading ? (
             <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>Loading Sub Categories...</div>
-          ) : subCategories.length === 0 ? (
+          ) : paginatedSubCategories.length === 0 ? (
             <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>No Sub Categories found.</div>
           ) : (
             <div className="master-card-grid">
-              {subCategories.map((item, index) => (
+              {paginatedSubCategories.map((item, index) => (
                 <div key={item.id} className="master-record-card" onClick={() => handleOpenEdit(item)}>
                   <div className="master-record-card-header">
                     <div>
