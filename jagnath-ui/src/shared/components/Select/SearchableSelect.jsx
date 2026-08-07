@@ -1,19 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FaSearch, FaChevronDown, FaTimes, FaPlus } from 'react-icons/fa';
+import { FaSearch, FaChevronDown, FaTimes } from 'react-icons/fa';
 
 /**
  * SearchableSelect Component
  * Clean native-like searchable dropdown without badges or section headers.
- * Parameter names are shown in full length on a single line, expanding width to the left if needed.
+ * Supports generic options (objects with id, or strings).
  */
 const SearchableSelect = ({
   options = [],
   value = '',
   onChange,
   placeholder = 'Select Option',
-  searchPlaceholder = 'Search parameter name...',
+  searchPlaceholder = 'Search...',
   hasError = false,
-  customOptionLabel = '+ Enter Custom Parameter Name (Manual)...',
+  customOptionLabel = '',
   onCustomOptionSelect,
   disabled = false
 }) => {
@@ -42,16 +42,37 @@ const SearchableSelect = ({
     }
   }, [isOpen]);
 
+  // Helper to extract option label
+  const getOptionLabel = (opt) => {
+    if (opt === null || opt === undefined) return '';
+    if (typeof opt === 'object') {
+      return opt.parameterName || opt.clientName || opt.title || opt.name || opt.label || opt.companyName || opt.company_name || '';
+    }
+    return String(opt);
+  };
+
+  // Helper to extract option ID
+  const getOptionId = (opt) => {
+    if (opt === null || opt === undefined) return '';
+    if (typeof opt === 'object') {
+      return opt.id !== undefined ? opt.id : (opt.value !== undefined ? opt.value : getOptionLabel(opt));
+    }
+    return opt;
+  };
+
   // Find currently selected option object
-  const selectedOption = options.find(opt => String(opt.id) === String(value));
+  const selectedOption = options.find(opt => String(getOptionId(opt)) === String(value));
 
   // Filter options by search query
   const filteredOptions = options.filter(opt => {
     if (!searchQuery.trim()) return true;
     const query = searchQuery.toLowerCase().trim();
-    const nameMatch = (opt.parameterName || opt.name || opt.label || '').toLowerCase().includes(query);
-    const methodMatch = (opt.testMethod || opt.testingStandard || '').toLowerCase().includes(query);
-    return nameMatch || methodMatch;
+    if (typeof opt === 'string') {
+      return opt.toLowerCase().includes(query);
+    }
+    const labelText = getOptionLabel(opt).toLowerCase();
+    const testMethodText = (opt.testMethod || opt.testingStandard || '').toLowerCase();
+    return labelText.includes(query) || testMethodText.includes(query);
   });
 
   const handleSelect = (optId) => {
@@ -66,7 +87,7 @@ const SearchableSelect = ({
     setIsOpen(false);
   };
 
-  const selectedName = selectedOption ? (selectedOption.parameterName || selectedOption.name || selectedOption.label) : '';
+  const selectedName = selectedOption ? getOptionLabel(selectedOption) : '';
 
   return (
     <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
@@ -87,7 +108,8 @@ const SearchableSelect = ({
           gap: '0.5rem',
           boxShadow: isOpen ? '0 0 0 3px rgba(34, 197, 94, 0.15)' : 'none',
           transition: 'all 0.15s ease',
-          minHeight: '38px'
+          minHeight: '38px',
+          boxSizing: 'border-box'
         }}
       >
         <span style={{
@@ -134,13 +156,13 @@ const SearchableSelect = ({
         </div>
       </div>
 
-      {/* Floating Dropdown Menu (Anchored right so it expands to the LEFT for full text length) */}
+      {/* Floating Dropdown Menu */}
       {isOpen && (
         <div
           style={{
             position: 'absolute',
             top: 'calc(100% + 4px)',
-            right: 0,
+            left: 0,
             zIndex: 9999,
             backgroundColor: '#ffffff',
             borderRadius: '8px',
@@ -150,9 +172,8 @@ const SearchableSelect = ({
             maxHeight: '320px',
             display: 'flex',
             flexDirection: 'column',
-            minWidth: '100%',
-            width: 'max-content',
-            maxWidth: 'min(650px, 90vw)'
+            width: '100%',
+            boxSizing: 'border-box'
           }}
         >
           {/* Inline Search Header */}
@@ -196,17 +217,18 @@ const SearchableSelect = ({
           <div style={{ overflowY: 'auto', flex: 1 }}>
             {filteredOptions.length === 0 ? (
               <div style={{ padding: '0.75rem 1rem', color: '#64748b', fontSize: '0.85rem' }}>
-                No parameters found matching "{searchQuery}"
+                No options found matching "{searchQuery}"
               </div>
             ) : (
               filteredOptions.map(opt => {
-                const isSelected = String(opt.id) === String(value);
-                const name = opt.parameterName || opt.name || opt.label || '';
+                const optId = getOptionId(opt);
+                const isSelected = String(optId) === String(value);
+                const name = getOptionLabel(opt);
 
                 return (
                   <div
-                    key={opt.id}
-                    onClick={() => handleSelect(opt.id)}
+                    key={optId}
+                    onClick={() => handleSelect(optId)}
                     title={name}
                     style={{
                       padding: '0.5rem 0.75rem',
@@ -216,6 +238,8 @@ const SearchableSelect = ({
                       color: isSelected ? '#ffffff' : '#1e293b',
                       fontWeight: isSelected ? 600 : 400,
                       whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
                       transition: 'background-color 0.1s ease'
                     }}
                     onMouseEnter={(e) => {

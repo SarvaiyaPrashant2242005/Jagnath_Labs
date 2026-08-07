@@ -8,6 +8,7 @@ import categoryService from '../../../shared/services/categoryService';
 import parameterService from '../../../shared/services/parameterService';
 import categoryParameterService from '../../../shared/services/categoryParameterService';
 import testRequestService from '../../../shared/services/testRequestService';
+import SearchableSelect from '../../../shared/components/Select/SearchableSelect';
 
 const NewTestRequestWizard = ({ onCancel, onSubmitSuccess, requests }) => {
   // Wizard active step tracker
@@ -343,13 +344,16 @@ const NewTestRequestWizard = ({ onCancel, onSubmitSuccess, requests }) => {
                   Please register a Company first in the Companies Master tab!
                 </div>
               ) : (
-                <select 
-                  className="wiz-field-select" 
+                <SearchableSelect
+                  options={companiesCatalog}
                   value={company}
-                  onChange={(e) => { setCompany(e.target.value); setErrors(prev => ({ ...prev, company: '' })); }}
-                >
-                  {companiesCatalog.map(comp => <option key={comp} value={comp}>{comp}</option>)}
-                </select>
+                  onChange={(selectedVal) => {
+                    setCompany(selectedVal);
+                    setErrors(prev => ({ ...prev, company: '' }));
+                  }}
+                  placeholder="Select company..."
+                  searchPlaceholder="Search company..."
+                />
               )}
               {errors.company && <span className="wiz-field-error">{errors.company}</span>}
             </div>
@@ -357,14 +361,16 @@ const NewTestRequestWizard = ({ onCancel, onSubmitSuccess, requests }) => {
             {/* Client Contact Dropdown */}
             <div className="wiz-form-group">
               <label className="wiz-field-label">Client Contact <span>*</span></label>
-              <select 
-                className="wiz-field-select" 
+              <SearchableSelect
+                options={clientsCatalog}
                 value={clientContact}
-                onChange={(e) => { setClientContact(e.target.value); setErrors(prev => ({ ...prev, clientContact: '' })); }}
-              >
-                <option value="">Select client...</option>
-                {clientsCatalog.map(client => <option key={client} value={client}>{client}</option>)}
-              </select>
+                onChange={(selectedVal) => {
+                  setClientContact(selectedVal);
+                  setErrors(prev => ({ ...prev, clientContact: '' }));
+                }}
+                placeholder="Select client..."
+                searchPlaceholder="Search client..."
+              />
               {errors.clientContact && <span className="wiz-field-error">{errors.clientContact}</span>}
             </div>
 
@@ -423,28 +429,31 @@ const NewTestRequestWizard = ({ onCancel, onSubmitSuccess, requests }) => {
             {/* Sample Type dropdown */}
             <div className="wiz-form-group">
               <label className="wiz-field-label">Sample Type <span>*</span></label>
-              <select 
-                className="wiz-field-select"
+              <SearchableSelect
+                options={sampleTypesCatalog}
                 value={sampleType}
-                onChange={(e) => { setSampleType(e.target.value); setErrors(prev => ({ ...prev, sampleType: '' })); }}
-              >
-                <option value="">Select sample type...</option>
-                {sampleTypesCatalog.map(type => <option key={type} value={type}>{type}</option>)}
-              </select>
+                onChange={(selectedVal) => {
+                  setSampleType(selectedVal);
+                  setErrors(prev => ({ ...prev, sampleType: '' }));
+                }}
+                placeholder="Select sample type..."
+                searchPlaceholder="Search sample type..."
+              />
               {errors.sampleType && <span className="wiz-field-error">{errors.sampleType}</span>}
             </div>
 
             {/* Sample Category */}
             <div className="wiz-form-group">
               <label className="wiz-field-label">Sample Category <span>*</span></label>
-              <select 
-                className="wiz-field-select"
+              <SearchableSelect
+                options={sampleTypesCatalog}
                 value={sampleCategory}
-                onChange={(e) => setSampleCategory(e.target.value)}
-              >
-                <option value="">Auto-mapped from sample type</option>
-                {sampleTypesCatalog.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-              </select>
+                onChange={(selectedVal) => {
+                  setSampleCategory(selectedVal);
+                }}
+                placeholder="Select sample category..."
+                searchPlaceholder="Search sample category..."
+              />
               <span style={{ fontSize: '0.7rem', color: 'var(--text-light)', marginTop: '0.15rem' }}>
                 Parameters will auto-load in the next step based on this category.
               </span>

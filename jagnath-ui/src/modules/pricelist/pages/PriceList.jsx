@@ -676,26 +676,22 @@ const PriceMasterPage = () => {
                     </button>
                   )}
                 </div>
-                <select
+                <SearchableSelect
+                  options={[...categories].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
                   value={formData.categoryId}
-                  onChange={async (e) => {
-                    const catId = e.target.value;
-                    setFormData({ ...formData, categoryId: catId, subCategoryId: '', parameterId: '' });
-                    if (catId) {
+                  onChange={async (selectedVal) => {
+                    setFormData({ ...formData, categoryId: selectedVal, subCategoryId: '', parameterId: '' });
+                    if (selectedVal) {
                       try {
-                        const res = await apiService.get(`${SUB_CATEGORY_ENDPOINTS.GET_ALL}?categoryId=${catId}`);
+                        const res = await apiService.get(`${SUB_CATEGORY_ENDPOINTS.GET_ALL}?categoryId=${selectedVal}`);
                         setSubCategories(res?.data || []);
                       } catch { setSubCategories([]); }
                     } else { setSubCategories([]); }
                   }}
-                  style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.categoryId ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none', backgroundColor: '#ffffff' }}
-                >
-                  <option value="">-- Select Discipline Group --</option>
-                  {[...categories].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))
-                  }
-                </select >
+                  placeholder="-- Select Discipline Group --"
+                  searchPlaceholder="Search discipline group..."
+                  hasError={!!formErrors.categoryId}
+                />
                 {
                   formErrors.categoryId && (
                     <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 500 }}>{formErrors.categoryId}</span>
@@ -720,18 +716,14 @@ const PriceMasterPage = () => {
                     />
                   )}
                 </div>
-                <select
+                <SearchableSelect
+                  options={[...subCategories].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
                   value={formData.subCategoryId}
                   disabled={!formData.categoryId}
-                  onChange={(e) => setFormData({ ...formData, subCategoryId: e.target.value })}
-                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', backgroundColor: !formData.categoryId ? '#f1f5f9' : '#ffffff' }}
-                >
-                  <option value="">-- Select Sub Category --</option>
-                  {[...subCategories].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))
-                  }
-                </select >
+                  onChange={(selectedVal) => setFormData({ ...formData, subCategoryId: selectedVal })}
+                  placeholder="-- Select Sub Category --"
+                  searchPlaceholder="Search sub category..."
+                />
               </div >
 
               {/* Parameter Dropdown & Quick Add Link */}

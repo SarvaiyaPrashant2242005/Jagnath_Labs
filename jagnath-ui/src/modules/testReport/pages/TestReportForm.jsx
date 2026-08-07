@@ -12,6 +12,7 @@ import {
   TEST_REQUEST_PARAMETER_ENDPOINTS,
   PARAMETER_ENDPOINTS
 } from '../../../shared/services/apiEndpoints';
+import SearchableSelect from '../../../shared/components/Select/SearchableSelect';
 
 /**
  * @component TestReportForm
@@ -496,19 +497,16 @@ const TestReportForm = () => {
             <p style={{ margin: '0 0 1rem 0', fontSize: '0.85rem', color: '#3b82f6' }}>
               Select an existing Test Request to auto-fill sample metadata, client details, and report numbers:
             </p>
-            <select
+            <SearchableSelect
+              options={testRequests.map(tr => ({
+                id: tr.id,
+                label: `${tr.reportNumber ? `Report No: ${tr.reportNumber}` : `TR #${tr.id.slice(0, 8)}`} | ${tr.clientName || 'Client N/A'} (${tr.dateOfReceipt || 'Date N/A'})`
+              }))}
               value={selectedTRId}
-              onChange={(e) => handleTestRequestSelect(e.target.value)}
-              className="premium-input"
-              style={{ width: '100%', backgroundColor: '#ffffff', fontWeight: 600, color: '#1e293b' }}
-            >
-              <option value="">-- Select Test Request / Report No. --</option>
-              {testRequests.map(tr => (
-                <option key={tr.id} value={tr.id}>
-                  {tr.reportNumber ? `Report No: ${tr.reportNumber}` : `TR #${tr.id.slice(0, 8)}`} | {tr.clientName || 'Client N/A'} ({tr.dateOfReceipt || 'Date N/A'})
-                </option>
-              ))}
-            </select>
+              onChange={(selectedVal) => handleTestRequestSelect(selectedVal)}
+              placeholder="-- Select Test Request / Report No. --"
+              searchPlaceholder="Search test request or report number..."
+            />
           </div>
 
           {/* Card 2: Report Metadata Information */}

@@ -21,6 +21,7 @@ import {
 } from '../../../shared/services/apiEndpoints';
 import InlineMasterModal from '../../../shared/components/InlineMasterModal/InlineMasterModal';
 import AddMasterButton from '../../../shared/components/InlineMasterModal/AddMasterButton';
+import SearchableSelect from '../../../shared/components/Select/SearchableSelect';
 
 const TestRequestForm = () => {
   const { id } = useParams();
@@ -816,10 +817,15 @@ const TestRequestForm = () => {
                   <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Customer / Client <span style={{ color: '#ef4444' }}>*</span></label>
                   <AddMasterButton label="Add New Client" onClick={() => setInlineModal({ isOpen: true, type: 'client', parentData: { companyId: formData.companyId } })} />
                 </div>
-                <select name="clientId" value={formData.clientId} onChange={handleChange} className="premium-input">
-                  <option value="">Select Client</option>
-                  {[...clients].sort((a, b) => (a.clientName || '').localeCompare(b.clientName || '')).map(c => <option key={c.id} value={c.id}>{c.clientName}</option>)}
-                </select>
+                <SearchableSelect
+                  options={[...clients].sort((a, b) => (a.clientName || '').localeCompare(b.clientName || ''))}
+                  value={formData.clientId}
+                  onChange={(selectedVal) => {
+                    handleChange({ target: { name: 'clientId', value: selectedVal } });
+                  }}
+                  placeholder="Select Client"
+                  searchPlaceholder="Search client name..."
+                />
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
@@ -886,17 +892,15 @@ const TestRequestForm = () => {
                     <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Select Caution <span style={{ color: '#ef4444' }}>*</span></label>
                     <AddMasterButton label="Add New Caution" onClick={() => setInlineModal({ isOpen: true, type: 'caution', parentData: { companyId: formData.companyId } })} />
                   </div>
-                  <select
-                    name="cautionId"
+                  <SearchableSelect
+                    options={cautions}
                     value={formData.cautionId}
-                    onChange={handleChange}
-                    className="premium-input"
-                  >
-                    <option value="">Select Caution</option>
-                    {cautions.map(c => (
-                      <option key={c.id} value={c.id}>{c.title}</option>
-                    ))}
-                  </select>
+                    onChange={(selectedVal) => {
+                      handleChange({ target: { name: 'cautionId', value: selectedVal } });
+                    }}
+                    placeholder="Select Caution"
+                    searchPlaceholder="Search caution..."
+                  />
                 </div>
               )}
 
@@ -912,20 +916,20 @@ const TestRequestForm = () => {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                 <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Location of Sample</label>
-                <select
-                  name="locationOfSample"
+                <SearchableSelect
+                  options={[
+                    ...[...locationSamples].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(loc => ({ id: loc.name, name: loc.name })),
+                    ...(formData.locationOfSample && !locationSamples.some(l => l.name === formData.locationOfSample)
+                      ? [{ id: formData.locationOfSample, name: formData.locationOfSample }]
+                      : [])
+                  ]}
                   value={formData.locationOfSample}
-                  onChange={handleChange}
-                  className="premium-input"
-                >
-                  <option value="">Select Location of Sample</option>
-                  {[...locationSamples].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(loc => (
-                    <option key={loc.id} value={loc.name}>{loc.name}</option>
-                  ))}
-                  {formData.locationOfSample && !locationSamples.some(l => l.name === formData.locationOfSample) && (
-                    <option value={formData.locationOfSample}>{formData.locationOfSample}</option>
-                  )}
-                </select>
+                  onChange={(selectedVal) => {
+                    handleChange({ target: { name: 'locationOfSample', value: selectedVal } });
+                  }}
+                  placeholder="Select Location of Sample"
+                  searchPlaceholder="Search location..."
+                />
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
@@ -1036,10 +1040,15 @@ const TestRequestForm = () => {
                   <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Discipline Group <span style={{ color: '#ef4444' }}>*</span></label>
                   <AddMasterButton label="Add New Group" onClick={() => setInlineModal({ isOpen: true, type: 'category', parentData: { companyId: formData.companyId } })} />
                 </div>
-                <select name="categoryId" value={formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : '')} onChange={handleChange} className="premium-input">
-                  <option value="">Select Discipline Group</option>
-                  {[...categories].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+                <SearchableSelect
+                  options={[...categories].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
+                  value={formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : '')}
+                  onChange={(selectedVal) => {
+                    handleChange({ target: { name: 'categoryId', value: selectedVal } });
+                  }}
+                  placeholder="Select Discipline Group"
+                  searchPlaceholder="Search discipline group..."
+                />
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
@@ -1059,15 +1068,16 @@ const TestRequestForm = () => {
                     }}
                   />
                 </div>
-                <select
+                <SearchableSelect
+                  options={[...subCategories].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
                   value={selectedSubCategory || formData.subCategoryId || ''}
-                  onChange={handleSubCategoryChange}
-                  className="premium-input"
+                  onChange={(selectedVal) => {
+                    handleSubCategoryChange({ target: { value: selectedVal } });
+                  }}
+                  placeholder="Select Sub Category"
+                  searchPlaceholder="Search sub category..."
                   disabled={(!formData.categoryId && (!formData.sampleParticular || formData.sampleParticular.length !== 36)) || subCategoriesLoading}
-                >
-                  <option value="">Select Sub Category</option>
-                  {[...subCategories].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
+                />
                 {(formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36)) && !subCategoriesLoading && subCategories.length === 0 && (
                   <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic' }}>
                     No subcategories available for this discipline group
@@ -1082,16 +1092,15 @@ const TestRequestForm = () => {
                   </label>
                   <AddMasterButton label="Add New Location" onClick={() => setInlineModal({ isOpen: true, type: 'locationSample', parentData: { companyId: formData.companyId } })} />
                 </div>
-                <select
+                <SearchableSelect
+                  options={[...locationSamples].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
                   value={selectedParamLocation}
-                  onChange={(e) => setSelectedParamLocation(e.target.value)}
-                  className="premium-input"
-                >
-                  <option value="">All Locations of Sample</option>
-                  {[...locationSamples].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(loc => (
-                    <option key={loc.id} value={loc.id}>{loc.name}</option>
-                  ))}
-                </select>
+                  onChange={(selectedVal) => {
+                    setSelectedParamLocation(selectedVal);
+                  }}
+                  placeholder="All Locations of Sample"
+                  searchPlaceholder="Search location..."
+                />
               </div>
             </div>
 

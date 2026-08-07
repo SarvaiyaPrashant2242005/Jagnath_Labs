@@ -925,20 +925,17 @@ const ParameterMaster = () => {
                     <FaPlus size={10} /> Add New Group
                   </button>
                 </div>
-                <select
-                  name="categoryId"
+                <SearchableSelect
+                  options={[...categoriesList].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
                   value={formData.categoryId}
-                  onChange={(e) => {
-                    handleInputChange(e);
-                    fetchSubCategoriesForDropdown(e.target.value);
+                  onChange={(selectedVal) => {
+                    handleInputChange({ target: { name: 'categoryId', value: selectedVal } });
+                    fetchSubCategoriesForDropdown(selectedVal);
                   }}
-                  style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.categoryId ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', cursor: 'pointer', outline: 'none', backgroundColor: '#ffffff' }}
-                >
-                  <option value="">Select Discipline Group</option>
-                  {[...categoriesList].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
-                </select>
+                  placeholder="Select Discipline Group"
+                  searchPlaceholder="Search discipline group..."
+                  hasError={!!formErrors.categoryId}
+                />
                 {formErrors.categoryId && (
                   <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 500 }}>{formErrors.categoryId}</span>
                 )}
@@ -959,17 +956,15 @@ const ParameterMaster = () => {
                     }}
                   />
                 </div>
-                <select
-                  name="subCategoryId"
+                <SearchableSelect
+                  options={[...subCategoriesList].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
                   value={formData.subCategoryId}
-                  onChange={handleInputChange}
-                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', cursor: 'pointer', outline: 'none', backgroundColor: '#ffffff' }}
-                >
-                  <option value="">Select Sub Category</option>
-                  {[...subCategoriesList].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(sub => (
-                    <option key={sub.id} value={sub.id}>{sub.name}</option>
-                  ))}
-                </select>
+                  onChange={(selectedVal) => {
+                    handleInputChange({ target: { name: 'subCategoryId', value: selectedVal } });
+                  }}
+                  placeholder="Select Sub Category"
+                  searchPlaceholder="Search sub category..."
+                />
               </div>
 
               {/* Location of Sample Dropdown */}
@@ -981,17 +976,15 @@ const ParameterMaster = () => {
                     onClick={() => setInlineModal({ isOpen: true, type: 'locationSample', parentData: {} })}
                   />
                 </div>
-                <select
-                  name="locationSampleId"
+                <SearchableSelect
+                  options={[...locationSamplesList].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
                   value={formData.locationSampleId}
-                  onChange={handleInputChange}
-                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', cursor: 'pointer', outline: 'none', backgroundColor: '#ffffff' }}
-                >
-                  <option value="">Select Location of Sample</option>
-                  {[...locationSamplesList].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(loc => (
-                    <option key={loc.id} value={loc.id}>{loc.name}</option>
-                  ))}
-                </select>
+                  onChange={(selectedVal) => {
+                    handleInputChange({ target: { name: 'locationSampleId', value: selectedVal } });
+                  }}
+                  placeholder="Select Location of Sample"
+                  searchPlaceholder="Search location..."
+                />
               </div>
 
               {/* Parameter Name Dropdown OR Manual Entry Text Input */}
