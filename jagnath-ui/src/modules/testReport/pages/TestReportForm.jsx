@@ -221,6 +221,8 @@ const TestReportForm = () => {
         if (trpRes?.data) {
           const trpList = Array.isArray(trpRes.data) ? trpRes.data : (trpRes.data?.rows || [trpRes.data]);
           if (trpList.length > 0) {
+            // Sort by sequence to preserve the order selected in TRF
+            trpList.sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
             const formatted = trpList.map((p, idx) => {
               const isLimitApp = p.isPermissibleLimitApplicable === true || p.is_permissible_limit_applicable === true;
               const limitVal = isLimitApp ? (p.permissibleLimit || p.permissible_limit || 'Applicable') : '-';

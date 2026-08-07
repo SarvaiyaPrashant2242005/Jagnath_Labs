@@ -1239,6 +1239,8 @@ const TestRequestForm = () => {
                           paginatedParams.map(param => {
                             const isChecked = !!checkedParameters[param.id];
                             const paramPrice = priceMasterMap[param.id] || 0;
+                            const seqIndex = selectedParamSequence.indexOf(param.id);
+                            const seqNumber = seqIndex >= 0 ? seqIndex + 1 : null;
                             return (
                               <tr
                                 key={param.id}
@@ -1253,10 +1255,27 @@ const TestRequestForm = () => {
                                 onMouseLeave={(e) => { if (!isChecked) e.currentTarget.style.backgroundColor = '#ffffff' }}
                               >
                                 <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
-                                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.4rem' }}>
                                     <div style={{ width: '22px', height: '22px', borderRadius: '6px', border: isChecked ? 'none' : '2px solid #cbd5e1', background: isChecked ? '#22c55e' : 'transparent', display: 'flex', justifyContent: 'center', alignItems: 'center', transition: 'all 0.15s ease' }}>
                                       {isChecked && <span style={{ color: 'white', fontSize: '13px', fontWeight: 'bold' }}>✓</span>}
                                     </div>
+                                    {isChecked && seqNumber !== null && (
+                                      <span style={{
+                                        display: 'inline-flex',
+                                        justifyContent: 'center',
+                                        alignItems: 'center',
+                                        minWidth: '22px',
+                                        height: '22px',
+                                        borderRadius: '50%',
+                                        background: '#3b82f6',
+                                        color: '#ffffff',
+                                        fontSize: '0.7rem',
+                                        fontWeight: 700,
+                                        lineHeight: 1
+                                      }}>
+                                        {seqNumber}
+                                      </span>
+                                    )}
                                   </div>
                                 </td>
                                 <td style={{ padding: '0.75rem 1rem', color: isChecked ? '#166534' : '#1e293b', fontWeight: isChecked ? 600 : 500 }}>
