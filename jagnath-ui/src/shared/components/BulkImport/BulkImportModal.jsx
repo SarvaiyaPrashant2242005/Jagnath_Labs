@@ -8,7 +8,7 @@ import {
   FaCheckCircle, FaExclamationTriangle, FaTrash, FaSyncAlt,
   FaFilter, FaInfoCircle
 } from 'react-icons/fa';
-import { downloadTemplate, parseExcelFile, validateMasterRows, exportFailedRowsToExcel, MASTER_SCHEMAS } from '../../services/excelService';
+import excelService, { downloadTemplate, parseExcelFile, validateMasterRows, exportFailedRowsToExcel, MASTER_SCHEMAS } from '../../services/excelService';
 
 const BulkImportModal = ({
   isOpen,

@@ -175,26 +175,24 @@ const TestReportPrint = () => {
         <table className="print-report-table" style={{ borderTop: 'none' }}>
           <thead>
             <tr style={{ textAlign: 'center', fontWeight: 'bold' }}>
-              <th style={{ width: '6%' }}>SR.NO.</th>
-              <th style={{ width: '24%', textAlign: 'left' }}>TESTS PARAMETERS</th>
-              <th style={{ width: '18%', textAlign: 'center' }}>LOCATION OF SAMPLE</th>
-              <th style={{ width: '24%', textAlign: 'center' }}>REFERENCE METHOD</th>
-              <th style={{ width: '8%', textAlign: 'center' }}>UNIT</th>
-              <th style={{ width: '10%', textAlign: 'center' }}>RESULTS</th>
-              <th style={{ width: '10%', textAlign: 'center' }}>PERMISSIBLE LIMITS</th>
+              <th style={{ width: '8%' }}>SR.NO.</th>
+              <th style={{ width: '28%', textAlign: 'left' }}>TESTS PARAMETERS</th>
+              <th style={{ width: '32%', textAlign: 'center' }}>REFERENCE METHOD</th>
+              <th style={{ width: '10%', textAlign: 'center' }}>UNIT</th>
+              <th style={{ width: '11%', textAlign: 'center' }}>RESULTS</th>
+              <th style={{ width: '11%', textAlign: 'center' }}>PERMISSIBLE LIMITS</th>
             </tr>
           </thead>
           <tbody>
             {parameters.length === 0 ? (
               <tr>
-                <td colSpan={7} style={{ padding: '1rem', textAlign: 'center', color: '#64748b' }}>No parameters recorded</td>
+                <td colSpan={6} style={{ padding: '1rem', textAlign: 'center', color: '#64748b' }}>No parameters recorded</td>
               </tr>
             ) : (
               parameters.map((param, index) => (
                 <tr key={index}>
                   <td style={{ textAlign: 'center' }}>{param.srNo || String(index + 1).padStart(2, '0')}</td>
                   <td style={{ fontWeight: 'bold', textAlign: 'left' }}>{param.parameterName || '-'}</td>
-                  <td style={{ textAlign: 'center' }}>{param.locationOfSample || param.locationSampleName || report.samplingLocation || '-'}</td>
                   <td style={{ textAlign: 'center' }}>{param.referenceMethod || '-'}</td>
                   <td style={{ textAlign: 'center' }}>{param.unit || '-'}</td>
                   <td style={{ textAlign: 'center' }}>{param.result || '-'}</td>

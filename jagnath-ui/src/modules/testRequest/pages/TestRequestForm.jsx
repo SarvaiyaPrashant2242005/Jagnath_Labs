@@ -1,5 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import {
+  FaArrowLeft, FaCheck, FaExclamationCircle, FaEye, FaEyeSlash,
+  FaSave, FaPrint, FaPlus, FaTrash, FaTimes, FaSpinner, FaFilePdf,
+  FaSearch, FaChevronLeft, FaChevronRight
+} from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
 import {
   CLIENT_ENDPOINTS,
@@ -404,9 +409,21 @@ const TestRequestForm = () => {
     setSubCategoriesLoading(true);
     try {
       const res = await apiService.get(`${SUB_CATEGORY_ENDPOINTS.GET_ALL}?categoryId=${categoryId}&status=Active&all=true`);
-      const list = res?.data?.subCategories || res?.data || [];
-      const subCatList = Array.isArray(list) ? list : [list];
-      setSubCategories(subCatList.filter(s => s.status === 'Active' || s.status === true || !s.status));
+      const raw = res?.data;
+      let list = Array.isArray(raw) ? raw : (raw?.rows || raw?.subCategories || raw?.data || []);
+      if (!Array.isArray(list)) list = [];
+
+      if (categoryId) {
+        const matched = list.filter(s => {
+          const sCatId = s.categoryId || s.category_id || (s.category ? s.category.id : '');
+          return String(sCatId) === String(categoryId);
+        });
+        if (matched.length > 0 || list.length > 0) {
+          list = matched.length > 0 ? matched : list;
+        }
+      }
+
+      setSubCategories(list.filter(s => s.status === 'Active' || s.status === true || !s.status));
     } catch (e) {
       console.error("Error fetching subcategories", e);
       setSubCategories([]);

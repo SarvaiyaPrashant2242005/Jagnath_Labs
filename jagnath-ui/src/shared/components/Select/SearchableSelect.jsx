@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FaSearch, FaChevronDown, FaTimes, FaStar, FaPlus } from 'react-icons/fa';
+import { FaSearch, FaChevronDown, FaTimes, FaPlus } from 'react-icons/fa';
 
 /**
  * SearchableSelect Component
- * Custom searchable dropdown with match prioritization, grouping, and live filtering.
+ * Clean native-like searchable dropdown without badges or section headers.
+ * Parameter names are shown in full length on a single line, expanding width to the left if needed.
  */
 const SearchableSelect = ({
   options = [],
   value = '',
   onChange,
   placeholder = 'Select Option',
-  searchPlaceholder = 'Search...',
+  searchPlaceholder = 'Search parameter name...',
   hasError = false,
   customOptionLabel = '+ Enter Custom Parameter Name (Manual)...',
   onCustomOptionSelect,
@@ -49,14 +50,9 @@ const SearchableSelect = ({
     if (!searchQuery.trim()) return true;
     const query = searchQuery.toLowerCase().trim();
     const nameMatch = (opt.parameterName || opt.name || opt.label || '').toLowerCase().includes(query);
-    const methodMatch = (opt.testMethod || '').toLowerCase().includes(query);
-    const unitMatch = (opt.unit || '').toLowerCase().includes(query);
-    return nameMatch || methodMatch || unitMatch;
+    const methodMatch = (opt.testMethod || opt.testingStandard || '').toLowerCase().includes(query);
+    return nameMatch || methodMatch;
   });
-
-  // Separate into matching (recommended) and other options
-  const matchingOptions = filteredOptions.filter(opt => opt.isMatching);
-  const otherOptions = filteredOptions.filter(opt => !opt.isMatching);
 
   const handleSelect = (optId) => {
     onChange(optId);
@@ -70,11 +66,14 @@ const SearchableSelect = ({
     setIsOpen(false);
   };
 
+  const selectedName = selectedOption ? (selectedOption.parameterName || selectedOption.name || selectedOption.label) : '';
+
   return (
     <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
-      {/* Main Select Button */}
+      {/* Main Select Trigger Button */}
       <div
         onClick={() => !disabled && setIsOpen(!isOpen)}
+        title={selectedName || placeholder}
         style={{
           padding: '0.55rem 0.75rem',
           border: `1px solid ${hasError ? '#ef4444' : isOpen ? '#22c55e' : '#cbd5e1'}`,
@@ -96,19 +95,13 @@ const SearchableSelect = ({
           fontWeight: selectedOption ? 500 : 400,
           whiteSpace: 'nowrap',
           overflow: 'hidden',
-          textOverflow: 'ellipsis'
+          textOverflow: 'ellipsis',
+          flex: 1
         }}>
-          {selectedOption ? (
-            <>
-              {selectedOption.parameterName || selectedOption.name || selectedOption.label}
-              {selectedOption.testMethod ? ` (${selectedOption.testMethod})` : ''}
-            </>
-          ) : (
-            placeholder
-          )}
+          {selectedName || placeholder}
         </span>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#64748b' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#64748b', flexShrink: 0 }}>
           {value && (
             <button
               type="button"
@@ -141,33 +134,36 @@ const SearchableSelect = ({
         </div>
       </div>
 
-      {/* Floating Dropdown Menu */}
+      {/* Floating Dropdown Menu (Anchored right so it expands to the LEFT for full text length) */}
       {isOpen && (
         <div
           style={{
             position: 'absolute',
             top: 'calc(100% + 4px)',
-            left: 0,
             right: 0,
             zIndex: 9999,
             backgroundColor: '#ffffff',
-            borderRadius: '10px',
-            border: '1px solid #e2e8f0',
-            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+            borderRadius: '8px',
+            border: '1px solid #cbd5e1',
+            boxShadow: '0 12px 28px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
             overflow: 'hidden',
             maxHeight: '320px',
             display: 'flex',
-            flexDirection: 'column'
+            flexDirection: 'column',
+            minWidth: '100%',
+            width: 'max-content',
+            maxWidth: 'min(650px, 90vw)'
           }}
         >
-          {/* Search Box Header */}
+          {/* Inline Search Header */}
           <div style={{
-            padding: '0.6rem 0.75rem',
-            borderBottom: '1px solid #f1f5f9',
+            padding: '0.5rem 0.65rem',
+            borderBottom: '1px solid #e2e8f0',
             backgroundColor: '#f8fafc',
             display: 'flex',
             alignItems: 'center',
-            gap: '0.5rem'
+            gap: '0.5rem',
+            flexShrink: 0
           }}>
             <FaSearch size={13} color="#94a3b8" />
             <input
@@ -181,7 +177,7 @@ const SearchableSelect = ({
                 border: 'none',
                 outline: 'none',
                 background: 'transparent',
-                fontSize: '0.85rem',
+                fontSize: '0.875rem',
                 color: '#1e293b'
               }}
             />
@@ -196,163 +192,67 @@ const SearchableSelect = ({
             )}
           </div>
 
-          {/* Options List */}
-          <div style={{ overflowY: 'auto', flex: 1, padding: '0.35rem' }}>
+          {/* Options Scroll Container */}
+          <div style={{ overflowY: 'auto', flex: 1 }}>
             {filteredOptions.length === 0 ? (
-              <div style={{ padding: '1rem', textAlign: 'center', color: '#64748b', fontSize: '0.85rem' }}>
+              <div style={{ padding: '0.75rem 1rem', color: '#64748b', fontSize: '0.85rem' }}>
                 No parameters found matching "{searchQuery}"
               </div>
             ) : (
-              <>
-                {/* Recommended / Matching Parameters Section */}
-                {matchingOptions.length > 0 && (
-                  <div>
-                    <div style={{
-                      padding: '0.35rem 0.6rem',
-                      fontSize: '0.725rem',
-                      fontWeight: 700,
-                      color: '#166534',
-                      backgroundColor: '#f0fdf4',
-                      borderRadius: '4px',
-                      marginBottom: '0.25rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.35rem',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.03em'
-                    }}>
-                      <FaStar size={10} color="#22c55e" />
-                      Matching Selected Dropdowns ({matchingOptions.length})
-                    </div>
-                    {matchingOptions.map(opt => (
-                      <OptionRow
-                        key={opt.id}
-                        opt={opt}
-                        isSelected={String(opt.id) === String(value)}
-                        onSelect={() => handleSelect(opt.id)}
-                        isMatching={true}
-                      />
-                    ))}
-                  </div>
-                )}
+              filteredOptions.map(opt => {
+                const isSelected = String(opt.id) === String(value);
+                const name = opt.parameterName || opt.name || opt.label || '';
 
-                {/* Other Parameters Section */}
-                {otherOptions.length > 0 && (
-                  <div>
-                    {matchingOptions.length > 0 && (
-                      <div style={{
-                        padding: '0.35rem 0.6rem',
-                        fontSize: '0.725rem',
-                        fontWeight: 700,
-                        color: '#64748b',
-                        backgroundColor: '#f8fafc',
-                        borderRadius: '4px',
-                        marginTop: '0.4rem',
-                        marginBottom: '0.25rem',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.03em'
-                      }}>
-                        All Other Parameters ({otherOptions.length})
-                      </div>
-                    )}
-                    {otherOptions.map(opt => (
-                      <OptionRow
-                        key={opt.id}
-                        opt={opt}
-                        isSelected={String(opt.id) === String(value)}
-                        onSelect={() => handleSelect(opt.id)}
-                        isMatching={false}
-                      />
-                    ))}
+                return (
+                  <div
+                    key={opt.id}
+                    onClick={() => handleSelect(opt.id)}
+                    title={name}
+                    style={{
+                      padding: '0.5rem 0.75rem',
+                      cursor: 'pointer',
+                      fontSize: '0.875rem',
+                      backgroundColor: isSelected ? '#2563eb' : 'transparent',
+                      color: isSelected ? '#ffffff' : '#1e293b',
+                      fontWeight: isSelected ? 600 : 400,
+                      whiteSpace: 'nowrap',
+                      transition: 'background-color 0.1s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSelected) e.currentTarget.style.backgroundColor = '#f1f5f9';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                  >
+                    {name}
                   </div>
-                )}
-              </>
+                );
+              })
             )}
 
-            {/* Custom Manual Option at Bottom */}
+            {/* Custom Manual Entry Option */}
             {customOptionLabel && (
               <div
                 onClick={handleCustomSelect}
                 style={{
-                  padding: '0.6rem 0.75rem',
-                  marginTop: '0.35rem',
-                  borderTop: '1px solid #f1f5f9',
-                  borderRadius: '6px',
+                  padding: '0.55rem 0.75rem',
+                  borderTop: '1px solid #e2e8f0',
                   cursor: 'pointer',
-                  color: '#16a34a',
+                  fontSize: '0.875rem',
+                  color: '#22c55e',
                   fontWeight: 600,
-                  fontSize: '0.85rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  backgroundColor: '#f0fdf4',
-                  transition: 'background-color 0.15s ease'
+                  backgroundColor: '#ffffff',
+                  transition: 'background-color 0.1s ease'
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#dcfce7'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f0fdf4'}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f0fdf4'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#ffffff'}
               >
-                <FaPlus size={11} />
                 {customOptionLabel}
               </div>
             )}
           </div>
         </div>
-      )}
-    </div>
-  );
-};
-
-// Sub-component for individual option row
-const OptionRow = ({ opt, isSelected, onSelect, isMatching }) => {
-  return (
-    <div
-      onClick={onSelect}
-      style={{
-        padding: '0.5rem 0.65rem',
-        borderRadius: '6px',
-        cursor: 'pointer',
-        fontSize: '0.85rem',
-        backgroundColor: isSelected ? '#dcfce7' : isMatching ? '#f8fafc' : 'transparent',
-        color: isSelected ? '#14532d' : '#1e293b',
-        fontWeight: isSelected ? 600 : 400,
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: '0.5rem',
-        marginBottom: '2px',
-        transition: 'all 0.12s ease'
-      }}
-      onMouseEnter={(e) => {
-        if (!isSelected) e.currentTarget.style.backgroundColor = isMatching ? '#f1f5f9' : '#f8fafc';
-      }}
-      onMouseLeave={(e) => {
-        if (!isSelected) e.currentTarget.style.backgroundColor = isMatching ? '#f8fafc' : 'transparent';
-      }}
-    >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem', minWidth: 0 }}>
-        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {opt.parameterName || opt.name || opt.label}
-        </span>
-        {(opt.testMethod || opt.unit) && (
-          <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
-            {opt.testMethod ? opt.testMethod : ''} {opt.unit ? `[${opt.unit}]` : ''}
-          </span>
-        )}
-      </div>
-
-      {isMatching && opt.matchBadges && opt.matchBadges.length > 0 && (
-        <span style={{
-          fontSize: '0.7rem',
-          padding: '0.15rem 0.45rem',
-          backgroundColor: '#22c55e',
-          color: '#ffffff',
-          borderRadius: '12px',
-          fontWeight: 600,
-          whiteSpace: 'nowrap',
-          flexShrink: 0
-        }}>
-          {opt.matchBadges.join(' + ')}
-        </span>
       )}
     </div>
   );
