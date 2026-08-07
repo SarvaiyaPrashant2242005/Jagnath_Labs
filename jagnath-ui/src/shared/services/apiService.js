@@ -255,3 +255,6 @@ export const apiService = {
    */
   delete: (url) => request(url, { method: "DELETE" }),
 };
+
+export default apiService;
+
