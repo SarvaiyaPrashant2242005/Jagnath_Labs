@@ -14,6 +14,8 @@ import { downloadCSV, downloadExcel } from '../../../shared/utils/exportUtils';
 
 import InlineMasterModal from '../../../shared/components/InlineMasterModal/InlineMasterModal';
 import AddMasterButton from '../../../shared/components/InlineMasterModal/AddMasterButton';
+import SearchableSelect from '../../../shared/components/Select/SearchableSelect';
+
 
 const PriceMasterPage = () => {
   // Inline master modal state
@@ -120,14 +122,45 @@ const PriceMasterPage = () => {
     fetchPrices();
   }, [currentPage, pageSize, searchQuery, statusFilter, selectedCategory]);
 
-  // Filter parameters dropdown based on selected category in form
-  useEffect(() => {
-    if (formData.categoryId) {
-      setFilteredParameters(parameters);
-    } else {
-      setFilteredParameters([]);
-    }
-  }, [formData.categoryId, parameters]);
+  // Filter and sort parameters dropdown based on selected category & subCategory in form
+  const sortedAndFilteredParameters = useMemo(() => {
+    if (!formData.categoryId) return [];
+
+    const activeCatId = String(formData.categoryId);
+    const activeSubCatId = formData.subCategoryId ? String(formData.subCategoryId) : '';
+
+    return [...parameters].map(p => {
+      let score = 0;
+      let matchBadges = [];
+
+      const pCatId = p.categoryId ? String(p.categoryId) : (p.category?.id ? String(p.category.id) : '');
+      const pSubCatId = p.subCategoryId ? String(p.subCategoryId) : (p.subCategory?.id ? String(p.subCategory.id) : '');
+
+      if (activeSubCatId && pSubCatId === activeSubCatId) {
+        score += 10;
+        matchBadges.push('Sub Category');
+      }
+      if (activeCatId && pCatId === activeCatId) {
+        score += 5;
+        matchBadges.push('Discipline Group');
+      }
+
+      return {
+        ...p,
+        parameterName: p.parameterName || p.name || '',
+        testMethod: p.testingStandard || p.testMethod || '',
+        matchScore: score,
+        isMatching: score > 0,
+        matchBadges
+      };
+    }).sort((a, b) => {
+      if (b.matchScore !== a.matchScore) {
+        return b.matchScore - a.matchScore;
+      }
+      return (a.parameterName || '').localeCompare(b.parameterName || '');
+    });
+  }, [parameters, formData.categoryId, formData.subCategoryId]);
+
 
   // Fetch Sub Categories when form opens or category changes
   useEffect(() => {
@@ -697,19 +730,17 @@ const PriceMasterPage = () => {
                     </button>
                   )}
                 </div>
-                <select
+                <SearchableSelect
+                  options={sortedAndFilteredParameters}
                   value={formData.parameterId}
+                  onChange={(selectedId) => setFormData({ ...formData, parameterId: selectedId })}
+                  placeholder="-- Select Parameter --"
+                  searchPlaceholder="Search parameter name or standard..."
+                  hasError={!!formErrors.parameterId}
                   disabled={!formData.categoryId}
-                  onChange={(e) => setFormData({ ...formData, parameterId: e.target.value })}
-                  style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.parameterId ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none', backgroundColor: !formData.categoryId ? '#f1f5f9' : '#ffffff' }}
-                >
-                  <option value="">-- Select Parameter --</option>
-                  {[...filteredParameters].sort((a, b) => ((a.name || a.parameterName) || '').localeCompare((b.name || b.parameterName) || '')).map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name || p.parameterName} {p.testingStandard ? `(${p.testingStandard})` : ''}
-                    </option>
-                  ))}
-                </select>
+                  customOptionLabel=""
+                />
+
                 {
                   formErrors.parameterId && (
                     <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 500 }}>{formErrors.parameterId}</span>

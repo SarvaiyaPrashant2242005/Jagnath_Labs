@@ -13,6 +13,7 @@ import { downloadCSV, downloadExcel } from '../../../shared/utils/exportUtils';
 
 import InlineMasterModal from '../../../shared/components/InlineMasterModal/InlineMasterModal';
 import AddMasterButton from '../../../shared/components/InlineMasterModal/AddMasterButton';
+import SearchableSelect from '../../../shared/components/Select/SearchableSelect';
 
 const ParameterMaster = () => {
   // Inline master modal state
@@ -240,22 +241,70 @@ const ParameterMaster = () => {
     }
   }, [formData.categoryId, isFormOpen]);
 
-  // Unique list of saved parameters for dropdown selection
+  // Unique list of saved parameters sorted by match relevance and name
   const uniqueSavedParameters = useMemo(() => {
     const map = new Map();
     allSavedParameters.forEach(p => {
       if (p.parameterName) {
-        const key = p.parameterName.toLowerCase().trim();
+        const key = `${(p.parameterName || '').toLowerCase().trim()}_${(p.testMethod || '').toLowerCase().trim()}`;
         if (!map.has(key)) {
           map.set(key, p);
         }
       }
     });
-    return Array.from(map.values()).sort((a, b) => (a.parameterName || '').localeCompare(b.parameterName || ''));
-  }, [allSavedParameters]);
 
-  const handleSelectExistingParameter = (e) => {
-    const selectedId = e.target.value;
+    const uniqueList = Array.from(map.values());
+
+    const activeCatId = formData.categoryId ? String(formData.categoryId) : '';
+    const activeSubCatId = formData.subCategoryId ? String(formData.subCategoryId) : '';
+    const activeLocId = formData.locationSampleId ? String(formData.locationSampleId) : '';
+
+    const hasFilter = !!(activeCatId || activeSubCatId || activeLocId);
+
+    const scoredList = uniqueList.map(p => {
+      let score = 0;
+      let matchBadges = [];
+
+      const pCatId = p.categoryId ? String(p.categoryId) : (p.category?.id ? String(p.category.id) : '');
+      const pSubCatId = p.subCategoryId ? String(p.subCategoryId) : (p.subCategory?.id ? String(p.subCategory.id) : '');
+      const pLocId = p.locationSampleId ? String(p.locationSampleId) : (p.locationSample?.id ? String(p.locationSample.id) : '');
+
+      if (activeSubCatId && pSubCatId === activeSubCatId) {
+        score += 10;
+        matchBadges.push('Sub Category');
+      }
+      if (activeCatId && pCatId === activeCatId) {
+        score += 5;
+        matchBadges.push('Discipline Group');
+      }
+      if (activeLocId && pLocId === activeLocId) {
+        score += 2;
+        matchBadges.push('Location');
+      }
+
+      return {
+        ...p,
+        matchScore: score,
+        isMatching: score > 0,
+        matchBadges
+      };
+    });
+
+    scoredList.sort((a, b) => {
+      if (hasFilter && b.matchScore !== a.matchScore) {
+        return b.matchScore - a.matchScore;
+      }
+      return (a.parameterName || '').localeCompare(b.parameterName || '');
+    });
+
+    return scoredList;
+  }, [allSavedParameters, formData.categoryId, formData.subCategoryId, formData.locationSampleId]);
+
+  const handleSelectExistingParameter = (valOrEvent) => {
+    const selectedId = (valOrEvent && typeof valOrEvent === 'object' && valOrEvent.target)
+      ? valOrEvent.target.value
+      : valOrEvent;
+
     if (selectedId === '__CUSTOM_MANUAL__') {
       setIsManualNameEntry(true);
       setSelectedExistingParamId('');
@@ -271,8 +320,9 @@ const ParameterMaster = () => {
 
     const matched = allSavedParameters.find(p => String(p.id) === String(selectedId));
     if (matched) {
-      const newCatId = formData.categoryId || matched.categoryId || '';
-      const newSubCatId = formData.subCategoryId || matched.subCategoryId || '';
+      const newCatId = formData.categoryId || matched.categoryId || matched.category?.id || '';
+      const newSubCatId = formData.subCategoryId || matched.subCategoryId || matched.subCategory?.id || '';
+      const newLocId = formData.locationSampleId || matched.locationSampleId || matched.locationSample?.id || '';
 
       if (newCatId && newCatId !== formData.categoryId) {
         fetchSubCategoriesForDropdown(newCatId);
@@ -286,10 +336,12 @@ const ParameterMaster = () => {
         isPermissibleLimitApplicable: matched.isPermissibleLimitApplicable === true || matched.is_permissible_limit_applicable === true,
         permissibleLimit: matched.permissibleLimit || matched.permissible_limit || '',
         categoryId: newCatId,
-        subCategoryId: newSubCatId
+        subCategoryId: newSubCatId,
+        locationSampleId: newLocId
       }));
     }
   };
+
 
   // Fetch all parameters
   const fetchParameters = async () => {
@@ -911,31 +963,20 @@ const ParameterMaster = () => {
                 </div>
 
                 {!isManualNameEntry && uniqueSavedParameters.length > 0 && !editingId ? (
-                  <select
-                    name="parameterName"
+                  <SearchableSelect
+                    options={uniqueSavedParameters}
                     value={selectedExistingParamId}
-                    onChange={(e) => {
-                      const selectedVal = e.target.value;
-                      if (selectedVal === '__CUSTOM_MANUAL__') {
-                        setIsManualNameEntry(true);
-                        setSelectedExistingParamId('');
-                        setFormData(prev => ({ ...prev, parameterName: '' }));
-                        return;
-                      }
-                      handleSelectExistingParameter(e);
+                    onChange={(selectedId) => handleSelectExistingParameter(selectedId)}
+                    placeholder="Select Parameter Name"
+                    searchPlaceholder="Search parameter name or test method..."
+                    hasError={!!formErrors.parameterName}
+                    customOptionLabel="+ Enter Custom Parameter Name (Manual)..."
+                    onCustomOptionSelect={() => {
+                      setIsManualNameEntry(true);
+                      setSelectedExistingParamId('');
+                      setFormData(prev => ({ ...prev, parameterName: '' }));
                     }}
-                    style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.parameterName ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', cursor: 'pointer', outline: 'none', backgroundColor: '#ffffff' }}
-                  >
-                    <option value="">Select Parameter Name</option>
-                    {uniqueSavedParameters.map(p => (
-                      <option key={p.id} value={p.id}>
-                        {p.parameterName} {p.testMethod ? `(${p.testMethod})` : ''}
-                      </option>
-                    ))}
-                    <option value="__CUSTOM_MANUAL__" style={{ fontWeight: 600, color: '#22c55e' }}>
-                      + Enter Custom Parameter Name (Manual)...
-                    </option>
-                  </select>
+                  />
                 ) : (
                   <input
                     type="text"
