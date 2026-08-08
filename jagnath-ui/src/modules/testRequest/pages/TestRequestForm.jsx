@@ -844,7 +844,7 @@ const TestRequestForm = () => {
                 </div>
               </div>
 
-              {/* Include Quotation Toggle */}
+              {/* Include Quotation Toggle - COMMENTED OUT FOR NOW
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                 <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Include Quotation</label>
                 <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', background: '#f8fafc', padding: '0.75rem 1rem', border: '1px solid #e2e8f0', borderRadius: '8px', height: '42px', boxSizing: 'border-box' }}>
@@ -872,8 +872,9 @@ const TestRequestForm = () => {
                   </label>
                 </div>
               </div>
+              */}
 
-              {/* Select Quotation Dropdown */}
+              {/* Select Quotation Dropdown - COMMENTED OUT FOR NOW
               {formData.includeCaution && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -891,6 +892,7 @@ const TestRequestForm = () => {
                   />
                 </div>
               )}
+              */}
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', gridColumn: '1 / -1' }}>
                 <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Address for Communication</label>
