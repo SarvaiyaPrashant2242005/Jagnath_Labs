@@ -455,6 +455,49 @@ const TestReportForm = () => {
     return dateStr;
   };
 
+  const shouldBoldResult = (resultStr, limitStr) => {
+    if (!resultStr || !limitStr) return false;
+    const resClean = String(resultStr).trim();
+    const limClean = String(limitStr).trim();
+    if (resClean === limClean || limClean === '-' || limClean === 'N/A') return false;
+
+    const parseNumber = (str) => {
+      const match = str.replace(/,/g, '').match(/[-+]?[0-9]*\.?[0-9]+/);
+      return match ? parseFloat(match[0]) : null;
+    };
+
+    const resVal = parseNumber(resClean);
+    if (resVal === null) return false;
+
+    // Range: "6.5 - 8.5" or "6.5 to 8.5"
+    const rangeMatch = limClean.match(/([-+]?[0-9]*\.?[0-9]+)\s*(?:-|to)\s*([-+]?[0-9]*\.?[0-9]+)/i);
+    if (rangeMatch) {
+      const min = parseFloat(rangeMatch[1]);
+      const max = parseFloat(rangeMatch[2]);
+      return resVal < min || resVal > max;
+    }
+
+    // Less than / Max limits
+    if (/(?:<|<=|max|below|less)/i.test(limClean)) {
+      const limVal = parseNumber(limClean);
+      if (limVal !== null) return resVal > limVal;
+    }
+
+    // Greater than / Min limits
+    if (/(?:>|>=|min|above|more)/i.test(limClean)) {
+      const limVal = parseNumber(limClean);
+      if (limVal !== null) return resVal < limVal;
+    }
+
+    // Simple numeric limit (assumed maximum limit)
+    const simpleLimVal = parseNumber(limClean);
+    if (simpleLimVal !== null && !isNaN(simpleLimVal)) {
+      return resVal > simpleLimVal;
+    }
+
+    return false;
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', position: 'relative' }}>
 
@@ -1113,7 +1156,12 @@ const TestReportForm = () => {
                       <td style={{ padding: '0.25rem 0.35rem', borderRight: '1px solid #000000', fontWeight: 'bold' }}>{p.parameterName}</td>
                       <td style={{ padding: '0.25rem 0.35rem', borderRight: '1px solid #000000', textAlign: 'center' }}>{p.referenceMethod}</td>
                       <td style={{ padding: '0.25rem', borderRight: '1px solid #000000', textAlign: 'center' }}>{p.unit}</td>
-                      <td style={{ padding: '0.25rem', borderRight: formData.showPermissibleLimits ? '1px solid #000000' : 'none', textAlign: 'center' }}>{p.result}</td>
+                      <td style={{
+                        padding: '0.25rem',
+                        borderRight: formData.showPermissibleLimits ? '1px solid #000000' : 'none',
+                        textAlign: 'center',
+                        fontWeight: shouldBoldResult(p.result, p.permissibleLimit) ? 'bold' : 'normal'
+                      }}>{p.result}</td>
                       {formData.showPermissibleLimits && <td style={{ padding: '0.25rem', textAlign: 'center' }}>{p.permissibleLimit || '-'}</td>}
                     </tr>
                   ))}

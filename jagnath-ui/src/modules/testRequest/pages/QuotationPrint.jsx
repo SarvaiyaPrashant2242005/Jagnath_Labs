@@ -323,7 +323,7 @@ const QuotationPrint = () => {
         </ol>
       </div>
 
-      {/* Caution Section (Printed if Include Caution = YES) */}
+      {/* Quotation Section (Printed if Include Quotation = YES) */}
       {(formData.includeCaution || formData.include_caution) && selCaution && (
         <div style={{
           border: '1px solid #000000',
@@ -333,7 +333,7 @@ const QuotationPrint = () => {
           background: '#fff'
         }}>
           <div style={{ fontWeight: 'bold', textDecoration: 'underline', marginBottom: '3px' }}>
-            CAUTION / NOTICE: {selCaution.title}
+            QUOTATION: {selCaution.title}
           </div>
           <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.3' }}>
             {selCaution.description}

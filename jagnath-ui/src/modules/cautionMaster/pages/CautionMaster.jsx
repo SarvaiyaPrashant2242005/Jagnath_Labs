@@ -169,7 +169,7 @@ const CautionMaster = () => {
   // Form validation
   const validateForm = () => {
     const errors = {};
-    if (!formData.title.trim()) errors.title = 'Caution title is required.';
+    if (!formData.title.trim()) errors.title = 'Quotation title is required.';
     if (!formData.description.trim()) errors.description = 'Description / text is required.';
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -222,10 +222,10 @@ const CautionMaster = () => {
     try {
       if (editingId) {
         await apiService.put(CAUTION_ENDPOINTS.UPDATE(editingId), payload);
-        triggerToast('Caution record updated successfully.', 'success');
+        triggerToast('Quotation record updated successfully.', 'success');
       } else {
         await apiService.post(CAUTION_ENDPOINTS.CREATE, payload);
-        triggerToast('Caution record created successfully.', 'success');
+        triggerToast('Quotation record created successfully.', 'success');
       }
       setIsFormOpen(false);
       fetchCautions();
@@ -260,11 +260,11 @@ const CautionMaster = () => {
     setDeleting(true);
     try {
       await apiService.delete(CAUTION_ENDPOINTS.DELETE(deleteModal.id));
-      triggerToast('Caution record deleted successfully.', 'success');
+      triggerToast('Quotation record deleted successfully.', 'success');
       setDeleteModal({ isOpen: false, id: null, name: '' });
       fetchCautions();
     } catch (err) {
-      triggerToast(err.messageToShow || err.message || 'Failed to delete Caution record.', 'error');
+      triggerToast(err.messageToShow || err.message || 'Failed to delete Quotation record.', 'error');
     } finally {
       setDeleting(false);
     }
@@ -286,7 +286,7 @@ const CautionMaster = () => {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "Caution_Master_Report.csv");
+    link.setAttribute("download", "Quotation_Master_Report.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -319,7 +319,7 @@ const CautionMaster = () => {
     const excelUrl = URL.createObjectURL(excelBlob);
     const link = document.createElement("a");
     link.setAttribute("href", excelUrl);
-    link.setAttribute("download", "Caution_Master_Report.xls");
+    link.setAttribute("download", "Quotation_Master_Report.xls");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -343,7 +343,6 @@ const CautionMaster = () => {
 
   const handlePrintPDF = () => {
     if (cautions.length === 0) return;
-    const printWindow = window.open('', '_blank');
     const rows = cautions.map(c => `
       <tr>
         <td>${c.title}</td>
@@ -352,20 +351,21 @@ const CautionMaster = () => {
         <td>${(c.status === true || c.status === 'Active') ? 'Active' : 'Inactive'}</td>
       </tr>
     `).join('');
-
+    const printWindow = window.open("", "_blank");
     printWindow.document.write(`
       <html>
         <head>
-          <title>Caution Master Report</title>
+          <title>Quotation Master Report</title>
           <style>
-            body { font-family: sans-serif; padding: 20px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            th { background-color: #f2f2f2; }
+            body { font-family: sans-serif; padding: 1.5rem; }
+            table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+            th, td { border: 1px solid #cbd5e1; padding: 0.75rem 1rem; text-align: left; }
+            th { background-color: #f8fafc; font-weight: bold; }
+            h2 { margin: 0; color: #0f172a; }
           </style>
         </head>
         <body>
-          <h2>Caution Master Report</h2>
+          <h2>Quotation Master Report</h2>
           <table>
             <thead>
               <tr><th>Title</th><th>Description</th><th>Report Type</th><th>Status</th></tr>
@@ -416,7 +416,7 @@ const CautionMaster = () => {
       <div className="master-top-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' }}>
         <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
           <FaShieldAlt style={{ color: '#22c55e' }} />
-          <span>Caution Master</span>
+          <span>Quotation Master</span>
         </h2>
         <div className="master-top-bar-actions" style={{ display: 'flex', gap: '0.75rem', position: 'relative' }} ref={dropdownRef}>
           {!isFormOpen && (
@@ -425,7 +425,7 @@ const CautionMaster = () => {
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1rem', fontWeight: 600, cursor: 'pointer' }}
             >
               <FaPlus />
-              <span>Caution</span>
+              <span>Quotation</span>
             </button>
           )}
 
@@ -509,19 +509,19 @@ const CautionMaster = () => {
       {isFormOpen && (
         <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
           <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '1.25rem', color: '#1e293b' }}>
-            {editingId ? 'Edit Caution Record' : 'Add New Caution Record'}
+            {editingId ? 'Edit Quotation Record' : 'Add New Quotation Record'}
           </h3>
 
           <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
 
-            {/* Caution Title */}
+            {/* Quotation Title */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
               <label style={{ fontSize: '0.875rem', fontWeight: 600, color: '#334155' }}>
-                Caution Title <span style={{ color: '#ef4444' }}>*</span>
+                Quotation Title <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <input
                 type="text"
-                placeholder="Enter caution title..."
+                placeholder="Enter quotation title..."
                 value={formData.title}
                 onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
                 style={{
@@ -604,14 +604,14 @@ const CautionMaster = () => {
               </div>
             </div>
 
-            {/* Description / Text (Spans Full Width) */}
+            {/* Description Text */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', gridColumn: '1 / -1' }}>
               <label style={{ fontSize: '0.875rem', fontWeight: 600, color: '#334155' }}>
                 Description / Text <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <textarea
                 rows={3}
-                placeholder="Enter cautionary notice details..."
+                placeholder="Enter quotation notice details..."
                 value={formData.description}
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                 style={{
@@ -656,7 +656,7 @@ const CautionMaster = () => {
                   cursor: submitting ? 'not-allowed' : 'pointer'
                 }}
               >
-                {submitting ? 'Saving...' : editingId ? 'Update Caution' : 'Save Caution'}
+                {submitting ? 'Saving...' : editingId ? 'Update Quotation' : 'Save Quotation'}
               </button>
             </div>
 
@@ -669,7 +669,7 @@ const CautionMaster = () => {
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1, minWidth: '280px' }}>
           <input
             type="text"
-            placeholder="Search cautions..."
+            placeholder="Search quotations..."
             value={searchQuery}
             onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
             style={{
@@ -727,7 +727,7 @@ const CautionMaster = () => {
         <div className="master-table-responsive">
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
             <thead>
-              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
+               <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
                 <th style={{ padding: '0.85rem 0.75rem', width: '40px', textAlign: 'center' }}>
                   <input
                     type="checkbox"
@@ -736,7 +736,7 @@ const CautionMaster = () => {
                     style={{ width: '16px', height: '16px', cursor: 'pointer' }}
                   />
                 </th>
-                <th style={{ padding: '0.85rem 1rem', fontWeight: 600, color: '#475569', width: '22%' }}>Caution Title</th>
+                <th style={{ padding: '0.85rem 1rem', fontWeight: 600, color: '#475569', width: '22%' }}>Quotation Title</th>
                 <th style={{ padding: '0.85rem 1rem', fontWeight: 600, color: '#475569', width: '42%' }}>Description</th>
                 <th style={{ padding: '0.85rem 1rem', fontWeight: 600, color: '#475569', width: '12%' }}>Report Type</th>
                 <th style={{ padding: '0.85rem 1rem', fontWeight: 600, color: '#475569', width: '10%' }}>Status</th>
@@ -747,13 +747,13 @@ const CautionMaster = () => {
               {loading ? (
                 <tr>
                   <td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-                    Loading Cautions...
+                    Loading Quotations...
                   </td>
                 </tr>
               ) : cautions.length === 0 ? (
                 <tr>
                   <td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-                    No Caution records found.
+                    No Quotation records found.
                   </td>
                 </tr>
               ) : (
@@ -852,15 +852,15 @@ const CautionMaster = () => {
         isOpen={deleteModal.isOpen}
         onClose={() => setDeleteModal({ isOpen: false, id: null, name: '' })}
         onConfirm={confirmDelete}
-        title="Delete Caution Record"
+        title="Delete Quotation Record"
         message={
           deleteModal.name ? (
-            <>Are you sure you want to delete caution record <strong>{deleteModal.name}</strong>? This action cannot be undone.</>
+            <>Are you sure you want to delete quotation record <strong>{deleteModal.name}</strong>? This action cannot be undone.</>
           ) : (
-            'Are you sure you want to delete this Caution record? This action cannot be undone.'
+            'Are you sure you want to delete this Quotation record? This action cannot be undone.'
           )
         }
-        confirmText="Delete Caution"
+        confirmText="Delete Quotation"
         cancelText="Cancel"
         variant="danger"
         loading={deleting}

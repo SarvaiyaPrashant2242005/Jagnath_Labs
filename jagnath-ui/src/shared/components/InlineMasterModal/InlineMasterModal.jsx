@@ -97,11 +97,11 @@ const InlineMasterModal = ({
         };
       case 'caution':
         return {
-          title: 'Add New Caution Statement',
-          btnText: 'Create Caution Record',
+          title: 'Add New Quotation Statement',
+          btnText: 'Create Quotation Record',
           endpoint: CAUTION_ENDPOINTS.CREATE,
           fields: [
-            { name: 'cautionText', label: 'Caution / Note Text', type: 'textarea', required: true, placeholder: 'e.g. Handle with care...' }
+            { name: 'cautionText', label: 'Quotation / Note Text', type: 'textarea', required: true, placeholder: 'e.g. Terms and Conditions for Quotation...' }
           ]
         };
       default:

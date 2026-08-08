@@ -389,7 +389,7 @@ const TestRequestPrint = () => {
           </tbody>
         </table>
 
-        {/* Caution / Notice Section (Printed if Include Caution = YES) */}
+        {/* Quotation / Notice Section (Printed if Include Quotation = YES) */}
         {(formData.includeCaution || formData.include_caution) && selCaution && (
           <div style={{
             marginTop: '0.8rem',
@@ -400,7 +400,7 @@ const TestRequestPrint = () => {
             background: '#fff'
           }}>
             <div style={{ fontWeight: 'bold', textDecoration: 'underline', marginBottom: '0.25rem' }}>
-              CAUTION / NOTICE: {selCaution.title}
+              QUOTATION: {selCaution.title}
             </div>
             <div style={{ whiteSpace: 'pre-wrap', color: '#111' }}>
               {selCaution.description}

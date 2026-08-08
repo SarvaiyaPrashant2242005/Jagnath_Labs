@@ -65,6 +65,49 @@ const TestReportPrint = () => {
     return dateStr;
   };
 
+  const shouldBoldResult = (resultStr, limitStr) => {
+    if (!resultStr || !limitStr) return false;
+    const resClean = String(resultStr).trim();
+    const limClean = String(limitStr).trim();
+    if (resClean === limClean || limClean === '-' || limClean === 'N/A') return false;
+
+    const parseNumber = (str) => {
+      const match = str.replace(/,/g, '').match(/[-+]?[0-9]*\.?[0-9]+/);
+      return match ? parseFloat(match[0]) : null;
+    };
+
+    const resVal = parseNumber(resClean);
+    if (resVal === null) return false;
+
+    // Range: "6.5 - 8.5" or "6.5 to 8.5"
+    const rangeMatch = limClean.match(/([-+]?[0-9]*\.?[0-9]+)\s*(?:-|to)\s*([-+]?[0-9]*\.?[0-9]+)/i);
+    if (rangeMatch) {
+      const min = parseFloat(rangeMatch[1]);
+      const max = parseFloat(rangeMatch[2]);
+      return resVal < min || resVal > max;
+    }
+
+    // Less than / Max limits
+    if (/(?:<|<=|max|below|less)/i.test(limClean)) {
+      const limVal = parseNumber(limClean);
+      if (limVal !== null) return resVal > limVal;
+    }
+
+    // Greater than / Min limits
+    if (/(?:>|>=|min|above|more)/i.test(limClean)) {
+      const limVal = parseNumber(limClean);
+      if (limVal !== null) return resVal < limVal;
+    }
+
+    // Simple numeric limit (assumed maximum limit)
+    const simpleLimVal = parseNumber(limClean);
+    if (simpleLimVal !== null && !isNaN(simpleLimVal)) {
+      return resVal > simpleLimVal;
+    }
+
+    return false;
+  };
+
   if (loading) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center', fontFamily: 'Arial, sans-serif' }}>
@@ -309,7 +352,10 @@ const TestReportPrint = () => {
                   <td style={{ fontWeight: 'bold', textAlign: 'left' }}>{param.parameterName || '-'}</td>
                   <td style={{ textAlign: 'center' }}>{param.referenceMethod || '-'}</td>
                   <td style={{ textAlign: 'center' }}>{param.unit || '-'}</td>
-                  <td style={{ textAlign: 'center' }}>{param.result || '-'}</td>
+                  <td style={{
+                    textAlign: 'center',
+                    fontWeight: shouldBoldResult(param.result, param.permissibleLimit) ? 'bold' : 'normal'
+                  }}>{param.result || '-'}</td>
                   {report.showPermissibleLimits !== false && <td style={{ textAlign: 'center' }}>{param.permissibleLimit || '-'}</td>}
                 </tr>
               ))

@@ -7,8 +7,7 @@ import { FaChartPie, FaBuilding, FaUserShield, FaUserCircle, FaTimes, FaShieldAl
  * @description Sidebar navigation dedicated strictly for Super Admin.
  */
 const SuperAdminSidebar = ({ activeTab, onTabChange, sidebarRef, isOpen = true, onCloseMobile }) => {
-  const handleItemClick = (key) => {
-    onTabChange(key);
+  const handleItemClick = () => {
     if (onCloseMobile) {
       onCloseMobile();
     }
@@ -200,8 +199,9 @@ const SuperAdminSidebar = ({ activeTab, onTabChange, sidebarRef, isOpen = true, 
             <div className="menu-group">
               <Link
                 to="/dashboard"
+                target="_blank"
                 className={`menu-item ${activeTab === 'dashboard' ? 'active' : ''}`}
-                onClick={() => handleItemClick('dashboard')}
+                onClick={handleItemClick}
               >
                 <div className="menu-item-left" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <FaChartPie className="menu-icon" />
@@ -214,8 +214,9 @@ const SuperAdminSidebar = ({ activeTab, onTabChange, sidebarRef, isOpen = true, 
             <div className="menu-group">
               <Link
                 to="/company"
+                target="_blank"
                 className={`menu-item ${activeTab === 'companies' ? 'active' : ''}`}
-                onClick={() => handleItemClick('companies')}
+                onClick={handleItemClick}
               >
                 <div className="menu-item-left" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <FaBuilding className="menu-icon" />
@@ -228,8 +229,9 @@ const SuperAdminSidebar = ({ activeTab, onTabChange, sidebarRef, isOpen = true, 
             <div className="menu-group">
               <Link
                 to="/users"
+                target="_blank"
                 className={`menu-item ${activeTab === 'users' ? 'active' : ''}`}
-                onClick={() => handleItemClick('users')}
+                onClick={handleItemClick}
               >
                 <div className="menu-item-left" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <FaUserShield className="menu-icon" />
@@ -244,8 +246,9 @@ const SuperAdminSidebar = ({ activeTab, onTabChange, sidebarRef, isOpen = true, 
             <div className="menu-group">
               <Link
                 to="/profile"
+                target="_blank"
                 className={`menu-item ${activeTab === 'profile' ? 'active' : ''}`}
-                onClick={() => handleItemClick('profile')}
+                onClick={handleItemClick}
               >
                 <div className="menu-item-left" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <FaUserCircle className="menu-icon" />

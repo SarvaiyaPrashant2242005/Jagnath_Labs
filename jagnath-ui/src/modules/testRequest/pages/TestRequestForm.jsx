@@ -844,9 +844,9 @@ const TestRequestForm = () => {
                 </div>
               </div>
 
-              {/* Include Caution Toggle */}
+              {/* Include Quotation Toggle */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Include Caution</label>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Include Quotation</label>
                 <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', background: '#f8fafc', padding: '0.75rem 1rem', border: '1px solid #e2e8f0', borderRadius: '8px', height: '42px', boxSizing: 'border-box' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500, color: '#1e293b' }}>
                     <input
@@ -873,12 +873,12 @@ const TestRequestForm = () => {
                 </div>
               </div>
 
-              {/* Select Caution Dropdown */}
+              {/* Select Quotation Dropdown */}
               {formData.includeCaution && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Select Caution <span style={{ color: '#ef4444' }}>*</span></label>
-                    <AddMasterButton label="Add New Caution" onClick={() => setInlineModal({ isOpen: true, type: 'caution', parentData: { companyId: formData.companyId } })} />
+                    <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Select Quotation <span style={{ color: '#ef4444' }}>*</span></label>
+                    <AddMasterButton label="Add New Quotation" onClick={() => setInlineModal({ isOpen: true, type: 'caution', parentData: { companyId: formData.companyId } })} />
                   </div>
                   <SearchableSelect
                     options={cautions}
@@ -886,8 +886,8 @@ const TestRequestForm = () => {
                     onChange={(selectedVal) => {
                       handleChange({ target: { name: 'cautionId', value: selectedVal } });
                     }}
-                    placeholder="Select Caution"
-                    searchPlaceholder="Search caution..."
+                    placeholder="Select Quotation"
+                    searchPlaceholder="Search quotation..."
                   />
                 </div>
               )}
