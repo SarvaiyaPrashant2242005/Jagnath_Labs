@@ -22,6 +22,9 @@ const injectCompanyId = (req, res, next) => {
 
 const uploadFields = upload.fields([
     { name: 'logo', maxCount: 1 },
+    { name: 'test_request_logo', maxCount: 1 },
+    { name: 'test_report_logo', maxCount: 1 },
+    { name: 'quotation_logo', maxCount: 1 },
     { name: 'signature', maxCount: 1 }
 ]);
 

@@ -135,6 +135,15 @@ const createCompany = async (companyData, userId, files, generatedId, reqInfo) =
             if (files.logo && files.logo.length > 0) {
                 dataToInsert.logo = files.logo[0].path;
             }
+            if (files.test_request_logo && files.test_request_logo.length > 0) {
+                dataToInsert.test_request_logo = files.test_request_logo[0].path;
+            }
+            if (files.test_report_logo && files.test_report_logo.length > 0) {
+                dataToInsert.test_report_logo = files.test_report_logo[0].path;
+            }
+            if (files.quotation_logo && files.quotation_logo.length > 0) {
+                dataToInsert.quotation_logo = files.quotation_logo[0].path;
+            }
             if (files.signature && files.signature.length > 0) {
                 dataToInsert.signature = files.signature[0].path;
             }
@@ -244,9 +253,34 @@ const updateCompany = async (companyId, companyData, userId, files, reqInfo) => 
             if (files.logo && files.logo.length > 0) {
                 dataToUpdate.logo = files.logo[0].path;
             }
+            if (files.test_request_logo && files.test_request_logo.length > 0) {
+                dataToUpdate.test_request_logo = files.test_request_logo[0].path;
+            }
+            if (files.test_report_logo && files.test_report_logo.length > 0) {
+                dataToUpdate.test_report_logo = files.test_report_logo[0].path;
+            }
+            if (files.quotation_logo && files.quotation_logo.length > 0) {
+                dataToUpdate.quotation_logo = files.quotation_logo[0].path;
+            }
             if (files.signature && files.signature.length > 0) {
                 dataToUpdate.signature = files.signature[0].path;
             }
+        }
+
+        if (companyData.removeLogo === 'true' || companyData.removeLogo === true) {
+            dataToUpdate.logo = null;
+        }
+        if (companyData.removeTestRequestLogo === 'true' || companyData.removeTestRequestLogo === true) {
+            dataToUpdate.test_request_logo = null;
+        }
+        if (companyData.removeTestReportLogo === 'true' || companyData.removeTestReportLogo === true) {
+            dataToUpdate.test_report_logo = null;
+        }
+        if (companyData.removeQuotationLogo === 'true' || companyData.removeQuotationLogo === true) {
+            dataToUpdate.quotation_logo = null;
+        }
+        if (companyData.removeSignature === 'true' || companyData.removeSignature === true) {
+            dataToUpdate.signature = null;
         }
 
         const bcrypt = require("bcrypt");

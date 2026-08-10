@@ -70,6 +70,51 @@ const TestReportForm = () => {
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const [confirmModal, setConfirmModal] = useState({ show: false, action: null }); // For permissible limit confirmation
   const printRef = useRef();
+  
+  const [currentCompany, setCurrentCompany] = useState(null);
+
+  // Fetch company data for dynamic logo
+  useEffect(() => {
+    const fetchCompanyData = async () => {
+      try {
+        const activeCompId = localStorage.getItem('selectedCompanyId') || '';
+        const res = await apiService.get(COMPANY_ENDPOINTS.GET_MY);
+        if (res?.data) {
+          const list = Array.isArray(res.data) ? res.data : (res.data.rows || []);
+          const match = list.find(c => c.id === activeCompId);
+          if (match) {
+            setCurrentCompany(match);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load company details for logo', err);
+      }
+    };
+    fetchCompanyData();
+  }, []);
+
+  const getPreviewLogoUrl = () => {
+    if (isEditing && formData.companyLogo) {
+      const cleanPath = formData.companyLogo.replace(/\\/g, '/');
+      const idx = cleanPath.lastIndexOf('uploads/');
+      if (idx !== -1) {
+        return `http://localhost:5000/${cleanPath.substring(idx)}`;
+      }
+      return formData.companyLogo;
+    }
+    if (currentCompany) {
+      const logoPath = currentCompany.test_report_logo || currentCompany.testReportLogo || currentCompany.logo;
+      if (logoPath) {
+        const cleanPath = logoPath.replace(/\\/g, '/');
+        const idx = cleanPath.lastIndexOf('uploads/');
+        if (idx !== -1) {
+          return `http://localhost:5000/${cleanPath.substring(idx)}`;
+        }
+        return logoPath;
+      }
+    }
+    return '/Images/Navbar_Logo.png';
+  };
 
   const triggerToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
@@ -132,7 +177,8 @@ const TestReportForm = () => {
               reviewedByAnalyst: report.reviewedBy || report.reviewedByAnalyst || 'Sr. Analyst',
               authorizedSignatory: report.authorizedSignatory || 'Mr. Ankit Rathod/ Mr. Purvin Raiyan',
               termsAndConditions: report.termsAndConditions || 'The report is analyzed with the quality standards. These results are related to sample collection as specified above. This report in full or part, shall not be published advertised, used for any legal action, unless written consent and prior permission has been secured from the owner, JAGNATH LAB TECHNOLOGIES, GONDAL-RAJKOT.',
-              showPermissibleLimits: report.showPermissibleLimits !== undefined ? report.showPermissibleLimits : true
+              showPermissibleLimits: report.showPermissibleLimits !== undefined ? report.showPermissibleLimits : true,
+              companyLogo: report.companyLogo || ''
             });
 
             if (report.testRequestId) {
@@ -1042,7 +1088,7 @@ const TestReportForm = () => {
                 <>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
                     <div>
-                      <img src="/Images/Navbar_Logo.png" alt="Jagnath Logo" style={{ height: '52px', objectFit: 'contain' }} />
+                      <img src={getPreviewLogoUrl()} alt="Company Logo" style={{ height: '52px', objectFit: 'contain' }} />
                     </div>
                   </div>
                   {/* Horizontal Line */}

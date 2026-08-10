@@ -70,7 +70,15 @@ const companyNewBaseSchema = {
     adminEmail: Joi.string().allow('', null),
     adminPassword: Joi.string().allow('', null),
     companyLogo: Joi.any().optional(),
-    authorizedSignature: Joi.any().optional()
+    authorizedSignature: Joi.any().optional(),
+    testRequestLogo: Joi.any().optional(),
+    testReportLogo: Joi.any().optional(),
+    quotationLogo: Joi.any().optional(),
+    removeLogo: Joi.any().optional(),
+    removeTestRequestLogo: Joi.any().optional(),
+    removeTestReportLogo: Joi.any().optional(),
+    removeQuotationLogo: Joi.any().optional(),
+    removeSignature: Joi.any().optional()
 };
 
 const createCompanyNewSchema = Joi.object(companyNewBaseSchema);

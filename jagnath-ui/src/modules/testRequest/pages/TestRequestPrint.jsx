@@ -143,6 +143,18 @@ const TestRequestPrint = () => {
     }
   };
 
+  const getLogoUrl = () => {
+    if (!selCompany) return '/Images/Navbar_Logo.png';
+    const logoPath = selCompany.test_request_logo || selCompany.testRequestLogo || selCompany.logo;
+    if (!logoPath) return '/Images/Navbar_Logo.png';
+    const cleanPath = logoPath.replace(/\\/g, '/');
+    const idx = cleanPath.lastIndexOf('uploads/');
+    if (idx !== -1) {
+      return `http://localhost:5000/${cleanPath.substring(idx)}`;
+    }
+    return logoPath;
+  };
+
   if (loading) {
     return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading Print Preview...</div>;
   }
@@ -161,7 +173,7 @@ const TestRequestPrint = () => {
           <tbody>
             <tr>
               <td className="header-logo-cell" style={{ textAlign: 'center', padding: '4px' }}>
-                <img src="/Images/Navbar_Logo.png" alt="Logo" style={{ height: '65px', objectFit: 'contain', display: 'block', margin: '0 auto' }} />
+                <img src={getLogoUrl()} alt="Logo" style={{ height: '65px', objectFit: 'contain', display: 'block', margin: '0 auto' }} />
               </td>
               <td className="header-title-cell">
                 <h2>FORMATS</h2>
@@ -339,7 +351,7 @@ const TestRequestPrint = () => {
           <tbody>
             <tr>
               <td className="header-logo-cell" style={{ textAlign: 'center', padding: '4px' }}>
-                <img src="/Images/Navbar_Logo.png" alt="Logo" style={{ height: '65px', objectFit: 'contain', display: 'block', margin: '0 auto' }} />
+                <img src={getLogoUrl()} alt="Logo" style={{ height: '65px', objectFit: 'contain', display: 'block', margin: '0 auto' }} />
               </td>
               <td className="header-title-cell">
                 <h2>FORMATS</h2>

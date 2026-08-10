@@ -108,6 +108,16 @@ const TestReportPrint = () => {
     return false;
   };
 
+  const getLogoUrl = () => {
+    if (!report || !report.companyLogo) return '/Images/Navbar_Logo.png';
+    const cleanPath = report.companyLogo.replace(/\\/g, '/');
+    const idx = cleanPath.lastIndexOf('uploads/');
+    if (idx !== -1) {
+      return `http://localhost:5000/${cleanPath.substring(idx)}`;
+    }
+    return report.companyLogo;
+  };
+
   if (loading) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center', fontFamily: 'Arial, sans-serif' }}>
@@ -233,7 +243,7 @@ const TestReportPrint = () => {
           <>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
               <div>
-                <img src="/Images/Navbar_Logo.png" alt="Jagnath Logo" style={{ height: '60px', objectFit: 'contain' }} />
+                <img src={getLogoUrl()} alt="Company Logo" style={{ height: '60px', objectFit: 'contain' }} />
               </div>
             </div>
             {/* Divider Line */}

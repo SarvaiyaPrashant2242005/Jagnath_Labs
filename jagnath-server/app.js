@@ -71,4 +71,7 @@ app.get("/jagnath/test", (req, res) => {
 // Mount the master router
 app.use("/api", masterRouter);
 
+// Serve static uploads
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
 module.exports = app;

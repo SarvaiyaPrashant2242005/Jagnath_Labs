@@ -146,6 +146,22 @@ const TestRequestForm = () => {
     return `${prefix}${String(nextNum).padStart(5, '0')}`;
   };
 
+  const getSelectedCompanyLogo = () => {
+    const selectedCompany = companies.find(c => c.id === formData.companyId);
+    if (selectedCompany) {
+      const logoPath = selectedCompany.test_request_logo || selectedCompany.testRequestLogo || selectedCompany.logo;
+      if (logoPath) {
+        const cleanPath = logoPath.replace(/\\/g, '/');
+        const idx = cleanPath.lastIndexOf('uploads/');
+        if (idx !== -1) {
+          return `http://localhost:5000/${cleanPath.substring(idx)}`;
+        }
+        return logoPath;
+      }
+    }
+    return '/Images/Navbar_Logo.png';
+  };
+
   const fetchCategories = async () => {
     try {
       const activeCompId = formData.companyId || localStorage.getItem('selectedCompanyId') || '';
@@ -1639,7 +1655,7 @@ const TestRequestForm = () => {
                 <tbody>
                   <tr>
                     <td style={{ width: '45%', border: '1px solid #000000', padding: '4px', verticalAlign: 'middle', textAlign: 'center' }}>
-                      <img src="/Images/Navbar_Logo.png" alt="Logo" style={{ height: '50px', objectFit: 'contain', display: 'block', margin: '0 auto' }} />
+                      <img src={getSelectedCompanyLogo()} alt="Logo" style={{ height: '50px', objectFit: 'contain', display: 'block', margin: '0 auto' }} />
                     </td>
                     <td style={{ width: '25%', border: '1px solid #000000', padding: '4px', textAlign: 'center', fontWeight: 'bold', fontSize: '10px' }}>
                       FORMATS
@@ -1863,7 +1879,7 @@ const TestRequestForm = () => {
                 <tbody>
                   <tr>
                     <td style={{ width: '45%', border: '1px solid #000000', padding: '4px', verticalAlign: 'middle', textAlign: 'center' }}>
-                      <img src="/Images/Navbar_Logo.png" alt="Logo" style={{ height: '50px', objectFit: 'contain', display: 'block', margin: '0 auto' }} />
+                      <img src={getSelectedCompanyLogo()} alt="Logo" style={{ height: '50px', objectFit: 'contain', display: 'block', margin: '0 auto' }} />
                     </td>
                     <td style={{ width: '25%', border: '1px solid #000000', padding: '4px', textAlign: 'center', fontWeight: 'bold', fontSize: '10px' }}>
                       FORMATS

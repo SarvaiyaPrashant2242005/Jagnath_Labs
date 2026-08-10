@@ -12,8 +12,10 @@ const formatTestReport = (tr) => {
     const trObj = tr.toJSON ? tr.toJSON() : { ...tr };
     if (trObj.company) {
         trObj.companyName = trObj.company.companyName || trObj.company.company_name;
+        trObj.companyLogo = trObj.company.logo;
     } else {
         trObj.companyName = null;
+        trObj.companyLogo = null;
     }
     delete trObj.company;
     return trObj;
@@ -88,7 +90,7 @@ const getTestReportsByCompany = async (companyId, options = {}) => {
     const queryOptions = {
         where: whereClause,
         order: [['created_at', 'DESC']],
-        include: [{ model: Company, as: "company", attributes: ["id", "company_name"] }]
+        include: [{ model: Company, as: "company", attributes: ["id", "company_name", "logo"] }]
     };
 
     if (limit) {
@@ -119,13 +121,13 @@ const getTestReportById = async (id, companyId = null) => {
 
     let report = await TestReport.findOne({
         where: whereClause,
-        include: [{ model: Company, as: "company", attributes: ["id", "company_name"] }]
+        include: [{ model: Company, as: "company", attributes: ["id", "company_name", "logo"] }]
     });
 
     if (!report && companyId) {
         report = await TestReport.findOne({
             where: { id },
-            include: [{ model: Company, as: "company", attributes: ["id", "company_name"] }]
+            include: [{ model: Company, as: "company", attributes: ["id", "company_name", "logo"] }]
         });
     }
 

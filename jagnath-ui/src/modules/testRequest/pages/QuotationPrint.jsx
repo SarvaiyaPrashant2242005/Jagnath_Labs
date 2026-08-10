@@ -149,6 +149,18 @@ const QuotationPrint = () => {
     }
   };
 
+  const getLogoUrl = () => {
+    if (!selCompany) return '/Images/Navbar_Logo.png';
+    const logoPath = selCompany.quotation_logo || selCompany.quotationLogo || selCompany.logo;
+    if (!logoPath) return '/Images/Navbar_Logo.png';
+    const cleanPath = logoPath.replace(/\\/g, '/');
+    const idx = cleanPath.lastIndexOf('uploads/');
+    if (idx !== -1) {
+      return `http://localhost:5000/${cleanPath.substring(idx)}`;
+    }
+    return logoPath;
+  };
+
   if (loading) {
     return <div style={{ padding: '2rem', textAlign: 'center', fontFamily: 'sans-serif' }}>Loading Quotation Preview...</div>;
   }
@@ -214,9 +226,8 @@ const QuotationPrint = () => {
         }
       `}</style>
 
-      {/* Top Header Logo */}
       <div style={{ textAlign: 'center', marginBottom: '8px' }}>
-        <img src="/Images/Navbar_Logo.png" alt="JAGNATH LAB TECHNOLOGIES" style={{ height: '70px', objectFit: 'contain' }} />
+        <img src={getLogoUrl()} alt="Company Logo" style={{ height: '70px', objectFit: 'contain' }} />
       </div>
       <div style={{ borderBottom: '1.5px solid #000000', marginBottom: '15px' }}></div>
 

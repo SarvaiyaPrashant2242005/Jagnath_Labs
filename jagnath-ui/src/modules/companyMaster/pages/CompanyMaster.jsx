@@ -12,6 +12,16 @@ import Pagination from '../../../shared/components/Pagination';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 import { downloadCSV, downloadExcel } from '../../../shared/utils/exportUtils';
 
+const getLogoUrl = (path) => {
+  if (!path) return null;
+  const cleanPath = path.replace(/\\/g, '/');
+  const idx = cleanPath.lastIndexOf('uploads/');
+  if (idx !== -1) {
+    return `http://localhost:5000/${cleanPath.substring(idx)}`;
+  }
+  return path;
+};
+
 const CompanyMaster = ({ onCompanyUpdate }) => {
   // Company state
   const [companies, setCompanies] = useState([]);
@@ -100,6 +110,9 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
     status: 'Active'
   });
   const [logoFile, setLogoFile] = useState(null);
+  const [testRequestLogoFile, setTestRequestLogoFile] = useState(null);
+  const [testReportLogoFile, setTestReportLogoFile] = useState(null);
+  const [quotationLogoFile, setQuotationLogoFile] = useState(null);
   const [signatureFile, setSignatureFile] = useState(null);
 
   const [formErrors, setFormErrors] = useState({});
@@ -289,6 +302,12 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
       errors.companyEmail = 'Please enter a valid email address.';
     }
 
+    if (!editingId && !logoFile) {
+      errors.logo = 'Company Logo is required.';
+    } else if (editingId && !logoFile && (!formData.existingLogo || formData.removeLogo)) {
+      errors.logo = 'Company Logo is required.';
+    }
+
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -331,9 +350,22 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
       address: '',
       state: '',
       city: '',
-      status: 'Active'
+      status: 'Active',
+      existingLogo: '',
+      existingTestRequestLogo: '',
+      existingTestReportLogo: '',
+      existingQuotationLogo: '',
+      existingSignature: '',
+      removeLogo: false,
+      removeTestRequestLogo: false,
+      removeTestReportLogo: false,
+      removeQuotationLogo: false,
+      removeSignature: false
     });
     setLogoFile(null);
+    setTestRequestLogoFile(null);
+    setTestReportLogoFile(null);
+    setQuotationLogoFile(null);
     setSignatureFile(null);
     setFormErrors({});
     setSelectedUserId('');
@@ -354,9 +386,22 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
       address: company.address || '',
       state: company.state || '',
       city: company.city || '',
-      status: company.status || 'Active'
+      status: company.status || 'Active',
+      existingLogo: company.logo || '',
+      existingTestRequestLogo: company.test_request_logo || company.testRequestLogo || '',
+      existingTestReportLogo: company.test_report_logo || company.testReportLogo || '',
+      existingQuotationLogo: company.quotation_logo || company.quotationLogo || '',
+      existingSignature: company.signature || '',
+      removeLogo: false,
+      removeTestRequestLogo: false,
+      removeTestReportLogo: false,
+      removeQuotationLogo: false,
+      removeSignature: false
     });
     setLogoFile(null);
+    setTestRequestLogoFile(null);
+    setTestReportLogoFile(null);
+    setQuotationLogoFile(null);
     setSignatureFile(null);
     setFormErrors({});
     setSelectedUserId('');
@@ -386,8 +431,25 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
     if (logoFile) {
       formDataToSend.append('logo', logoFile);
     }
+    if (testRequestLogoFile) {
+      formDataToSend.append('test_request_logo', testRequestLogoFile);
+    }
+    if (testReportLogoFile) {
+      formDataToSend.append('test_report_logo', testReportLogoFile);
+    }
+    if (quotationLogoFile) {
+      formDataToSend.append('quotation_logo', quotationLogoFile);
+    }
     if (signatureFile) {
       formDataToSend.append('signature', signatureFile);
+    }
+
+    if (editingId) {
+      formDataToSend.append('removeLogo', formData.removeLogo ? 'true' : 'false');
+      formDataToSend.append('removeTestRequestLogo', formData.removeTestRequestLogo ? 'true' : 'false');
+      formDataToSend.append('removeTestReportLogo', formData.removeTestReportLogo ? 'true' : 'false');
+      formDataToSend.append('removeQuotationLogo', formData.removeQuotationLogo ? 'true' : 'false');
+      formDataToSend.append('removeSignature', formData.removeSignature ? 'true' : 'false');
     }
 
     if (isSuperAdmin) {
@@ -575,6 +637,87 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
   const handlePrint = () => {
     window.print();
     setShowDownloadDropdown(false);
+  };
+
+  const renderLogoUploadField = (label, fileVar, setFileVar, key, existingKey, removeKey) => {
+    const existingPath = formData[existingKey];
+    const isRemoved = formData[removeKey];
+    
+    // Determine preview source
+    let previewSrc = null;
+    if (fileVar) {
+      previewSrc = URL.createObjectURL(fileVar);
+    } else if (existingPath && !isRemoved) {
+      previewSrc = getLogoUrl(existingPath);
+    }
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', background: '#f8fafc', padding: '0.85rem', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>{label}</label>
+          {previewSrc && (
+            <button
+              type="button"
+              onClick={() => {
+                setFileVar(null);
+                if (existingPath) {
+                  setFormData(prev => ({ ...prev, [removeKey]: true }));
+                }
+              }}
+              style={{
+                backgroundColor: 'transparent',
+                border: 'none',
+                color: '#ef4444',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                padding: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.2rem'
+              }}
+            >
+              <FaTrash size={11} /> Remove
+            </button>
+          )}
+        </div>
+        
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.25rem' }}>
+          {previewSrc ? (
+            <div style={{ width: '56px', height: '56px', border: '1px solid #cbd5e1', borderRadius: '6px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff', flexShrink: 0 }}>
+              <img src={previewSrc} alt="Preview" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+            </div>
+          ) : (
+            <div style={{ width: '56px', height: '56px', border: '1px dashed #cbd5e1', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '0.7rem', textAlign: 'center', flexShrink: 0 }}>
+              No Logo
+            </div>
+          )}
+          
+          <input
+            type="file"
+            accept=".png,.jpg,.jpeg"
+            onChange={(e) => {
+              handleFileChange(e, setFileVar);
+              if (existingPath) {
+                setFormData(prev => ({ ...prev, [removeKey]: false }));
+              }
+              setFormErrors(prev => ({ ...prev, [key]: '' }));
+            }}
+            style={{
+              padding: '0.4rem',
+              border: '1px dashed #cbd5e1',
+              borderRadius: '6px',
+              fontSize: '0.8rem',
+              color: '#475569',
+              backgroundColor: '#ffffff',
+              cursor: 'pointer',
+              flex: 1
+            }}
+          />
+        </div>
+        {formErrors[key] && <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.1rem' }}>{formErrors[key]}</span>}
+      </div>
+    );
   };
 
   return (
@@ -856,44 +999,12 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
             </div>
 
             {/* Logo and Signature File Uploads */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginTop: '0.5rem' }}>
-              {/* Logo Upload */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Company Logo (Max 16MB)</label>
-                <input
-                  type="file"
-                  accept=".png,.jpg,.jpeg"
-                  onChange={(e) => handleFileChange(e, setLogoFile)}
-                  style={{
-                    padding: '0.5rem',
-                    border: '1px dashed #cbd5e1',
-                    borderRadius: '6px',
-                    fontSize: '0.85rem',
-                    color: '#475569',
-                    backgroundColor: '#f8fafc',
-                    cursor: 'pointer'
-                  }}
-                />
-              </div>
-
-              {/* Signature Upload */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Authorized Signature (Max 16MB)</label>
-                <input
-                  type="file"
-                  accept=".png,.jpg,.jpeg"
-                  onChange={(e) => handleFileChange(e, setSignatureFile)}
-                  style={{
-                    padding: '0.5rem',
-                    border: '1px dashed #cbd5e1',
-                    borderRadius: '6px',
-                    fontSize: '0.85rem',
-                    color: '#475569',
-                    backgroundColor: '#f8fafc',
-                    cursor: 'pointer'
-                  }}
-                />
-              </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem', marginTop: '0.5rem' }}>
+              {renderLogoUploadField('Company Logo (Main / Default) *', logoFile, setLogoFile, 'logo', 'existingLogo', 'removeLogo')}
+              {renderLogoUploadField('Test Request Logo (Optional)', testRequestLogoFile, setTestRequestLogoFile, 'test_request_logo', 'existingTestRequestLogo', 'removeTestRequestLogo')}
+              {renderLogoUploadField('Test Report Logo (Optional)', testReportLogoFile, setTestReportLogoFile, 'test_report_logo', 'existingTestReportLogo', 'removeTestReportLogo')}
+              {renderLogoUploadField('Quotation Logo (Optional)', quotationLogoFile, setQuotationLogoFile, 'quotation_logo', 'existingQuotationLogo', 'removeQuotationLogo')}
+              {renderLogoUploadField('Authorized Signature (Optional)', signatureFile, setSignatureFile, 'signature', 'existingSignature', 'removeSignature')}
             </div>
 
             {/* Assign User / Company Admin Section (Super Admin Only) */}
