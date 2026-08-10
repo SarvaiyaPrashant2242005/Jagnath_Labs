@@ -171,6 +171,22 @@ const createCompany = async (companyData, userId, files, generatedId, reqInfo) =
 
         const newCompany = await Company.create(dataToInsert, { transaction });
 
+        const initialDepartments = [
+            "Environment",
+            "Agriculture",
+            "Food",
+            "Clinical (Pathology)",
+            "Consulting"
+        ];
+        const Department = require("../DepartmentMasters/department.model");
+        for (const deptName of initialDepartments) {
+            await Department.create({
+                companyId: newCompany.id,
+                name: deptName,
+                status: 'Active'
+            }, { transaction });
+        }
+
         await UserCompanies.findOrCreate({
             where: { user_id: targetUserId, company_id: newCompany.id },
             defaults: { user_id: targetUserId, company_id: newCompany.id, is_default: true },

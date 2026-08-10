@@ -61,6 +61,15 @@ export const PARAMETER_ENDPOINTS = {
   BULK_IMPORT: `${API_BASE_URL}/parameter/bulk-import`,
 };
 
+// ─── Department Endpoints ────────────────────────────────────────────────────────
+export const DEPARTMENT_ENDPOINTS = {
+  CREATE: `${API_BASE_URL}/department`,
+  GET_ALL: `${API_BASE_URL}/department`,
+  GET_BY_ID: (id) => `${API_BASE_URL}/department/${id}`,
+  UPDATE: (id) => `${API_BASE_URL}/department/${id}`,
+  DELETE: (id) => `${API_BASE_URL}/department/${id}`,
+};
+
 // ─── Category (Discipline Group) Endpoints ─────────────────────────────────────
 export const CATEGORY_ENDPOINTS = {
   CREATE: `${API_BASE_URL}/category`,

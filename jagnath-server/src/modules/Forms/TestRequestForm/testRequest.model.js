@@ -84,6 +84,14 @@ const TestRequest = sequelize.define("TestRequest", {
         type: DataTypes.TEXT,
         allowNull: true,
     },
+    departmentId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: "departments",
+            key: "id"
+        }
+    },
     categoryId: {
         type: DataTypes.UUID,
         allowNull: true,

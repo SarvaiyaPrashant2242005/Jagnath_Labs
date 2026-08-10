@@ -129,13 +129,24 @@ const getAllSubCategories = async (query, companyId) => {
         }
     }
 
+    if (query.departmentId) {
+        whereClause['$category.departmentId$'] = query.departmentId;
+    }
+
     const queryOptions = {
         where: whereClause,
         include: [
             {
                 model: db.Category,
                 as: "category",
-                attributes: ["id", "name"]
+                attributes: ["id", "name", "departmentId"],
+                include: [
+                    {
+                        model: db.Department,
+                        as: "department",
+                        attributes: ["id", "name"]
+                    }
+                ]
             }
         ],
         order: orderClause
@@ -165,7 +176,20 @@ const getSubCategoryById = async (id, companyId) => {
 
     const subCategory = await db.SubCategory.findOne({
         where,
-        include: [{ model: db.Category, as: "category", attributes: ["id", "name"] }]
+        include: [
+            {
+                model: db.Category,
+                as: "category",
+                attributes: ["id", "name", "departmentId"],
+                include: [
+                    {
+                        model: db.Department,
+                        as: "department",
+                        attributes: ["id", "name"]
+                    }
+                ]
+            }
+        ]
     });
 
     if (!subCategory) {

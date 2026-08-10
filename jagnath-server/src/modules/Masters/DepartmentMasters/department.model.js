@@ -1,12 +1,12 @@
 /**
- * @file locationSample.model.js
- * @description Sequelize model for Location of Sample Master.
+ * @file department.model.js
+ * @description Sequelize model for Departments.
  */
 
 const { DataTypes } = require("sequelize");
 const sequelize = require("../../../config/database");
 
-const LocationSample = sequelize.define("LocationSample", {
+const Department = sequelize.define("Department", {
     id: {
         type: DataTypes.UUID,
         defaultValue: DataTypes.UUIDV4,
@@ -15,45 +15,26 @@ const LocationSample = sequelize.define("LocationSample", {
     companyId: {
         type: DataTypes.UUID,
         allowNull: false,
-        field: "company_id",
         references: {
             model: "companies",
             key: "id",
         }
     },
     name: {
-        type: DataTypes.STRING(150),
+        type: DataTypes.STRING,
         allowNull: false,
-    },
-    subCategoryId: {
-        type: DataTypes.UUID,
-        allowNull: true,
-        references: {
-            model: "sub_categories",
-            key: "id"
-        }
     },
     description: {
         type: DataTypes.TEXT,
-        allowNull: true
+        allowNull: true,
     },
     status: {
         type: DataTypes.ENUM("Active", "Inactive"),
         defaultValue: "Active",
         allowNull: false,
-    },
-    createdBy: {
-        type: DataTypes.UUID,
-        allowNull: true,
-        field: "created_by"
-    },
-    updatedBy: {
-        type: DataTypes.UUID,
-        allowNull: true,
-        field: "updated_by"
     }
 }, {
-    tableName: "location_of_samples",
+    tableName: "departments",
     paranoid: true,
     timestamps: true,
     createdAt: "created_at",
@@ -61,4 +42,4 @@ const LocationSample = sequelize.define("LocationSample", {
     deletedAt: "deleted_at",
 });
 
-module.exports = LocationSample;
+module.exports = Department;

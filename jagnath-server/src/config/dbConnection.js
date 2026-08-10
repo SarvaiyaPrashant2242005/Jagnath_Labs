@@ -11,11 +11,6 @@ require("../database/index");
 /**
  * Authenticates the database connection asynchronously.
  * Logs success on connection or logs the failure and terminates the application with exit code 1.
- * 
- * @async
- * @function connectDB
- * @returns {Promise<void>} Resolves when connection is successfully authenticated.
- * @throws {Error} Exits the process if authentication fails.
  */
 const connectDB = async () => {
     try {
@@ -23,11 +18,7 @@ const connectDB = async () => {
         await sequelize.authenticate();
         console.log("✅ PostgreSQL Connected Successfully");
 
-        // 2. Sync all models with the database (alter: false to prevent PostgreSQL alter conflict crashes)
-        await sequelize.sync({ alter: true });
-        console.log('📂 Database & tables synced!');
-
-        // 3. Run migrations
+        // 2. Run migrations first so referenced tables/columns exist before model constraints sync
         const { runMigration: runMigration01 } = require("../database/migrations/01_add_unique_indexes_and_cleanup");
         await runMigration01();
 
@@ -42,6 +33,13 @@ const connectDB = async () => {
 
         const { runMigration: runMigration05 } = require("../database/migrations/05_update_parameter_unique_index_with_location");
         await runMigration05();
+
+        const { runMigration: runMigration06 } = require("../database/migrations/06_add_department_master");
+        await runMigration06();
+
+        // 3. Sync all models with the database
+        await sequelize.sync({ alter: true });
+        console.log('📂 Database & tables synced!');
 
         // 4. Seed default data if needed
         const { seedDefaultUser } = require("../database/seeders");

@@ -6,7 +6,7 @@ import {
 } from 'react-icons/fa';
 import { priceMasterService } from '../services/priceMasterService';
 import { apiService } from '../../../shared/services/apiService';
-import { CATEGORY_ENDPOINTS, PARAMETER_ENDPOINTS, PRICE_MASTER_ENDPOINTS, SUB_CATEGORY_ENDPOINTS } from '../../../shared/services/apiEndpoints';
+import { CATEGORY_ENDPOINTS, PARAMETER_ENDPOINTS, PRICE_MASTER_ENDPOINTS, SUB_CATEGORY_ENDPOINTS, DEPARTMENT_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 import Pagination from '../../../shared/components/Pagination';
 import BulkImportModal from '../../../shared/components/BulkImport/BulkImportModal';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
@@ -22,6 +22,8 @@ const PriceMasterPage = () => {
   const [inlineModal, setInlineModal] = useState({ isOpen: false, type: null, parentData: {} });
   // Data States
   const [prices, setPrices] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [formDepartmentId, setFormDepartmentId] = useState('');
   const [categories, setCategories] = useState([]);
   const [subCategories, setSubCategories] = useState([]);
   const [parameters, setParameters] = useState([]);
@@ -126,6 +128,11 @@ const PriceMasterPage = () => {
     fetchPrices();
   }, [currentPage, pageSize, searchQuery, statusFilter, selectedCategory, sortField, sortDirection]);
 
+  const formCategoriesFiltered = useMemo(() => {
+    if (!formDepartmentId) return [];
+    return categories.filter(c => String(c.departmentId || c.department_id) === String(formDepartmentId));
+  }, [categories, formDepartmentId]);
+
   // Filter and sort parameters dropdown based on selected category & subCategory in form
   const sortedAndFilteredParameters = useMemo(() => {
     if (!formData.categoryId) return [];
@@ -220,10 +227,17 @@ const PriceMasterPage = () => {
 
   const fetchCategoriesAndParameters = async () => {
     try {
-      const [catRes, paramRes] = await Promise.all([
+      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
+      const deptUrl = activeCompId ? `${DEPARTMENT_ENDPOINTS.GET_ALL}?companyId=${activeCompId}&status=Active&limit=500` : `${DEPARTMENT_ENDPOINTS.GET_ALL}?status=Active&limit=500`;
+      
+      const [deptRes, catRes, paramRes] = await Promise.all([
+        apiService.get(deptUrl),
         apiService.get(CATEGORY_ENDPOINTS.GET_ALL),
         apiService.get(PARAMETER_ENDPOINTS.GET_ALL)
       ]);
+      if (deptRes?.data) {
+        setDepartments(deptRes.data.rows || deptRes.data || []);
+      }
       if (catRes?.data) {
         setCategories(Array.isArray(catRes.data) ? catRes.data : (catRes.data.rows || []));
       }
@@ -307,11 +321,14 @@ const PriceMasterPage = () => {
     );
   };
 
-  // Quick Add Category Handler
   const handleCreateCategoryDirect = async (e) => {
     e.preventDefault();
     if (!newCatName.trim()) {
       triggerToast('Category name is required.', 'error');
+      return;
+    }
+    if (!formDepartmentId) {
+      triggerToast('Please select a Department first.', 'error');
       return;
     }
 
@@ -319,7 +336,8 @@ const PriceMasterPage = () => {
       setIsSavingCat(true);
       const res = await apiService.post(CATEGORY_ENDPOINTS.CREATE, {
         name: newCatName.trim(),
-        status: 'Active'
+        status: 'Active',
+        departmentId: formDepartmentId
       });
 
       const createdCat = res?.data;
@@ -398,8 +416,10 @@ const PriceMasterPage = () => {
   // Open Create Form
   const handleOpenCreate = () => {
     setEditingId(null);
+    setFormDepartmentId('');
     setFormData({
-      categoryId: categories.length > 0 ? categories[0].id : '',
+      categoryId: '',
+      subCategoryId: '',
       parameterId: '',
       price: '',
       status: 'Active'
@@ -414,6 +434,10 @@ const PriceMasterPage = () => {
   const handleOpenEdit = (item) => {
     setEditingId(item.id);
     const catId = item.categoryId || (item.category ? item.category.id : '');
+    const matchedCat = categories.find(c => String(c.id) === String(catId));
+    const matchedDeptId = matchedCat ? (matchedCat.departmentId || matchedCat.department_id || '') : '';
+    setFormDepartmentId(matchedDeptId);
+
     const subCatId = item.parameter?.subCategoryId || item.subCategoryId || '';
     setFormData({
       categoryId: catId,
@@ -432,6 +456,9 @@ const PriceMasterPage = () => {
     e.preventDefault();
     const errors = {};
 
+    if (!formDepartmentId) {
+      errors.departmentId = 'Department is required.';
+    }
     if (!formData.categoryId) {
       errors.categoryId = 'Discipline Group is required.';
     }
@@ -712,6 +739,29 @@ const PriceMasterPage = () => {
 
           <form onSubmit={handleFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
+              
+              {/* Department Select */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Department *</label>
+                <select
+                  value={formDepartmentId}
+                  onChange={(e) => {
+                    setFormDepartmentId(e.target.value);
+                    setFormData({ ...formData, categoryId: '', subCategoryId: '', parameterId: '' });
+                    setSubCategories([]);
+                  }}
+                  style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.departmentId ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none', backgroundColor: '#ffffff', boxSizing: 'border-box', height: '40px' }}
+                >
+                  <option value="">Select Department</option>
+                  {departments.map(d => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+                {formErrors.departmentId && (
+                  <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 500 }}>{formErrors.departmentId}</span>
+                )}
+              </div>
+
               {/* Discipline Group Dropdown & Quick Add Link */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -719,7 +769,13 @@ const PriceMasterPage = () => {
                   {!editingId && (
                     <button
                       type="button"
-                      onClick={() => setIsAddCatModalOpen(true)}
+                      onClick={() => {
+                        if (!formDepartmentId) {
+                          triggerToast('Please select a Department first.', 'error');
+                          return;
+                        }
+                        setIsAddCatModalOpen(true);
+                      }}
                       style={{ background: 'none', border: 'none', color: '#22c55e', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}
                     >
                       <FaPlus size={10} /> Add New Group
@@ -727,8 +783,9 @@ const PriceMasterPage = () => {
                   )}
                 </div>
                 <SearchableSelect
-                  options={[...categories].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
+                  options={[...formCategoriesFiltered].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
                   value={formData.categoryId}
+                  disabled={!formDepartmentId}
                   onChange={async (selectedVal) => {
                     setFormData({ ...formData, categoryId: selectedVal, subCategoryId: '', parameterId: '' });
                     if (selectedVal) {
@@ -761,7 +818,7 @@ const PriceMasterPage = () => {
                           triggerToast('Please select a Discipline Group first.', 'error');
                           return;
                         }
-                        setInlineModal({ isOpen: true, type: 'subCategory', parentData: { categoryId: formData.categoryId } });
+                        setInlineModal({ isOpen: true, type: 'subCategory', parentData: { categoryId: formData.categoryId, departmentId: formDepartmentId } });
                       }}
                     />
                   )}

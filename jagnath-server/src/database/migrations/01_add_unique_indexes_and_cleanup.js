@@ -194,9 +194,7 @@ const runMigration = async () => {
     `, { transaction });
 
     await sequelize.query(`
-      CREATE UNIQUE INDEX IF NOT EXISTS idx_categories_company_lower_name
-      ON categories ("companyId", LOWER(TRIM(name)))
-      WHERE deleted_at IS NULL;
+      DROP INDEX IF EXISTS idx_categories_company_lower_name;
     `, { transaction });
 
     await sequelize.query(`

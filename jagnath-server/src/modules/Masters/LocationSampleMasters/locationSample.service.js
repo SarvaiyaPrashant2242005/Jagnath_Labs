@@ -40,7 +40,28 @@ const formatLocationSample = (loc) => {
     } else {
         locObj.companyName = null;
     }
+    if (locObj.subCategory) {
+        locObj.subCategoryName = locObj.subCategory.name;
+        if (locObj.subCategory.category) {
+            locObj.categoryName = locObj.subCategory.category.name;
+            locObj.categoryId = locObj.subCategory.category.id;
+            if (locObj.subCategory.category.department) {
+                locObj.departmentName = locObj.subCategory.category.department.name;
+                locObj.departmentId = locObj.subCategory.category.department.id;
+            }
+        }
+    }
+    if (!locObj.subCategoryName) {
+        locObj.subCategoryName = locObj.subCategoryId ? "Unknown Sub Category" : "Sub Category Not Assigned";
+    }
+    if (!locObj.categoryName) {
+        locObj.categoryName = "Discipline Group Not Assigned";
+    }
+    if (!locObj.departmentName) {
+        locObj.departmentName = "Department Not Assigned";
+    }
     delete locObj.company;
+    delete locObj.subCategory;
     return locObj;
 };
 
@@ -240,6 +261,20 @@ const getLocationSampleById = async (id, companyId) => {
             model: Company,
             as: "company",
             attributes: ["company_name"]
+        }, {
+            model: require("../SubCategoryMasters/subCategory.model"),
+            as: "subCategory",
+            attributes: ["name", "categoryId"],
+            include: [{
+                model: require("../CategoryMasters/category.model"),
+                as: "category",
+                attributes: ["name", "departmentId"],
+                include: [{
+                    model: require("../DepartmentMasters/department.model"),
+                    as: "department",
+                    attributes: ["name"]
+                }]
+            }]
         }],
         attributes: { exclude: ["deleted_at"] }
     });
@@ -256,9 +291,27 @@ const getLocationSamplesByCompany = async (companyId, options = {}) => {
             model: Company,
             as: "company",
             attributes: ["company_name"]
+        }, {
+            model: require("../SubCategoryMasters/subCategory.model"),
+            as: "subCategory",
+            attributes: ["name", "categoryId"],
+            include: [{
+                model: require("../CategoryMasters/category.model"),
+                as: "category",
+                attributes: ["name", "departmentId"],
+                include: [{
+                    model: require("../DepartmentMasters/department.model"),
+                    as: "department",
+                    attributes: ["name"]
+                }]
+            }]
         }],
         attributes: { exclude: ["deleted_at"] }
     };
+
+    if (options.subCategoryId) {
+        queryOptions.where.subCategoryId = options.subCategoryId;
+    }
 
     if (options.sortBy) {
         const allowedSortFields = ["name", "status", "created_at", "createdAt"];

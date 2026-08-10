@@ -75,6 +75,8 @@ const create = async (req, res) => {
 
         const locData = {
             name: value.name,
+            subCategoryId: value.subCategoryId || null,
+            description: value.description || null,
             status: value.status || "Active",
             companyId
         };
@@ -118,7 +120,8 @@ const getAll = async (req, res) => {
             search: req.query.search,
             status: req.query.status,
             sortBy: req.query.sortBy,
-            sortOrder: req.query.sortOrder
+            sortOrder: req.query.sortOrder,
+            subCategoryId: req.query.subCategoryId
         };
 
         const result = await locationSampleService.getLocationSamplesByCompany(companyId, options);

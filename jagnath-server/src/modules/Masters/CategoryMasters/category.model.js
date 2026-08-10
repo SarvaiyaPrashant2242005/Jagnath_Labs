@@ -20,6 +20,14 @@ const Category = sequelize.define("Category", {
             key: "id",
         }
     },
+    departmentId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: "departments",
+            key: "id",
+        }
+    },
     name: {
         type: DataTypes.STRING,
         allowNull: false,

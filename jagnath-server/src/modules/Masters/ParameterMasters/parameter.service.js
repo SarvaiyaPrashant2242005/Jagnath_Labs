@@ -458,6 +458,12 @@ const getParametersByCompany = async (companyId, options = {}) => {
             queryOptions.include[3].required = true;
         }
 
+        if (options.departmentId) {
+            queryOptions.include[3].include[0].where = { departmentId: options.departmentId };
+            queryOptions.include[3].include[0].required = true;
+            queryOptions.include[3].required = true;
+        }
+
         if (options.limit && options.page) {
             queryOptions.limit = parseInt(options.limit);
             queryOptions.offset = (parseInt(options.page) - 1) * queryOptions.limit;

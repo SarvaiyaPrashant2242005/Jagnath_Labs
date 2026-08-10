@@ -15,7 +15,8 @@ const SearchableSelect = ({
   hasError = false,
   customOptionLabel = '',
   onCustomOptionSelect,
-  disabled = false
+  disabled = false,
+  isMulti = false
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -61,7 +62,16 @@ const SearchableSelect = ({
   };
 
   // Find currently selected option object
-  const selectedOption = options.find(opt => String(getOptionId(opt)) === String(value));
+  const selectedOption = !isMulti ? options.find(opt => String(getOptionId(opt)) === String(value)) : null;
+
+  // Find selected options for multi-select
+  const selectedOptions = isMulti
+    ? options.filter(opt => {
+        const optId = getOptionId(opt);
+        const valArray = Array.isArray(value) ? value : (value ? [value] : []);
+        return valArray.map(String).includes(String(optId));
+      })
+    : [];
 
   // Filter options by search query
   const filteredOptions = options.filter(opt => {
@@ -76,8 +86,20 @@ const SearchableSelect = ({
   });
 
   const handleSelect = (optId) => {
-    onChange(optId);
-    setIsOpen(false);
+    if (isMulti) {
+      const valArray = Array.isArray(value) ? value : (value ? [value] : []);
+      const isSelected = valArray.map(String).includes(String(optId));
+      let nextValue;
+      if (isSelected) {
+        nextValue = valArray.filter(v => String(v) !== String(optId));
+      } else {
+        nextValue = [...valArray, optId];
+      }
+      onChange(nextValue);
+    } else {
+      onChange(optId);
+      setIsOpen(false);
+    }
   };
 
   const handleCustomSelect = () => {
@@ -87,7 +109,9 @@ const SearchableSelect = ({
     setIsOpen(false);
   };
 
-  const selectedName = selectedOption ? getOptionLabel(selectedOption) : '';
+  const selectedName = isMulti
+    ? (selectedOptions.map(opt => getOptionLabel(opt)).join(', ') || '')
+    : (selectedOption ? getOptionLabel(selectedOption) : '');
 
   return (
     <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
@@ -113,8 +137,8 @@ const SearchableSelect = ({
         }}
       >
         <span style={{
-          color: selectedOption ? '#0f172a' : '#94a3b8',
-          fontWeight: selectedOption ? 500 : 400,
+          color: (isMulti ? selectedOptions.length > 0 : selectedOption) ? '#0f172a' : '#94a3b8',
+          fontWeight: (isMulti ? selectedOptions.length > 0 : selectedOption) ? 500 : 400,
           whiteSpace: 'nowrap',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
@@ -124,12 +148,12 @@ const SearchableSelect = ({
         </span>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#64748b', flexShrink: 0 }}>
-          {value && (
+          {(isMulti ? selectedOptions.length > 0 : value) && (
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                onChange('');
+                onChange(isMulti ? [] : '');
               }}
               style={{
                 border: 'none',
@@ -222,7 +246,9 @@ const SearchableSelect = ({
             ) : (
               filteredOptions.map(opt => {
                 const optId = getOptionId(opt);
-                const isSelected = String(optId) === String(value);
+                const isSelected = isMulti
+                  ? (Array.isArray(value) ? value.map(String).includes(String(optId)) : false)
+                  : (String(optId) === String(value));
                 const name = getOptionLabel(opt);
 
                 return (
@@ -234,22 +260,33 @@ const SearchableSelect = ({
                       padding: '0.5rem 0.75rem',
                       cursor: 'pointer',
                       fontSize: '0.875rem',
-                      backgroundColor: isSelected ? '#2563eb' : 'transparent',
-                      color: isSelected ? '#ffffff' : '#1e293b',
+                      backgroundColor: isSelected && !isMulti ? '#2563eb' : 'transparent',
+                      color: isSelected && !isMulti ? '#ffffff' : '#1e293b',
                       fontWeight: isSelected ? 600 : 400,
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
-                      transition: 'background-color 0.1s ease'
+                      transition: 'background-color 0.1s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem'
                     }}
                     onMouseEnter={(e) => {
-                      if (!isSelected) e.currentTarget.style.backgroundColor = '#f1f5f9';
+                      if (!isSelected || isMulti) e.currentTarget.style.backgroundColor = '#f1f5f9';
                     }}
                     onMouseLeave={(e) => {
-                      if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent';
+                      if (!isSelected || isMulti) e.currentTarget.style.backgroundColor = 'transparent';
                     }}
                   >
-                    {name}
+                    {isMulti && (
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => {}} // handled by click container
+                        style={{ cursor: 'pointer', marginRight: '0.25rem' }}
+                      />
+                    )}
+                    <span>{name}</span>
                   </div>
                 );
               })

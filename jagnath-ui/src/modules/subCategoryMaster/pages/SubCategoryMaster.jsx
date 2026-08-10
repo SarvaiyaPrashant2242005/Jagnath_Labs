@@ -5,7 +5,7 @@ import {
   FaFilePdf, FaPrint, FaChevronDown
 } from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
-import { SUB_CATEGORY_ENDPOINTS, CATEGORY_ENDPOINTS } from '../../../shared/services/apiEndpoints';
+import { SUB_CATEGORY_ENDPOINTS, CATEGORY_ENDPOINTS, DEPARTMENT_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 import Pagination from '../../../shared/components/Pagination';
 import BulkImportModal from '../../../shared/components/BulkImport/BulkImportModal';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
@@ -24,6 +24,9 @@ const SubCategoryMaster = () => {
   // State
   const [subCategories, setSubCategories] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [departmentFilter, setDepartmentFilter] = useState('ALL');
+  const [formDepartmentId, setFormDepartmentId] = useState('');
   const [loading, setLoading] = useState(false);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
 
@@ -104,6 +107,25 @@ const SubCategoryMaster = () => {
     }
   };
 
+  const fetchDepartmentsList = async () => {
+    try {
+      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
+      const params = new URLSearchParams({
+        page: '1',
+        limit: '100',
+        status: 'Active'
+      });
+      if (activeCompId) params.append('companyId', activeCompId);
+      const response = await apiService.get(`${DEPARTMENT_ENDPOINTS.GET_ALL}?${params.toString()}`);
+      if (response && response.data) {
+        const list = response.data.rows || response.data || [];
+        setDepartments(list);
+      }
+    } catch (err) {
+      setDepartments([]);
+    }
+  };
+
   // Fetch all Sub Categories once (UI-side filtering)
   const fetchSubCategories = async () => {
     setLoading(true);
@@ -132,7 +154,13 @@ const SubCategoryMaster = () => {
   // Pure UI-side Filtering
   const filteredSubCategories = useMemo(() => {
     return subCategories.filter(s => {
-      // 1. Category / Discipline Group Filter
+      // 1a. Department Filter
+      if (departmentFilter !== 'ALL') {
+        const sDeptId = s.category?.departmentId || s.category?.department_id || '';
+        if (String(sDeptId) !== String(departmentFilter)) return false;
+      }
+
+      // 1b. Category / Discipline Group Filter
       if (categoryFilter) {
         const sCatId = s.categoryId || s.category_id || (s.category ? s.category.id : '');
         if (String(sCatId) !== String(categoryFilter)) return false;
@@ -217,6 +245,16 @@ const SubCategoryMaster = () => {
     return sorted;
   }, [filteredSubCategories, sortField, sortDirection]);
 
+  const categoriesForFilter = useMemo(() => {
+    if (departmentFilter === 'ALL') return categories;
+    return categories.filter(c => String(c.departmentId || c.department_id) === String(departmentFilter));
+  }, [categories, departmentFilter]);
+
+  const filteredCategoriesForForm = useMemo(() => {
+    if (!formDepartmentId) return [];
+    return categories.filter(c => String(c.departmentId || c.department_id) === String(formDepartmentId));
+  }, [categories, formDepartmentId]);
+
   const totalItems = sortedSubCategories.length;
   const totalPages = Math.ceil(totalItems / pageSize) || 1;
   const paginatedSubCategories = useMemo(() => {
@@ -227,17 +265,19 @@ const SubCategoryMaster = () => {
 
   useEffect(() => {
     fetchCategories();
+    fetchDepartmentsList();
   }, []);
 
   useEffect(() => {
     fetchSubCategories();
-  }, [currentPage, pageSize, searchQuery, categoryFilter, statusFilter]);
+  }, [currentPage, pageSize, searchQuery, categoryFilter, departmentFilter, statusFilter]);
 
   // Listen to company switch
   useEffect(() => {
     const handleCompanySwitch = () => {
       setCurrentPage(1);
       fetchCategories();
+      fetchDepartmentsList();
       fetchSubCategories();
     };
     window.addEventListener('companyChanged', handleCompanySwitch);
@@ -246,8 +286,9 @@ const SubCategoryMaster = () => {
 
   const handleOpenCreate = () => {
     setEditingId(null);
+    setFormDepartmentId('');
     setFormData({
-      categoryId: categories.length > 0 ? categories[0].id : '',
+      categoryId: '',
       name: '',
       description: '',
       status: 'Active'
@@ -260,6 +301,7 @@ const SubCategoryMaster = () => {
 
   const handleOpenEdit = (item) => {
     setEditingId(item.id);
+    setFormDepartmentId(item.category?.departmentId || item.category?.department_id || '');
     setFormData({
       categoryId: item.categoryId || (item.category ? item.category.id : ''),
       name: item.name || '',
@@ -282,6 +324,7 @@ const SubCategoryMaster = () => {
 
   const validateForm = () => {
     const errors = {};
+    if (!formDepartmentId) errors.departmentId = 'Department is required';
     if (!formData.categoryId) errors.categoryId = 'Discipline Group is required';
     if (!formData.name.trim()) errors.name = 'Sub Category Name is required';
     setFormErrors(errors);
@@ -571,20 +614,43 @@ const SubCategoryMaster = () => {
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
 
+              {/* Department Select */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Department *</label>
+                <select
+                  name="departmentId"
+                  value={formDepartmentId}
+                  onChange={(e) => {
+                    setFormDepartmentId(e.target.value);
+                    setFormData(prev => ({ ...prev, categoryId: '' }));
+                  }}
+                  style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.departmentId ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none', backgroundColor: '#ffffff' }}
+                >
+                  <option value="">Select Department</option>
+                  {departments.map(d => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+                {formErrors.departmentId && (
+                  <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 500 }}>{formErrors.departmentId}</span>
+                )}
+              </div>
+
               {/* Discipline Group Dropdown */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Discipline Group *</label>
-                  <AddMasterButton label="Add New Group" onClick={() => setInlineModal({ isOpen: true, type: 'category', parentData: {} })} />
+                  <AddMasterButton label="Add New Group" onClick={() => setInlineModal({ isOpen: true, type: 'category', parentData: { departmentId: formDepartmentId } })} />
                 </div>
                 <select
                   name="categoryId"
                   value={formData.categoryId}
                   onChange={handleInputChange}
-                  style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.categoryId ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none', backgroundColor: '#ffffff' }}
+                  disabled={!formDepartmentId}
+                  style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.categoryId ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none', backgroundColor: !formDepartmentId ? '#f1f5f9' : '#ffffff', cursor: !formDepartmentId ? 'not-allowed' : 'default' }}
                 >
                   <option value="">Select Discipline Group</option>
-                  {[...categories].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(cat => (
+                  {filteredCategoriesForForm.map(cat => (
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
                 </select>
@@ -692,12 +758,26 @@ const SubCategoryMaster = () => {
           </div>
           <div className="master-filter-inputs" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             <select
+              value={departmentFilter}
+              onChange={(e) => {
+                setDepartmentFilter(e.target.value);
+                setCategoryFilter('');
+                setCurrentPage(1);
+              }}
+              style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', backgroundColor: '#ffffff' }}
+            >
+              <option value="ALL">ALL DEPARTMENTS</option>
+              {departments.map(d => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
+            <select
               value={categoryFilter}
               onChange={(e) => { setCategoryFilter(e.target.value); setCurrentPage(1); }}
-              style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem' }}
+              style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', backgroundColor: '#ffffff' }}
             >
               <option value="">ALL DISCIPLINE GROUPS</option>
-              {[...categories].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(cat => (
+              {[...categoriesForFilter].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(cat => (
                 <option key={cat.id} value={cat.id}>{cat.name}</option>
               ))}
             </select>
@@ -727,6 +807,7 @@ const SubCategoryMaster = () => {
               <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ACTIONS</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>DEPARTMENT</th>
                 {renderSortableHeader('DISCIPLINE GROUP', 'categoryId')}
                 {renderSortableHeader('SUB CATEGORY NAME', 'name')}
                 {renderSortableHeader('STATUS', 'status')}
@@ -735,13 +816,13 @@ const SubCategoryMaster = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                     Loading Sub Categories...
                   </td>
                 </tr>
               ) : paginatedSubCategories.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                     No Sub Categories found.
                   </td>
                 </tr>
@@ -770,6 +851,7 @@ const SubCategoryMaster = () => {
                       </button>
                     </td>
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#64748b', fontWeight: 500 }}>{item.category?.department?.name || item.category?.departmentName || "Department Not Assigned"}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#2563eb', fontWeight: 600 }}>{item.category ? item.category.name : 'N/A'}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{item.name}</td>
                     <td style={{ padding: '0.75rem 1rem' }}>

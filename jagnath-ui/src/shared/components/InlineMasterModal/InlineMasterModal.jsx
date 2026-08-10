@@ -137,6 +137,12 @@ const InlineMasterModal = ({
     if (masterType === 'subCategory' && parentData.categoryId) {
       payload.categoryId = parentData.categoryId;
     }
+    if (masterType === 'category' && parentData.departmentId) {
+      payload.departmentId = parentData.departmentId;
+    }
+    if (masterType === 'locationSample' && parentData.subCategoryId) {
+      payload.subCategoryId = parentData.subCategoryId;
+    }
     if (masterType === 'parameter') {
       if (parentData.categoryId) payload.categoryId = parentData.categoryId;
       if (parentData.subCategoryId) payload.subCategoryId = parentData.subCategoryId;

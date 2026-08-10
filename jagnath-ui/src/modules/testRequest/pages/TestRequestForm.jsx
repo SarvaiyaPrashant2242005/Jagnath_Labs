@@ -9,6 +9,7 @@ import { apiService } from '../../../shared/services/apiService';
 import {
   CLIENT_ENDPOINTS,
   CATEGORY_ENDPOINTS,
+  DEPARTMENT_ENDPOINTS,
   PARAMETER_ENDPOINTS,
   CATEGORY_PARAMETER_ENDPOINTS,
   TEST_REQUEST_ENDPOINTS,
@@ -34,6 +35,7 @@ const TestRequestForm = () => {
   // State for dropdown options
   const [companies, setCompanies] = useState([]);
   const [clients, setClients] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [categories, setCategories] = useState([]);
   const [subCategories, setSubCategories] = useState([]);
   const [selectedSubCategory, setSelectedSubCategory] = useState('');
@@ -72,6 +74,7 @@ const TestRequestForm = () => {
     sampleParticular: '',
     categoryId: '',
     subCategoryId: '',
+    departmentId: '',
     equipmentAvailability: 'Available',
     referenceStandardAvailability: 'Available',
     sampleAdequacy: 'Adequate',
@@ -222,21 +225,49 @@ const TestRequestForm = () => {
     try {
       setLoading(true);
 
-      // 1. Fetch companies, categories, cautions, and price master first
-      const [compRes, catRes, cautionRes, priceRes] = await Promise.all([
-        apiService.get(COMPANY_ENDPOINTS.GET_MY),
-        apiService.get(CATEGORY_ENDPOINTS.GET_ALL),
-        apiService.get(CAUTION_ENDPOINTS.GET_ALL),
-        apiService.get(PRICE_MASTER_ENDPOINTS.GET_ALL)
-      ]);
+      let tr = null;
+      let targetCompanyId = '';
 
+      // 1. If editing, load the test request details first to determine target company ID
+      if (isEditing) {
+        try {
+          const trRes = await apiService.get(TEST_REQUEST_ENDPOINTS.GET_BY_ID(id));
+          if (trRes?.data) {
+            tr = trRes.data;
+            if (tr.companyId) {
+              targetCompanyId = tr.companyId;
+            }
+          }
+        } catch (e) {
+          console.error("Error loading test request details", e);
+        }
+      }
+
+      if (!targetCompanyId) {
+        targetCompanyId = localStorage.getItem('selectedCompanyId') || '';
+      }
+
+      // 2. Fetch other resources concurrently using the target company context
+      const [compRes, cautionRes, priceRes, deptRes, catRes] = await Promise.all([
+        apiService.get(COMPANY_ENDPOINTS.GET_MY),
+        apiService.get(CAUTION_ENDPOINTS.GET_ALL),
+        apiService.get(PRICE_MASTER_ENDPOINTS.GET_ALL),
+        apiService.get(`${DEPARTMENT_ENDPOINTS.GET_ALL}?companyId=${targetCompanyId}&status=Active&limit=500`),
+        apiService.get(CATEGORY_ENDPOINTS.GET_ALL)
+      ]);
+ 
       const cList = Array.isArray(compRes?.data) ? compRes.data : [compRes?.data];
       if (compRes?.data) setCompanies(cList);
+ 
+      if (deptRes?.data) {
+        setDepartments(deptRes.data.rows || deptRes.data || []);
+      }
+
       if (catRes?.data) {
         const catList = Array.isArray(catRes.data) ? catRes.data : [catRes.data];
         setCategories(catList.filter(cat => cat.status === 'Active'));
       }
-
+ 
       if (cautionRes?.data) {
         const cautionList = Array.isArray(cautionRes.data) ? cautionRes.data : [cautionRes.data];
         setCautions(cautionList.filter(c => c.status === true || c.status === 'Active'));
@@ -253,27 +284,9 @@ const TestRequestForm = () => {
         setPriceMasterMap(pMap);
       }
 
-      let tr = null;
-      let targetCompanyId = '';
-
-      // 2. If editing, load the test request details to determine target company ID
-      if (isEditing) {
-        const trRes = await apiService.get(TEST_REQUEST_ENDPOINTS.GET_BY_ID(id));
-        if (trRes?.data) {
-          tr = trRes.data;
-          if (tr.companyId) {
-            targetCompanyId = tr.companyId;
-          } else if (tr.companyName) {
-            const matchingComp = cList.find(c => c.id === tr.companyId || (c.companyName || c.company_name) === tr.companyName);
-            if (matchingComp) targetCompanyId = matchingComp.id;
-          }
-        }
-      }
-
-      // If not editing, or if editing but targetCompanyId not found, use default selected company
+      // Finalize targetCompanyId fallback check
       if (!targetCompanyId && cList.length > 0) {
-        const savedSelectedId = localStorage.getItem('selectedCompanyId');
-        targetCompanyId = savedSelectedId || cList[0].id;
+        targetCompanyId = cList[0].id;
       }
 
       // 3. Fetch clients for that target company (not the system default company)
@@ -294,7 +307,15 @@ const TestRequestForm = () => {
 
         let savedSubCatId = tr.subCategoryId || tr.sub_category_id || '';
         let savedCategoryId = tr.categoryId || tr.category_id || (tr.sampleParticular && tr.sampleParticular.length === 36 ? tr.sampleParticular : '');
+        let savedDepartmentId = tr.departmentId || tr.department_id || '';
         const savedSampleParticular = (tr.sampleParticular && tr.sampleParticular.length === 36) ? '' : (tr.sampleParticular || '');
+
+        if (!savedDepartmentId && savedCategoryId) {
+          const matchedCat = (catRes?.data?.rows || catRes?.data || []).find(c => String(c.id) === String(savedCategoryId));
+          if (matchedCat) {
+            savedDepartmentId = matchedCat.departmentId || matchedCat.department_id || '';
+          }
+        }
 
         // Fetch checked parameters for this test request
         const checks = {};
@@ -353,6 +374,7 @@ const TestRequestForm = () => {
           sampleParticular: savedSampleParticular,
           categoryId: savedCategoryId,
           subCategoryId: savedSubCatId,
+          departmentId: savedDepartmentId,
           equipmentAvailability: tr.equipmentAvailability || 'Available',
           referenceStandardAvailability: tr.referenceStandardAvailability || 'Available',
           sampleAdequacy: tr.sampleAdequacy || 'Adequate',
@@ -374,7 +396,9 @@ const TestRequestForm = () => {
           setSelectedSubCategory(savedSubCatId);
         }
 
-        if (savedCategoryId) {
+        if (savedDepartmentId) {
+          fetchCategoriesForDepartment(savedDepartmentId);
+        } else if (savedCategoryId) {
           fetchSubCategoriesForCategory(savedCategoryId);
         }
         fetchParameters(savedSubCatId, savedCategoryId, loadedSeq);
@@ -403,6 +427,28 @@ const TestRequestForm = () => {
       triggerToast('Failed to load initial data', 'error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
+
+  const fetchCategoriesForDepartment = async (departmentId) => {
+    if (!departmentId) {
+      setCategories([]);
+      return;
+    }
+    setCategoriesLoading(true);
+    try {
+      const activeCompId = formData.companyId || localStorage.getItem('selectedCompanyId') || '';
+      const res = await apiService.get(`${CATEGORY_ENDPOINTS.GET_ALL}?departmentId=${departmentId}&companyId=${activeCompId}&status=Active&limit=1000&all=true`);
+      const raw = res?.data;
+      let list = Array.isArray(raw) ? raw : (raw?.rows || raw?.categories || raw?.data || []);
+      setCategories(list.filter(c => c.status === 'Active' || c.status === true || !c.status));
+    } catch (e) {
+      console.error("Error fetching categories for department", e);
+      setCategories([]);
+    } finally {
+      setCategoriesLoading(false);
     }
   };
 
@@ -532,6 +578,22 @@ const TestRequestForm = () => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
 
+    if (name === 'departmentId') {
+      setSelectedSubCategory('');
+      setFormData(prev => ({ ...prev, departmentId: value, categoryId: '', subCategoryId: '' }));
+      setParameters([]);
+      setCheckedParameters({});
+      setSelectedParamSequence([]);
+      setSubCategories([]);
+      setParamPage(1);
+      setParamSearch('');
+      if (value) {
+        fetchCategoriesForDepartment(value);
+      } else {
+        setCategories([]);
+      }
+    }
+
     if (name === 'categoryId') {
       setSelectedSubCategory('');
       setFormData(prev => ({ ...prev, categoryId: value, subCategoryId: '' }));
@@ -588,6 +650,10 @@ const TestRequestForm = () => {
       triggerToast('Please select a Client.', 'error');
       return false;
     }
+    if (!formData.departmentId) {
+      triggerToast('Please select a Department.', 'error');
+      return false;
+    }
     const activeCatId = formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : '');
     if (!activeCatId) {
       triggerToast('Please select a Discipline Group.', 'error');
@@ -614,6 +680,7 @@ const TestRequestForm = () => {
       const payload = {
         ...formData,
         categoryId: activeCatId,
+        departmentId: formData.departmentId || null,
         sampleParticular: textSampleParticular,
         subCategoryId: selectedSubCategory || formData.subCategoryId || null,
         includeCaution: Boolean(formData.includeCaution),
@@ -1041,10 +1108,26 @@ const TestRequestForm = () => {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+              
+              {/* Department Selector */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Department <span style={{ color: '#ef4444' }}>*</span></label>
+                <SearchableSelect
+                  options={[...departments].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
+                  value={formData.departmentId || ''}
+                  onChange={(selectedVal) => {
+                    handleChange({ target: { name: 'departmentId', value: selectedVal } });
+                  }}
+                  placeholder="Select Department"
+                  searchPlaceholder="Search department..."
+                />
+              </div>
+
+              {/* Discipline Group Dropdown */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Discipline Group <span style={{ color: '#ef4444' }}>*</span></label>
-                  <AddMasterButton label="Add New Group" onClick={() => setInlineModal({ isOpen: true, type: 'category', parentData: { companyId: formData.companyId } })} />
+                  <AddMasterButton label="Add New Group" onClick={() => setInlineModal({ isOpen: true, type: 'category', parentData: { companyId: formData.companyId, departmentId: formData.departmentId } })} />
                 </div>
                 <SearchableSelect
                   options={[...categories].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
@@ -1054,6 +1137,7 @@ const TestRequestForm = () => {
                   }}
                   placeholder="Select Discipline Group"
                   searchPlaceholder="Search discipline group..."
+                  disabled={!formData.departmentId}
                 />
               </div>
 

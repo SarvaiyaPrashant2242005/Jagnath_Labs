@@ -15,7 +15,7 @@ const Sidebar = ({ activeTab, onTabChange, onNewRequest, sidebarRef, isOpen = tr
 
   // Auto-expand group containing the active tab
   useEffect(() => {
-    if (['companies', 'clients', 'categories', 'sub-categories', 'parameters', 'price-lists', 'cautions', 'location-samples'].includes(activeTab)) {
+    if (['companies', 'clients', 'departments', 'categories', 'sub-categories', 'parameters', 'price-lists', 'cautions', 'location-samples'].includes(activeTab)) {
       setOpenGroup('masters');
     } else if (['requests', 'new-request', 'test-reports'].includes(activeTab)) {
       setOpenGroup('workflow');
@@ -315,6 +315,7 @@ const Sidebar = ({ activeTab, onTabChange, onNewRequest, sidebarRef, isOpen = tr
                 {[
                   { name: 'Company', key: 'companies', icon: <FaBuilding size={14} /> },
                   { name: 'Clients', key: 'clients', icon: <FaUserFriends size={14} /> },
+                  { name: 'Department', key: 'departments', icon: <FaSlidersH size={14} /> },
                   { name: 'Discipline Group', key: 'categories', icon: <FaTags size={14} /> },
                   { name: 'Location of Sample', key: 'location-samples', icon: <FaMapMarkerAlt size={14} /> },
                   { name: 'Sub Category', key: 'sub-categories', icon: <FaSlidersH size={14} /> },

@@ -82,6 +82,11 @@ const formatTestRequest = (tr) => {
     } else {
         trObj.clientName = null;
     }
+    if (trObj.department) {
+        trObj.departmentName = trObj.department.name;
+    } else {
+        trObj.departmentName = trObj.departmentId ? "Unknown Department" : "Department Not Assigned";
+    }
     return trObj;
 };
 
@@ -368,6 +373,11 @@ const getTestRequestById = async (trId, companyId = null) => {
                 {
                     model: Caution,
                     as: "caution"
+                },
+                {
+                    model: require("../../Masters/DepartmentMasters/department.model"),
+                    as: "department",
+                    attributes: ["name"]
                 }
             ],
             attributes: { exclude: ["deleted_at"] }
@@ -424,6 +434,11 @@ const getTestRequestsByCompany = async (companyId, options = {}) => {
                     model: Client,
                     as: "client",
                     attributes: ["clientName"]
+                },
+                {
+                    model: require("../../Masters/DepartmentMasters/department.model"),
+                    as: "department",
+                    attributes: ["name"]
                 }
             ],
             attributes: { exclude: ["deleted_at"] },

@@ -79,6 +79,7 @@ const create = async (req, res) => {
 
         const categoryData = {
             name: value.name,
+            departmentId: value.departmentId || null,
             description: value.description,
             status: value.status || "Active",
             companyId
@@ -133,7 +134,8 @@ const getAll = async (req, res) => {
             search: req.query.search,
             status: req.query.status,
             sortBy: req.query.sortBy,
-            sortOrder: req.query.sortOrder
+            sortOrder: req.query.sortOrder,
+            departmentId: req.query.departmentId
         };
 
         const result = await categoryService.getCategoriesByCompany(companyId, options);
@@ -254,6 +256,7 @@ const update = async (req, res) => {
 
         const categoryData = {
             name: value.name,
+            departmentId: value.departmentId !== undefined ? value.departmentId : category.departmentId,
             description: value.description,
             status: value.status,
             companyId: targetCompanyId

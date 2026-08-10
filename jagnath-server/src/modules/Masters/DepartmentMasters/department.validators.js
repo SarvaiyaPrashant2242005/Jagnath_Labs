@@ -1,17 +1,13 @@
 /**
- * @file category.validators.js
- * @description Joi validation schemas for Category requests.
+ * @file department.validators.js
+ * @description Joi validation schemas for Department requests.
  */
 const Joi = require("joi");
 
-const createCategorySchema = Joi.object({
+const createDepartmentSchema = Joi.object({
     name: Joi.string().required().messages({
-        "any.required": "Category Name is required.",
-        "string.empty": "Category Name must not be empty."
-    }),
-    departmentId: Joi.string().trim().required().messages({
-        "any.required": "Department is required.",
-        "string.empty": "Department must not be empty."
+        "any.required": "Department Name is required.",
+        "string.empty": "Department Name must not be empty."
     }),
     description: Joi.string().optional().allow("", null),
     status: Joi.string().valid("Active", "Inactive").required().messages({
@@ -22,11 +18,10 @@ const createCategorySchema = Joi.object({
     companyId: Joi.string().trim().optional()
 });
 
-const updateCategorySchema = Joi.object({
+const updateDepartmentSchema = Joi.object({
     name: Joi.string().optional().messages({
-        "string.empty": "Category Name must not be empty."
+        "string.empty": "Department Name must not be empty."
     }),
-    departmentId: Joi.string().trim().optional().allow("", null),
     description: Joi.string().optional().allow("", null),
     status: Joi.string().valid("Active", "Inactive").optional().messages({
         "any.only": "Status must be Active or Inactive."
@@ -36,7 +31,6 @@ const updateCategorySchema = Joi.object({
 });
 
 module.exports = {
-    createCategorySchema,
-    updateCategorySchema
+    createDepartmentSchema,
+    updateDepartmentSchema
 };
-

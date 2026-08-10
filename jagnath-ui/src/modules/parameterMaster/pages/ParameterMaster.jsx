@@ -5,7 +5,7 @@ import {
   FaFilePdf, FaPrint, FaChevronDown, FaTimes
 } from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
-import { PARAMETER_ENDPOINTS, COMPANY_ENDPOINTS, CATEGORY_ENDPOINTS, SUB_CATEGORY_ENDPOINTS, LOCATION_SAMPLE_ENDPOINTS } from '../../../shared/services/apiEndpoints';
+import { PARAMETER_ENDPOINTS, COMPANY_ENDPOINTS, CATEGORY_ENDPOINTS, SUB_CATEGORY_ENDPOINTS, LOCATION_SAMPLE_ENDPOINTS, DEPARTMENT_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 import Pagination from '../../../shared/components/Pagination';
 import BulkImportModal from '../../../shared/components/BulkImport/BulkImportModal';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
@@ -24,6 +24,9 @@ const ParameterMaster = () => {
   // Parameter, Company & Category states
   const [parameters, setParameters] = useState([]);
   const [companies, setCompanies] = useState([]);
+  const [departmentsList, setDepartmentsList] = useState([]);
+  const [departmentFilter, setDepartmentFilter] = useState('ALL');
+  const [formDepartmentId, setFormDepartmentId] = useState('');
   const [categoriesList, setCategoriesList] = useState([]);
   const [subCategoriesList, setSubCategoriesList] = useState([]);
   const [locationSamplesList, setLocationSamplesList] = useState([]);
@@ -167,6 +170,21 @@ const ParameterMaster = () => {
     }
   };
 
+  const fetchDepartmentsList = async () => {
+    try {
+      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
+      const url = activeCompId ? `${DEPARTMENT_ENDPOINTS.GET_ALL}?companyId=${activeCompId}&limit=500&status=Active` : `${DEPARTMENT_ENDPOINTS.GET_ALL}?limit=500&status=Active`;
+      const response = await apiService.get(url);
+      if (response && response.data) {
+        setDepartmentsList(response.data.rows || response.data || []);
+      } else {
+        setDepartmentsList([]);
+      }
+    } catch (err) {
+      setDepartmentsList([]);
+    }
+  };
+
   // Fetch categories to populate dropdown options
   const fetchCategoriesForDropdown = async () => {
     try {
@@ -262,10 +280,37 @@ const ParameterMaster = () => {
 
   useEffect(() => {
     if (isFormOpen) {
-      fetchSubCategoriesForDropdown(formData.categoryId);
       fetchSavedParametersForForm();
     }
-  }, [formData.categoryId, isFormOpen]);
+  }, [isFormOpen]);
+
+  const formCategoriesFiltered = useMemo(() => {
+    if (!formDepartmentId) return [];
+    return categoriesList.filter(c => String(c.departmentId || c.department_id) === String(formDepartmentId));
+  }, [categoriesList, formDepartmentId]);
+
+  const formSubCategoriesFiltered = useMemo(() => {
+    if (!formData.categoryId) return [];
+    return subCategoriesList.filter(s => String(s.categoryId || s.category_id) === String(formData.categoryId));
+  }, [subCategoriesList, formData.categoryId]);
+
+  const formLocationSamplesFiltered = useMemo(() => {
+    if (!formData.subCategoryId) return [];
+    return locationSamplesList.filter(l => String(l.subCategoryId || l.sub_category_id) === String(formData.subCategoryId));
+  }, [locationSamplesList, formData.subCategoryId]);
+
+  const filterCategoriesFiltered = useMemo(() => {
+    if (departmentFilter === 'ALL') return categoriesList;
+    return categoriesList.filter(c => String(c.departmentId || c.department_id) === String(departmentFilter));
+  }, [categoriesList, departmentFilter]);
+
+  const filterSubCategoriesFiltered = useMemo(() => {
+    if (categoryFilter === '') {
+      if (departmentFilter === 'ALL') return subCategoriesList;
+      return subCategoriesList.filter(s => String(s.category?.departmentId || s.category?.department_id) === String(departmentFilter));
+    }
+    return subCategoriesList.filter(s => String(s.categoryId || s.category_id) === String(categoryFilter));
+  }, [subCategoriesList, departmentFilter, categoryFilter]);
 
   // Unique list of saved parameters sorted by match relevance and name
   const uniqueSavedParameters = useMemo(() => {
@@ -350,10 +395,6 @@ const ParameterMaster = () => {
       const newSubCatId = formData.subCategoryId || matched.subCategoryId || matched.subCategory?.id || '';
       const newLocId = formData.locationSampleId || matched.locationSampleId || matched.locationSample?.id || '';
 
-      if (newCatId && newCatId !== formData.categoryId) {
-        fetchSubCategoriesForDropdown(newCatId);
-      }
-
       setFormData(prev => ({
         ...prev,
         parameterName: matched.parameterName || '',
@@ -401,6 +442,12 @@ const ParameterMaster = () => {
   // Pure UI-side Filtering & Sorting (Latest Added First) for Parameters
   const filteredParameters = useMemo(() => {
     const list = parameters.filter(p => {
+      // 0. Department Filter
+      if (departmentFilter && departmentFilter !== 'ALL') {
+        const pDeptId = p.category?.departmentId || p.category?.department_id || '';
+        if (String(pDeptId) !== String(departmentFilter)) return false;
+      }
+
       // 1. Discipline Group Filter
       if (categoryFilter) {
         const pCatId = p.categoryId || p.category_id || (p.category ? p.category.id : '');
@@ -551,14 +598,18 @@ const ParameterMaster = () => {
   useEffect(() => {
     const initializeData = async () => {
       await fetchCompanies();
+      await fetchDepartmentsList();
       await fetchCategoriesForDropdown();
+      await fetchSubCategoriesForDropdown();
       await fetchLocationSamplesForDropdown();
       await fetchParameters();
     };
     initializeData();
 
     const handleCompanyChange = () => {
+      fetchDepartmentsList();
       fetchCategoriesForDropdown();
+      fetchSubCategoriesForDropdown();
       fetchLocationSamplesForDropdown();
       fetchParameters();
     };
@@ -569,8 +620,14 @@ const ParameterMaster = () => {
   // Form validation
   const validateForm = () => {
     const errors = {};
+    if (!formDepartmentId) {
+      errors.departmentId = 'Department is required.';
+    }
     if (!formData.categoryId) {
-      errors.categoryId = 'Category is required.';
+      errors.categoryId = 'Discipline Group is required.';
+    }
+    if (!formData.subCategoryId) {
+      errors.subCategoryId = 'Sub Category is required.';
     }
     if (!formData.parameterName.trim()) {
       errors.parameterName = 'Parameter Name is required.';
@@ -587,13 +644,9 @@ const ParameterMaster = () => {
     }
   };
 
-  // Open Form for Create
   const handleOpenCreate = () => {
     const defaultCompanyName = companies.length > 0 ? (companies[0].companyName || companies[0].company_name) : '';
-    const initialCatId = categoriesList.length > 0 ? categoriesList[0].id : '';
-    if (initialCatId) {
-      fetchSubCategoriesForDropdown(initialCatId);
-    }
+    setFormDepartmentId('');
     setFormData({
       parameterName: '',
       unit: '',
@@ -602,7 +655,7 @@ const ParameterMaster = () => {
       testMethod: '',
       status: 'Active',
       companyName: defaultCompanyName,
-      categoryId: initialCatId,
+      categoryId: '',
       subCategoryId: '',
       locationSampleId: ''
     });
@@ -615,11 +668,11 @@ const ParameterMaster = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Open Form for Edit
   const handleOpenEdit = (param) => {
-    if (param.categoryId) {
-      fetchSubCategoriesForDropdown(param.categoryId);
-    }
+    const matchedCat = categoriesList.find(c => String(c.id) === String(param.categoryId));
+    const matchedDeptId = matchedCat ? (matchedCat.departmentId || matchedCat.department_id || '') : '';
+    setFormDepartmentId(matchedDeptId);
+    
     setFormData({
       parameterName: param.parameterName || '',
       unit: param.unit || '',
@@ -988,24 +1041,56 @@ const ParameterMaster = () => {
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
+              
+              {/* Department Select */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Department *</label>
+                <select
+                  value={formDepartmentId}
+                  onChange={(e) => {
+                    setFormDepartmentId(e.target.value);
+                    handleInputChange({ target: { name: 'categoryId', value: '' } });
+                    handleInputChange({ target: { name: 'subCategoryId', value: '' } });
+                    handleInputChange({ target: { name: 'locationSampleId', value: '' } });
+                  }}
+                  style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.departmentId ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none', backgroundColor: '#ffffff', boxSizing: 'border-box', height: '40px' }}
+                >
+                  <option value="">Select Department</option>
+                  {departmentsList.map(d => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+                {formErrors.departmentId && (
+                  <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 500 }}>{formErrors.departmentId}</span>
+                )}
+              </div>
+
               {/* Discipline Group Dropdown & Quick Add Link */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Discipline Group *</label>
                   <button
                     type="button"
-                    onClick={() => setIsAddCatModalOpen(true)}
+                    onClick={() => {
+                      if (!formDepartmentId) {
+                        triggerToast('Please select a Department first.', 'error');
+                        return;
+                      }
+                      setIsAddCatModalOpen(true);
+                    }}
                     style={{ background: 'none', border: 'none', color: '#22c55e', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}
                   >
                     <FaPlus size={10} /> Add New Group
                   </button>
                 </div>
                 <SearchableSelect
-                  options={[...categoriesList].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
+                  options={[...formCategoriesFiltered].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
                   value={formData.categoryId}
+                  disabled={!formDepartmentId}
                   onChange={(selectedVal) => {
                     handleInputChange({ target: { name: 'categoryId', value: selectedVal } });
-                    fetchSubCategoriesForDropdown(selectedVal);
+                    handleInputChange({ target: { name: 'subCategoryId', value: '' } });
+                    handleInputChange({ target: { name: 'locationSampleId', value: '' } });
                   }}
                   placeholder="Select Discipline Group"
                   searchPlaceholder="Search discipline group..."
@@ -1015,11 +1100,11 @@ const ParameterMaster = () => {
                   <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 500 }}>{formErrors.categoryId}</span>
                 )}
               </div>
-
+ 
               {/* Sub Category Dropdown */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Sub Category</label>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Sub Category *</label>
                   <AddMasterButton
                     label="Add New Sub Category"
                     onClick={() => {
@@ -1027,33 +1112,46 @@ const ParameterMaster = () => {
                         triggerToast('Please select a Discipline Group first.', 'error');
                         return;
                       }
-                      setInlineModal({ isOpen: true, type: 'subCategory', parentData: { categoryId: formData.categoryId } });
+                      setInlineModal({ isOpen: true, type: 'subCategory', parentData: { categoryId: formData.categoryId, departmentId: formDepartmentId } });
                     }}
                   />
                 </div>
                 <SearchableSelect
-                  options={[...subCategoriesList].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
+                  options={[...formSubCategoriesFiltered].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
                   value={formData.subCategoryId}
+                  disabled={!formData.categoryId}
                   onChange={(selectedVal) => {
                     handleInputChange({ target: { name: 'subCategoryId', value: selectedVal } });
+                    handleInputChange({ target: { name: 'locationSampleId', value: '' } });
                   }}
                   placeholder="Select Sub Category"
                   searchPlaceholder="Search sub category..."
+                  hasError={!!formErrors.subCategoryId}
                 />
+                {formErrors.subCategoryId && (
+                  <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 500 }}>{formErrors.subCategoryId}</span>
+                )}
               </div>
-
+ 
               {/* Location of Sample Dropdown */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Location of Sample</label>
                   <AddMasterButton
                     label="Add New Location"
-                    onClick={() => setInlineModal({ isOpen: true, type: 'locationSample', parentData: {} })}
+                    onClick={() => {
+                      if (!formData.subCategoryId) {
+                        triggerToast('Please select a Sub Category first.', 'error');
+                        return;
+                      }
+                      setInlineModal({ isOpen: true, type: 'locationSample', parentData: { subCategoryId: formData.subCategoryId } });
+                    }}
                   />
                 </div>
                 <SearchableSelect
-                  options={[...locationSamplesList].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
+                  options={[...formLocationSamplesFiltered].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
                   value={formData.locationSampleId}
+                  disabled={!formData.subCategoryId}
                   onChange={(selectedVal) => {
                     handleInputChange({ target: { name: 'locationSampleId', value: selectedVal } });
                   }}
@@ -1262,6 +1360,23 @@ const ParameterMaster = () => {
                 Cards
               </button>
             </div>
+            {/* Department Filter */}
+            <select
+              value={departmentFilter}
+              onChange={(e) => {
+                setDepartmentFilter(e.target.value);
+                setCategoryFilter('');
+                setSubCategoryFilter('');
+                setCurrentPage(1);
+              }}
+              style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', backgroundColor: '#ffffff' }}
+            >
+              <option value="ALL">ALL DEPARTMENTS</option>
+              {departmentsList.map(d => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
+
             {/* Discipline Group Filter */}
             <select
               value={categoryFilter}
@@ -1269,13 +1384,13 @@ const ParameterMaster = () => {
                 const catId = e.target.value;
                 setCategoryFilter(catId);
                 setSubCategoryFilter('');
-                fetchSubCategoriesForToolbarFilter(catId);
                 setCurrentPage(1);
               }}
-              style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem' }}
+              disabled={departmentFilter === 'ALL'}
+              style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', backgroundColor: departmentFilter === 'ALL' ? '#f1f5f9' : '#ffffff', cursor: departmentFilter === 'ALL' ? 'not-allowed' : 'default' }}
             >
               <option value="">ALL DISCIPLINE GROUPS</option>
-              {[...categoriesList].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(cat => (
+              {[...filterCategoriesFiltered].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(cat => (
                 <option key={cat.id} value={cat.id}>{cat.name}</option>
               ))}
             </select>
@@ -1288,10 +1403,10 @@ const ParameterMaster = () => {
                 setCurrentPage(1);
               }}
               disabled={!categoryFilter}
-              style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', backgroundColor: !categoryFilter ? '#f1f5f9' : '#ffffff' }}
+              style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', backgroundColor: !categoryFilter ? '#f1f5f9' : '#ffffff', cursor: !categoryFilter ? 'not-allowed' : 'default' }}
             >
               <option value="">ALL SUB CATEGORIES</option>
-              {[...subCategoriesFilterList].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(sub => (
+              {[...filterSubCategoriesFiltered].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(sub => (
                 <option key={sub.id} value={sub.id}>{sub.name}</option>
               ))}
             </select>
@@ -1325,6 +1440,7 @@ const ParameterMaster = () => {
                   <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                     <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ACTIONS</th>
                     <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
+                    {renderSortableHeader('DEPARTMENT', 'departmentId')}
                     {renderSortableHeader('PARAMETER NAME', 'parameterName')}
                     {renderSortableHeader('DISCIPLINE GROUP', 'categoryId')}
                     {renderSortableHeader('SUB CATEGORY', 'subCategoryId')}
@@ -1338,13 +1454,13 @@ const ParameterMaster = () => {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={10} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                      <td colSpan={11} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                         Loading parameters...
                       </td>
                     </tr>
                   ) : paginatedParameters.length === 0 ? (
                     <tr>
-                      <td colSpan={10} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                      <td colSpan={11} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                         No parameters found.
                       </td>
                     </tr>
@@ -1373,6 +1489,7 @@ const ParameterMaster = () => {
                           </button>
                         </td>
                         <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
+                        <td style={{ padding: '0.75rem 1rem', color: '#64748b', fontWeight: 500 }}>{param.departmentName || (param.category?.department?.name) || 'Department Not Assigned'}</td>
                         <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{param.parameterName}</td>
                         <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.categoryName || (param.category ? param.category.categoryName : 'Unassigned')}</td>
                         <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.subCategoryName || 'Unassigned'}</td>
