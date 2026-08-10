@@ -125,6 +125,11 @@ const TestReport = sequelize.define("TestReport", {
         allowNull: true,
         field: "authorized_signatory"
     },
+    signatureImage: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        field: "signature_image"
+    },
     parametersList: {
         type: DataTypes.JSONB,
         allowNull: true,

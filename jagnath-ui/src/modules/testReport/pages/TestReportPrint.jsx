@@ -394,7 +394,18 @@ const TestReportPrint = () => {
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontWeight: 'bold', fontSize: '0.78rem' }}>Thanking you in anticipation!</div>
             <div style={{ fontWeight: 'bold', fontSize: '0.78rem' }}>For Jagnath Lab Technologies,</div>
-            <div style={{ marginTop: '2rem', fontWeight: 'bold', fontSize: '0.78rem' }}>
+            {report.signatureImage ? (
+              <div style={{ marginTop: '6px', display: 'flex', justifyContent: 'flex-end' }}>
+                <img
+                  src={report.signatureImage}
+                  alt="Authorized Signature"
+                  style={{ maxHeight: '65px', maxWidth: '200px', objectFit: 'contain' }}
+                />
+              </div>
+            ) : (
+              <div style={{ marginTop: '2rem' }} />
+            )}
+            <div style={{ fontWeight: 'bold', fontSize: '0.78rem' }}>
               ({report.authorizedSignatory || 'Technical/Quality Manager'})
             </div>
             <div style={{ fontWeight: 'bold', fontSize: '0.78rem' }}>

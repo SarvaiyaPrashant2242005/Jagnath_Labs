@@ -706,7 +706,7 @@ const BulkImportModal = ({
                               {r._status === 'UPDATE' && '⚠️ Update'}
                               {r._status === 'ERROR' && '❌ Error'}
                             </span>
-                            {r._status === 'ERROR' && r._errors && Object.keys(r._errors).length > 0 && (
+                            {r._status === 'ERROR' && r._errors && Object.keys(r._errors).filter(k => k !== '_row').length > 0 && (
                               <div
                                 style={{
                                   fontSize: '0.725rem',
@@ -723,7 +723,27 @@ const BulkImportModal = ({
                                   marginTop: '0.2rem'
                                 }}
                               >
-                                {Object.values(r._errors).join(' • ')}
+                                {Object.keys(r._errors).filter(k => k !== '_row').map(k => r._errors[k]).join(' • ')}
+                              </div>
+                            )}
+                            {r._status === 'UPDATE' && r._errors && r._errors['_row'] && (
+                              <div
+                                style={{
+                                  fontSize: '0.725rem',
+                                  color: '#b45309',
+                                  fontWeight: 600,
+                                  background: '#fffbeb',
+                                  border: '1px solid #fde68a',
+                                  borderRadius: '6px',
+                                  padding: '0.35rem 0.5rem',
+                                  whiteSpace: 'normal',
+                                  wordBreak: 'break-word',
+                                  lineHeight: '1.3',
+                                  maxWidth: '250px',
+                                  marginTop: '0.2rem'
+                                }}
+                              >
+                                {r._errors['_row']}
                               </div>
                             )}
                           </div>

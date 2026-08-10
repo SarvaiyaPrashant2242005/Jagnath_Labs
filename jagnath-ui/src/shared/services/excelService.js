@@ -454,39 +454,71 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
     });
 
     // Check for internal file duplicates
+    let isDuplicateInFile = false;
+    let fileDuplicateMessage = '';
+
     if (masterType === 'client') {
       const nEmail = normalizeEmail(normalizedData.email);
       const nPhone = normalizePhone(normalizedData.contactNumber);
 
       if (nEmail && seenEmailsInFile.has(nEmail)) {
-        const msg = `Duplicate email in uploaded file. First found at row ${seenEmailsInFile.get(nEmail)}.`;
-        cellErrors['email'] = msg;
-        cellErrors['_row'] = msg;
-        isRowValid = false;
+        isDuplicateInFile = true;
+        fileDuplicateMessage = `Duplicate email in uploaded file (first found at row ${seenEmailsInFile.get(nEmail)}). This row will update the record.`;
+      } else if (nPhone && seenPhonesInFile.has(nPhone)) {
+        isDuplicateInFile = true;
+        fileDuplicateMessage = `Duplicate phone number in uploaded file (first found at row ${seenPhonesInFile.get(nPhone)}). This row will update the record.`;
       }
 
-      if (nPhone && seenPhonesInFile.has(nPhone)) {
-        const msg = `Duplicate phone number in uploaded file. First found at row ${seenPhonesInFile.get(nPhone)}.`;
-        cellErrors['contactNumber'] = msg;
-        cellErrors['_row'] = cellErrors['_row'] ? `${cellErrors['_row']} | ${msg}` : msg;
-        isRowValid = false;
-      }
-
-      if (isRowValid) {
+      if (isRowValid && !isDuplicateInFile) {
         if (nEmail) seenEmailsInFile.set(nEmail, validRowNum);
         if (nPhone) seenPhonesInFile.set(nPhone, validRowNum);
       }
-    } else if (masterType === 'category' || masterType === 'parameter') {
-      const fieldKey = masterType === 'category' ? 'categoryName' : 'parameterName';
-      const nName = normalizeString(normalizedData[fieldKey]);
-
+    } else if (masterType === 'category') {
+      const nName = normalizeString(normalizedData.categoryName);
       if (nName && seenNamesInFile.has(nName)) {
-        const msg = `Duplicate ${masterType === 'category' ? 'discipline group' : 'parameter'} in uploaded file. First found at row ${seenNamesInFile.get(nName)}.`;
-        cellErrors[fieldKey] = msg;
-        cellErrors['_row'] = msg;
-        isRowValid = false;
+        isDuplicateInFile = true;
+        fileDuplicateMessage = `Duplicate discipline group in uploaded file (first found at row ${seenNamesInFile.get(nName)}). This row will update the record.`;
       } else if (nName) {
         seenNamesInFile.set(nName, validRowNum);
+      }
+    } else if (masterType === 'subCategory') {
+      const nCatName = normalizeString(normalizedData.categoryName);
+      const nSubName = normalizeString(normalizedData.name);
+      const subCatSignature = `${nCatName}___${nSubName}`;
+      if (nSubName && seenNamesInFile.has(subCatSignature)) {
+        isDuplicateInFile = true;
+        fileDuplicateMessage = `Duplicate sub category in uploaded file (first found at row ${seenNamesInFile.get(subCatSignature)}). This row will update the record.`;
+      } else if (nSubName) {
+        seenNamesInFile.set(subCatSignature, validRowNum);
+      }
+    } else if (masterType === 'parameter') {
+      const nName = normalizeString(normalizedData.parameterName);
+      const nSub = normalizeString(normalizedData.subCategoryName);
+      const nLoc = normalizeString(normalizedData.locationOfSample);
+      const paramSignature = `${nName}___${nSub}___${nLoc}`;
+      if (nName && seenNamesInFile.has(paramSignature)) {
+        isDuplicateInFile = true;
+        fileDuplicateMessage = `Duplicate parameter name under same sub category and location in uploaded file (first found at row ${seenNamesInFile.get(paramSignature)}). This row will update the record.`;
+      } else if (nName) {
+        seenNamesInFile.set(paramSignature, validRowNum);
+      }
+    } else if (masterType === 'pricelist') {
+      const nCatName = normalizeString(normalizedData.categoryName);
+      const nParamName = normalizeString(normalizedData.parameterName);
+      const priceSignature = `${nCatName}___${nParamName}`;
+      if (nParamName && seenNamesInFile.has(priceSignature)) {
+        isDuplicateInFile = true;
+        fileDuplicateMessage = `Duplicate price list item in uploaded file (first found at row ${seenNamesInFile.get(priceSignature)}). This row will update the record.`;
+      } else if (nParamName) {
+        seenNamesInFile.set(priceSignature, validRowNum);
+      }
+    } else if (masterType === 'user') {
+      const nEmail = normalizeEmail(normalizedData.email);
+      if (nEmail && seenNamesInFile.has(nEmail)) {
+        isDuplicateInFile = true;
+        fileDuplicateMessage = `Duplicate user email in uploaded file (first found at row ${seenNamesInFile.get(nEmail)}). This row will update the record.`;
+      } else if (nEmail) {
+        seenNamesInFile.set(nEmail, validRowNum);
       }
     }
 
@@ -503,7 +535,7 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
         const phoneClient = nPhone ? existingDbRecords.find(c => normalizePhone(c.contactNumber) === nPhone) : null;
 
         if (emailClient && phoneClient && emailClient.id !== phoneClient.id) {
-          const msg = `Email belongs to client ID ${emailClient.id}, but phone number belongs to client ID ${phoneClient.id}.`;
+          const msg = `Email belongs to client '${emailClient.clientName}', but phone number belongs to client '${phoneClient.clientName}'.`;
           cellErrors['email'] = msg;
           cellErrors['contactNumber'] = msg;
           cellErrors['_row'] = msg;
@@ -519,12 +551,44 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
           isDbMatch = true;
           matchingDbId = dbCat.id;
         }
+      } else if (masterType === 'subCategory') {
+        const nCatName = normalizeString(normalizedData.categoryName);
+        const nSubName = normalizeString(normalizedData.name);
+        const dbSub = existingDbRecords.find(s => normalizeString(s.categoryName) === nCatName && normalizeString(s.name || s.subCategoryName) === nSubName);
+        if (dbSub) {
+          isDbMatch = true;
+          matchingDbId = dbSub.id;
+        }
       } else if (masterType === 'parameter') {
         const nParamName = normalizeString(normalizedData.parameterName);
-        const dbParam = existingDbRecords.find(p => normalizeString(p.parameterName || p.name) === nParamName);
+        const nSub = normalizeString(normalizedData.subCategoryName);
+        const nLoc = normalizeString(normalizedData.locationOfSample);
+        const dbParam = existingDbRecords.find(p => 
+          normalizeString(p.parameterName || p.name) === nParamName &&
+          normalizeString(p.subCategoryName) === nSub &&
+          normalizeString(p.locationSampleName) === nLoc
+        );
         if (dbParam) {
           isDbMatch = true;
           matchingDbId = dbParam.id;
+        }
+      } else if (masterType === 'pricelist') {
+        const nCatName = normalizeString(normalizedData.categoryName);
+        const nParamName = normalizeString(normalizedData.parameterName);
+        const dbPrice = existingDbRecords.find(pr => 
+          normalizeString(pr.categoryName) === nCatName &&
+          normalizeString(pr.parameterName) === nParamName
+        );
+        if (dbPrice) {
+          isDbMatch = true;
+          matchingDbId = dbPrice.id;
+        }
+      } else if (masterType === 'user') {
+        const nEmail = normalizeEmail(normalizedData.email);
+        const dbUser = existingDbRecords.find(u => normalizeEmail(u.email) === nEmail);
+        if (dbUser) {
+          isDbMatch = true;
+          matchingDbId = dbUser.id;
         }
       }
     }
@@ -532,8 +596,13 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
     let statusTag = 'NEW';
     if (!isRowValid) {
       statusTag = 'ERROR';
-    } else if (isDbMatch) {
+    } else if (isDuplicateInFile || isDbMatch) {
       statusTag = 'UPDATE';
+      if (isDuplicateInFile) {
+        cellErrors['_row'] = fileDuplicateMessage;
+      } else {
+        cellErrors['_row'] = "Duplicate data exists in database. This row will update the existing record.";
+      }
     }
 
     evaluatedRows.push({

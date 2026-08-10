@@ -82,8 +82,6 @@ const formatTestRequest = (tr) => {
     } else {
         trObj.clientName = null;
     }
-    delete trObj.company;
-    delete trObj.client;
     return trObj;
 };
 

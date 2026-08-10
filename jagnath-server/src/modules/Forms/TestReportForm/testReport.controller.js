@@ -68,6 +68,7 @@ const create = async (req, res) => {
             formatDate: value.formatDate || "",
             reviewedBy: value.reviewedBy || "",
             authorizedSignatory: value.authorizedSignatory || "",
+            signatureImage: value.signatureImage || null,
             parametersList: value.parametersList || [],
             status: value.status || "Completed",
             showPermissibleLimits: value.showPermissibleLimits !== undefined ? value.showPermissibleLimits : true
@@ -120,6 +121,7 @@ const update = async (req, res) => {
             formatDate: value.formatDate !== undefined ? value.formatDate : report.formatDate,
             reviewedBy: value.reviewedBy !== undefined ? value.reviewedBy : report.reviewedBy,
             authorizedSignatory: value.authorizedSignatory !== undefined ? value.authorizedSignatory : report.authorizedSignatory,
+            signatureImage: value.signatureImage !== undefined ? value.signatureImage : report.signatureImage,
             parametersList: value.parametersList !== undefined ? value.parametersList : report.parametersList,
             status: value.status || report.status,
             showPermissibleLimits: value.showPermissibleLimits !== undefined ? value.showPermissibleLimits : report.showPermissibleLimits

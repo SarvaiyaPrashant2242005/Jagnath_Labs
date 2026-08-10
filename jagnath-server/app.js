@@ -30,7 +30,9 @@ app.use(express.json());
 app.use(cors());
 
 // Enhances application security by setting various HTTP headers (guards against XSS, clickjacking, etc.)
-app.use(helmet());
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 
 // Parses cookie headers and populates req.cookies with an object keyed by the cookie names
 app.use(cookieParser());

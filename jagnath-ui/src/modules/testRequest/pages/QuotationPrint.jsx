@@ -227,7 +227,7 @@ const QuotationPrint = () => {
       `}</style>
 
       <div style={{ textAlign: 'center', marginBottom: '8px' }}>
-        <img src={getLogoUrl()} alt="Company Logo" style={{ height: '70px', objectFit: 'contain' }} />
+        <img src={getLogoUrl()} alt="Company Logo" style={{ height: '110px', objectFit: 'contain' }} />
       </div>
       <div style={{ borderBottom: '1.5px solid #000000', marginBottom: '15px' }}></div>
 
