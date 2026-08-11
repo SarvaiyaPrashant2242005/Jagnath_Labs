@@ -29,10 +29,10 @@ const getDashboardStats = async (companyId) => {
         TestRequest.count({ where: whereCompany }),
         TestReport.count({ where: whereCompany }),
         Client.count({ where: whereCompany }),
-        Parameter.count({ where: whereGlobalOrCompany }),
-        Category.count({ where: whereGlobalOrCompany }),
-        SubCategory.count({ where: whereGlobalOrCompany }),
-        LocationSample.count({ where: whereGlobalOrCompany })
+        Parameter.count({ where: whereCompany }),
+        Category.count({ where: whereCompany }),
+        SubCategory.count({ where: whereCompany }),
+        LocationSample.count({ where: whereCompany })
     ]);
 
     // 2. Recent Test Requests (Latest 6)

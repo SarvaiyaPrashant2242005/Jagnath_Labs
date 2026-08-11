@@ -447,15 +447,8 @@ const getParameterById = async (parameterId, companyId) => {
 const getParametersByCompany = async (companyId, options = {}) => {
     try {
         let whereClause = {};
-        if (options.all === 'true' || options.all === true) {
-            whereClause = {};
-        } else if (companyId) {
-            whereClause = {
-                [Op.or]: [
-                    { companyId },
-                    { companyId: null }
-                ]
-            };
+        if (companyId && companyId !== 'ALL') {
+            whereClause.companyId = companyId;
         }
 
         let queryOptions = {

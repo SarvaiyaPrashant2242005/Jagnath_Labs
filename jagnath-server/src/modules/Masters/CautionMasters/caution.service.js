@@ -174,8 +174,8 @@ const getCautionById = async (cautionId, companyId) => {
 const getCautions = async (options = {}) => {
     const whereClause = {};
 
-    if (options.companyId) {
-        whereClause[Op.or] = [{ companyId: options.companyId }, { companyId: null }];
+    if (options.companyId && options.companyId !== 'ALL') {
+        whereClause.companyId = options.companyId;
     }
 
     if (options.status !== undefined && options.status !== 'ALL' && options.status !== '') {
