@@ -9,6 +9,12 @@ const sequelize = db.sequelize;
 
 const getDashboardStats = async (companyId) => {
     const whereCompany = companyId ? { companyId } : {};
+    const whereGlobalOrCompany = companyId ? {
+        [Op.or]: [
+            { companyId },
+            { companyId: null }
+        ]
+    } : {};
 
     // 1. Core Total KPI Counts
     const [

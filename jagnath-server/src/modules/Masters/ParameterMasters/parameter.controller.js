@@ -166,10 +166,12 @@ const getAll = async (req, res) => {
         const options = {
             page: req.query.page,
             limit: req.query.limit,
+            all: req.query.all,
             search: req.query.search,
             status: req.query.status,
             categoryId: req.query.categoryId,
             subCategoryId: req.query.subCategoryId,
+            departmentId: req.query.departmentId,
             sortBy: req.query.sortBy,
             sortOrder: req.query.sortOrder
         };

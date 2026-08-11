@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import {
   FaChartPie, FaBuilding, FaUserFriends, FaTags, FaSlidersH,
   FaClipboardList, FaFileAlt, FaFileInvoiceDollar,
@@ -188,6 +189,7 @@ const Sidebar = ({ activeTab, onTabChange, onNewRequest, sidebarRef, isOpen = tr
             cursor: pointer;
             transition: all 0.2s ease;
             min-height: 40px;
+            text-decoration: none !important;
           }
 
           .menu-group-header {
@@ -249,6 +251,7 @@ const Sidebar = ({ activeTab, onTabChange, onNewRequest, sidebarRef, isOpen = tr
             transition: all 0.2s ease;
             margin-bottom: 0.1rem;
             min-height: 38px;
+            text-decoration: none !important;
           }
 
           .submenu-item:hover {
@@ -284,7 +287,8 @@ const Sidebar = ({ activeTab, onTabChange, onNewRequest, sidebarRef, isOpen = tr
           <nav className="sidebar-menu">
             {/* 1. Dashboard */}
             <div className="menu-group">
-              <div
+              <Link
+                to="/dashboard"
                 className={`menu-item ${activeTab === 'dashboard' ? 'active' : ''}`}
                 onClick={() => {
                   handleItemClick('dashboard');
@@ -295,7 +299,7 @@ const Sidebar = ({ activeTab, onTabChange, onNewRequest, sidebarRef, isOpen = tr
                   <FaChartPie className="menu-icon" />
                   <span>Dashboard</span>
                 </div>
-              </div>
+              </Link>
             </div>
 
             {/* 2. Master Dropdown */}
@@ -313,24 +317,24 @@ const Sidebar = ({ activeTab, onTabChange, onNewRequest, sidebarRef, isOpen = tr
 
               <div className={`submenu-container ${openGroup === 'masters' ? 'open' : ''}`}>
                 {[
-                  { name: 'Company', key: 'companies', icon: <FaBuilding size={14} /> },
-                  { name: 'Clients', key: 'clients', icon: <FaUserFriends size={14} /> },
-                  { name: 'Department', key: 'departments', icon: <FaSlidersH size={14} /> },
-                  { name: 'Discipline Group', key: 'categories', icon: <FaTags size={14} /> },
-                  { name: 'Location of Sample', key: 'location-samples', icon: <FaMapMarkerAlt size={14} /> },
-                  { name: 'Sub Category', key: 'sub-categories', icon: <FaSlidersH size={14} /> },
-                  { name: 'Parameters', key: 'parameters', icon: <FaSlidersH size={14} /> },
-                  { name: 'Price List', key: 'price-lists', icon: <FaFileInvoiceDollar size={14} /> },
-                  // { name: 'Quotation Master', key: 'cautions', icon: <FaShieldAlt size={14} /> }
+                  { name: 'Company', key: 'companies', route: '/company', icon: <FaBuilding size={14} /> },
+                  { name: 'Clients', key: 'clients', route: '/clients', icon: <FaUserFriends size={14} /> },
+                  { name: 'Department', key: 'departments', route: '/departments', icon: <FaSlidersH size={14} /> },
+                  { name: 'Discipline Group', key: 'categories', route: '/categories', icon: <FaTags size={14} /> },
+                  { name: 'Location of Sample', key: 'location-samples', route: '/location-samples', icon: <FaMapMarkerAlt size={14} /> },
+                  { name: 'Sub Category', key: 'sub-categories', route: '/sub-categories', icon: <FaSlidersH size={14} /> },
+                  { name: 'Parameters', key: 'parameters', route: '/parameters', icon: <FaSlidersH size={14} /> },
+                  { name: 'Price List', key: 'price-lists', route: '/price-lists', icon: <FaFileInvoiceDollar size={14} /> },
                 ].map(item => (
-                  <div
+                  <Link
                     key={item.key}
+                    to={item.route}
                     className={`submenu-item ${activeTab === item.key ? 'active-sub' : ''}`}
                     onClick={() => handleItemClick(item.key)}
                   >
                     {item.icon}
                     <span>{item.name}</span>
-                  </div>
+                  </Link>
                 ))}
               </div>
             </div>
@@ -349,7 +353,8 @@ const Sidebar = ({ activeTab, onTabChange, onNewRequest, sidebarRef, isOpen = tr
               </div>
 
               <div className={`submenu-container ${openGroup === 'workflow' ? 'open' : ''}`}>
-                <div
+                <Link
+                  to="/test-requests"
                   className={`submenu-item ${activeTab === 'requests' ? 'active-sub' : ''}`}
                   onClick={() => handleItemClick('requests')}
                   style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}
@@ -358,8 +363,9 @@ const Sidebar = ({ activeTab, onTabChange, onNewRequest, sidebarRef, isOpen = tr
                     <FaClipboardList size={14} />
                     <span>Test Requests</span>
                   </div>
-                </div>
-                <div
+                </Link>
+                <Link
+                  to="/test-reports"
                   className={`submenu-item ${activeTab === 'test-reports' ? 'active-sub' : ''}`}
                   onClick={() => handleItemClick('test-reports')}
                   style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}
@@ -368,7 +374,7 @@ const Sidebar = ({ activeTab, onTabChange, onNewRequest, sidebarRef, isOpen = tr
                     <FaFileAlt size={14} />
                     <span>Test Reports</span>
                   </div>
-                </div>
+                </Link>
               </div>
             </div>
 
@@ -376,19 +382,20 @@ const Sidebar = ({ activeTab, onTabChange, onNewRequest, sidebarRef, isOpen = tr
             <div className="menu-group">
               <div className={`submenu-container ${openGroup === 'reports' ? 'open' : ''}`}>
                 {[
-                  { name: 'Reports', key: 'reports', icon: <FaFileAlt size={14} /> },
-                  { name: 'Invoices', key: 'invoices', icon: <FaFileInvoiceDollar size={14} /> },
-                  { name: 'Dispatch', key: 'dispatch', icon: <FaTruck size={14} /> },
-                  { name: 'Settings', key: 'settings', icon: <FaCog size={14} /> }
+                  { name: 'Reports', key: 'reports', route: '/reports', icon: <FaFileAlt size={14} /> },
+                  { name: 'Invoices', key: 'invoices', route: '/invoices', icon: <FaFileInvoiceDollar size={14} /> },
+                  { name: 'Dispatch', key: 'dispatch', route: '/dispatch', icon: <FaTruck size={14} /> },
+                  { name: 'Settings', key: 'settings', route: '/settings', icon: <FaCog size={14} /> }
                 ].map(item => (
-                  <div
+                  <Link
                     key={item.key}
+                    to={item.route}
                     className={`submenu-item ${activeTab === item.key ? 'active-sub' : ''}`}
                     onClick={() => handleItemClick(item.key)}
                   >
                     {item.icon}
                     <span>{item.name}</span>
-                  </div>
+                  </Link>
                 ))}
               </div>
             </div>

@@ -424,7 +424,7 @@ const DashboardLayout = ({ children }) => {
               )}
             </div>
 
-            <Link to="/profile" target="_blank" className="header-profile-button" title="My Profile">
+            <Link to="/profile" className="header-profile-button" title="My Profile">
               <FaUserCircle style={{ fontSize: '1.1rem', flexShrink: 0 }} />
               <span className="header-btn-text">Profile</span>
             </Link>

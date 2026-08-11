@@ -1,14 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
-  FaFolder, FaPlus, FaDownload, FaEdit, FaTrash, FaCheck,
-  FaExclamationCircle, FaSlidersH, FaChevronDown
+  FaPlus, FaDownload, FaEdit, FaTrash, FaCheck,
+  FaExclamationCircle, FaFileExcel, FaCopy, FaFileCsv,
+  FaFilePdf, FaPrint, FaChevronDown, FaSlidersH
 } from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
 import { DEPARTMENT_ENDPOINTS, COMPANY_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 import Pagination from '../../../shared/components/Pagination';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
+import { downloadCSV, downloadExcel } from '../../../shared/utils/exportUtils';
 
 const DepartmentMaster = () => {
+  // States
   const [departments, setDepartments] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -36,7 +39,11 @@ const DepartmentMaster = () => {
 
   // Sorting State
   const [sortField, setSortField] = useState(null);
-  const [sortDirection, setSortDirection] = useState(null); // 'asc', 'desc', or null
+  const [sortDirection, setSortDirection] = useState(null);
+
+  // Download Dropdown toggle
+  const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
+  const dropdownRef = useRef(null);
 
   // Form inputs state
   const [formData, setFormData] = useState({
@@ -56,6 +63,17 @@ const DepartmentMaster = () => {
     }, 2500);
   };
 
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowDownloadDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   // Fetch all companies associated with user
   const fetchCompanies = async () => {
     try {
@@ -66,7 +84,7 @@ const DepartmentMaster = () => {
         return companyList;
       }
       return [];
-    } catch (err) {
+    } catch {
       return [];
     }
   };
@@ -121,6 +139,25 @@ const DepartmentMaster = () => {
     }
   };
 
+  // Pure UI side filtering for status & search
+  const filteredDepartments = useMemo(() => {
+    return departments.filter(dept => {
+      // 1. Status Filter
+      if (statusFilter !== 'ALL') {
+        const statusStr = (dept.status || 'Active').toString().toLowerCase();
+        if (statusStr !== statusFilter.toLowerCase()) return false;
+      }
+      // 2. Search Query Filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const nameMatch = (dept.name || '').toLowerCase().includes(q);
+        const descMatch = (dept.description || '').toLowerCase().includes(q);
+        if (!nameMatch && !descMatch) return false;
+      }
+      return true;
+    });
+  }, [departments, statusFilter, searchQuery]);
+
   const handleSort = (field) => {
     if (sortField !== field) {
       setSortField(field);
@@ -159,135 +196,186 @@ const DepartmentMaster = () => {
     );
   };
 
-  useEffect(() => {
-    fetchDepartments();
-  }, [currentPage, pageSize, searchQuery, statusFilter, sortField, sortDirection]);
+  const loadAllMasterDependencies = async () => {
+    await fetchCompanies();
+    await fetchDepartments();
+  };
 
+  // Listen for global company switch
   useEffect(() => {
-    const initializeData = async () => {
-      await fetchCompanies();
-      await fetchDepartments();
-    };
-    initializeData();
-
     const handleCompanyChange = () => {
-      fetchDepartments();
+      setCurrentPage(1);
+      loadAllMasterDependencies();
     };
     window.addEventListener('companyChanged', handleCompanyChange);
     return () => window.removeEventListener('companyChanged', handleCompanyChange);
   }, []);
 
-  // Form validation
-  const validateForm = () => {
-    const errors = {};
-    if (!formData.name.trim()) {
-      errors.name = 'Department Name is required.';
-    }
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
+  // Fetch on state changes
+  useEffect(() => {
+    loadAllMasterDependencies();
+  }, [currentPage, pageSize, statusFilter, searchQuery, sortField, sortDirection]);
+
+  // Reset form inputs
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      description: '',
+      status: 'Active',
+      companyName: ''
+    });
+    setFormErrors({});
+    setEditingId(null);
+    setIsFormOpen(false);
   };
 
+  const handleOpenCreate = () => {
+    setEditingId(null);
+    setFormData({
+      name: '',
+      description: '',
+      status: 'Active',
+      companyName: ''
+    });
+    setFormErrors({});
+    setIsFormOpen(true);
+    document.querySelector('.dashboard-content-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Handle manual input change
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
     if (formErrors[name]) {
       setFormErrors(prev => ({ ...prev, [name]: '' }));
     }
   };
 
-  // Open Form for Create
-  const handleOpenCreate = () => {
-    const activeCompId = localStorage.getItem('selectedCompanyId');
-    const matchedComp = companies.find(c => String(c.id) === String(activeCompId));
-    const defaultCompanyName = matchedComp ? (matchedComp.companyName || matchedComp.company_name) : (companies.length > 0 ? (companies[0].companyName || companies[0].company_name) : '');
-
-    setFormData({
-      name: '',
-      description: '',
-      status: 'Active',
-      companyName: defaultCompanyName
-    });
-    setFormErrors({});
-    setEditingId(null);
-    setIsFormOpen(true);
-    document.querySelector('.dashboard-content-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  // Validate form fields
+  const validateForm = () => {
+    const errors = {};
+    if (!formData.name.trim()) {
+      errors.name = 'Department name is required';
+    } else if (formData.name.trim().length < 2) {
+      errors.name = 'Name must be at least 2 characters long';
+    }
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
-  // Open Form for Edit
-  const handleOpenEdit = (dept) => {
-    setFormData({
-      name: dept.name || '',
-      description: dept.description || '',
-      status: dept.status || 'Active',
-      companyName: dept.companyName || (dept.company ? (dept.company.companyName || dept.company.company_name) : '')
-    });
-    setFormErrors({});
-    setEditingId(dept.id);
-    setIsFormOpen(true);
-    document.querySelector('.dashboard-content-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  // Handle Form Submission
+  // Save/Add or Update department
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
 
     setSubmitting(true);
     try {
-      const activeCompId = localStorage.getItem('selectedCompanyId');
+      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
       const payload = {
         name: formData.name.trim(),
-        description: formData.description.trim(),
+        description: formData.description ? formData.description.trim() : null,
         status: formData.status,
         companyId: activeCompId
       };
 
-      let response;
       if (editingId) {
-        response = await apiService.put(`${DEPARTMENT_ENDPOINTS.UPDATE(editingId)}`, payload);
-        triggerToast(response.message || 'Department updated successfully.');
+        await apiService.put(DEPARTMENT_ENDPOINTS.UPDATE(editingId), payload);
+        triggerToast('Department updated successfully!');
       } else {
-        response = await apiService.post(DEPARTMENT_ENDPOINTS.CREATE, payload);
-        triggerToast(response.message || 'Department created successfully.');
+        await apiService.post(DEPARTMENT_ENDPOINTS.CREATE, payload);
+        triggerToast('Department added successfully!');
       }
-
-      setIsFormOpen(false);
+      resetForm();
       fetchDepartments();
     } catch (err) {
-      triggerToast(err.messageToShow || err.message || 'Failed to save department.', 'error');
+      triggerToast(err.messageToShow || 'Failed to save Department', 'error');
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Open Delete Confirmation
-  const handleDeleteClick = (dept) => {
-    setDeleteModal({
-      isOpen: true,
-      id: dept.id,
-      name: dept.name
+  // Set up edit form pre-fills
+  const handleOpenEdit = (dept) => {
+    setEditingId(dept.id);
+    setFormData({
+      name: dept.name,
+      description: dept.description || '',
+      status: dept.status || 'Active',
+      companyName: dept.companyName || ''
     });
+    setFormErrors({});
+    setIsFormOpen(true);
+    document.querySelector('.dashboard-content-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Perform Deletion
-  const handleConfirmDelete = async () => {
+  // Delete Action Handler
+  const handleDelete = (id, name) => {
+    setDeleteModal({ isOpen: true, id, name });
+  };
+
+  const confirmDelete = async () => {
     setDeleting(true);
     try {
-      const response = await apiService.delete(`${DEPARTMENT_ENDPOINTS.DELETE(deleteModal.id)}`);
-      triggerToast(response.message || 'Department deleted successfully.');
+      await apiService.delete(DEPARTMENT_ENDPOINTS.DELETE(deleteModal.id));
+      triggerToast('Department deleted successfully!');
       setDeleteModal({ isOpen: false, id: null, name: '' });
       fetchDepartments();
     } catch (err) {
-      triggerToast(err.messageToShow || err.message || 'Failed to delete department.', 'error');
+      triggerToast(err.messageToShow || 'Failed to delete Department', 'error');
     } finally {
       setDeleting(false);
     }
   };
 
+  // Export handlers
+  const handleDownloadExcel = () => {
+    const listToExport = filteredDepartments.map((d, index) => ({
+      'Sr. No.': index + 1,
+      'Department Name': d.name,
+      'Description': d.description || '-',
+      'Status': d.status,
+      'Company': d.companyName || 'Unassigned'
+    }));
+    downloadExcel(listToExport, 'LIMS_Departments');
+    setShowDownloadDropdown(false);
+  };
+
+  const handleDownloadCSV = () => {
+    const listToExport = filteredDepartments.map((d, index) => ({
+      'Sr. No.': index + 1,
+      'Department Name': d.name,
+      'Description': d.description || '-',
+      'Status': d.status,
+      'Company': d.companyName || 'Unassigned'
+    }));
+    downloadCSV(listToExport, 'LIMS_Departments');
+    setShowDownloadDropdown(false);
+  };
+
+  const handleCopy = () => {
+    const text = filteredDepartments.map((d, index) => `${index + 1}\t${d.name}\t${d.description || ''}\t${d.status}`).join('\n');
+    navigator.clipboard.writeText(text);
+    triggerToast('Copied to clipboard!');
+    setShowDownloadDropdown(false);
+  };
+
+  const handlePrintPDF = () => {
+    window.print();
+    setShowDownloadDropdown(false);
+  };
+
+  const handlePrint = () => {
+    window.print();
+    setShowDownloadDropdown(false);
+  };
+
   return (
-    <div className="category-master-container" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', position: 'relative' }}>
+    <div className="department-master-container" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', position: 'relative' }}>
       
       {/* Toast Alert */}
       {toast.show && (
@@ -321,214 +409,215 @@ const DepartmentMaster = () => {
           </h2>
           <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.875rem', color: '#64748b' }}>Configure high-level LIMS Departments for parameters and groups.</p>
         </div>
-        <button
-          onClick={handleOpenCreate}
-          className="btn-primary"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.6rem 1.25rem',
-            backgroundColor: '#22c55e',
-            color: '#ffffff',
-            border: 'none',
-            borderRadius: '8px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'background-color 0.2s'
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#16a34a'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#22c55e'; }}
-        >
-          <FaPlus size={14} />
-          <span>Add Department</span>
-        </button>
+
+        <div style={{ display: 'flex', gap: '0.75rem', position: 'relative' }}>
+          <button
+            onClick={handleOpenCreate}
+            className="btn-primary"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.6rem 1.25rem',
+              backgroundColor: '#22c55e',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              boxShadow: '0 2px 4px rgba(34, 197, 94, 0.2)'
+            }}
+          >
+            <FaPlus size={14} />
+            <span>Add Department</span>
+          </button>
+
+          <button
+            onClick={() => setShowDownloadDropdown(prev => !prev)}
+            ref={dropdownRef}
+            className="btn-secondary"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.5rem 1.25rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              backgroundColor: '#ffffff',
+              border: '1px solid #cbd5e1',
+              borderRadius: '8px',
+              color: '#475569'
+            }}
+          >
+            <FaDownload />
+            <span>Download</span>
+            <FaChevronDown style={{ fontSize: '0.75rem', opacity: 0.8 }} />
+          </button>
+
+          {showDownloadDropdown && (
+            <div style={{
+              position: 'absolute',
+              top: '100%',
+              right: 0,
+              marginTop: '0.5rem',
+              width: '160px',
+              backgroundColor: '#ffffff',
+              border: '1px solid #cbd5e1',
+              borderRadius: '8px',
+              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+              zIndex: 100,
+              overflow: 'hidden',
+              padding: '4px 0'
+            }}>
+              {[
+                { name: 'Excel', action: handleDownloadExcel, icon: <FaFileExcel style={{ color: '#16a34a' }} /> },
+                { name: 'Copy', action: handleCopy, icon: <FaCopy style={{ color: '#475569' }} /> },
+                { name: 'CSV', action: handleDownloadCSV, icon: <FaFileCsv style={{ color: '#2563eb' }} /> },
+                { name: 'PDF', action: handlePrintPDF, icon: <FaFilePdf style={{ color: '#dc2626' }} /> },
+                { name: 'Print', action: handlePrint, icon: <FaPrint style={{ color: '#7c3aed' }} /> }
+              ].map(opt => (
+                <button
+                  key={opt.name}
+                  onClick={opt.action}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    width: '100%',
+                    padding: '0.625rem 1rem',
+                    border: 'none',
+                    backgroundColor: 'transparent',
+                    color: '#334155',
+                    fontSize: '0.875rem',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.15s'
+                  }}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = '#f1f5f9'}
+                  onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                >
+                  {opt.icon}
+                  <span>{opt.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Form Card Drawer/Panel */}
+      {/* Form Panel */}
       {isFormOpen && (
-        <div className="card" style={{ padding: '1.5rem', borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#ffffff', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', display: 'flex', flexDirection: 'column', gap: '1.25rem', animation: 'fadeIn 0.25s ease-out' }}>
+        <form onSubmit={handleSubmit} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#0f172a' }}>
-            {editingId ? 'Edit Department' : 'Create New Department'}
+            {editingId ? 'Edit Department' : 'Add New Department'}
           </h3>
-          <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.25rem' }}>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#475569', marginBottom: '0.35rem' }}>
-                  Company Context
-                </label>
-                <input
-                  type="text"
-                  name="companyName"
-                  value={formData.companyName}
-                  disabled
-                  style={{
-                    width: '100%',
-                    padding: '0.55rem 0.75rem',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '6px',
-                    fontSize: '0.875rem',
-                    backgroundColor: '#f8fafc',
-                    color: '#64748b',
-                    cursor: 'not-allowed',
-                    boxSizing: 'border-box'
-                  }}
-                />
-              </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#475569', marginBottom: '0.35rem' }}>
-                  Department Name <span style={{ color: '#ef4444' }}>*</span>
-                </label>
-                <input
-                  type="text"
-                  name="name"
-                  placeholder="e.g. Environment"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  style={{
-                    width: '100%',
-                    padding: '0.55rem 0.75rem',
-                    border: `1px solid ${formErrors.name ? '#ef4444' : '#cbd5e1'}`,
-                    borderRadius: '6px',
-                    fontSize: '0.875rem',
-                    boxSizing: 'border-box'
-                  }}
-                />
-                {formErrors.name && (
-                  <span style={{ display: 'block', fontSize: '0.75rem', color: '#ef4444', marginTop: '0.25rem' }}>
-                    {formErrors.name}
-                  </span>
-                )}
-              </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
+            {/* Department Name */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Department Name *</label>
+              <input
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleInputChange}
+                placeholder="e.g. Environment, Agriculture, Food, Clinical"
+                style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.name ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none' }}
+              />
+              {formErrors.name && <span style={{ color: '#ef4444', fontSize: '0.75rem' }}>{formErrors.name}</span>}
             </div>
+          </div>
 
-            <div>
-              <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#475569', marginBottom: '0.35rem' }}>
-                Description
-              </label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.25rem' }}>
+            {/* Description */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Description</label>
               <textarea
                 name="description"
-                placeholder="Details or notes about the department..."
-                rows="3"
                 value={formData.description}
                 onChange={handleInputChange}
-                style={{
-                  width: '100%',
-                  padding: '0.55rem 0.75rem',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '6px',
-                  fontSize: '0.875rem',
-                  boxSizing: 'border-box',
-                  resize: 'vertical'
-                }}
+                placeholder="Details or notes about the department..."
+                rows="2"
+                style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', fontFamily: 'inherit', resize: 'vertical' }}
               />
             </div>
+          </div>
 
-            <div>
-              <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#475569', marginBottom: '0.35rem' }}>
-                Status <span style={{ color: '#ef4444' }}>*</span>
-              </label>
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', fontSize: '0.875rem' }}>
-                  <input
-                    type="radio"
-                    name="status"
-                    value="Active"
-                    checked={formData.status === 'Active'}
-                    onChange={handleInputChange}
-                  />
-                  <span>Active</span>
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', fontSize: '0.875rem' }}>
-                  <input
-                    type="radio"
-                    name="status"
-                    value="Inactive"
-                    checked={formData.status === 'Inactive'}
-                    onChange={handleInputChange}
-                  />
-                  <span>Inactive</span>
-                </label>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', borderTop: '1px solid #f1f5f9', paddingTop: '1rem' }}>
+          <div>
+            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '0.5rem' }}>Status</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <button
                 type="button"
-                onClick={() => setIsFormOpen(false)}
-                className="btn-secondary"
-                disabled={submitting}
+                onClick={() => setFormData(prev => ({ ...prev, status: prev.status === 'Active' ? 'Inactive' : 'Active' }))}
                 style={{
-                  padding: '0.55rem 1.25rem',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '6px',
-                  backgroundColor: '#ffffff',
-                  color: '#475569',
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="btn-primary"
-                style={{
-                  padding: '0.55rem 1.5rem',
+                  width: '46px',
+                  height: '24px',
+                  borderRadius: '12px',
+                  backgroundColor: formData.status === 'Active' ? '#22c55e' : '#cbd5e1',
                   border: 'none',
-                  borderRadius: '6px',
-                  backgroundColor: '#22c55e',
-                  color: '#ffffff',
-                  fontWeight: 600,
-                  cursor: submitting ? 'not-allowed' : 'pointer',
-                  opacity: submitting ? 0.7 : 1
+                  position: 'relative',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s',
+                  padding: 0
                 }}
               >
-                {submitting ? 'Saving...' : (editingId ? 'Update Department' : 'Save Department')}
+                <div style={{
+                  width: '18px',
+                  height: '18px',
+                  borderRadius: '50%',
+                  backgroundColor: '#ffffff',
+                  position: 'absolute',
+                  top: '3px',
+                  left: formData.status === 'Active' ? '25px' : '3px',
+                  transition: 'left 0.2s'
+                }} />
               </button>
+              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: formData.status === 'Active' ? '#22c55e' : '#64748b' }}>
+                {formData.status === 'Active' ? 'ACTIVE' : 'INACTIVE'}
+              </span>
             </div>
-          </form>
-        </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', borderTop: '1px solid #f1f5f9', paddingTop: '1rem' }}>
+            <button
+              type="button"
+              onClick={resetForm}
+              style={{ padding: '0.55rem 1.25rem', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', backgroundColor: '#ffffff', color: '#475569', fontWeight: 600 }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              style={{ padding: '0.55rem 1.5rem', border: 'none', borderRadius: '6px', cursor: 'pointer', backgroundColor: '#22c55e', color: '#ffffff', fontWeight: 600, opacity: submitting ? 0.7 : 1 }}
+            >
+              {submitting ? 'Saving...' : (editingId ? 'Update' : 'Save')}
+            </button>
+          </div>
+        </form>
       )}
 
       {/* Filter and Search Panel */}
       <div className="card" style={{ padding: '1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#ffffff', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: '1rem', alignItems: 'center' }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', flex: 1 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', flex: 1, alignItems: 'center' }}>
+          
+          <select
+            value={statusFilter}
+            onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+            style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', backgroundColor: '#ffffff' }}
+          >
+            <option value="ALL">ALL STATUS</option>
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
+
           <input
             type="text"
             placeholder="Search by Department Name..."
             value={searchQuery}
             onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-            style={{
-              minWidth: '260px',
-              padding: '0.5rem 0.75rem',
-              border: '1px solid #cbd5e1',
-              borderRadius: '6px',
-              fontSize: '0.875rem',
-              boxSizing: 'border-box'
-            }}
+            style={{ padding: '0.5rem 1rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', width: '240px' }}
           />
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ fontSize: '0.825rem', fontWeight: 600, color: '#64748b' }}>Status:</span>
-            <select
-              value={statusFilter}
-              onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-              style={{
-                padding: '0.5rem 1.75rem 0.5rem 0.75rem',
-                border: '1px solid #cbd5e1',
-                borderRadius: '6px',
-                fontSize: '0.875rem',
-                backgroundColor: '#ffffff'
-              }}
-            >
-              <option value="ALL">All Status</option>
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-            </select>
-          </div>
         </div>
       </div>
 
@@ -538,35 +627,49 @@ const DepartmentMaster = () => {
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
             <thead>
               <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600, width: '100px' }}>ACTIONS</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600, width: '60px' }}>SR. NO.</th>
                 {renderSortableHeader('DEPARTMENT NAME', 'name')}
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>DESCRIPTION</th>
                 {renderSortableHeader('STATUS', 'status')}
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600, textAlign: 'right' }}>ACTIONS</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="4" style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan="5" style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
                     <div style={{ display: 'inline-block', width: '20px', height: '20px', border: '2px solid #e2e8f0', borderTopColor: '#22c55e', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
                     <span style={{ marginLeft: '0.5rem' }}>Loading Departments...</span>
                   </td>
                 </tr>
-              ) : departments.length === 0 ? (
+              ) : filteredDepartments.length === 0 ? (
                 <tr>
-                  <td colSpan="4" style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
-                    No departments found. Select context or create a department.
+                  <td colSpan="5" style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
+                    No departments found.
                   </td>
                 </tr>
               ) : (
-                departments.map(dept => (
+                filteredDepartments.map((dept, index) => (
                   <tr key={dept.id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.15s' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc'; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}>
-                    <td style={{ padding: '0.85rem 1rem', fontWeight: 600, color: '#1e293b' }}>
-                      {dept.name}
+                    <td style={{ padding: '0.85rem 1rem', display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        onClick={() => handleOpenEdit(dept)}
+                        title="Edit"
+                        style={{ padding: '0.35rem', background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                      >
+                        <FaEdit size={12} />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(dept.id, dept.name)}
+                        title="Delete"
+                        style={{ padding: '0.35rem', background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                      >
+                        <FaTrash size={12} />
+                      </button>
                     </td>
-                    <td style={{ padding: '0.85rem 1rem', color: '#64748b', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {dept.description || '-'}
-                    </td>
+                    <td style={{ padding: '0.85rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
+                    <td style={{ padding: '0.85rem 1rem', fontWeight: 600, color: '#1e293b' }}>{dept.name}</td>
+                    <td style={{ padding: '0.85rem 1rem', color: '#64748b', maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{dept.description || '-'}</td>
                     <td style={{ padding: '0.85rem 1rem' }}>
                       <span style={{
                         display: 'inline-flex',
@@ -583,48 +686,6 @@ const DepartmentMaster = () => {
                         {dept.status}
                       </span>
                     </td>
-                    <td style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                        <button
-                          onClick={() => handleOpenEdit(dept)}
-                          title="Edit"
-                          style={{
-                            padding: '0.35rem',
-                            background: 'none',
-                            border: 'none',
-                            color: '#0284c7',
-                            cursor: 'pointer',
-                            borderRadius: '4px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}
-                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f0f9ff'; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-                        >
-                          <FaEdit size={14} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteClick(dept)}
-                          title="Delete"
-                          style={{
-                            padding: '0.35rem',
-                            background: 'none',
-                            border: 'none',
-                            color: '#ef4444',
-                            cursor: 'pointer',
-                            borderRadius: '4px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}
-                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#fef2f2'; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-                        >
-                          <FaTrash size={14} />
-                        </button>
-                      </div>
-                    </td>
                   </tr>
                 ))
               )}
@@ -632,11 +693,11 @@ const DepartmentMaster = () => {
           </table>
         </div>
 
-        {/* Pagination bar */}
-        {!loading && departments.length > 0 && (
+        {/* Pagination */}
+        {!loading && filteredDepartments.length > 0 && (
           <div style={{ padding: '1rem', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
             <span style={{ fontSize: '0.825rem', color: '#64748b' }}>
-              Showing {departments.length} of {totalItems} items
+              Showing {filteredDepartments.length} of {totalItems} items
             </span>
             <Pagination
               currentPage={currentPage}
@@ -647,17 +708,19 @@ const DepartmentMaster = () => {
         )}
       </div>
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Confirmation */}
       <ConfirmDialog
         isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, id: null, name: '' })}
+        onConfirm={confirmDelete}
         title="Delete Department"
-        message={`Are you sure you want to delete the department "${deleteModal.name}"? This action cannot be undone.`}
-        confirmText={deleting ? 'Deleting...' : 'Delete'}
+        message={`Are you sure you want to delete Department "${deleteModal.name}"? This action cannot be undone.`}
+        confirmText="Delete"
         cancelText="Cancel"
-        onConfirm={handleConfirmDelete}
-        onCancel={() => setDeleteModal({ isOpen: false, id: null, name: '' })}
-        isDanger={true}
+        variant="danger"
+        loading={deleting}
       />
+
     </div>
   );
 };
