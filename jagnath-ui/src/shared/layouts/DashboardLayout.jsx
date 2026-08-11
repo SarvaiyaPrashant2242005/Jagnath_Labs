@@ -124,7 +124,7 @@ const DashboardLayout = ({ children }) => {
     if (tabKey === 'requests') route = '/test-requests';
     if (tabKey === 'test-reports') route = '/test-reports';
     
-    window.open(`#${route}`, '_blank');
+    navigate(route);
   };
 
   // Logout handler

@@ -94,6 +94,15 @@ const TestReportList = () => {
     };
     fetchClients();
     fetchReports();
+
+    const handleCompanyChange = () => {
+      fetchClients();
+      fetchReports();
+      setCurrentPage(1);
+    };
+
+    window.addEventListener('companyChanged', handleCompanyChange);
+    return () => window.removeEventListener('companyChanged', handleCompanyChange);
   }, []);
 
   // Close dropdown on click outside

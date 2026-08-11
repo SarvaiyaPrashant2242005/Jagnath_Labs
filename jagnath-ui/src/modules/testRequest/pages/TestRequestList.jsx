@@ -40,6 +40,16 @@ const TestRequestList = () => {
   useEffect(() => {
     fetchCategories();
     fetchClients();
+
+    const handleCompanyChange = () => {
+      fetchCategories();
+      fetchClients();
+      setCurrentPage(1);
+      fetchRequests();
+    };
+
+    window.addEventListener('companyChanged', handleCompanyChange);
+    return () => window.removeEventListener('companyChanged', handleCompanyChange);
   }, []);
 
   const fetchCategories = async () => {

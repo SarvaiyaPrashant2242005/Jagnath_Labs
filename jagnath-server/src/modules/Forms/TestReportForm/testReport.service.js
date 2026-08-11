@@ -12,7 +12,7 @@ const formatTestReport = (tr) => {
     const trObj = tr.toJSON ? tr.toJSON() : { ...tr };
     if (trObj.company) {
         trObj.companyName = trObj.company.companyName || trObj.company.company_name;
-        trObj.companyLogo = trObj.company.logo;
+        trObj.companyLogo = trObj.company.test_report_logo || trObj.company.testReportLogo || trObj.company.logo;
     } else {
         trObj.companyName = null;
         trObj.companyLogo = null;

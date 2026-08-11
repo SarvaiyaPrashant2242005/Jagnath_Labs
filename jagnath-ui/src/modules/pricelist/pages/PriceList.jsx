@@ -122,6 +122,15 @@ const PriceMasterPage = () => {
 
   useEffect(() => {
     fetchCategoriesAndParameters();
+
+    const handleCompanyChange = () => {
+      fetchCategoriesAndParameters();
+      setCurrentPage(1);
+      fetchPrices();
+    };
+
+    window.addEventListener('companyChanged', handleCompanyChange);
+    return () => window.removeEventListener('companyChanged', handleCompanyChange);
   }, []);
 
   useEffect(() => {

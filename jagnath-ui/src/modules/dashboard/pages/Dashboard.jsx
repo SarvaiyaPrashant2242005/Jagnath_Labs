@@ -42,6 +42,13 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchDashboardStats();
+
+    const handleCompanyChange = () => {
+      fetchDashboardStats();
+    };
+
+    window.addEventListener('companyChanged', handleCompanyChange);
+    return () => window.removeEventListener('companyChanged', handleCompanyChange);
   }, []);
 
   const formatDateDDMMYYYY = (dateStr) => {

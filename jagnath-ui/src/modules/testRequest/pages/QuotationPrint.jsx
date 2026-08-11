@@ -83,7 +83,8 @@ const QuotationPrint = () => {
       const pMap = {};
       pList.forEach(pm => {
         if (pm.parameterId) {
-          pMap[pm.parameterId] = parseFloat(pm.price || 0);
+          const parsed = parseFloat(pm.price || 0);
+          pMap[pm.parameterId] = isNaN(parsed) ? 0 : parsed;
         }
       });
       setPriceMap(pMap);
@@ -119,7 +120,8 @@ const QuotationPrint = () => {
           matchingTrps.forEach(trp => {
             const pId = trp.parameterId || trp.parameter_id || trp.id;
             const catParam = allCategoryParams.find(p => p.id === pId || p.parameterId === pId || p.parameter_id === pId);
-            const pPrice = trp.price !== undefined && trp.price !== null ? parseFloat(trp.price) : (catParam?.price || 0);
+            const parsedPrice = trp.price !== undefined && trp.price !== null ? parseFloat(trp.price) : parseFloat(catParam?.price || 0);
+            const pPrice = isNaN(parsedPrice) ? 0 : parsedPrice;
             selectedList.push({
               ...(catParam || {}),
               id: pId,
@@ -170,7 +172,11 @@ const QuotationPrint = () => {
   }
 
   // Calculations
-  const subtotal = parameters.reduce((sum, item) => sum + (item.price || 0), 0);
+  const rawSubtotal = parameters.reduce((sum, item) => {
+    const val = parseFloat(item.price);
+    return sum + (isNaN(val) ? 0 : val);
+  }, 0);
+  const subtotal = isNaN(rawSubtotal) ? 0 : rawSubtotal;
   const gstAmount = subtotal * 0.18;
   const grandTotal = Math.round(subtotal + gstAmount);
 
