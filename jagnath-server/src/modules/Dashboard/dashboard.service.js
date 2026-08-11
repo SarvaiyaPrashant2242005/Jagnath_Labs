@@ -8,7 +8,12 @@ const { Op } = require("sequelize");
 const sequelize = db.sequelize;
 
 const getDashboardStats = async (companyId) => {
-    const whereCompany = companyId ? { companyId } : {};
+    const whereGlobalOrCompany = companyId ? {
+        [Op.or]: [
+            { companyId },
+            { companyId: null }
+        ]
+    } : {};
 
     // 1. Core Total KPI Counts
     const [
@@ -23,10 +28,10 @@ const getDashboardStats = async (companyId) => {
         TestRequest.count({ where: whereCompany }),
         TestReport.count({ where: whereCompany }),
         Client.count({ where: whereCompany }),
-        Parameter.count({ where: whereCompany }),
-        Category.count({ where: whereCompany }),
-        SubCategory.count({ where: whereCompany }),
-        LocationSample.count({ where: whereCompany })
+        Parameter.count({ where: whereGlobalOrCompany }),
+        Category.count({ where: whereGlobalOrCompany }),
+        SubCategory.count({ where: whereGlobalOrCompany }),
+        LocationSample.count({ where: whereGlobalOrCompany })
     ]);
 
     // 2. Recent Test Requests (Latest 6)

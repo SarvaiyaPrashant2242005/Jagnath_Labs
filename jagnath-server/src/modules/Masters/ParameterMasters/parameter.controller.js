@@ -166,6 +166,7 @@ const getAll = async (req, res) => {
         const options = {
             page: req.query.page,
             limit: req.query.limit,
+            all: req.query.all,
             search: req.query.search,
             status: req.query.status,
             categoryId: req.query.categoryId,

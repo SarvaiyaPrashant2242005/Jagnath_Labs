@@ -446,45 +446,65 @@ const getParameterById = async (parameterId, companyId) => {
  */
 const getParametersByCompany = async (companyId, options = {}) => {
     try {
+        let whereClause = {};
+        if (options.all === 'true' || options.all === true) {
+            whereClause = {};
+        } else if (companyId) {
+            whereClause = {
+                [Op.or]: [
+                    { companyId },
+                    { companyId: null }
+                ]
+            };
+        }
+
         let queryOptions = {
-            where: { companyId },
+            where: whereClause,
             include: [
                 {
                     model: Company,
                     as: "company",
-                    attributes: ["company_name"]
+                    attributes: ["company_name"],
+                    required: false
                 },
                 {
                     model: SubCategory,
                     as: "subCategory",
                     attributes: ["id", "name", "categoryId"],
+                    required: false,
                     include: [{
                         model: Category,
                         as: "category",
                         attributes: ["id", "name", "departmentId"],
+                        required: false,
                         include: [{
                             model: Department,
                             as: "department",
-                            attributes: ["id", "name"]
+                            attributes: ["id", "name"],
+                            required: false
                         }]
                     }]
                 },
                 {
                     model: LocationSample,
                     as: "locationSample",
-                    attributes: ["id", "name"]
+                    attributes: ["id", "name"],
+                    required: false
                 },
                 {
                     model: CategoryParameter,
                     as: "categoryParameters",
+                    required: false,
                     include: [{
                         model: Category,
                         as: "category",
                         attributes: ["id", "name", "departmentId"],
+                        required: false,
                         include: [{
                             model: Department,
                             as: "department",
-                            attributes: ["id", "name"]
+                            attributes: ["id", "name"],
+                            required: false
                         }]
                     }]
                 }
@@ -530,14 +550,14 @@ const getParametersByCompany = async (companyId, options = {}) => {
             queryOptions.where[Op.and] = queryOptions.where[Op.and] || [];
             queryOptions.where[Op.and].push({
                 [Op.or]: [
-                    { '$categoryParameters.category.department_id$': options.departmentId },
-                    { '$subCategory.category.department_id$': options.departmentId }
+                    { '$categoryParameters.category.departmentId$': options.departmentId },
+                    { '$subCategory.category.departmentId$': options.departmentId }
                 ]
             });
             queryOptions.subQuery = false;
         }
 
-        if (options.limit && options.page) {
+        if (options.limit && options.page && options.all !== 'true' && options.all !== true) {
             queryOptions.limit = parseInt(options.limit);
             queryOptions.offset = (parseInt(options.page) - 1) * queryOptions.limit;
 
