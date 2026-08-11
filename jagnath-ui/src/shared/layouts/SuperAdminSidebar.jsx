@@ -199,7 +199,6 @@ const SuperAdminSidebar = ({ activeTab, onTabChange, sidebarRef, isOpen = true, 
             <div className="menu-group">
               <Link
                 to="/dashboard"
-                target="_blank"
                 className={`menu-item ${activeTab === 'dashboard' ? 'active' : ''}`}
                 onClick={handleItemClick}
               >
@@ -214,7 +213,6 @@ const SuperAdminSidebar = ({ activeTab, onTabChange, sidebarRef, isOpen = true, 
             <div className="menu-group">
               <Link
                 to="/company"
-                target="_blank"
                 className={`menu-item ${activeTab === 'companies' ? 'active' : ''}`}
                 onClick={handleItemClick}
               >
@@ -229,7 +227,6 @@ const SuperAdminSidebar = ({ activeTab, onTabChange, sidebarRef, isOpen = true, 
             <div className="menu-group">
               <Link
                 to="/users"
-                target="_blank"
                 className={`menu-item ${activeTab === 'users' ? 'active' : ''}`}
                 onClick={handleItemClick}
               >
@@ -246,7 +243,6 @@ const SuperAdminSidebar = ({ activeTab, onTabChange, sidebarRef, isOpen = true, 
             <div className="menu-group">
               <Link
                 to="/profile"
-                target="_blank"
                 className={`menu-item ${activeTab === 'profile' ? 'active' : ''}`}
                 onClick={handleItemClick}
               >

@@ -124,7 +124,7 @@ const DashboardLayout = ({ children }) => {
     if (tabKey === 'requests') route = '/test-requests';
     if (tabKey === 'test-reports') route = '/test-reports';
     
-    window.open(`#${route}`, '_blank');
+    navigate(route);
   };
 
   // Logout handler
@@ -424,7 +424,7 @@ const DashboardLayout = ({ children }) => {
               )}
             </div>
 
-            <Link to="/profile" target="_blank" className="header-profile-button" title="My Profile">
+            <Link to="/profile" className="header-profile-button" title="My Profile">
               <FaUserCircle style={{ fontSize: '1.1rem', flexShrink: 0 }} />
               <span className="header-btn-text">Profile</span>
             </Link>
