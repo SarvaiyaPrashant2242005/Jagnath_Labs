@@ -444,7 +444,7 @@ const ParameterMaster = () => {
     const list = parameters.filter(p => {
       // 0. Department Filter
       if (departmentFilter && departmentFilter !== 'ALL') {
-        const pDeptId = p.category?.departmentId || p.category?.department_id || '';
+        const pDeptId = p.departmentId || p.category?.departmentId || p.category?.department_id || p.subCategory?.category?.departmentId || p.subCategory?.category?.department_id || '';
         if (String(pDeptId) !== String(departmentFilter)) return false;
       }
 
@@ -472,8 +472,8 @@ const ParameterMaster = () => {
         const nameMatch = (p.parameterName || p.name || '').toLowerCase().includes(q);
         const methodMatch = (p.testMethod || '').toLowerCase().includes(q);
         const unitMatch = (p.unit || '').toLowerCase().includes(q);
-        const catMatch = (p.category?.name || '').toLowerCase().includes(q);
-        const subMatch = (p.subCategory?.name || '').toLowerCase().includes(q);
+        const catMatch = (p.category?.name || p.categoryName || '').toLowerCase().includes(q);
+        const subMatch = (p.subCategory?.name || p.subCategoryName || '').toLowerCase().includes(q);
         if (!nameMatch && !methodMatch && !unitMatch && !catMatch && !subMatch) return false;
       }
 
@@ -482,7 +482,7 @@ const ParameterMaster = () => {
 
     // Sort Latest Added First (descending order by timestamp or ID)
     return list;
-  }, [parameters, categoryFilter, subCategoryFilter, statusFilter, searchQuery]);
+  }, [parameters, departmentFilter, categoryFilter, subCategoryFilter, statusFilter, searchQuery]);
 
   const handleSort = (field) => {
     if (sortField !== field) {

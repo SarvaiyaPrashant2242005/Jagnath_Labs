@@ -7,6 +7,7 @@ const Company = require("../CompanyMasters/company.model");
 const Category = require("../CategoryMasters/category.model");
 const SubCategory = require("../SubCategoryMasters/subCategory.model");
 const CategoryParameter = require("../CategoryParameterMasters/categoryParameter.model");
+const Department = require("../DepartmentMasters/department.model");
 const Users = require("../../Auth/Users/users.model");
 const LocationSample = require("../LocationSampleMasters/locationSample.model");
 const sequelize = require("../../../config/database");
@@ -52,15 +53,46 @@ const formatParameter = (param) => {
     }
     delete paramObj.company;
 
-    // Resolve category details from mapping
+    // Resolve category & department details from mapping or subcategory
+    let categoryId = null;
+    let categoryName = null;
+    let departmentId = null;
+    let departmentName = null;
+
     if (paramObj.categoryParameters && paramObj.categoryParameters.length > 0) {
         const mapping = paramObj.categoryParameters[0];
-        paramObj.categoryId = mapping.categoryId;
-        paramObj.categoryName = mapping.category ? mapping.category.name : null;
-    } else {
-        paramObj.categoryId = null;
-        paramObj.categoryName = null;
+        categoryId = mapping.categoryId;
+        if (mapping.category) {
+            categoryName = mapping.category.name;
+            departmentId = mapping.category.departmentId || mapping.category.department_id || null;
+            departmentName = mapping.category.department ? mapping.category.department.name : null;
+        }
     }
+
+    if (!categoryId && paramObj.subCategory && paramObj.subCategory.category) {
+        categoryId = paramObj.subCategory.category.id || paramObj.subCategory.category.categoryId;
+        categoryName = paramObj.subCategory.category.name;
+        departmentId = paramObj.subCategory.category.departmentId || paramObj.subCategory.category.department_id || null;
+        departmentName = paramObj.subCategory.category.department ? paramObj.subCategory.category.department.name : null;
+    }
+
+    if (!departmentId && paramObj.subCategory && paramObj.subCategory.category) {
+        departmentId = paramObj.subCategory.category.departmentId || paramObj.subCategory.category.department_id || null;
+        departmentName = paramObj.subCategory.category.department ? paramObj.subCategory.category.department.name : null;
+    }
+
+    paramObj.categoryId = categoryId;
+    paramObj.categoryName = categoryName;
+    paramObj.departmentId = departmentId;
+    paramObj.departmentName = departmentName;
+
+    paramObj.category = categoryId ? {
+        id: categoryId,
+        name: categoryName,
+        departmentId: departmentId,
+        departmentName: departmentName
+    } : null;
+
     delete paramObj.categoryParameters;
 
     if (paramObj.subCategory) {
@@ -369,7 +401,17 @@ const getParameterById = async (parameterId, companyId) => {
                 {
                     model: SubCategory,
                     as: "subCategory",
-                    attributes: ["id", "name"]
+                    attributes: ["id", "name", "categoryId"],
+                    include: [{
+                        model: Category,
+                        as: "category",
+                        attributes: ["id", "name", "departmentId"],
+                        include: [{
+                            model: Department,
+                            as: "department",
+                            attributes: ["id", "name"]
+                        }]
+                    }]
                 },
                 {
                     model: LocationSample,
@@ -382,7 +424,12 @@ const getParameterById = async (parameterId, companyId) => {
                     include: [{
                         model: Category,
                         as: "category",
-                        attributes: ["name"]
+                        attributes: ["id", "name", "departmentId"],
+                        include: [{
+                            model: Department,
+                            as: "department",
+                            attributes: ["id", "name"]
+                        }]
                     }]
                 }
             ],
@@ -410,7 +457,17 @@ const getParametersByCompany = async (companyId, options = {}) => {
                 {
                     model: SubCategory,
                     as: "subCategory",
-                    attributes: ["id", "name"]
+                    attributes: ["id", "name", "categoryId"],
+                    include: [{
+                        model: Category,
+                        as: "category",
+                        attributes: ["id", "name", "departmentId"],
+                        include: [{
+                            model: Department,
+                            as: "department",
+                            attributes: ["id", "name"]
+                        }]
+                    }]
                 },
                 {
                     model: LocationSample,
@@ -423,7 +480,12 @@ const getParametersByCompany = async (companyId, options = {}) => {
                     include: [{
                         model: Category,
                         as: "category",
-                        attributes: ["name"]
+                        attributes: ["id", "name", "departmentId"],
+                        include: [{
+                            model: Department,
+                            as: "department",
+                            attributes: ["id", "name"]
+                        }]
                     }]
                 }
             ],
@@ -454,14 +516,25 @@ const getParametersByCompany = async (companyId, options = {}) => {
         }
 
         if (options.categoryId) {
-            queryOptions.include[3].where = { categoryId: options.categoryId };
-            queryOptions.include[3].required = true;
+            queryOptions.where[Op.and] = queryOptions.where[Op.and] || [];
+            queryOptions.where[Op.and].push({
+                [Op.or]: [
+                    { '$categoryParameters.categoryId$': options.categoryId },
+                    { '$subCategory.category.id$': options.categoryId }
+                ]
+            });
+            queryOptions.subQuery = false;
         }
 
         if (options.departmentId) {
-            queryOptions.include[3].include[0].where = { departmentId: options.departmentId };
-            queryOptions.include[3].include[0].required = true;
-            queryOptions.include[3].required = true;
+            queryOptions.where[Op.and] = queryOptions.where[Op.and] || [];
+            queryOptions.where[Op.and].push({
+                [Op.or]: [
+                    { '$categoryParameters.category.department_id$': options.departmentId },
+                    { '$subCategory.category.department_id$': options.departmentId }
+                ]
+            });
+            queryOptions.subQuery = false;
         }
 
         if (options.limit && options.page) {

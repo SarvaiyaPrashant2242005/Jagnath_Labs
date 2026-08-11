@@ -170,6 +170,7 @@ const getAll = async (req, res) => {
             status: req.query.status,
             categoryId: req.query.categoryId,
             subCategoryId: req.query.subCategoryId,
+            departmentId: req.query.departmentId,
             sortBy: req.query.sortBy,
             sortOrder: req.query.sortOrder
         };
