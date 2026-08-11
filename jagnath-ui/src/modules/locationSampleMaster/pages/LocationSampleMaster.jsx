@@ -1,31 +1,19 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
-  FaFolder, FaPlus, FaDownload, FaEdit, FaTrash, FaCheck,
+  FaPlus, FaDownload, FaEdit, FaTrash, FaCheck,
   FaExclamationCircle, FaFileExcel, FaCopy, FaFileCsv,
-  FaFilePdf, FaPrint, FaChevronDown, FaMapMarkerAlt, FaSlidersH
+  FaFilePdf, FaPrint, FaChevronDown, FaMapMarkerAlt
 } from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
-import {
-  LOCATION_SAMPLE_ENDPOINTS, COMPANY_ENDPOINTS,
-  DEPARTMENT_ENDPOINTS, CATEGORY_ENDPOINTS, SUB_CATEGORY_ENDPOINTS
-} from '../../../shared/services/apiEndpoints';
+import { LOCATION_SAMPLE_ENDPOINTS, COMPANY_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 import Pagination from '../../../shared/components/Pagination';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 import { downloadCSV, downloadExcel } from '../../../shared/utils/exportUtils';
 
-import InlineMasterModal from '../../../shared/components/InlineMasterModal/InlineMasterModal';
-import AddMasterButton from '../../../shared/components/InlineMasterModal/AddMasterButton';
-
 const LocationSampleMaster = () => {
-  // Inline Modal State
-  const [inlineModal, setInlineModal] = useState({ isOpen: false, type: null, parentData: {} });
-
   // States
   const [locations, setLocations] = useState([]);
   const [companies, setCompanies] = useState([]);
-  const [departments, setDepartments] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [subCategories, setSubCategories] = useState([]);
   const [loading, setLoading] = useState(false);
 
   // Delete confirmation modal state
@@ -47,18 +35,11 @@ const LocationSampleMaster = () => {
 
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
-  const [departmentFilter, setDepartmentFilter] = useState('ALL');
-  const [categoryFilter, setCategoryFilter] = useState('ALL');
-  const [subCategoryFilter, setSubCategoryFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
-
-  // Form cascading selectors state
-  const [formDepartmentId, setFormDepartmentId] = useState('');
-  const [formCategoryId, setFormCategoryId] = useState('');
 
   // Sorting State
   const [sortField, setSortField] = useState(null);
-  const [sortDirection, setSortDirection] = useState(null); // 'asc', 'desc', or null
+  const [sortDirection, setSortDirection] = useState(null);
 
   // Download Dropdown toggle
   const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
@@ -66,7 +47,6 @@ const LocationSampleMaster = () => {
 
   // Form inputs state
   const [formData, setFormData] = useState({
-    subCategoryId: '',
     name: '',
     description: '',
     status: 'Active',
@@ -104,54 +84,8 @@ const LocationSampleMaster = () => {
         return companyList;
       }
       return [];
-    } catch (err) {
+    } catch {
       return [];
-    }
-  };
-
-  // Fetch all departments
-  const fetchDepartments = async () => {
-    try {
-      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
-      const params = new URLSearchParams({ page: '1', limit: '500', status: 'Active' });
-      if (activeCompId) params.append('companyId', activeCompId);
-      const response = await apiService.get(`${DEPARTMENT_ENDPOINTS.GET_ALL}?${params.toString()}`);
-      if (response && response.data) {
-        setDepartments(response.data.rows || response.data || []);
-      }
-    } catch (err) {
-      setDepartments([]);
-    }
-  };
-
-  // Fetch all categories (Discipline Groups)
-  const fetchCategories = async () => {
-    try {
-      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
-      const params = new URLSearchParams({ page: '1', limit: '1000', status: 'Active', all: 'true' });
-      if (activeCompId) params.append('companyId', activeCompId);
-      const response = await apiService.get(`${CATEGORY_ENDPOINTS.GET_ALL}?${params.toString()}`);
-      if (response && response.data) {
-        setCategories(response.data.rows || response.data || []);
-      }
-    } catch (err) {
-      setCategories([]);
-    }
-  };
-
-  // Fetch all sub-categories
-  const fetchSubCategories = async () => {
-    try {
-      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
-      const params = new URLSearchParams({ page: '1', limit: '5000', status: 'Active', all: 'true' });
-      if (activeCompId) params.append('companyId', activeCompId);
-      const response = await apiService.get(`${SUB_CATEGORY_ENDPOINTS.GET_ALL}?${params.toString()}`);
-      if (response && response.data) {
-        const list = response.data.subCategories || response.data.rows || response.data || [];
-        setSubCategories(list);
-      }
-    } catch (err) {
-      setSubCategories([]);
     }
   };
 
@@ -168,11 +102,6 @@ const LocationSampleMaster = () => {
       });
       if (activeCompId) {
         params.append('companyId', activeCompId);
-      }
-      if (subCategoryFilter && subCategoryFilter !== 'ALL') {
-        params.append('subCategoryId', subCategoryFilter);
-      } else if (categoryFilter && categoryFilter !== 'ALL') {
-        // Handle cascading filter parameters on client-side or nested if needed
       }
 
       if (sortField && sortDirection) {
@@ -196,59 +125,31 @@ const LocationSampleMaster = () => {
         setTotalItems(0);
         setTotalPages(0);
       }
-    } catch (err) {
+    } catch {
       triggerToast('Failed to load locations of sample', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  // Pure UI side filtering for cascading selects in filters header
+  // Pure UI side filtering for status & search
   const filteredLocations = useMemo(() => {
     return locations.filter(loc => {
-      // 1. Department Filter
-      if (departmentFilter !== 'ALL') {
-        const lDeptId = loc.departmentId || loc.category?.departmentId || '';
-        if (String(lDeptId) !== String(departmentFilter)) return false;
+      // 1. Status Filter
+      if (statusFilter !== 'ALL') {
+        const statusStr = (loc.status || 'Active').toString().toLowerCase();
+        if (statusStr !== statusFilter.toLowerCase()) return false;
       }
-      // 2. Category Filter
-      if (categoryFilter !== 'ALL') {
-        const lCatId = loc.categoryId || loc.subCategory?.categoryId || '';
-        if (String(lCatId) !== String(categoryFilter)) return false;
-      }
-      // 3. SubCategory Filter
-      if (subCategoryFilter !== 'ALL') {
-        const lSubId = loc.subCategoryId || '';
-        if (String(lSubId) !== String(subCategoryFilter)) return false;
+      // 2. Search Query Filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const nameMatch = (loc.name || '').toLowerCase().includes(q);
+        const descMatch = (loc.description || '').toLowerCase().includes(q);
+        if (!nameMatch && !descMatch) return false;
       }
       return true;
     });
-  }, [locations, departmentFilter, categoryFilter, subCategoryFilter]);
-
-  // Cascading Categories and SubCategories lists for form dropdowns
-  const formCategoriesList = useMemo(() => {
-    if (!formDepartmentId) return [];
-    return categories.filter(c => String(c.departmentId || c.department_id) === String(formDepartmentId));
-  }, [categories, formDepartmentId]);
-
-  const formSubCategoriesList = useMemo(() => {
-    if (!formCategoryId) return [];
-    return subCategories.filter(s => String(s.categoryId || s.category_id) === String(formCategoryId));
-  }, [subCategories, formCategoryId]);
-
-  // Cascading lists for filter headers
-  const filterCategoriesList = useMemo(() => {
-    if (departmentFilter === 'ALL') return categories;
-    return categories.filter(c => String(c.departmentId || c.department_id) === String(departmentFilter));
-  }, [categories, departmentFilter]);
-
-  const filterSubCategoriesList = useMemo(() => {
-    if (categoryFilter === 'ALL') {
-      if (departmentFilter === 'ALL') return subCategories;
-      return subCategories.filter(s => String(s.category?.departmentId || s.category?.department_id) === String(departmentFilter));
-    }
-    return subCategories.filter(s => String(s.categoryId || s.category_id) === String(categoryFilter));
-  }, [subCategories, departmentFilter, categoryFilter]);
+  }, [locations, statusFilter, searchQuery]);
 
   const handleSort = (field) => {
     if (sortField !== field) {
@@ -290,9 +191,6 @@ const LocationSampleMaster = () => {
 
   const loadAllMasterDependencies = async () => {
     await fetchCompanies();
-    await fetchDepartments();
-    await fetchCategories();
-    await fetchSubCategories();
     await fetchLocations();
   };
 
@@ -314,14 +212,11 @@ const LocationSampleMaster = () => {
   // Reset form inputs
   const resetForm = () => {
     setFormData({
-      subCategoryId: '',
       name: '',
       description: '',
       status: 'Active',
       companyName: ''
     });
-    setFormDepartmentId('');
-    setFormCategoryId('');
     setFormErrors({});
     setEditingId(null);
     setIsFormOpen(false);
@@ -329,10 +224,7 @@ const LocationSampleMaster = () => {
 
   const handleOpenCreate = () => {
     setEditingId(null);
-    setFormDepartmentId('');
-    setFormCategoryId('');
     setFormData({
-      subCategoryId: '',
       name: '',
       description: '',
       status: 'Active',
@@ -359,9 +251,6 @@ const LocationSampleMaster = () => {
   // Validate form fields
   const validateForm = () => {
     const errors = {};
-    if (!formDepartmentId) errors.departmentId = 'Department is required';
-    if (!formCategoryId) errors.categoryId = 'Discipline Group is required';
-    if (!formData.subCategoryId) errors.subCategoryId = 'Sub Category is required';
     if (!formData.name.trim()) {
       errors.name = 'Location of Sample name is required';
     } else if (formData.name.trim().length < 2) {
@@ -380,7 +269,6 @@ const LocationSampleMaster = () => {
     try {
       const activeCompId = localStorage.getItem('selectedCompanyId') || '';
       const payload = {
-        subCategoryId: formData.subCategoryId,
         name: formData.name.trim(),
         description: formData.description ? formData.description.trim() : null,
         status: formData.status,
@@ -406,10 +294,7 @@ const LocationSampleMaster = () => {
   // Set up edit form pre-fills
   const handleOpenEdit = (loc) => {
     setEditingId(loc.id);
-    setFormDepartmentId(loc.departmentId || loc.category?.departmentId || '');
-    setFormCategoryId(loc.categoryId || loc.subCategory?.categoryId || '');
     setFormData({
-      subCategoryId: loc.subCategoryId || '',
       name: loc.name,
       description: loc.description || '',
       status: loc.status || 'Active',
@@ -444,9 +329,6 @@ const LocationSampleMaster = () => {
   const handleDownloadExcel = () => {
     const listToExport = filteredLocations.map((l, index) => ({
       'Sr. No.': index + 1,
-      'Department': l.departmentName || 'N/A',
-      'Discipline Group': l.categoryName || 'N/A',
-      'Sub Category': l.subCategoryName || 'N/A',
       'Location of Sample': l.name,
       'Description': l.description || '-',
       'Status': l.status,
@@ -459,9 +341,6 @@ const LocationSampleMaster = () => {
   const handleDownloadCSV = () => {
     const listToExport = filteredLocations.map((l, index) => ({
       'Sr. No.': index + 1,
-      'Department': l.departmentName || 'N/A',
-      'Discipline Group': l.categoryName || 'N/A',
-      'Sub Category': l.subCategoryName || 'N/A',
       'Location of Sample': l.name,
       'Description': l.description || '-',
       'Status': l.status,
@@ -472,7 +351,7 @@ const LocationSampleMaster = () => {
   };
 
   const handleCopy = () => {
-    const text = filteredLocations.map((l, index) => `${index + 1}\t${l.departmentName || ''}\t${l.categoryName || ''}\t${l.subCategoryName || ''}\t${l.name}\t${l.description || ''}\t${l.status}`).join('\n');
+    const text = filteredLocations.map((l, index) => `${index + 1}\t${l.name}\t${l.description || ''}\t${l.status}`).join('\n');
     navigator.clipboard.writeText(text);
     triggerToast('Copied to clipboard!');
     setShowDownloadDropdown(false);
@@ -521,7 +400,7 @@ const LocationSampleMaster = () => {
             <FaMapMarkerAlt style={{ color: '#22c55e' }} />
             <span>Location of Sample Master</span>
           </h2>
-          <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.875rem', color: '#64748b' }}>Configure Sample collection locations mapped under specific Sub Categories.</p>
+          <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.875rem', color: '#64748b' }}>Configure global sample collection locations.</p>
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem', position: 'relative' }}>
@@ -619,79 +498,14 @@ const LocationSampleMaster = () => {
         </div>
       </div>
 
-      {/* Dropdown Form Panel */}
+      {/* Form Panel */}
       {isFormOpen && (
         <form onSubmit={handleSubmit} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#0f172a' }}>
             {editingId ? 'Edit Location of Sample' : 'Add New Location of Sample'}
           </h3>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
-            
-            {/* Department select */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-              <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Department *</label>
-              <select
-                value={formDepartmentId}
-                onChange={(e) => {
-                  setFormDepartmentId(e.target.value);
-                  setFormCategoryId('');
-                  setFormData(prev => ({ ...prev, subCategoryId: '' }));
-                }}
-                style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.departmentId ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none', backgroundColor: '#ffffff' }}
-              >
-                <option value="">Select Department</option>
-                {departments.map(d => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
-                ))}
-              </select>
-              {formErrors.departmentId && <span style={{ color: '#ef4444', fontSize: '0.75rem' }}>{formErrors.departmentId}</span>}
-            </div>
-
-            {/* Category / Discipline Group Select */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Discipline Group *</label>
-                <AddMasterButton label="Add New Group" onClick={() => setInlineModal({ isOpen: true, type: 'category', parentData: { departmentId: formDepartmentId } })} />
-              </div>
-              <select
-                value={formCategoryId}
-                onChange={(e) => {
-                  setFormCategoryId(e.target.value);
-                  setFormData(prev => ({ ...prev, subCategoryId: '' }));
-                }}
-                disabled={!formDepartmentId}
-                style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.categoryId ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none', backgroundColor: !formDepartmentId ? '#f1f5f9' : '#ffffff', cursor: !formDepartmentId ? 'not-allowed' : 'default' }}
-              >
-                <option value="">Select Discipline Group</option>
-                {formCategoriesList.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
-                ))}
-              </select>
-              {formErrors.categoryId && <span style={{ color: '#ef4444', fontSize: '0.75rem' }}>{formErrors.categoryId}</span>}
-            </div>
-
-            {/* Sub Category Select */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Sub Category *</label>
-                <AddMasterButton label="Add New Sub" onClick={() => setInlineModal({ isOpen: true, type: 'sub-category', parentData: { categoryId: formCategoryId, departmentId: formDepartmentId } })} />
-              </div>
-              <select
-                name="subCategoryId"
-                value={formData.subCategoryId}
-                onChange={handleInputChange}
-                disabled={!formCategoryId}
-                style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.subCategoryId ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none', backgroundColor: !formCategoryId ? '#f1f5f9' : '#ffffff', cursor: !formCategoryId ? 'not-allowed' : 'default' }}
-              >
-                <option value="">Select Sub Category</option>
-                {formSubCategoriesList.map(sub => (
-                  <option key={sub.id} value={sub.id}>{sub.name}</option>
-                ))}
-              </select>
-              {formErrors.subCategoryId && <span style={{ color: '#ef4444', fontSize: '0.75rem' }}>{formErrors.subCategoryId}</span>}
-            </div>
-
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
             {/* Location Title */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
               <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Location Title *</label>
@@ -700,12 +514,11 @@ const LocationSampleMaster = () => {
                 name="name"
                 value={formData.name}
                 onChange={handleInputChange}
-                placeholder="e.g. Borewell Outlet 1"
+                placeholder="e.g. RO Water, Outlet, River Stream"
                 style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.name ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none' }}
               />
               {formErrors.name && <span style={{ color: '#ef4444', fontSize: '0.75rem' }}>{formErrors.name}</span>}
             </div>
-
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.25rem' }}>
@@ -782,51 +595,6 @@ const LocationSampleMaster = () => {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', flex: 1, alignItems: 'center' }}>
           
           <select
-            value={departmentFilter}
-            onChange={(e) => {
-              setDepartmentFilter(e.target.value);
-              setCategoryFilter('ALL');
-              setSubCategoryFilter('ALL');
-              setCurrentPage(1);
-            }}
-            style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', backgroundColor: '#ffffff' }}
-          >
-            <option value="ALL">ALL DEPARTMENTS</option>
-            {departments.map(d => (
-              <option key={d.id} value={d.id}>{d.name}</option>
-            ))}
-          </select>
-
-          <select
-            value={categoryFilter}
-            onChange={(e) => {
-              setCategoryFilter(e.target.value);
-              setSubCategoryFilter('ALL');
-              setCurrentPage(1);
-            }}
-            style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', backgroundColor: '#ffffff' }}
-          >
-            <option value="ALL">ALL DISCIPLINE GROUPS</option>
-            {filterCategoriesList.map(cat => (
-              <option key={cat.id} value={cat.id}>{cat.name}</option>
-            ))}
-          </select>
-
-          <select
-            value={subCategoryFilter}
-            onChange={(e) => {
-              setSubCategoryFilter(e.target.value);
-              setCurrentPage(1);
-            }}
-            style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', backgroundColor: '#ffffff' }}
-          >
-            <option value="ALL">ALL SUB CATEGORIES</option>
-            {filterSubCategoriesList.map(sub => (
-              <option key={sub.id} value={sub.id}>{sub.name}</option>
-            ))}
-          </select>
-
-          <select
             value={statusFilter}
             onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
             style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', backgroundColor: '#ffffff' }}
@@ -841,7 +609,7 @@ const LocationSampleMaster = () => {
             placeholder="Search by name..."
             value={searchQuery}
             onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-            style={{ padding: '0.5rem 1rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', width: '180px' }}
+            style={{ padding: '0.5rem 1rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', width: '220px' }}
           />
         </div>
       </div>
@@ -854,9 +622,6 @@ const LocationSampleMaster = () => {
               <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600, width: '100px' }}>ACTIONS</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600, width: '60px' }}>SR. NO.</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>DEPARTMENT</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>DISCIPLINE GROUP</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SUB CATEGORY</th>
                 {renderSortableHeader('LOCATION TITLE', 'name')}
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>DESCRIPTION</th>
                 {renderSortableHeader('STATUS', 'status')}
@@ -865,14 +630,14 @@ const LocationSampleMaster = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="8" style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan="5" style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
                     <div style={{ display: 'inline-block', width: '20px', height: '20px', border: '2px solid #e2e8f0', borderTopColor: '#22c55e', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
                     <span style={{ marginLeft: '0.5rem' }}>Loading Locations...</span>
                   </td>
                 </tr>
               ) : filteredLocations.length === 0 ? (
                 <tr>
-                  <td colSpan="8" style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan="5" style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
                     No locations found.
                   </td>
                 </tr>
@@ -896,11 +661,8 @@ const LocationSampleMaster = () => {
                       </button>
                     </td>
                     <td style={{ padding: '0.85rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
-                    <td style={{ padding: '0.85rem 1rem', color: '#64748b' }}>{loc.departmentName || 'N/A'}</td>
-                    <td style={{ padding: '0.85rem 1rem', color: '#64748b' }}>{loc.categoryName || 'N/A'}</td>
-                    <td style={{ padding: '0.85rem 1rem', color: '#64748b' }}>{loc.subCategoryName || 'N/A'}</td>
                     <td style={{ padding: '0.85rem 1rem', fontWeight: 600, color: '#1e293b' }}>{loc.name}</td>
-                    <td style={{ padding: '0.85rem 1rem', color: '#64748b', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{loc.description || '-'}</td>
+                    <td style={{ padding: '0.85rem 1rem', color: '#64748b', maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{loc.description || '-'}</td>
                     <td style={{ padding: '0.85rem 1rem' }}>
                       <span style={{
                         display: 'inline-flex',
@@ -950,24 +712,6 @@ const LocationSampleMaster = () => {
         cancelText="Cancel"
         variant="danger"
         loading={deleting}
-      />
-
-      {/* Inline Creation Modal */}
-      <InlineMasterModal
-        isOpen={inlineModal.isOpen}
-        onClose={() => setInlineModal({ isOpen: false, type: null, parentData: {} })}
-        type={inlineModal.type}
-        parentData={inlineModal.parentData}
-        onSuccess={async (newId, newName) => {
-          if (inlineModal.type === 'category') {
-            await fetchCategories();
-            setFormCategoryId(newId);
-          } else if (inlineModal.type === 'sub-category') {
-            await fetchSubCategories();
-            setFormData(prev => ({ ...prev, subCategoryId: newId }));
-          }
-          triggerToast('New item created successfully!', 'success');
-        }}
       />
 
     </div>

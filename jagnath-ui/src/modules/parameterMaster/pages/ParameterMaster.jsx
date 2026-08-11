@@ -295,9 +295,8 @@ const ParameterMaster = () => {
   }, [subCategoriesList, formData.categoryId]);
 
   const formLocationSamplesFiltered = useMemo(() => {
-    if (!formData.subCategoryId) return [];
-    return locationSamplesList.filter(l => String(l.subCategoryId || l.sub_category_id) === String(formData.subCategoryId));
-  }, [locationSamplesList, formData.subCategoryId]);
+    return locationSamplesList;
+  }, [locationSamplesList]);
 
   const filterCategoriesFiltered = useMemo(() => {
     if (departmentFilter === 'ALL') return categoriesList;
