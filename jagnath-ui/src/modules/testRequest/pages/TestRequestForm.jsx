@@ -18,7 +18,8 @@ import {
   CAUTION_ENDPOINTS,
   PRICE_MASTER_ENDPOINTS,
   SUB_CATEGORY_ENDPOINTS,
-  LOCATION_SAMPLE_ENDPOINTS
+  LOCATION_SAMPLE_ENDPOINTS,
+  BACKEND_ROOT_URL
 } from '../../../shared/services/apiEndpoints';
 import InlineMasterModal from '../../../shared/components/InlineMasterModal/InlineMasterModal';
 import AddMasterButton from '../../../shared/components/InlineMasterModal/AddMasterButton';
@@ -157,7 +158,7 @@ const TestRequestForm = () => {
         const cleanPath = logoPath.replace(/\\/g, '/');
         const idx = cleanPath.lastIndexOf('uploads/');
         if (idx !== -1) {
-          return `http://localhost:5000/${cleanPath.substring(idx)}`;
+          return `${BACKEND_ROOT_URL}/${cleanPath.substring(idx)}`;
         }
         return logoPath;
       }

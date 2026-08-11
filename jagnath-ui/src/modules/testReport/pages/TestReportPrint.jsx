@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiService } from '../../../shared/services/apiService';
-import { TEST_REPORT_ENDPOINTS } from '../../../shared/services/apiEndpoints';
+import { TEST_REPORT_ENDPOINTS, BACKEND_ROOT_URL } from '../../../shared/services/apiEndpoints';
 
 /**
  * @component TestReportPrint
@@ -113,7 +113,7 @@ const TestReportPrint = () => {
     const cleanPath = report.companyLogo.replace(/\\/g, '/');
     const idx = cleanPath.lastIndexOf('uploads/');
     if (idx !== -1) {
-      return `http://localhost:5000/${cleanPath.substring(idx)}`;
+      return `${BACKEND_ROOT_URL}/${cleanPath.substring(idx)}`;
     }
     return report.companyLogo;
   };

@@ -5,7 +5,7 @@ import {
   FaFilePdf, FaPrint, FaChevronDown, FaUserShield
 } from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
-import { COMPANY_ENDPOINTS, USER_ENDPOINTS } from '../../../shared/services/apiEndpoints';
+import { COMPANY_ENDPOINTS, USER_ENDPOINTS, BACKEND_ROOT_URL } from '../../../shared/services/apiEndpoints';
 import { getStoredUser } from '../../auth/services/authService';
 import { getIndianStates, getCitiesByStateIso2 } from '../../../shared/services/locationService';
 import Pagination from '../../../shared/components/Pagination';
@@ -17,7 +17,7 @@ const getLogoUrl = (path) => {
   const cleanPath = path.replace(/\\/g, '/');
   const idx = cleanPath.lastIndexOf('uploads/');
   if (idx !== -1) {
-    return `http://localhost:5000/${cleanPath.substring(idx)}`;
+    return `${BACKEND_ROOT_URL}/${cleanPath.substring(idx)}`;
   }
   return path;
 };

@@ -11,7 +11,8 @@ import {
   CATEGORY_PARAMETER_ENDPOINTS,
   TEST_REQUEST_PARAMETER_ENDPOINTS,
   PARAMETER_ENDPOINTS,
-  COMPANY_ENDPOINTS
+  COMPANY_ENDPOINTS,
+  BACKEND_ROOT_URL
 } from '../../../shared/services/apiEndpoints';
 import SearchableSelect from '../../../shared/components/Select/SearchableSelect';
 
@@ -101,7 +102,7 @@ const TestReportForm = () => {
       const cleanPath = formData.companyLogo.replace(/\\/g, '/');
       const idx = cleanPath.lastIndexOf('uploads/');
       if (idx !== -1) {
-        return `http://localhost:5000/${cleanPath.substring(idx)}`;
+        return `${BACKEND_ROOT_URL}/${cleanPath.substring(idx)}`;
       }
       return formData.companyLogo;
     }
@@ -111,7 +112,7 @@ const TestReportForm = () => {
         const cleanPath = logoPath.replace(/\\/g, '/');
         const idx = cleanPath.lastIndexOf('uploads/');
         if (idx !== -1) {
-          return `http://localhost:5000/${cleanPath.substring(idx)}`;
+          return `${BACKEND_ROOT_URL}/${cleanPath.substring(idx)}`;
         }
         return logoPath;
       }

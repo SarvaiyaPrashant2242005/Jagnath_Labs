@@ -8,7 +8,8 @@ import {
   TEST_REQUEST_ENDPOINTS,
   TEST_REQUEST_PARAMETER_ENDPOINTS,
   COMPANY_ENDPOINTS,
-  CAUTION_ENDPOINTS
+  CAUTION_ENDPOINTS,
+  BACKEND_ROOT_URL
 } from '../../../shared/services/apiEndpoints';
 
 const TestRequestPrint = () => {
@@ -150,7 +151,7 @@ const TestRequestPrint = () => {
     const cleanPath = logoPath.replace(/\\/g, '/');
     const idx = cleanPath.lastIndexOf('uploads/');
     if (idx !== -1) {
-      return `http://localhost:5000/${cleanPath.substring(idx)}`;
+      return `${BACKEND_ROOT_URL}/${cleanPath.substring(idx)}`;
     }
     return logoPath;
   };
