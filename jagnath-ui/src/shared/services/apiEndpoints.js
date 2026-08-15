@@ -10,8 +10,25 @@
 console.log("ENV OBJECT:", import.meta.env);
 console.log("API URL:", import.meta.env.VITE_API_BASE_URL);
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
-export const BACKEND_ROOT_URL = API_BASE_URL.endsWith('/api') ? API_BASE_URL.slice(0, -4) : API_BASE_URL;
+const getBaseUrls = () => {
+  const envUrl = import.meta.env.VITE_API_BASE_URL;
+  if (envUrl) {
+    const apiBase = envUrl;
+    const backendRoot = envUrl.endsWith('/api') ? envUrl.slice(0, -4) : envUrl;
+    return { apiBase, backendRoot };
+  }
+  
+  // Dynamic fallback based on window location to support hosting without env variables
+  const protocol = typeof window !== 'undefined' ? window.location.protocol : 'http:';
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+  const apiBase = `${protocol}//${hostname}:5000/api`;
+  const backendRoot = `${protocol}//${hostname}:5000`;
+  return { apiBase, backendRoot };
+};
+
+const { apiBase, backendRoot } = getBaseUrls();
+export const API_BASE_URL = apiBase;
+export const BACKEND_ROOT_URL = backendRoot;
 // ─── Auth Endpoints ─────────────────────────────────────────────────────────────
 export const AUTH_ENDPOINTS = {
   LOGIN: `${API_BASE_URL}/auth/login`,

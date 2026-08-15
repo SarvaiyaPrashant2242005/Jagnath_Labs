@@ -11,10 +11,7 @@ const createLocationSampleSchema = Joi.object({
         "string.empty": "Location Name cannot be empty",
         "any.required": "Location Name is required"
     }),
-    subCategoryId: Joi.string().uuid().required().messages({
-        "any.required": "Sub Category is required",
-        "string.empty": "Sub Category is required"
-    }),
+    subCategoryId: Joi.string().uuid().optional().allow("", null),
     description: Joi.string().trim().optional().allow("", null),
     status: Joi.string().valid("Active", "Inactive").default("Active")
 });
