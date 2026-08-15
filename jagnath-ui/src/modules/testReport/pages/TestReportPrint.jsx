@@ -243,7 +243,7 @@ const TestReportPrint = () => {
           <>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
               <div>
-                <img src={getLogoUrl()} alt="Company Logo" style={{ height: '60px', objectFit: 'contain' }} />
+                <img src={getLogoUrl()} alt="Company Logo" style={{ height: '60px', maxWidth: '100%', objectFit: 'contain' }} />
               </div>
             </div>
             {/* Divider Line */}

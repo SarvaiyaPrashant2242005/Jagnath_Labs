@@ -998,13 +998,12 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
               </div>
             </div>
 
-            {/* Logo and Signature File Uploads */}
+            {/* Logo File Uploads */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem', marginTop: '0.5rem' }}>
               {renderLogoUploadField('Company Logo (Main / Default) *', logoFile, setLogoFile, 'logo', 'existingLogo', 'removeLogo')}
               {renderLogoUploadField('Test Request Logo (Optional)', testRequestLogoFile, setTestRequestLogoFile, 'test_request_logo', 'existingTestRequestLogo', 'removeTestRequestLogo')}
               {renderLogoUploadField('Test Report Logo (Optional)', testReportLogoFile, setTestReportLogoFile, 'test_report_logo', 'existingTestReportLogo', 'removeTestReportLogo')}
               {renderLogoUploadField('Quotation Logo (Optional)', quotationLogoFile, setQuotationLogoFile, 'quotation_logo', 'existingQuotationLogo', 'removeQuotationLogo')}
-              {renderLogoUploadField('Authorized Signature (Optional)', signatureFile, setSignatureFile, 'signature', 'existingSignature', 'removeSignature')}
             </div>
 
             {/* Assign User / Company Admin Section (Super Admin Only) */}

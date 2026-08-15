@@ -1197,7 +1197,7 @@ const TestReportForm = () => {
                 <>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
                     <div>
-                      <img src={getPreviewLogoUrl()} alt="Company Logo" style={{ height: '52px', objectFit: 'contain' }} />
+                      <img src={getPreviewLogoUrl()} alt="Company Logo" style={{ height: '52px', maxWidth: '100%', objectFit: 'contain' }} />
                     </div>
                   </div>
                   {/* Horizontal Line */}

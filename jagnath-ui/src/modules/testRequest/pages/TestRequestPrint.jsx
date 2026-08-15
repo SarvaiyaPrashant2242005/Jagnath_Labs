@@ -173,8 +173,8 @@ const TestRequestPrint = () => {
         <table className="print-header-table">
           <tbody>
             <tr>
-              <td className="header-logo-cell" style={{ textAlign: 'center', padding: '4px' }}>
-                <img src={getLogoUrl()} alt="Logo" style={{ height: '65px', objectFit: 'contain', display: 'block', margin: '0 auto' }} />
+              <td className="header-logo-cell" style={{ textAlign: 'center', padding: '0px' }}>
+                <img src={getLogoUrl()} alt="Logo" style={{ height: '85px', width: '100%', objectFit: 'cover', display: 'block', margin: '0 auto' }} />
               </td>
               <td className="header-title-cell">
                 <h2>FORMATS</h2>
@@ -351,8 +351,8 @@ const TestRequestPrint = () => {
         <table className="print-header-table">
           <tbody>
             <tr>
-              <td className="header-logo-cell" style={{ textAlign: 'center', padding: '4px' }}>
-                <img src={getLogoUrl()} alt="Logo" style={{ height: '65px', objectFit: 'contain', display: 'block', margin: '0 auto' }} />
+              <td className="header-logo-cell" style={{ textAlign: 'center', padding: '0px' }}>
+                <img src={getLogoUrl()} alt="Logo" style={{ height: '85px', width: '100%', objectFit: 'cover', display: 'block', margin: '0 auto' }} />
               </td>
               <td className="header-title-cell">
                 <h2>FORMATS</h2>

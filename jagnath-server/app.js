@@ -24,7 +24,8 @@ const masterRouter = require("./src/routes.index");
 const app = express();
 
 // Parses incoming requests with JSON payloads (adds parsed data to req.body)
-app.use(express.json());
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // Enables Cross-Origin Resource Sharing (CORS) to allow requests from external domains/frontends
 app.use(cors());
