@@ -1323,14 +1323,14 @@ const TestReportForm = () => {
               {/* 3. Metadata Grid Table */}
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', border: '1px solid #000000', marginBottom: '0' }}>
                 <colgroup>
-                  <col style={{ width: '22%' }} />
+                  <col style={{ width: '32%' }} />
                   <col style={{ width: '28%' }} />
                   <col style={{ width: '22%' }} />
-                  <col style={{ width: '28%' }} />
+                  <col style={{ width: '18%' }} />
                 </colgroup>
                 <tbody>
                   <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td colSpan={2} style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold', fontSize: '0.78rem', borderRight: '1px solid #000000' }}>
+                    <td colSpan={2} rowSpan={2} style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold', fontSize: '0.78rem', borderRight: '1px solid #000000', verticalAlign: 'middle' }}>
                       UID- {formData.reportNumber || formData.referenceNo || 'JLT010726RR00307'}
                     </td>
                     <td colSpan={2} style={{ padding: '0.2rem 0.35rem', textAlign: 'right', fontWeight: 'bold', fontSize: '0.78rem' }}>
@@ -1338,16 +1338,21 @@ const TestReportForm = () => {
                     </td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>Name Of Work</td>
-                    <td style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold', borderRight: '1px solid #000000' }}>{formData.nameOfWork || 'Waste Water Analysis'}</td>
-                    <td style={{ padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>Date</td>
-                    <td style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold' }}>{formatDateDDMMYYYY(formData.reportDate || formData.formatDate || formData.dateOfReceipt || new Date().toISOString())}</td>
+                    <td colSpan={2} style={{ padding: '0.2rem 0.35rem', textAlign: 'right', fontWeight: 'bold', fontSize: '0.78rem' }}>
+                      Date: - {formatDateDDMMYYYY(formData.formatDate || formData.dateOfReceipt || new Date().toISOString())}
+                    </td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>Details of Sample</td>
-                    <td style={{ padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>{formData.detailsOfSample || '-'}</td>
+                    <td style={{ padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>Name Of Work</td>
+                    <td colSpan={3} style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold' }}>{formData.nameOfWork || 'Waste Water Analysis'}</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>Details of sample</td>
+                    <td colSpan={3} style={{ padding: '0.2rem 0.35rem' }}>{formData.detailsOfSample || '-'}</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
                     <td style={{ padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>Mode of Packing</td>
-                    <td style={{ padding: '0.2rem 0.35rem' }}>{formData.packingDetails || 'Sample Sealed in Plastic Bottle'}</td>
+                    <td colSpan={3} style={{ padding: '0.2rem 0.35rem' }}>{formData.packingDetails || 'Sample Sealed in Plastic Bottle'}</td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid #000000' }}>
                     <td style={{ padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>Report Issued To</td>
@@ -1355,9 +1360,11 @@ const TestReportForm = () => {
                   </tr>
                   <tr style={{ borderBottom: '1px solid #000000' }}>
                     <td style={{ padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>Reference No. / Report No.</td>
-                    <td style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold', borderRight: '1px solid #000000' }}>{formData.reportNumber || formData.referenceNo || '-'}</td>
-                    <td style={{ padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>Date of Receipt of Sample</td>
-                    <td style={{ padding: '0.2rem 0.35rem' }}>{formatDateDDMMYYYY(formData.dateOfReceipt)}</td>
+                    <td colSpan={3} style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold' }}>{formData.reportNumber || formData.referenceNo || '-'}</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>Date Of Receipt Of Sample</td>
+                    <td colSpan={3} style={{ padding: '0.2rem 0.35rem' }}>{formatDateDDMMYYYY(formData.dateOfReceipt)}</td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid #000000' }}>
                     <td style={{ padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>Name Of Agency/Company</td>
@@ -1368,15 +1375,19 @@ const TestReportForm = () => {
                   </tr>
                   <tr style={{ borderBottom: '1px solid #000000' }}>
                     <td style={{ padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>Sample Quantity</td>
-                    <td style={{ padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>{formData.sampleQuantity || '01 (1 ltr)'}</td>
-                    <td style={{ padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>Sampling Location / Type</td>
-                    <td style={{ padding: '0.2rem 0.35rem' }}>{formData.samplingLocation || 'Inlet CETP'}</td>
+                    <td colSpan={3} style={{ padding: '0.2rem 0.35rem' }}>{formData.sampleQuantity || '01 (1 ltr)'}</td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>Condition of Sample During Receipt</td>
-                    <td style={{ padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>{formData.conditionOnReceipt || 'Satisfactory'}</td>
-                    <td style={{ padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>Sample Collected / Submitted By</td>
-                    <td style={{ padding: '0.2rem 0.35rem' }}>{formData.sampleCollectedBy || 'By Party'}</td>
+                    <td style={{ padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>Sampling Location / Type</td>
+                    <td colSpan={3} style={{ padding: '0.2rem 0.35rem' }}>{formData.samplingLocation || 'Inlet CETP'}</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>Condition of sample during receipt</td>
+                    <td colSpan={3} style={{ padding: '0.2rem 0.35rem' }}>{formData.conditionOnReceipt || 'Satisfactory'}</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #000000' }}>
+                    <td style={{ padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>Sample Collected / Submitted by.</td>
+                    <td colSpan={3} style={{ padding: '0.2rem 0.35rem' }}>{formData.sampleCollectedBy || 'By Party'}</td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid #000000' }}>
                     <td style={{ padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>Starting Date of Test / Analysis</td>

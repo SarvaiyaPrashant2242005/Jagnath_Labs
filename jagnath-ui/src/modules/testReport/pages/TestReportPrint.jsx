@@ -259,31 +259,36 @@ const TestReportPrint = () => {
         {/* Main Metadata Grid Table */}
         <table className="print-report-table">
           <colgroup>
-            <col style={{ width: '22%' }} />
+            <col style={{ width: '32%' }} />
             <col style={{ width: '28%' }} />
             <col style={{ width: '22%' }} />
-            <col style={{ width: '28%' }} />
+            <col style={{ width: '18%' }} />
           </colgroup>
           <tbody>
             <tr>
-              <td colSpan={2} style={{ fontWeight: 'bold', fontSize: '0.82rem', borderBottom: '1px solid #000' }}>
+              <td colSpan={2} rowSpan={2} style={{ fontWeight: 'bold', fontSize: '0.82rem', verticalAlign: 'middle' }}>
                 UID- {report.reportNumber || report.referenceNo || 'JLT010726RR00307'}
               </td>
-              <td colSpan={2} style={{ textAlign: 'right', fontWeight: 'bold', fontSize: '0.82rem', borderBottom: '1px solid #000' }}>
+              <td colSpan={2} style={{ textAlign: 'right', fontWeight: 'bold', fontSize: '0.82rem' }}>
                 {report.formatNo || 'Format No. 7.8 F-02'}
               </td>
             </tr>
             <tr>
-              <td>Name Of Work</td>
-              <td style={{ fontWeight: 'bold' }}>{report.nameOfWork || report.title || 'Waste Water Analysis'}</td>
-              <td>Date</td>
-              <td style={{ fontWeight: 'bold' }}>{formatDateDDMMYYYY(report.reportDate || report.formatDate || report.dateOfReceipt || new Date().toISOString())}</td>
+              <td colSpan={2} style={{ textAlign: 'right', fontWeight: 'bold', fontSize: '0.82rem' }}>
+                Date: - {formatDateDDMMYYYY(report.formatDate || report.dateOfReceipt || new Date().toISOString())}
+              </td>
             </tr>
             <tr>
-              <td>Details of Sample</td>
-              <td>{report.detailsOfSample || '-'}</td>
+              <td>Name Of Work</td>
+              <td colSpan={3} style={{ fontWeight: 'bold' }}>{report.nameOfWork || report.title || 'Waste Water Analysis'}</td>
+            </tr>
+            <tr>
+              <td>Details of sample</td>
+              <td colSpan={3}>{report.detailsOfSample || '-'}</td>
+            </tr>
+            <tr>
               <td>Mode of Packing</td>
-              <td>{report.packingDetails || 'Sample Sealed in Plastic Bottle'}</td>
+              <td colSpan={3}>{report.packingDetails || 'Sample Sealed in Plastic Bottle'}</td>
             </tr>
             <tr>
               <td>Report Issued To</td>
@@ -291,9 +296,11 @@ const TestReportPrint = () => {
             </tr>
             <tr>
               <td>Reference No. / Report No.</td>
-              <td style={{ fontWeight: 'bold' }}>{report.reportNumber || report.referenceNo || '-'}</td>
-              <td>Date of Receipt of Sample</td>
-              <td>{formatDateDDMMYYYY(report.dateOfReceipt)}</td>
+              <td colSpan={3} style={{ fontWeight: 'bold' }}>{report.reportNumber || report.referenceNo || '-'}</td>
+            </tr>
+            <tr>
+              <td>Date Of Receipt Of Sample</td>
+              <td colSpan={3}>{formatDateDDMMYYYY(report.dateOfReceipt)}</td>
             </tr>
             <tr>
               <td>Name Of Agency/Company</td>
@@ -304,18 +311,22 @@ const TestReportPrint = () => {
             </tr>
             <tr>
               <td>Sample Quantity</td>
-              <td>{report.sampleQuantity || '01 (1 ltr)'}</td>
+              <td colSpan={3}>{report.sampleQuantity || '01 (1 ltr)'}</td>
+            </tr>
+            <tr>
               <td>Sampling Location / Type</td>
-              <td>{report.samplingLocation || 'Inlet CETP'}</td>
+              <td colSpan={3}>{report.samplingLocation || 'Inlet CETP'}</td>
             </tr>
             <tr>
-              <td>Condition of Sample During Receipt</td>
-              <td>{report.conditionOnReceipt || 'Satisfactory'}</td>
-              <td>Sample Collected / Submitted By</td>
-              <td>{report.sampleCollectedBy || 'By Party'}</td>
+              <td>Condition of sample during receipt</td>
+              <td colSpan={3}>{report.conditionOnReceipt || 'Satisfactory'}</td>
             </tr>
             <tr>
-              <td>Starting Date of Test / Analysis</td>
+              <td>Sample Collected / Submitted by.</td>
+              <td colSpan={3}>{report.sampleCollectedBy || 'By Party'}</td>
+            </tr>
+            <tr>
+              <td>Starting Date Of Test/ Analysis</td>
               <td>{formatDateDDMMYYYY(report.startingDateOfTest)}</td>
               <td>Completion Date of Test</td>
               <td>{formatDateDDMMYYYY(report.completionDateOfTest)}</td>
