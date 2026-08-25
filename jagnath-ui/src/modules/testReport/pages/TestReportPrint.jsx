@@ -241,53 +241,49 @@ const TestReportPrint = () => {
         {/* Top Header Logo Row */}
         {withHeaderFooter ? (
           <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
               <div>
-                <img src={getLogoUrl()} alt="Company Logo" style={{ height: '60px', maxWidth: '100%', objectFit: 'contain' }} />
+                <img src={getLogoUrl()} alt="Company Logo" style={{ height: '75px', maxWidth: '100%', objectFit: 'contain' }} />
               </div>
             </div>
-            {/* Divider Line */}
-            <div style={{ borderBottom: '1.5px solid #000', marginBottom: '2px' }}></div>
           </>
         ) : (
-          <div style={{ height: '45px', marginBottom: '2px' }}></div> // Spacer for letterhead header
+          <div style={{ height: '60px', marginBottom: '12px' }}></div> // Spacer for letterhead header
         )}
 
         {/* Document Title */}
-        <div style={{ textAlign: 'center', fontSize: '1.15rem', fontWeight: 'bold', textDecoration: 'underline', marginBottom: '2px' }}>
+        <div style={{ textAlign: 'center', fontSize: '1.2rem', fontWeight: 'bold', textDecoration: 'underline', marginTop: '15px', marginBottom: '15px', letterSpacing: '0.5px' }}>
           TEST REPORT
         </div>
 
-        {/* Second Divider Line */}
-        <div style={{ borderBottom: '1.5px solid #000', marginBottom: '4px' }}></div>
-
         {/* Main Metadata Grid Table */}
         <table className="print-report-table">
+          <colgroup>
+            <col style={{ width: '22%' }} />
+            <col style={{ width: '28%' }} />
+            <col style={{ width: '22%' }} />
+            <col style={{ width: '28%' }} />
+          </colgroup>
           <tbody>
             <tr>
-              <td colSpan={4} style={{ textAlign: 'right', fontWeight: 'bold', borderBottom: '1px solid #000' }}>
+              <td colSpan={2} style={{ fontWeight: 'bold', fontSize: '0.82rem', borderBottom: '1px solid #000' }}>
+                UID- {report.reportNumber || report.referenceNo || 'JLT010726RR00307'}
+              </td>
+              <td colSpan={2} style={{ textAlign: 'right', fontWeight: 'bold', fontSize: '0.82rem', borderBottom: '1px solid #000' }}>
                 {report.formatNo || 'Format No. 7.8 F-02'}
               </td>
             </tr>
             <tr>
-              <td colSpan={2} style={{ fontWeight: 'bold', fontSize: '0.82rem', borderBottom: '1px solid #000' }}>
-                {report.reportNumber || report.referenceNo || 'JLT010726RR00307'}
-              </td>
-              <td colSpan={2} style={{ textAlign: 'right', fontWeight: 'bold', fontSize: '0.82rem', borderBottom: '1px solid #000' }}>
-                Date: - {formatDateDDMMYYYY(report.formatDate || report.dateOfReceipt || new Date().toISOString())}
-              </td>
+              <td>Name Of Work</td>
+              <td style={{ fontWeight: 'bold' }}>{report.nameOfWork || report.title || 'Waste Water Analysis'}</td>
+              <td>Date</td>
+              <td style={{ fontWeight: 'bold' }}>{formatDateDDMMYYYY(report.reportDate || report.formatDate || report.dateOfReceipt || new Date().toISOString())}</td>
             </tr>
             <tr>
-              <td style={{ width: '32%' }}>Name Of Work</td>
-              <td colSpan={3} style={{ fontWeight: 'bold' }}>{report.nameOfWork || report.title || 'Waste Water Analysis'}</td>
-            </tr>
-            <tr>
-              <td>Details of sample</td>
-              <td colSpan={3}>{report.detailsOfSample || '-'}</td>
-            </tr>
-            <tr>
+              <td>Details of Sample</td>
+              <td>{report.detailsOfSample || '-'}</td>
               <td>Mode of Packing</td>
-              <td colSpan={3}>{report.packingDetails || 'Sample Sealed in Plastic Bottle'}</td>
+              <td>{report.packingDetails || 'Sample Sealed in Plastic Bottle'}</td>
             </tr>
             <tr>
               <td>Report Issued To</td>
@@ -295,11 +291,9 @@ const TestReportPrint = () => {
             </tr>
             <tr>
               <td>Reference No. / Report No.</td>
-              <td colSpan={3} style={{ fontWeight: 'bold' }}>{report.reportNumber || report.referenceNo || '-'}</td>
-            </tr>
-            <tr>
-              <td>Date Of Receipt Of Sample</td>
-              <td colSpan={3}>{formatDateDDMMYYYY(report.dateOfReceipt)}</td>
+              <td style={{ fontWeight: 'bold' }}>{report.reportNumber || report.referenceNo || '-'}</td>
+              <td>Date of Receipt of Sample</td>
+              <td>{formatDateDDMMYYYY(report.dateOfReceipt)}</td>
             </tr>
             <tr>
               <td>Name Of Agency/Company</td>
@@ -310,25 +304,21 @@ const TestReportPrint = () => {
             </tr>
             <tr>
               <td>Sample Quantity</td>
-              <td colSpan={3}>{report.sampleQuantity || '01 (1 ltr)'}</td>
-            </tr>
-            <tr>
+              <td>{report.sampleQuantity || '01 (1 ltr)'}</td>
               <td>Sampling Location / Type</td>
-              <td colSpan={3}>{report.samplingLocation || 'Inlet CETP'}</td>
+              <td>{report.samplingLocation || 'Inlet CETP'}</td>
             </tr>
             <tr>
-              <td>Condition of sample during receipt</td>
-              <td colSpan={3}>{report.conditionOnReceipt || 'Satisfactory'}</td>
+              <td>Condition of Sample During Receipt</td>
+              <td>{report.conditionOnReceipt || 'Satisfactory'}</td>
+              <td>Sample Collected / Submitted By</td>
+              <td>{report.sampleCollectedBy || 'By Party'}</td>
             </tr>
             <tr>
-              <td>Sample Collected / Submitted by.</td>
-              <td colSpan={3}>{report.sampleCollectedBy || 'By Party'}</td>
-            </tr>
-            <tr>
-              <td style={{ width: '32%' }}>Starting Date Of Test/ Analysis</td>
-              <td style={{ width: '28%' }}>{formatDateDDMMYYYY(report.startingDateOfTest)}</td>
-              <td style={{ width: '22%' }}>Completion Date of Test</td>
-              <td style={{ width: '18%' }}>{formatDateDDMMYYYY(report.completionDateOfTest)}</td>
+              <td>Starting Date of Test / Analysis</td>
+              <td>{formatDateDDMMYYYY(report.startingDateOfTest)}</td>
+              <td>Completion Date of Test</td>
+              <td>{formatDateDDMMYYYY(report.completionDateOfTest)}</td>
             </tr>
           </tbody>
         </table>
@@ -347,7 +337,7 @@ const TestReportPrint = () => {
               <th style={{ width: report.showPermissibleLimits !== false ? '32%' : '37%', textAlign: 'center' }}>REFERENCE METHOD</th>
               <th style={{ width: '10%', textAlign: 'center' }}>UNIT</th>
               <th style={{ width: '11%', textAlign: 'center' }}>RESULTS</th>
-              {report.showPermissibleLimits !== false && <th style={{ width: '11%', textAlign: 'center' }}>PERMISIBLE LIMITS</th>}
+              {report.showPermissibleLimits !== false && <th style={{ width: '11%', textAlign: 'center' }}>PERMISSIBLE LIMITS</th>}
             </tr>
           </thead>
           <tbody>
