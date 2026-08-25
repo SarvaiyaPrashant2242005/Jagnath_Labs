@@ -120,6 +120,11 @@ const TestReport = sequelize.define("TestReport", {
         allowNull: true,
         field: "reviewed_by"
     },
+    reviewedBySignature: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        field: "reviewed_by_signature"
+    },
     authorizedSignatory: {
         type: DataTypes.STRING,
         allowNull: true,

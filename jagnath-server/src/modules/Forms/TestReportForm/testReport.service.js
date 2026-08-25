@@ -6,10 +6,20 @@ const TestReport = require("./testReport.model");
 const Company = require("../../Masters/CompanyMasters/company.model");
 const sequelize = require("../../../config/database");
 const { Op } = require("sequelize");
+const db = require("../../../database");
 
 const formatTestReport = (tr) => {
     if (!tr) return null;
     const trObj = tr.toJSON ? tr.toJSON() : { ...tr };
+    
+    // Resolve Client address mapping dynamically from associated TestRequest -> Client
+    if (trObj.testRequest && trObj.testRequest.client) {
+        const client = trObj.testRequest.client;
+        trObj.reportIssuedTo = client.plantAddress ? `${client.clientName}\n${client.plantAddress}` : client.clientName;
+        trObj.agencyName = client.clientName;
+        trObj.agencyAddress = client.officeAddress;
+    }
+    
     if (trObj.company) {
         trObj.companyName = trObj.company.companyName || trObj.company.company_name;
         trObj.companyLogo = trObj.company.test_report_logo || trObj.company.testReportLogo || trObj.company.logo;
@@ -18,6 +28,7 @@ const formatTestReport = (tr) => {
         trObj.companyLogo = null;
     }
     delete trObj.company;
+    delete trObj.testRequest;
     return trObj;
 };
 
@@ -90,7 +101,14 @@ const getTestReportsByCompany = async (companyId, options = {}) => {
     const queryOptions = {
         where: whereClause,
         order: [['created_at', 'DESC']],
-        include: [{ model: Company, as: "company", attributes: ["id", "company_name", "logo"] }]
+        include: [
+            { model: Company, as: "company", attributes: ["id", "company_name", "logo"] },
+            {
+                model: db.TestRequest,
+                as: "testRequest",
+                include: [{ model: db.Client, as: "client" }]
+            }
+        ]
     };
 
     if (limit) {
@@ -121,13 +139,27 @@ const getTestReportById = async (id, companyId = null) => {
 
     let report = await TestReport.findOne({
         where: whereClause,
-        include: [{ model: Company, as: "company", attributes: ["id", "company_name", "logo"] }]
+        include: [
+            { model: Company, as: "company", attributes: ["id", "company_name", "logo"] },
+            {
+                model: db.TestRequest,
+                as: "testRequest",
+                include: [{ model: db.Client, as: "client" }]
+            }
+        ]
     });
 
     if (!report && companyId) {
         report = await TestReport.findOne({
             where: { id },
-            include: [{ model: Company, as: "company", attributes: ["id", "company_name", "logo"] }]
+            include: [
+                { model: Company, as: "company", attributes: ["id", "company_name", "logo"] },
+                {
+                    model: db.TestRequest,
+                    as: "testRequest",
+                    include: [{ model: db.Client, as: "client" }]
+                }
+            ]
         });
     }
 

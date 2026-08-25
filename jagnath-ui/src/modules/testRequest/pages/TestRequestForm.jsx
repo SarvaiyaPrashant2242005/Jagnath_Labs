@@ -713,6 +713,31 @@ const TestRequestForm = () => {
       // 2. Save Parameters Checklist with sequence
       const checkedParamIds = Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]);
 
+      // Delete any previously saved parameters that have been unselected
+      const savedParamKeys = Object.keys(checkedParameters).filter(k => k.startsWith('_id_'));
+      const keysToDeleteFromState = [];
+      for (const key of savedParamKeys) {
+        const pId = key.replace('_id_', '');
+        if (!checkedParamIds.includes(pId)) {
+          const trpId = checkedParameters[key];
+          if (trpId) {
+            try {
+              await apiService.delete(TEST_REQUEST_PARAMETER_ENDPOINTS.DELETE(trpId));
+              keysToDeleteFromState.push(key, pId);
+            } catch (err) {
+              console.error("Failed to delete unchecked parameter from database", err);
+            }
+          }
+        }
+      }
+      if (keysToDeleteFromState.length > 0) {
+        setCheckedParameters(prev => {
+          const updated = { ...prev };
+          keysToDeleteFromState.forEach(k => delete updated[k]);
+          return updated;
+        });
+      }
+
       const orderedParamIds = [
         ...selectedParamSequence.filter(id => checkedParamIds.includes(id)),
         ...checkedParamIds.filter(id => !selectedParamSequence.includes(id))

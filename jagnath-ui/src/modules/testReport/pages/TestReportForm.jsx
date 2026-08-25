@@ -59,6 +59,7 @@ const TestReportForm = () => {
     reviewedByAnalyst: '',
     authorizedSignatory: '',
     signatureImage: '',
+    reviewedBySignature: '',
     termsAndConditions: 'The report is analyzed with the quality standards. These results are related to sample collection as specified above. This report in full or part, shall not be published advertised, used for any legal action, unless written consent and prior permission has been secured from the owner, JAGNATH LAB TECHNOLOGIES, GONDAL-RAJKOT.',
     showPermissibleLimits: true
   });
@@ -74,6 +75,7 @@ const TestReportForm = () => {
   const [confirmModal, setConfirmModal] = useState({ show: false, action: null }); // For permissible limit confirmation
   const printRef = useRef();
   const signatureInputRef = useRef();
+  const reviewedBySignatureInputRef = useRef();
   
   const [currentCompany, setCurrentCompany] = useState(null);
 
@@ -181,6 +183,7 @@ const TestReportForm = () => {
               reviewedByAnalyst: report.reviewedBy || report.reviewedByAnalyst || 'Sr. Analyst',
               authorizedSignatory: report.authorizedSignatory || 'Mr. Ankit Rathod/ Mr. Purvin Raiyan',
               signatureImage: report.signatureImage || '',
+              reviewedBySignature: report.reviewedBySignature || '',
               termsAndConditions: report.termsAndConditions || 'The report is analyzed with the quality standards. These results are related to sample collection as specified above. This report in full or part, shall not be published advertised, used for any legal action, unless written consent and prior permission has been secured from the owner, JAGNATH LAB TECHNOLOGIES, GONDAL-RAJKOT.',
               showPermissibleLimits: report.showPermissibleLimits !== undefined ? report.showPermissibleLimits : true,
               companyLogo: report.companyLogo || ''
@@ -244,16 +247,22 @@ const TestReportForm = () => {
       const sampleParticularVal = (!isUuid && targetTR.sampleParticular) || targetTR.sampleParticularName || 'Water Sample';
       const packingDetailsVal = targetTR.packingDetails || 'Sample Sealed in Plastic Bottle';
       const trTitle = targetTR.formTitle || targetTR.title || formData.nameOfWork || 'WATER & WASTE WATER';
-      const clientNameVal = targetTR.clientName || targetTR.client?.clientName || formData.reportIssuedTo;
-      const clientAddressVal = targetTR.address || targetTR.client?.address || formData.agencyAddress;
+      const clientObj = targetTR.client || {};
+      const clientName = clientObj.clientName || targetTR.clientName || '';
+      const plantAddress = clientObj.plantAddress || '';
+      const officeAddress = clientObj.officeAddress || '';
+
+      const reportIssuedToVal = plantAddress ? `${clientName}\n${plantAddress}` : clientName;
+      const agencyNameVal = clientName;
+      const agencyAddressVal = officeAddress;
 
       setFormData(prev => ({
         ...prev,
         reportNumber: reportNoDisplay,
         referenceNo: reportNoDisplay,
-        reportIssuedTo: clientNameVal,
-        agencyName: clientNameVal,
-        agencyAddress: clientAddressVal,
+        reportIssuedTo: reportIssuedToVal,
+        agencyName: agencyNameVal,
+        agencyAddress: agencyAddressVal,
         detailsOfSample: sampleParticularVal,
         packingDetails: packingDetailsVal,
         dateOfReceipt: receiptDate,
@@ -412,6 +421,22 @@ const TestReportForm = () => {
 
   const handleSignatureRemove = () => {
     setFormData(prev => ({ ...prev, signatureImage: '' }));
+  };
+
+  // Reviewed By Signature image upload handler
+  const handleReviewedBySignatureUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setFormData(prev => ({ ...prev, reviewedBySignature: ev.target.result }));
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleReviewedBySignatureRemove = () => {
+    setFormData(prev => ({ ...prev, reviewedBySignature: '' }));
   };
 
   // Save Report Handler
@@ -1020,90 +1045,175 @@ const TestReportForm = () => {
               </div>
             </div>
 
-            {/* Digital Signature Upload */}
-            <div style={{ marginTop: '1.25rem' }}>
-              <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155', display: 'block', marginBottom: '0.5rem' }}>
-                Digital Signature (Authorized Signatory)
-                <span style={{ fontWeight: 400, color: '#94a3b8', marginLeft: '0.5rem', fontSize: '0.78rem' }}>Optional — Appears above signatory name in printed report</span>
-              </label>
+            {/* Digital Signature Upload Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginTop: '1.5rem' }}>
+              {/* Reviewed By Digital Signature */}
+              <div>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155', display: 'block', marginBottom: '0.5rem' }}>
+                  Digital Signature (Reviewed By)
+                  <span style={{ fontWeight: 400, color: '#94a3b8', marginLeft: '0.5rem', fontSize: '0.78rem' }}>Optional</span>
+                </label>
 
-              {formData.signatureImage ? (
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '1rem', flexWrap: 'wrap' }}>
-                  {/* Preview */}
-                  <div style={{
-                    background: '#f8fafc',
-                    border: '2px dashed #cbd5e1',
-                    borderRadius: '12px',
-                    padding: '0.75rem',
-                    display: 'inline-flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: '0.4rem'
-                  }}>
-                    <img
-                      src={formData.signatureImage}
-                      alt="Digital Signature Preview"
-                      style={{ maxHeight: '80px', maxWidth: '260px', objectFit: 'contain', borderRadius: '6px' }}
-                    />
-                    <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 500 }}>Current Signature</span>
+                {formData.reviewedBySignature ? (
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '1rem', flexWrap: 'wrap' }}>
+                    <div style={{
+                      background: '#f8fafc',
+                      border: '2px dashed #cbd5e1',
+                      borderRadius: '12px',
+                      padding: '0.75rem',
+                      display: 'inline-flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '0.4rem'
+                    }}>
+                      <img
+                        src={formData.reviewedBySignature}
+                        alt="Reviewed By Signature Preview"
+                        style={{ maxHeight: '80px', maxWidth: '260px', objectFit: 'contain', borderRadius: '6px' }}
+                      />
+                      <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 500 }}>Current Signature</span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <button
+                        type="button"
+                        onClick={() => reviewedBySignatureInputRef.current && reviewedBySignatureInputRef.current.click()}
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                          background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe',
+                          borderRadius: '8px', padding: '0.45rem 1rem', fontSize: '0.82rem',
+                          fontWeight: 600, cursor: 'pointer'
+                        }}
+                      >
+                        🔄 Replace Signature
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleReviewedBySignatureRemove}
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                          background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca',
+                          borderRadius: '8px', padding: '0.45rem 1rem', fontSize: '0.82rem',
+                          fontWeight: 600, cursor: 'pointer'
+                        }}
+                      >
+                        🗑 Remove
+                      </button>
+                    </div>
                   </div>
-                  {/* Actions */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <button
-                      type="button"
-                      onClick={() => signatureInputRef.current && signatureInputRef.current.click()}
-                      style={{
-                        display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
-                        background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe',
-                        borderRadius: '8px', padding: '0.45rem 1rem', fontSize: '0.82rem',
-                        fontWeight: 600, cursor: 'pointer'
-                      }}
-                    >
-                      🔄 Replace Signature
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleSignatureRemove}
-                      style={{
-                        display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
-                        background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca',
-                        borderRadius: '8px', padding: '0.45rem 1rem', fontSize: '0.82rem',
-                        fontWeight: 600, cursor: 'pointer'
-                      }}
-                    >
-                      🗑 Remove
-                    </button>
+                ) : (
+                  <div
+                    onClick={() => reviewedBySignatureInputRef.current && reviewedBySignatureInputRef.current.click()}
+                    style={{
+                      border: '2px dashed #cbd5e1',
+                      borderRadius: '12px',
+                      padding: '1.5rem 2rem',
+                      textAlign: 'center',
+                      background: '#f8fafc',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      maxWidth: '380px'
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#3b82f6'; e.currentTarget.style.background = '#eff6ff'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.background = '#f8fafc'; }}
+                  >
+                    <div style={{ fontSize: '2rem', marginBottom: '0.4rem' }}>✍️</div>
+                    <div style={{ fontWeight: 600, color: '#334155', fontSize: '0.88rem' }}>Click to upload Reviewed By signature</div>
+                    <div style={{ color: '#94a3b8', fontSize: '0.78rem', marginTop: '0.25rem' }}>PNG, JPG — transparent background recommended</div>
                   </div>
-                </div>
-              ) : (
-                <div
-                  onClick={() => signatureInputRef.current && signatureInputRef.current.click()}
-                  style={{
-                    border: '2px dashed #cbd5e1',
-                    borderRadius: '12px',
-                    padding: '1.5rem 2rem',
-                    textAlign: 'center',
-                    background: '#f8fafc',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    maxWidth: '380px'
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#3b82f6'; e.currentTarget.style.background = '#eff6ff'; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.background = '#f8fafc'; }}
-                >
-                  <div style={{ fontSize: '2rem', marginBottom: '0.4rem' }}>✍️</div>
-                  <div style={{ fontWeight: 600, color: '#334155', fontSize: '0.88rem' }}>Click to upload signature image</div>
-                  <div style={{ color: '#94a3b8', fontSize: '0.78rem', marginTop: '0.25rem' }}>PNG, JPG — transparent background recommended</div>
-                </div>
-              )}
+                )}
 
-              <input
-                ref={signatureInputRef}
-                type="file"
-                accept="image/png,image/jpg,image/jpeg"
-                style={{ display: 'none' }}
-                onChange={handleSignatureUpload}
-              />
+                <input
+                  ref={reviewedBySignatureInputRef}
+                  type="file"
+                  accept="image/png,image/jpg,image/jpeg"
+                  style={{ display: 'none' }}
+                  onChange={handleReviewedBySignatureUpload}
+                />
+              </div>
+
+              {/* Authorized Signatory Digital Signature */}
+              <div>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155', display: 'block', marginBottom: '0.5rem' }}>
+                  Digital Signature (Authorized Signatory)
+                  <span style={{ fontWeight: 400, color: '#94a3b8', marginLeft: '0.5rem', fontSize: '0.78rem' }}>Optional</span>
+                </label>
+
+                {formData.signatureImage ? (
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '1rem', flexWrap: 'wrap' }}>
+                    <div style={{
+                      background: '#f8fafc',
+                      border: '2px dashed #cbd5e1',
+                      borderRadius: '12px',
+                      padding: '0.75rem',
+                      display: 'inline-flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '0.4rem'
+                    }}>
+                      <img
+                        src={formData.signatureImage}
+                        alt="Digital Signature Preview"
+                        style={{ maxHeight: '80px', maxWidth: '260px', objectFit: 'contain', borderRadius: '6px' }}
+                      />
+                      <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 500 }}>Current Signature</span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <button
+                        type="button"
+                        onClick={() => signatureInputRef.current && signatureInputRef.current.click()}
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                          background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe',
+                          borderRadius: '8px', padding: '0.45rem 1rem', fontSize: '0.82rem',
+                          fontWeight: 600, cursor: 'pointer'
+                        }}
+                      >
+                        🔄 Replace Signature
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSignatureRemove}
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                          background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca',
+                          borderRadius: '8px', padding: '0.45rem 1rem', fontSize: '0.82rem',
+                          fontWeight: 600, cursor: 'pointer'
+                        }}
+                      >
+                        🗑 Remove
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => signatureInputRef.current && signatureInputRef.current.click()}
+                    style={{
+                      border: '2px dashed #cbd5e1',
+                      borderRadius: '12px',
+                      padding: '1.5rem 2rem',
+                      textAlign: 'center',
+                      background: '#f8fafc',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      maxWidth: '380px'
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#3b82f6'; e.currentTarget.style.background = '#eff6ff'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.background = '#f8fafc'; }}
+                  >
+                    <div style={{ fontSize: '2rem', marginBottom: '0.4rem' }}>✍️</div>
+                    <div style={{ fontWeight: 600, color: '#334155', fontSize: '0.88rem' }}>Click to upload signatory signature</div>
+                    <div style={{ color: '#94a3b8', fontSize: '0.78rem', marginTop: '0.25rem' }}>PNG, JPG — transparent background recommended</div>
+                  </div>
+                )}
+
+                <input
+                  ref={signatureInputRef}
+                  type="file"
+                  accept="image/png,image/jpg,image/jpeg"
+                  style={{ display: 'none' }}
+                  onChange={handleSignatureUpload}
+                />
+              </div>
             </div>
           </div>
 
@@ -1245,7 +1355,7 @@ const TestReportForm = () => {
                   </tr>
                   <tr style={{ borderBottom: '1px solid #000000' }}>
                     <td style={{ padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>Report Issued To</td>
-                    <td colSpan={3} style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold' }}>{formData.reportIssuedTo || '-'}</td>
+                    <td colSpan={3} style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold', whiteSpace: 'pre-wrap' }}>{formData.reportIssuedTo || '-'}</td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid #000000' }}>
                     <td style={{ padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>Reference No. / Report No.</td>
@@ -1258,8 +1368,8 @@ const TestReportForm = () => {
                   <tr style={{ borderBottom: '1px solid #000000' }}>
                     <td style={{ padding: '0.2rem 0.35rem', borderRight: '1px solid #000000' }}>Name Of Agency/Company</td>
                     <td colSpan={3} style={{ padding: '0.2rem 0.35rem' }}>
-                      <div style={{ fontWeight: 'bold' }}>{formData.agencyName || formData.reportIssuedTo}</div>
-                      {formData.agencyAddress && <div style={{ fontSize: '0.68rem', marginTop: '1px' }}>{formData.agencyAddress}</div>}
+                      <div style={{ fontWeight: 'bold', whiteSpace: 'pre-wrap' }}>{formData.agencyName || (formData.reportIssuedTo ? formData.reportIssuedTo.split('\n')[0] : '')}</div>
+                      {formData.agencyAddress && <div style={{ fontSize: '0.68rem', marginTop: '1px', whiteSpace: 'pre-wrap' }}>{formData.agencyAddress}</div>}
                     </td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid #000000' }}>
@@ -1335,8 +1445,22 @@ const TestReportForm = () => {
               <div style={{ border: '1px solid #000000', borderTop: 'none', padding: '0.4rem 0.6rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', minHeight: '90px' }}>
                 <div>
                   <div style={{ fontWeight: 'bold', fontSize: '0.7rem' }}>Reviewed by,</div>
+                  {formData.reviewedBySignature ? (
+                    <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'flex-start' }}>
+                      <img
+                        src={formData.reviewedBySignature}
+                        alt="Reviewed By Signature"
+                        style={{ maxHeight: '52px', maxWidth: '160px', objectFit: 'contain' }}
+                      />
+                    </div>
+                  ) : (
+                    <div style={{ marginTop: '2.5rem' }} />
+                  )}
+                  <div style={{ fontSize: '0.68rem', fontWeight: 'bold', color: '#000000' }}>
+                    {formData.reviewedByAnalyst || 'Sr. Analyst'}
+                  </div>
                   <div style={{ fontSize: '0.68rem', fontWeight: 'bold', color: '#334155' }}>(Sr. Analyst/Analyst)</div>
-                  <div style={{ marginTop: '2.5rem', fontWeight: 'bold', fontSize: '0.7rem' }}>
+                  <div style={{ fontWeight: 'bold', fontSize: '0.7rem', marginTop: '0.1rem' }}>
                     Lab Incharge Signatory.
                   </div>
                 </div>

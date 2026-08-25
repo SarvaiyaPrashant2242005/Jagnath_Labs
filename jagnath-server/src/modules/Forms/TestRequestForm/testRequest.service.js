@@ -301,6 +301,7 @@ ${changesBlock}
  * Soft-deletes a TestRequest.
  */
 const deleteTestRequest = async (trId, userId, companyId, reqInfo) => {
+    const db = require("../../../database");
     const transaction = await sequelize.transaction();
     try {
         const tr = await TestRequest.findOne({
@@ -320,6 +321,19 @@ const deleteTestRequest = async (trId, userId, companyId, reqInfo) => {
         const performedBy = await getPerformedBy(userId);
         const formattedDate = formatDateTime();
 
+        // 1. Soft-delete associated test request parameters
+        await db.TestRequestParameter.destroy({
+            where: { testRequestId: trId },
+            transaction
+        });
+
+        // 2. Soft-delete associated test report if exists
+        await db.TestReport.destroy({
+            where: { testRequestId: trId },
+            transaction
+        });
+
+        // 3. Soft-delete the parent test request itself
         await tr.destroy({ transaction });
         await transaction.commit();
 

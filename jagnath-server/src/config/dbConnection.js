@@ -37,6 +37,9 @@ const connectDB = async () => {
         const { runMigration: runMigration06 } = require("../database/migrations/06_add_department_master");
         await runMigration06();
 
+        const { runMigration: runMigration07 } = require("../database/migrations/07_add_reviewed_by_signature_to_reports");
+        await runMigration07();
+
         // 3. Sync all models with the database
         await sequelize.sync({ alter: true });
         console.log('📂 Database & tables synced!');

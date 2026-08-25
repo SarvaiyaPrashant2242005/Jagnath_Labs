@@ -358,19 +358,14 @@ const remove = async (req, res) => {
         const { id } = req.params;
         const userId = req.user.user_id;
 
-        let company;
-        try {
-            company = await getUserCompany(userId);
-        } catch (e) {
-            return res.status(404).json(errorResponse("NOT_FOUND", e.message, e.message));
-        }
+        const companyId = await resolveCompanyId({}, req.query, userId, req.headers, req.user);
 
         const reqInfo = {
             ip: req.ip || req.connection.remoteAddress,
             userAgent: req.headers["user-agent"]
         };
 
-        await testRequestService.deleteTestRequest(id, userId, company.id, reqInfo);
+        await testRequestService.deleteTestRequest(id, userId, companyId, reqInfo);
 
         return res.status(200).json(successResponse(
             "TEST_REQUEST_DELETED",

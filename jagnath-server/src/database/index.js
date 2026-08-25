@@ -129,4 +129,8 @@ db.Category.belongsTo(db.Department, { foreignKey: "departmentId", as: "departme
 db.Department.hasMany(db.TestRequest, { foreignKey: "departmentId", as: "testRequests" });
 db.TestRequest.belongsTo(db.Department, { foreignKey: "departmentId", as: "department" });
 
+// TestRequest - TestReport Associations
+db.TestRequest.hasOne(db.TestReport, { foreignKey: "testRequestId", as: "testReport" });
+db.TestReport.belongsTo(db.TestRequest, { foreignKey: "testRequestId", as: "testRequest" });
+
 module.exports = db;

@@ -291,7 +291,7 @@ const TestReportPrint = () => {
             </tr>
             <tr>
               <td>Report Issued To</td>
-              <td colSpan={3} style={{ fontWeight: 'bold' }}>{report.reportIssuedTo || report.agencyName || '-'}</td>
+              <td colSpan={3} style={{ fontWeight: 'bold', whiteSpace: 'pre-wrap' }}>{report.reportIssuedTo || report.agencyName || '-'}</td>
             </tr>
             <tr>
               <td>Reference No. / Report No.</td>
@@ -304,8 +304,8 @@ const TestReportPrint = () => {
             <tr>
               <td>Name Of Agency/Company</td>
               <td colSpan={3}>
-                <div style={{ fontWeight: 'bold' }}>{report.agencyName || report.reportIssuedTo}</div>
-                {report.agencyAddress && <div style={{ fontSize: '0.75rem', marginTop: '1px' }}>{report.agencyAddress}</div>}
+                <div style={{ fontWeight: 'bold', whiteSpace: 'pre-wrap' }}>{report.agencyName || (report.reportIssuedTo ? report.reportIssuedTo.split('\n')[0] : '')}</div>
+                {report.agencyAddress && <div style={{ fontSize: '0.75rem', marginTop: '1px', whiteSpace: 'pre-wrap' }}>{report.agencyAddress}</div>}
               </td>
             </tr>
             <tr>
@@ -385,8 +385,22 @@ const TestReportPrint = () => {
         <div style={{ border: '1px solid #000', borderTop: 'none', padding: '6px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', minHeight: '100px' }}>
           <div>
             <div style={{ fontWeight: 'bold', fontSize: '0.78rem' }}>Reviewed by,</div>
+            {report.reviewedBySignature ? (
+              <div style={{ marginTop: '6px', display: 'flex', justifyContent: 'flex-start' }}>
+                <img
+                  src={report.reviewedBySignature}
+                  alt="Reviewed By Signature"
+                  style={{ maxHeight: '65px', maxWidth: '200px', objectFit: 'contain' }}
+                />
+              </div>
+            ) : (
+              <div style={{ marginTop: '3rem' }} />
+            )}
+            <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#000000' }}>
+              {report.reviewedBy || 'Sr. Analyst'}
+            </div>
             <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#334155' }}>(Sr. Analyst/Analyst)</div>
-            <div style={{ marginTop: '3rem', fontWeight: 'bold', fontSize: '0.78rem' }}>
+            <div style={{ fontWeight: 'bold', fontSize: '0.78rem', marginTop: '2px' }}>
               Lab Incharge Signatory.
             </div>
           </div>
