@@ -31,6 +31,7 @@ db.Caution = require("../modules/Masters/CautionMasters/caution.model");
 db.SubCategory = require("../modules/Masters/SubCategoryMasters/subCategory.model");
 db.LocationSample = require("../modules/Masters/LocationSampleMasters/locationSample.model");
 db.Department = require("../modules/Masters/DepartmentMasters/department.model");
+db.AuditQuotation = require("../modules/Forms/AuditQuotationForm/auditQuotation.model");
 
 // Define Associations
 db.Users.hasMany(db.RefreshTokens, { foreignKey: "user_id" });
@@ -132,5 +133,11 @@ db.TestRequest.belongsTo(db.Department, { foreignKey: "departmentId", as: "depar
 // TestRequest - TestReport Associations
 db.TestRequest.hasOne(db.TestReport, { foreignKey: "testRequestId", as: "testReport" });
 db.TestReport.belongsTo(db.TestRequest, { foreignKey: "testRequestId", as: "testRequest" });
+
+// AuditQuotation Associations
+db.TestRequest.hasOne(db.AuditQuotation, { foreignKey: "testRequestId", as: "auditQuotation" });
+db.AuditQuotation.belongsTo(db.TestRequest, { foreignKey: "testRequestId", as: "testRequest" });
+db.AuditQuotation.belongsTo(db.Company, { foreignKey: "companyId", as: "company" });
+db.AuditQuotation.belongsTo(db.Client, { foreignKey: "clientId", as: "client" });
 
 module.exports = db;

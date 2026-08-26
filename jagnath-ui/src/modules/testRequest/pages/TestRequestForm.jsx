@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   FaArrowLeft, FaCheck, FaExclamationCircle, FaEye, FaEyeSlash,
   FaSave, FaPrint, FaPlus, FaTrash, FaTimes, FaSpinner, FaFilePdf,
-  FaSearch, FaChevronLeft, FaChevronRight
+  FaSearch, FaChevronLeft, FaChevronRight, FaUpload
 } from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
 import {
@@ -19,11 +19,103 @@ import {
   PRICE_MASTER_ENDPOINTS,
   SUB_CATEGORY_ENDPOINTS,
   LOCATION_SAMPLE_ENDPOINTS,
-  BACKEND_ROOT_URL
+  BACKEND_ROOT_URL,
+  API_BASE_URL
 } from '../../../shared/services/apiEndpoints';
 import InlineMasterModal from '../../../shared/components/InlineMasterModal/InlineMasterModal';
 import AddMasterButton from '../../../shared/components/InlineMasterModal/AddMasterButton';
 import SearchableSelect from '../../../shared/components/Select/SearchableSelect';
+
+const DEFAULT_INTRO_TEXT = `With the reference to above subject we are herewith sending our offer.
+
+JLTs - A state of art laboratory facility and an independent company offering high quality technical services in the chemical and biological sciences. Services are provided in the disciplines of environmental consulting, Water and Waste water treatment, field sampling and environmental monitoring. The firm is a privately held corporation and is not a subsidiary of another company. With adequate expertise, trained man power and dedicated team work, its product is accurate and timely technical information provided confidentially at a reasonable cost.
+
+Also It is our proud privilege to inform you that--
+
+We are accredited by NABL ; ISO17025:2017 and also recognized by Gujarat Pollution Control Board, Government of Gujarat - Gandhinagar, along with the recognition as Schedule - II Environmental Auditors wide letter no. GPCB/EAC/SCH-II/124/852220 under the Honorable High Court; Gujarat orders.`;
+
+const DEFAULT_SCOPE_TEXT = `• Method of collection and analysis must be approved / recognized by GPCB / CPCB / MoEF&CC.
+• Collection of sample and preservation of sample be made as per GPCB/CPCB or IS/APHA guidelines.
+• Mode of Transportation for instruments and Dearness Allowance for Audit Officers to your Unit.
+• If any one of above is provided by you to the auditors, which are arranged by you then charges for same as mentioned below is not to be considered.
+• For the audit fee, Rs. 15,000/- for small scale, Rs. 20,000/- for medium scale and Rs. 25,000/- for large scale shall be considered.
+• Final Quote is to be submitted at a time after our first visit to your UNIT, Below Quote is just a Provisional Estimated Quote that is made as per your units Consent by GPCB.`;
+
+const DEFAULT_TERMS_TEXT = `1. The unit shall supply all the data as and when required by Environment Auditor.
+2. The sample collection will be made in each visit.
+3. During our visit to your site, our vehicle shall be allowed in your premises and one skilled male labour to be provided by you for our assistance.
+4. Charges for sampling & analysis of various samples including water, wastewater, air, stack, hazardous waste, solid waste & noise level etc. will be paid extra as actual as per GPCB guidelines after completion of each visit work.
+5. Payment shall be made as per the actual works completed after each visit.
+6. The payments should be made by RTGS/NEFT drawn in favours of "JAGNATH LAB TECHNOLOGIES" payable at GONDAL. (Refer - As docs submitted by our side (JLTs) at a time of vendor Registration)
+7. 100% payment in advance (Including 18% GST) or 50% of the payments + Applicable GST 18% at the time of awarding the job is to be given, balance of the payment remaining from your side is to be submitted after our draft report procedure BUT BEFORE the final (FAR) report submission.
+8. Our Environment Audit Team members are highly qualified. They are of professional degree holder and class -1 cadre so, they deserve "A" Grade residential, travelling and other hospitality.
+9. For any late payment charges penalty is to be raised at 24% of invoice. (Payment Terms - 30 Days)
+10. Dearness Allowance is to be provided by your unit.`;
+
+const DEFAULT_CHARGES = [
+  { srNo: 1, description: "Environment audit report charges (As per GPCB Guidelines)", qty: 1, unit: "No.", rate: 25000, amount: 25000 },
+  { srNo: 2, description: "Transportation charges for monitoring instrument/material for six days. (3 visits per year (3 X 3 Days/Visit))", qty: 3, unit: "Visit", rate: 15000, amount: 45000 },
+  { srNo: 3, description: "Dearness allowance for audit team members. (4 persons per day X 9 days per year). (520 rate per person per day)", qty: 3, unit: "Visit", rate: 6240, amount: 18720 },
+  { srNo: 4, description: "Accommodation For Auditors (4 persons per day X 9 days per year). (Stay in Hotel as 3000/- x 2 Rooms per day = 6000*2Nights i.e. 12000 Per Visit)", qty: 3, unit: "Visit", rate: 12000, amount: 36000 },
+  { srNo: 5, description: "Charges for sampling & analysis of various samples including Water, Wastewater, Stack Emission, and Ambient air quality, Solid waste & Noise level etc. (See Annexure A)", qty: 1, unit: "L.S.", rate: 629490, amount: 629490 }
+];
+
+const DEFAULT_ANNEXURE = [
+  { category: "1. Effluent Water Analysis (Inlet)", description: "Sample Preparation Charges to send fri", ratePerSample: 700, samplePerVisit: 1, chargesPerVisit: 700, total: 2100 },
+  { category: "1. Effluent Water Analysis (Inlet)", description: "pH", ratePerSample: 110, samplePerVisit: 1, chargesPerVisit: 110, total: 330 },
+  { category: "1. Effluent Water Analysis (Inlet)", description: "Temperature", ratePerSample: 110, samplePerVisit: 1, chargesPerVisit: 110, total: 330 },
+  { category: "1. Effluent Water Analysis (Inlet)", description: "Colour (pt.co.scale)", ratePerSample: 175, samplePerVisit: 1, chargesPerVisit: 175, total: 525 },
+  { category: "1. Effluent Water Analysis (Inlet)", description: "Suspended Solids", ratePerSample: 180, samplePerVisit: 1, chargesPerVisit: 180, total: 540 },
+  { category: "1. Effluent Water Analysis (Inlet)", description: "Oil And Grease", ratePerSample: 350, samplePerVisit: 1, chargesPerVisit: 350, total: 1050 },
+  { category: "1. Effluent Water Analysis (Inlet)", description: "COD", ratePerSample: 420, samplePerVisit: 1, chargesPerVisit: 420, total: 1260 },
+  { category: "1. Effluent Water Analysis (Inlet)", description: "BOD (3 days at 27 C)", ratePerSample: 560, samplePerVisit: 1, chargesPerVisit: 560, total: 1680 },
+  { category: "1. Effluent Water Analysis (Inlet)", description: "Chloride", ratePerSample: 180, samplePerVisit: 1, chargesPerVisit: 180, total: 540 },
+  { category: "1. Effluent Water Analysis (Inlet)", description: "Sulphate", ratePerSample: 270, samplePerVisit: 1, chargesPerVisit: 270, total: 810 },
+  { category: "1. Effluent Water Analysis (Inlet)", description: "Grab Sampling", ratePerSample: 960, samplePerVisit: 1, chargesPerVisit: 960, total: 2880 },
+  { category: "1. Effluent Water Analysis (Inlet)", description: "Total Dissolved Solids", ratePerSample: 270, samplePerVisit: 1, chargesPerVisit: 270, total: 810 },
+  { category: "2. Treatment plant stage wise sampling", description: "pH", ratePerSample: 110, samplePerVisit: 4, chargesPerVisit: 440, total: 1320 },
+  { category: "2. Treatment plant stage wise sampling", description: "TSS", ratePerSample: 180, samplePerVisit: 4, chargesPerVisit: 720, total: 2160 },
+  { category: "2. Treatment plant stage wise sampling", description: "TDS", ratePerSample: 270, samplePerVisit: 4, chargesPerVisit: 1080, total: 3240 },
+  { category: "2. Treatment plant stage wise sampling", description: "COD", ratePerSample: 420, samplePerVisit: 4, chargesPerVisit: 1680, total: 5040 },
+  { category: "2. Treatment plant stage wise sampling", description: "BOD", ratePerSample: 560, samplePerVisit: 4, chargesPerVisit: 2240, total: 6720 },
+  { category: "2. Treatment plant stage wise sampling", description: "Grab Sampling", ratePerSample: 960, samplePerVisit: 1, chargesPerVisit: 960, total: 2880 },
+  { category: "3. Effluent Water Analysis (Outlet)", description: "A. Integrated Sample Collection Charges (For Physical & Chemical Parameters)", ratePerSample: 1500, samplePerVisit: 1, chargesPerVisit: 1500, total: 4500 },
+  { category: "3. Effluent Water Analysis (Outlet)", description: "Grab Sampling", ratePerSample: 960, samplePerVisit: 1, chargesPerVisit: 960, total: 2880 },
+  { category: "3. Effluent Water Analysis (Outlet)", description: "pH", ratePerSample: 110, samplePerVisit: 1, chargesPerVisit: 110, total: 330 },
+  { category: "3. Effluent Water Analysis (Outlet)", description: "Temperature", ratePerSample: 110, samplePerVisit: 1, chargesPerVisit: 110, total: 330 },
+  { category: "3. Effluent Water Analysis (Outlet)", description: "Colour (pt.co.scale)", ratePerSample: 175, samplePerVisit: 1, chargesPerVisit: 175, total: 525 },
+  { category: "3. Effluent Water Analysis (Outlet)", description: "Suspended Solids", ratePerSample: 180, samplePerVisit: 1, chargesPerVisit: 180, total: 540 },
+  { category: "3. Effluent Water Analysis (Outlet)", description: "Oil And Grease", ratePerSample: 350, samplePerVisit: 1, chargesPerVisit: 350, total: 1050 },
+  { category: "3. Effluent Water Analysis (Outlet)", description: "Phenolic Compound", ratePerSample: 350, samplePerVisit: 1, chargesPerVisit: 350, total: 1050 },
+  { category: "3. Effluent Water Analysis (Outlet)", description: "Ammonical Nitrogen", ratePerSample: 350, samplePerVisit: 1, chargesPerVisit: 350, total: 1050 },
+  { category: "3. Effluent Water Analysis (Outlet)", description: "BOD (3days at 27 C)", ratePerSample: 560, samplePerVisit: 1, chargesPerVisit: 560, total: 1680 },
+  { category: "3. Effluent Water Analysis (Outlet)", description: "COD", ratePerSample: 420, samplePerVisit: 1, chargesPerVisit: 420, total: 1260 },
+  { category: "3. Effluent Water Analysis (Outlet)", description: "Chlorides", ratePerSample: 180, samplePerVisit: 1, chargesPerVisit: 180, total: 540 },
+  { category: "3. Effluent Water Analysis (Outlet)", description: "Sulphates", ratePerSample: 270, samplePerVisit: 1, chargesPerVisit: 270, total: 810 },
+  { category: "3. Effluent Water Analysis (Outlet)", description: "Total dissolved solids", ratePerSample: 270, samplePerVisit: 1, chargesPerVisit: 270, total: 810 },
+  { category: "3. Effluent Water Analysis (Outlet)", description: "Sodium Absorption Ratio", ratePerSample: 1850, samplePerVisit: 1, chargesPerVisit: 1850, total: 5550 },
+  { category: "3. Effluent Water Analysis (Outlet)", description: "Percent Sodium", ratePerSample: 1850, samplePerVisit: 1, chargesPerVisit: 1850, total: 5550 },
+  { category: "3. Effluent Water Analysis (Outlet)", description: "Sulphides", ratePerSample: 350, samplePerVisit: 1, chargesPerVisit: 350, total: 1050 },
+  { category: "3-B. STP Water Analysis", description: "BOD", ratePerSample: 1050, samplePerVisit: 1, chargesPerVisit: 1050, total: 3150 },
+  { category: "3-B. STP Water Analysis", description: "Suspended Solids", ratePerSample: 180, samplePerVisit: 1, chargesPerVisit: 180, total: 540 },
+  { category: "3-B. STP Water Analysis", description: "Fecal Coliform", ratePerSample: 700, samplePerVisit: 1, chargesPerVisit: 700, total: 2100 },
+  { category: "3-B. STP Water Analysis", description: "pH", ratePerSample: 110, samplePerVisit: 1, chargesPerVisit: 110, total: 330 },
+  { category: "3-B. STP Water Analysis", description: "TSS", ratePerSample: 180, samplePerVisit: 1, chargesPerVisit: 180, total: 540 },
+  { category: "3-B. STP Water Analysis", description: "Grab Sampling", ratePerSample: 960, samplePerVisit: 1, chargesPerVisit: 960, total: 2880 },
+  { category: "4. Ambient Air Quality Quality Monitoring (24 hrs)", description: "Sampling 24 hrs", ratePerSample: 11500, samplePerVisit: 1, chargesPerVisit: 11500, total: 34500 },
+  { category: "4. Ambient Air Quality Quality Monitoring (24 hrs)", description: "Analysis for SO2", ratePerSample: 1050, samplePerVisit: 1, chargesPerVisit: 1050, total: 3150 },
+  { category: "4. Ambient Air Quality Quality Monitoring (24 hrs)", description: "Analysis for NOx", ratePerSample: 1050, samplePerVisit: 1, chargesPerVisit: 1050, total: 3150 },
+  { category: "4. Ambient Air Quality Quality Monitoring (24 hrs)", description: "Analysis for PM 10", ratePerSample: 1050, samplePerVisit: 1, chargesPerVisit: 1050, total: 3150 },
+  { category: "4. Ambient Air Quality Quality Monitoring (24 hrs)", description: "Analysis for PM 2.5", ratePerSample: 1800, samplePerVisit: 1, chargesPerVisit: 1800, total: 5400 },
+  { category: "5. Stack Emission Monitoring", description: "Sampling/ Measurements charges for stack", ratePerSample: 9600, samplePerVisit: 1, chargesPerVisit: 9600, total: 28800 },
+  { category: "5. Stack Emission Monitoring", description: "Sampling of SO2/NOx", ratePerSample: 3500, samplePerVisit: 1, chargesPerVisit: 3500, total: 10500 },
+  { category: "5. Stack Emission Monitoring", description: "Analysis SPM", ratePerSample: 1050, samplePerVisit: 1, chargesPerVisit: 1050, total: 3150 },
+  { category: "5. Stack Emission Monitoring", description: "Analysis of SO2", ratePerSample: 1050, samplePerVisit: 1, chargesPerVisit: 1050, total: 3150 },
+  { category: "5. Stack Emission Monitoring", description: "Analysis of NOx", ratePerSample: 1050, samplePerVisit: 1, chargesPerVisit: 1050, total: 3150 },
+  { category: "6. Process Stack Emission", description: "Sampling/ Measurements charges for stack", ratePerSample: 9600, samplePerVisit: 1, chargesPerVisit: 9600, total: 28800 },
+  { category: "6. Process Stack Emission", description: "Analysis SPM", ratePerSample: 1050, samplePerVisit: 1, chargesPerVisit: 1050, total: 3150 },
+  { category: "7. Noise", description: "For 08 Hours continuous monitoring", ratePerSample: 18000, samplePerVisit: 1, chargesPerVisit: 18000, total: 54000 }
+];
 
 const TestRequestForm = () => {
   const { id } = useParams();
@@ -99,7 +191,106 @@ const TestRequestForm = () => {
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const [showLivePreview, setShowLivePreview] = useState(true);
+  const [savedRequestId, setSavedRequestId] = useState(id || null);
   const printRef = useRef();
+
+  const [activePreviewTab, setActivePreviewTab] = useState('TRF');
+  const [quotationData, setQuotationData] = useState({
+    id: '',
+    testRequestId: '',
+    companyId: '',
+    clientId: '',
+    quotationNumber: '',
+    quotationDate: '',
+    revisedDate: '',
+    financialYear: '',
+    reference: '',
+    subject: '',
+    introText: '',
+    accreditationText: '',
+    scopeText: '',
+    termsText: '',
+    charges: [],
+    annexure: [],
+    contactPerson: '',
+    signatoryName: '',
+    signatoryDesignation: '',
+    signatorySignature: '',
+    stampImage: '',
+  });
+
+  const signatureInputRef = useRef();
+  const stampInputRef = useRef();
+
+  const formatDateLocal = (date) => {
+    const pad = (n) => n.toString().padStart(2, '0');
+    return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
+  };
+
+  const handleQuotationChange = (e) => {
+    const { name, value } = e.target;
+    setQuotationData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleQuotationChargeRowChange = (index, field, val) => {
+    setQuotationData(prev => {
+      const updated = [...prev.charges];
+      updated[index] = { ...updated[index], [field]: val };
+      if (field === 'qty' || field === 'rate') {
+        const qty = parseFloat(field === 'qty' ? val : updated[index].qty) || 0;
+        const rate = parseFloat(field === 'rate' ? val : updated[index].rate) || 0;
+        updated[index].amount = Math.round(qty * rate);
+      }
+      return { ...prev, charges: updated };
+    });
+  };
+
+  const addQuotationChargeRow = () => {
+    setQuotationData(prev => ({
+      ...prev,
+      charges: [
+        ...prev.charges,
+        { srNo: prev.charges.length + 1, description: '', qty: 1, unit: 'No.', rate: 0, amount: 0 }
+      ]
+    }));
+  };
+
+  const removeQuotationChargeRow = (index) => {
+    setQuotationData(prev => {
+      const filtered = prev.charges.filter((_, i) => i !== index);
+      const updated = filtered.map((item, idx) => ({ ...item, srNo: idx + 1 }));
+      return { ...prev, charges: updated };
+    });
+  };
+
+  const handleQuotationAnnexureRowChange = (index, field, val) => {
+    setQuotationData(prev => {
+      const updated = [...prev.annexure];
+      updated[index] = { ...updated[index], [field]: val };
+      if (field === 'ratePerSample' || field === 'samplePerVisit' || field === 'chargesPerVisit') {
+        const rate = parseFloat(field === 'ratePerSample' ? val : updated[index].ratePerSample) || 0;
+        const samples = parseInt(field === 'samplePerVisit' ? val : updated[index].samplePerVisit) || 0;
+        updated[index].chargesPerVisit = rate * samples;
+        updated[index].total = rate * samples * 3;
+      }
+      return { ...prev, annexure: updated };
+    });
+  };
+
+  const handleQuotationFileUpload = (e, field) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setQuotationData(prev => ({ ...prev, [field]: ev.target.result }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeQuotationImage = (field) => {
+    setQuotationData(prev => ({ ...prev, [field]: '' }));
+  };
 
   const triggerToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
@@ -119,6 +310,99 @@ const TestRequestForm = () => {
     window.addEventListener('companyChanged', handleCompanyChange);
     return () => window.removeEventListener('companyChanged', handleCompanyChange);
   }, []);
+
+  // Handle Audit Quotation loading or default pre-population
+  useEffect(() => {
+    const initializeAuditQuotation = async () => {
+      if (formData.quotationRequired === 'Yes' && formData.quotationType === 'Audit') {
+        // Automatically switch right preview tab to Quotation
+        setActivePreviewTab('Quotation');
+
+        // Check if we need to load or initialize
+        const targetId = id || savedRequestId;
+        if (targetId) {
+          try {
+            const qRes = await apiService.get(`${API_BASE_URL}/audit-quotation/test-request/${targetId}`);
+            if (qRes?.data) {
+              const q = qRes.data;
+              setQuotationData({
+                id: q.id || '',
+                testRequestId: q.testRequestId || targetId,
+                companyId: q.companyId || formData.companyId,
+                clientId: q.clientId || formData.clientId,
+                quotationNumber: q.quotationNumber || '',
+                quotationDate: q.quotationDate || '',
+                revisedDate: q.revisedDate || '',
+                financialYear: q.financialYear || '',
+                reference: q.reference || '',
+                subject: q.subject || '',
+                introText: q.introText || '',
+                accreditationText: q.accreditationText || '',
+                scopeText: q.scopeText || '',
+                termsText: q.termsText || '',
+                charges: q.charges || [],
+                annexure: q.annexure || [],
+                contactPerson: q.contactPerson || '',
+                signatoryName: q.signatoryName || '',
+                signatoryDesignation: q.signatoryDesignation || '',
+                signatorySignature: q.signatorySignature || '',
+                stampImage: q.stampImage || '',
+              });
+              return;
+            }
+          } catch (e) {
+            console.log("No existing quotation found for test request, applying defaults", e);
+          }
+        }
+
+        // Initialize with default values if not found or no ID yet
+        const currentYear = new Date().getFullYear();
+        const nextYearShort = String(currentYear + 1).slice(-2);
+        const finYear = `YEAR ${currentYear}-${nextYearShort}`;
+        const subject = `PROVISIONAL ESTIMATED QUOTATION FOR CARRYING OUT ENVIRONMENTAL AUDIT OF YOUR UNIT [PCBID- ] FOR ${finYear}.`;
+
+        const mm = String(new Date().getMonth() + 1).padStart(2, '0');
+        const yy = String(new Date().getFullYear()).slice(-2);
+        const quotationNumber = `Q-P.I :- JLT/EAC/${mm}${yy}/AH111`;
+
+        setQuotationData(prev => {
+          // If already initialized for this test request, keep it
+          const currentTrId = targetId || 'temp';
+          if (prev.testRequestId === currentTrId && prev.quotationNumber) {
+            return prev;
+          }
+          return {
+            id: '',
+            testRequestId: currentTrId,
+            companyId: formData.companyId || '',
+            clientId: formData.clientId || '',
+            quotationNumber: prev.quotationNumber || quotationNumber,
+            quotationDate: prev.quotationDate || formatDateLocal(new Date()),
+            revisedDate: prev.revisedDate || '',
+            financialYear: prev.financialYear || finYear,
+            reference: prev.reference || "GPCB - ENVIRONMENT AUDIT CELL (As per order of Hon'ble High Court of Gujarat)",
+            subject: prev.subject || subject,
+            introText: prev.introText || DEFAULT_INTRO_TEXT,
+            accreditationText: prev.accreditationText || '',
+            scopeText: prev.scopeText || DEFAULT_SCOPE_TEXT,
+            termsText: prev.termsText || DEFAULT_TERMS_TEXT,
+            charges: prev.charges?.length ? prev.charges : DEFAULT_CHARGES,
+            annexure: prev.annexure?.length ? prev.annexure : DEFAULT_ANNEXURE,
+            contactPerson: prev.contactPerson || "Ankit Mistry (+91 72260-57978)",
+            signatoryName: prev.signatoryName || "Purvin Raiyani",
+            signatoryDesignation: prev.signatoryDesignation || "Proprietor",
+            signatorySignature: prev.signatorySignature || '',
+            stampImage: prev.stampImage || '',
+          };
+        });
+      } else {
+        setActivePreviewTab('TRF');
+      }
+    };
+
+    initializeAuditQuotation();
+  }, [formData.quotationRequired, formData.quotationType, formData.clientId, formData.companyId, id, savedRequestId, clients]);
+
 
   // Helper to generate next Report No in format JLT01[MM][YY]RR[XXXXX] starting at 00320
   const generateNextReportNumber = (allRequests) => {
@@ -675,7 +959,7 @@ const TestRequestForm = () => {
     return true;
   };
 
-  const [savedRequestId, setSavedRequestId] = useState(id || null);
+
 
   const handleSave = async () => {
     if (!validateForm()) return false;
@@ -775,6 +1059,17 @@ const TestRequestForm = () => {
         }
       }
 
+      // Save Audit Quotation if required
+      if (formData.quotationRequired === 'Yes' && formData.quotationType === 'Audit') {
+        const qPayload = {
+          ...quotationData,
+          testRequestId: savedTrId,
+          companyId: formData.companyId,
+          clientId: formData.clientId
+        };
+        await apiService.post(`${API_BASE_URL}/audit-quotation`, qPayload);
+      }
+
       triggerToast('Test Request saved successfully!', 'success');
       return savedTrId;
     } catch (err) {
@@ -808,10 +1103,14 @@ const TestRequestForm = () => {
   const handleSaveAndQuotation = async () => {
     const savedId = await handleSave();
     if (savedId) {
-      window.open(`#/test-requests/quotation/${savedId}`, '_blank');
-      setTimeout(() => {
-        navigate('/test-requests');
-      }, 500);
+      if (formData.quotationType === 'Audit') {
+        window.open(`#/test-requests/audit-quotation/print/${savedId}`, '_blank');
+      } else {
+        window.open(`#/test-requests/quotation/${savedId}`, '_blank');
+        setTimeout(() => {
+          navigate('/test-requests');
+        }, 500);
+      }
     }
   };
 
@@ -1700,6 +1999,220 @@ const TestRequestForm = () => {
             </div>
           </div>
 
+          {formData.quotationRequired === 'Yes' && formData.quotationType === 'Audit' && (
+            <div style={{ marginTop: '2rem' }}>
+              {/* Card 1: Basic details */}
+              <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
+                  <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Basic Quotation Details</h3>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Quotation Reference Number</label>
+                    <input type="text" name="quotationNumber" value={quotationData.quotationNumber} onChange={handleQuotationChange} className="premium-input" />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Quotation Date</label>
+                    <input type="text" name="quotationDate" placeholder="dd/mm/yyyy" value={quotationData.quotationDate} onChange={handleQuotationChange} className="premium-input" />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Revised Date (Optional)</label>
+                    <input type="text" name="revisedDate" placeholder="dd/mm/yyyy" value={quotationData.revisedDate} onChange={handleQuotationChange} className="premium-input" />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Financial Year / Year</label>
+                    <input type="text" name="financialYear" value={quotationData.financialYear} onChange={handleQuotationChange} className="premium-input" />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', gridColumn: '1 / -1' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Audit Reference</label>
+                    <input type="text" name="reference" value={quotationData.reference} onChange={handleQuotationChange} className="premium-input" />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', gridColumn: '1 / -1' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Subject Heading</label>
+                    <textarea name="subject" value={quotationData.subject} onChange={handleQuotationChange} className="premium-input" rows={2}></textarea>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 2: Letter Content */}
+              <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
+                  <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Page 1 - Letter Content</h3>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Introductory & Accreditation Paragraphs</label>
+                  <textarea name="introText" value={quotationData.introText} onChange={handleQuotationChange} className="premium-input" rows={6} style={{ fontSize: '0.85rem' }}></textarea>
+                </div>
+              </div>
+
+              {/* Card 3: Scope of Work */}
+              <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
+                  <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Page 2 - Scope of Work</h3>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Scope Points Text</label>
+                  <textarea name="scopeText" value={quotationData.scopeText} onChange={handleQuotationChange} className="premium-input" rows={5} style={{ fontSize: '0.85rem' }}></textarea>
+                </div>
+              </div>
+
+              {/* Card 4: Charges Table */}
+              <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Page 2 - Detail of Charges</h3>
+                  </div>
+                  <button type="button" onClick={addQuotationChargeRow} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', backgroundColor: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.4rem 0.8rem', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }}>
+                    <FaPlus /> Add Row
+                  </button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {quotationData.charges?.map((item, index) => (
+                    <div key={index} style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '1rem', background: '#f8fafc' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#475569' }}>Row #{item.srNo}</span>
+                        <button type="button" onClick={() => removeQuotationChargeRow(index)} style={{ border: 'none', background: 'transparent', color: '#ef4444', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
+                          <FaTrash size={12} /> Remove
+                        </button>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        <div>
+                          <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Description of Work</label>
+                          <input type="text" value={item.description} onChange={(e) => handleQuotationChargeRowChange(index, 'description', e.target.value)} className="premium-input" style={{ fontSize: '0.85rem', height: '36px' }} />
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem' }}>
+                          <div>
+                            <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Qty</label>
+                            <input type="number" value={item.qty} onChange={(e) => handleQuotationChargeRowChange(index, 'qty', e.target.value)} className="premium-input" style={{ fontSize: '0.85rem', height: '36px' }} />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Unit</label>
+                            <input type="text" value={item.unit} onChange={(e) => handleQuotationChargeRowChange(index, 'unit', e.target.value)} className="premium-input" style={{ fontSize: '0.85rem', height: '36px' }} />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Rate (Rs.)</label>
+                            <input type="number" value={item.rate} onChange={(e) => handleQuotationChargeRowChange(index, 'rate', e.target.value)} className="premium-input" style={{ fontSize: '0.85rem', height: '36px' }} />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Amount (Rs.)</label>
+                            <input type="number" value={item.amount} onChange={(e) => handleQuotationChargeRowChange(index, 'amount', e.target.value)} className="premium-input" style={{ fontSize: '0.85rem', height: '36px' }} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Card 5: Terms and Conditions */}
+              <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
+                  <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Page 3 - Terms & Conditions</h3>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Terms text list</label>
+                    <textarea name="termsText" value={quotationData.termsText} onChange={handleQuotationChange} className="premium-input" rows={6} style={{ fontSize: '0.85rem' }}></textarea>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Contact Person Details</label>
+                    <input type="text" name="contactPerson" value={quotationData.contactPerson} onChange={handleQuotationChange} className="premium-input" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 6: Signatory details */}
+              <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
+                  <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Signatory & Stamp Configuration</h3>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Signatory Name</label>
+                      <input type="text" name="signatoryName" value={quotationData.signatoryName} onChange={handleQuotationChange} className="premium-input" />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Signatory Designation</label>
+                      <input type="text" name="signatoryDesignation" value={quotationData.signatoryDesignation} onChange={handleQuotationChange} className="premium-input" />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '0.5rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Authorized Digital Signature</label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <input type="file" ref={signatureInputRef} onChange={(e) => handleQuotationFileUpload(e, 'signatorySignature')} accept="image/*" style={{ display: 'none' }} />
+                        <button type="button" onClick={() => signatureInputRef.current.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 1rem', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }}>
+                          <FaUpload /> Upload Signature
+                        </button>
+                        {quotationData.signatorySignature && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <img src={quotationData.signatorySignature} alt="Signature Preview" style={{ maxHeight: '36px', border: '1px solid #e2e8f0', borderRadius: '4px' }} />
+                            <button type="button" onClick={() => removeQuotationImage('signatorySignature')} style={{ color: '#ef4444', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '0.8rem' }}>Delete</button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Company Round Stamp</label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <input type="file" ref={stampInputRef} onChange={(e) => handleQuotationFileUpload(e, 'stampImage')} accept="image/*" style={{ display: 'none' }} />
+                        <button type="button" onClick={() => stampInputRef.current.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 1rem', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }}>
+                          <FaUpload /> Upload Stamp
+                        </button>
+                        {quotationData.stampImage && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <img src={quotationData.stampImage} alt="Stamp Preview" style={{ maxHeight: '36px', border: '1px solid #e2e8f0', borderRadius: '4px' }} />
+                            <button type="button" onClick={() => removeQuotationImage('stampImage')} style={{ color: '#ef4444', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '0.8rem' }}>Delete</button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 7: Annexure Rates */}
+              <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', marginBottom: '2rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
+                  <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Annexure-B Rates Editor</h3>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '500px', overflowY: 'auto', paddingRight: '0.5rem' }}>
+                  {quotationData.annexure?.map((item, index) => (
+                    <div key={index} style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', marginBottom: '0.4rem' }}>
+                        <span>{item.category}</span>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0.5rem' }}>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: '#475569' }}>Description</label>
+                          <input type="text" value={item.description} onChange={(e) => handleQuotationAnnexureRowChange(index, 'description', e.target.value)} className="premium-input" style={{ fontSize: '0.8rem', height: '32px' }} />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: '#475569' }}>Rate/Sample</label>
+                          <input type="number" value={item.ratePerSample} onChange={(e) => handleQuotationAnnexureRowChange(index, 'ratePerSample', e.target.value)} className="premium-input" style={{ fontSize: '0.8rem', height: '32px' }} />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', color: '#475569' }}>Sample/Visit</label>
+                          <input type="number" value={item.samplePerVisit} onChange={(e) => handleQuotationAnnexureRowChange(index, 'samplePerVisit', e.target.value)} className="premium-input" style={{ fontSize: '0.8rem', height: '32px' }} />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Bottom Action Bar */}
           <div className="test-request-bottom-actions hide-on-print" style={{
             display: 'flex',
@@ -1773,16 +2286,355 @@ const TestRequestForm = () => {
               <span style={{ fontSize: '0.75rem', color: '#22c55e', background: '#e8fdf0', padding: '0.2rem 0.5rem', borderRadius: '6px', border: '1px solid #b8ffd0', fontWeight: 'bold' }}>A4 Format</span>
             </div>
 
-            <div style={{
-              background: '#ffffff',
-              border: '1px solid #000000',
-              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
-              padding: '1.25rem',
-              fontSize: '10px',
-              fontFamily: '"Plus Jakarta Sans", "Inter", sans-serif',
-              color: '#000000',
-              lineHeight: '1.3'
-            }}>
+            {formData.quotationRequired === 'Yes' && formData.quotationType === 'Audit' && (
+              <div style={{ display: 'flex', gap: '4px', marginBottom: '12px', background: '#e2e8f0', padding: '2px', borderRadius: '6px' }}>
+                <button
+                  type="button"
+                  onClick={() => setActivePreviewTab('TRF')}
+                  style={{
+                    flex: 1,
+                    padding: '6px',
+                    borderRadius: '4px',
+                    border: 'none',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    background: activePreviewTab === 'TRF' ? '#ffffff' : 'transparent',
+                    color: activePreviewTab === 'TRF' ? '#0f172a' : '#475569',
+                    cursor: 'pointer'
+                  }}
+                >
+                  TRF Form Preview
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActivePreviewTab('Quotation')}
+                  style={{
+                    flex: 1,
+                    padding: '6px',
+                    borderRadius: '4px',
+                    border: 'none',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    background: activePreviewTab === 'Quotation' ? '#ffffff' : 'transparent',
+                    color: activePreviewTab === 'Quotation' ? '#0f172a' : '#475569',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Audit Quotation Preview
+                </button>
+              </div>
+            )}
+
+            {activePreviewTab === 'Quotation' && formData.quotationRequired === 'Yes' && formData.quotationType === 'Audit' ? (
+              // Audit Quotation Preview
+              (() => {
+                const getQuotationLogoUrl = () => {
+                  const logoPath = selCompany.quotationLogo || selCompany.quotation_logo || selCompany.logo;
+                  if (!logoPath) return '/Images/Navbar_Logo.png';
+                  const cleanPath = logoPath.replace(/\\/g, '/');
+                  const idx = cleanPath.lastIndexOf('uploads/');
+                  if (idx !== -1) {
+                    return `${BACKEND_ROOT_URL}/${cleanPath.substring(idx)}`;
+                  }
+                  return logoPath;
+                };
+
+                const pageStyle = {
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+                  padding: '1.25rem',
+                  fontSize: '9px',
+                  fontFamily: '"Plus Jakarta Sans", "Inter", sans-serif',
+                  color: '#000000',
+                  lineHeight: '1.4',
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  marginBottom: '1.5rem',
+                  position: 'relative',
+                  minHeight: '580px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between'
+                };
+
+                const tableStyle = {
+                  width: '100%',
+                  borderCollapse: 'collapse',
+                  border: '1px solid #000000',
+                  fontSize: '8px',
+                  marginBottom: '10px'
+                };
+
+                const thTdStyle = {
+                  border: '1px solid #000000',
+                  padding: '3px 4px',
+                  verticalAlign: 'middle'
+                };
+
+                const companyLogo = getQuotationLogoUrl();
+                const quotationSubtotal = (quotationData.charges || []).reduce((sum, item) => {
+                  const amt = parseFloat(item.amount);
+                  return sum + (isNaN(amt) ? 0 : amt);
+                }, 0);
+                const quotationGst = Math.round(quotationSubtotal * 0.18);
+                const quotationGrandTotal = quotationSubtotal + quotationGst;
+
+                const quotationGroupedAnnexure = (quotationData.annexure || []).reduce((acc, item) => {
+                  if (!acc[item.category]) acc[item.category] = [];
+                  acc[item.category].push(item);
+                  return acc;
+                }, {});
+
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {/* Page 1 */}
+                    <div style={pageStyle}>
+                      <div>
+                        <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+                          <img src={companyLogo} alt="Logo" style={{ maxHeight: '45px', objectFit: 'contain' }} />
+                          <hr style={{ border: 'none', borderTop: '1px solid #000000', margin: '4px 0 8px 0' }} />
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', fontWeight: 'bold', fontSize: '8px', marginBottom: '10px' }}>
+                          Date: {quotationData.quotationDate}
+                        </div>
+                        <div style={{ marginBottom: '12px', fontSize: '9px' }}>
+                          <div style={{ fontWeight: 'bold' }}>To,</div>
+                          <div style={{ fontWeight: 'bold' }}>M/s. {selClient.companyName || selClient.clientName || 'CLIENT NAME'}</div>
+                          <div style={{ whiteSpace: 'pre-line', marginTop: '2px', color: '#334155' }}>
+                            {selClient.plantAddress || selClient.officeAddress || selClient.address || 'Plant Address'}
+                          </div>
+                        </div>
+                        <div style={{ marginBottom: '12px', fontWeight: 'bold', textTransform: 'uppercase', fontSize: '8px' }}>
+                          SUBJECT: - <span style={{ textDecoration: 'underline' }}>{quotationData.subject}</span>
+                        </div>
+                        <div style={{ marginBottom: '8px', fontWeight: 'bold' }}>Dear Sir,</div>
+                        <div style={{ textAlign: 'justify', whiteSpace: 'pre-line', fontSize: '8px', color: '#1e293b', marginBottom: '12px' }}>
+                          {quotationData.introText}
+                        </div>
+                        <div style={{ marginBottom: '12px' }}>
+                          <div>Thanking you</div>
+                          <div style={{ fontWeight: 'bold' }}>Authorized Signatory</div>
+                        </div>
+                        <div style={{ position: 'relative' }}>
+                          <div>For, {selCompany.companyName?.toUpperCase() || selCompany.company_name?.toUpperCase() || 'JAGNATH LAB TECHNOLOGIES'}.</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '6px 0' }}>
+                            {quotationData.signatorySignature && (
+                              <img src={quotationData.signatorySignature} alt="Signature" style={{ maxHeight: '35px', objectFit: 'contain' }} />
+                            )}
+                            {quotationData.stampImage && (
+                              <img src={quotationData.stampImage} alt="Stamp" style={{ maxHeight: '45px', objectFit: 'contain' }} />
+                            )}
+                          </div>
+                          <div style={{ fontWeight: 'bold', textDecoration: 'underline' }}>{quotationData.signatoryName || 'Purvin Raiyani'}</div>
+                          <div>({quotationData.signatoryDesignation || 'Proprietor'})</div>
+                        </div>
+                      </div>
+                      <div style={{ borderTop: '1px solid #cbd5e1', paddingTop: '4px', textAlign: 'center', fontSize: '6px', color: '#64748b', marginTop: '12px' }}>
+                        <div style={{ fontWeight: 'bold', fontStyle: 'italic', color: '#0f172a' }}>"NURTURING THE NATURE FOR HUMAN RACE"</div>
+                        <div>5-6/B, Nayan Jyot Chamber, First Floor, Opp. Vachhera Vada, Gondal – 360 311, Dist.- Rajkot (GUJ.) +91 81405 55515</div>
+                        <div>Email: jagnathtechnologies@yahoo.com / www.jagnathlabtechnologies.com</div>
+                      </div>
+                    </div>
+
+                    {/* Page 2 */}
+                    <div style={pageStyle}>
+                      <div>
+                        <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+                          <img src={companyLogo} alt="Logo" style={{ maxHeight: '45px', objectFit: 'contain' }} />
+                          <hr style={{ border: 'none', borderTop: '1px solid #000000', margin: '4px 0 8px 0' }} />
+                        </div>
+                        <div style={{ textAlign: 'center', marginBottom: '10px' }}>
+                          <h3 style={{ textDecoration: 'underline', fontWeight: 'bold', fontSize: '10px', margin: 0 }}>PROVISIONAL ESTIMATED QUOTE</h3>
+                        </div>
+                        <table style={{ ...tableStyle, border: '1px solid #000000', width: '100%', marginBottom: '12px' }}>
+                          <tbody>
+                            <tr>
+                              <td style={{ ...thTdStyle, width: '50%', fontWeight: 'bold' }}>CLIENT NAME:- <span style={{ fontWeight: 'normal' }}>M/s. {selClient.companyName || selClient.clientName || 'CLIENT NAME'}</span></td>
+                              <td style={{ ...thTdStyle, width: '50%', fontWeight: 'bold' }}>REFERENCE:- <span style={{ fontWeight: 'normal' }}>{quotationData.reference}</span></td>
+                            </tr>
+                            <tr>
+                              <td style={{ ...thTdStyle, fontWeight: 'bold' }}>ADDRESS:- <span style={{ fontWeight: 'normal' }}>{selClient.plantAddress || selClient.officeAddress || selClient.address || 'Address'}</span></td>
+                              <td style={{ ...thTdStyle, fontWeight: 'bold' }}>APPROVED BY:- <span style={{ fontWeight: 'normal' }}>{quotationData.signatoryName || 'Mr. Purvin Patel'}</span></td>
+                            </tr>
+                            <tr>
+                              <td style={{ ...thTdStyle, fontWeight: 'bold' }}>Q-P.I :- <span style={{ fontWeight: 'normal' }}>{quotationData.quotationNumber}</span></td>
+                              <td style={{ ...thTdStyle, fontWeight: 'bold' }}>
+                                DATE:- <span style={{ fontWeight: 'normal' }}>{quotationData.quotationDate}</span>
+                                {quotationData.revisedDate && <div>REVISED DATE:- <span style={{ fontWeight: 'normal' }}>{quotationData.revisedDate}</span></div>}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+
+                        <div style={{ marginBottom: '10px' }}>
+                          <h4 style={{ textDecoration: 'underline', fontWeight: 'bold', margin: '0 0 4px 0', fontSize: '9px' }}>SCOPE OF WORK</h4>
+                          <div style={{ whiteSpace: 'pre-line', fontSize: '7.5px', lineHeight: '1.3', textAlign: 'justify' }}>
+                            {quotationData.scopeText}
+                          </div>
+                        </div>
+
+                        <div>
+                          <h4 style={{ textDecoration: 'underline', fontWeight: 'bold', margin: '0 0 6px 0', fontSize: '9px' }}>Detail of Charges:</h4>
+                          <table style={tableStyle}>
+                            <thead>
+                              <tr style={{ backgroundColor: '#f1f5f9' }}>
+                                <th style={{ ...thTdStyle, width: '8%', textAlign: 'center' }}>Sr. No.</th>
+                                <th style={{ ...thTdStyle, width: '47%', textAlign: 'left' }}>Description of work</th>
+                                <th style={{ ...thTdStyle, width: '10%', textAlign: 'center' }}>Qty.</th>
+                                <th style={{ ...thTdStyle, width: '10%', textAlign: 'center' }}>Unit</th>
+                                <th style={{ ...thTdStyle, width: '12%', textAlign: 'right' }}>Rate</th>
+                                <th style={{ ...thTdStyle, width: '13%', textAlign: 'right' }}>Amount Rs.</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {quotationData.charges?.map((item, index) => (
+                                <tr key={index}>
+                                  <td style={{ ...thTdStyle, textAlign: 'center' }}>{item.srNo || index + 1}</td>
+                                  <td style={thTdStyle}>{item.description}</td>
+                                  <td style={{ ...thTdStyle, textAlign: 'center' }}>{item.qty}</td>
+                                  <td style={{ ...thTdStyle, textAlign: 'center' }}>{item.unit}</td>
+                                  <td style={{ ...thTdStyle, textAlign: 'right' }}>{parseFloat(item.rate || 0).toLocaleString('en-IN')}/-</td>
+                                  <td style={{ ...thTdStyle, textAlign: 'right' }}>{parseFloat(item.amount || 0).toLocaleString('en-IN')}/-</td>
+                                </tr>
+                              ))}
+                              <tr style={{ fontWeight: 'bold', backgroundColor: '#f8fafc' }}>
+                                <td colSpan={5} style={{ ...thTdStyle, textAlign: 'right' }}>Total Subtotal:</td>
+                                <td style={{ ...thTdStyle, textAlign: 'right' }}>{quotationSubtotal.toLocaleString('en-IN')}/-</td>
+                              </tr>
+                              <tr style={{ fontWeight: 'bold', backgroundColor: '#f8fafc' }}>
+                                <td colSpan={5} style={{ ...thTdStyle, textAlign: 'right' }}>GST (18%):</td>
+                                <td style={{ ...thTdStyle, textAlign: 'right' }}>{quotationGst.toLocaleString('en-IN')}/-</td>
+                              </tr>
+                              <tr style={{ fontWeight: 'bold', backgroundColor: '#e2e8f0', fontSize: '9px' }}>
+                                <td colSpan={5} style={{ ...thTdStyle, textAlign: 'right' }}>Grand Total (Rs.):</td>
+                                <td style={{ ...thTdStyle, textAlign: 'right' }}>{quotationGrandTotal.toLocaleString('en-IN')}/-</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                        <div style={{ fontSize: '7px', fontStyle: 'italic' }}>
+                          Note: - Tax will be paid extra (GST 18%) apart from above rate/amount.
+                        </div>
+                      </div>
+                      <div style={{ borderTop: '1px solid #cbd5e1', paddingTop: '4px', display: 'flex', justifyContent: 'space-between', fontSize: '6px', color: '#64748b' }}>
+                        <span style={{ fontWeight: 'bold' }}>Page 2</span>
+                        <span style={{ fontWeight: 'bold', fontStyle: 'italic', color: '#0f172a' }}>"NURTURING THE NATURE FOR HUMAN RACE"</span>
+                        <span style={{ width: '20px' }}></span>
+                      </div>
+                    </div>
+
+                    {/* Page 3 */}
+                    <div style={pageStyle}>
+                      <div>
+                        <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+                          <img src={companyLogo} alt="Logo" style={{ maxHeight: '45px', objectFit: 'contain' }} />
+                          <hr style={{ border: 'none', borderTop: '1px solid #000000', margin: '4px 0 8px 0' }} />
+                        </div>
+                        <div style={{ marginBottom: '10px' }}>
+                          <h4 style={{ textDecoration: 'underline', fontWeight: 'bold', margin: '0 0 6px 0', fontSize: '10px' }}>Terms and conditions:</h4>
+                          <div style={{ whiteSpace: 'pre-line', fontSize: '7.5px', lineHeight: '1.4', textAlign: 'justify' }}>
+                            {quotationData.termsText}
+                          </div>
+                        </div>
+                        <div style={{ fontSize: '7px', fontStyle: 'italic', marginBottom: '12px', background: '#f8fafc', padding: '6px', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
+                          (Note: - We have briefly studied all your scope of work and accordingly we are tied and committed to uphold highest standards of honesty & integrity for accuracy to the work order.)
+                        </div>
+                        <div style={{ marginBottom: '12px' }}>
+                          <div>Thanking you in anticipation!</div>
+                          <div style={{ fontWeight: 'bold' }}>For, {selCompany.companyName?.toUpperCase() || selCompany.company_name?.toUpperCase() || 'JAGNATH LAB TECHNOLOGIES'}</div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '8px 0' }}>
+                          {quotationData.signatorySignature && (
+                            <img src={quotationData.signatorySignature} alt="Signature" style={{ maxHeight: '35px', objectFit: 'contain' }} />
+                          )}
+                          {quotationData.stampImage && (
+                            <img src={quotationData.stampImage} alt="Stamp" style={{ maxHeight: '45px', objectFit: 'contain' }} />
+                          )}
+                        </div>
+                        <div style={{ fontWeight: 'bold' }}>Authorized Signatory</div>
+                        <div style={{ marginTop: '10px', fontSize: '8px', fontWeight: 'bold' }}>
+                          Contact Person: - {quotationData.contactPerson}
+                        </div>
+                      </div>
+                      <div style={{ borderTop: '1px solid #cbd5e1', paddingTop: '4px', display: 'flex', justifyContent: 'space-between', fontSize: '6px', color: '#64748b' }}>
+                        <span style={{ fontWeight: 'bold' }}>Page 3</span>
+                        <span style={{ fontWeight: 'bold', fontStyle: 'italic', color: '#0f172a' }}>"NURTURING THE NATURE FOR HUMAN RACE"</span>
+                        <span style={{ width: '20px' }}></span>
+                      </div>
+                    </div>
+
+                    {/* Page 4 */}
+                    <div style={pageStyle}>
+                      <div>
+                        <div style={{ textAlign: 'center', marginBottom: '4px' }}>
+                          <img src={companyLogo} alt="Logo" style={{ maxHeight: '40px', objectFit: 'contain' }} />
+                          <hr style={{ border: 'none', borderTop: '1px solid #000000', margin: '2px 0 4px 0' }} />
+                        </div>
+                        <div style={{ textAlign: 'center', marginBottom: '6px' }}>
+                          <h3 style={{ textDecoration: 'underline', fontWeight: 'bold', fontSize: '9px', margin: 0 }}>Annexure - B</h3>
+                        </div>
+                        <table style={{ ...tableStyle, fontSize: '6.5px', marginBottom: '8px' }}>
+                          <thead>
+                            <tr style={{ backgroundColor: '#f1f5f9' }}>
+                              <th style={{ ...thTdStyle, width: '6%', padding: '2px' }}>Sr. No.</th>
+                              <th style={{ ...thTdStyle, width: '36%', padding: '2px', textAlign: 'left' }}>DESCRIPTIONS</th>
+                              <th style={{ ...thTdStyle, width: '13%', padding: '2px' }}>Rate per sample</th>
+                              <th style={{ ...thTdStyle, width: '13%', padding: '2px' }}>Sample per visit</th>
+                              <th style={{ ...thTdStyle, width: '16%', padding: '2px' }}>Charges per visit / order</th>
+                              <th style={{ ...thTdStyle, width: '16%', padding: '2px' }}>Total (3 visit)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {Object.keys(quotationGroupedAnnexure).map((catName, catIdx) => {
+                              const items = quotationGroupedAnnexure[catName];
+                              return (
+                                <React.Fragment key={catIdx}>
+                                  <tr style={{ fontWeight: 'bold', backgroundColor: '#e2e8f0' }}>
+                                    <td style={{ ...thTdStyle, textAlign: 'center', padding: '2px' }}>{catIdx + 1}</td>
+                                    <td colSpan={5} style={{ ...thTdStyle, padding: '2px', textTransform: 'uppercase' }}>{catName}</td>
+                                  </tr>
+                                  {items.map((item, itemIdx) => (
+                                    <tr key={itemIdx}>
+                                      <td style={thTdStyle}></td>
+                                      <td style={{ ...thTdStyle, padding: '2px 4px' }}>{item.description}</td>
+                                      <td style={{ ...thTdStyle, textAlign: 'center', padding: '2px' }}>{parseFloat(item.ratePerSample || 0).toLocaleString('en-IN')}/-</td>
+                                      <td style={{ ...thTdStyle, textAlign: 'center', padding: '2px' }}>{item.samplePerVisit}</td>
+                                      <td style={{ ...thTdStyle, textAlign: 'right', padding: '2px' }}>{parseFloat(item.chargesPerVisit || 0).toLocaleString('en-IN')}/-</td>
+                                      <td style={{ ...thTdStyle, textAlign: 'right', padding: '2px', fontWeight: 'bold' }}>{parseFloat(item.total || 0).toLocaleString('en-IN')}/-</td>
+                                    </tr>
+                                  ))}
+                                </React.Fragment>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                        <div style={{ fontSize: '6.5px', fontStyle: 'italic', background: '#f8fafc', padding: '4px', border: '1px solid #cbd5e1', borderRadius: '4px' }}>
+                          Note: At the time of visit if any extra stack found then extra charges will be included in invoice and if any parameters found to be added for testing then their charges are to be included at the time of reporting and invoice.
+                        </div>
+                      </div>
+                      <div style={{ borderTop: '1px solid #cbd5e1', paddingTop: '4px', display: 'flex', justifyContent: 'space-between', fontSize: '6px', color: '#64748b' }}>
+                        <span style={{ fontWeight: 'bold' }}>Page 4</span>
+                        <span style={{ fontWeight: 'bold', fontStyle: 'italic', color: '#0f172a' }}>"NURTURING THE NATURE FOR HUMAN RACE"</span>
+                        <span style={{ width: '20px' }}></span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()
+            ) : (
+              // Original TRF Preview
+              <>
+                <div style={{
+                background: '#ffffff',
+                border: '1px solid #000000',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+                padding: '1.25rem',
+                fontSize: '10px',
+                fontFamily: '"Plus Jakarta Sans", "Inter", sans-serif',
+                color: '#000000',
+                lineHeight: '1.3'
+              }}>
               {/* Header block */}
               <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', marginBottom: '8px' }}>
                 <tbody>
@@ -2088,8 +2940,10 @@ const TestRequestForm = () => {
                 </tbody>
               </table>
             </div>
-          </div>
+          </>
         )}
+      </div>
+    )}
 
         {/* Inline Master Creation Modal */}
         <InlineMasterModal

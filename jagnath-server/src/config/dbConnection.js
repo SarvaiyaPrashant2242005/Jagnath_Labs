@@ -46,6 +46,9 @@ const connectDB = async () => {
         const { runMigration: runMigration09 } = require("../database/migrations/09_add_quotation_required_and_type_to_test_requests");
         await runMigration09();
 
+        const { runMigration: runMigration10 } = require("../database/migrations/10_create_audit_quotations_table");
+        await runMigration10();
+
         // 3. Sync all models with the database
         await sequelize.sync({ alter: true });
         console.log('📂 Database & tables synced!');

@@ -16,6 +16,7 @@ const cautionRoutes = require('./modules/Masters/CautionMasters/caution.routes')
 const subCategoryRoutes = require('./modules/Masters/SubCategoryMasters/subCategory.routes');
 const locationSampleRoutes = require('./modules/Masters/LocationSampleMasters/locationSample.routes');
 const dashboardRoutes = require('./modules/Dashboard/dashboard.routes');
+const auditQuotationRoutes = require('./modules/Forms/AuditQuotationForm/auditQuotation.routes');
 
 // Mount routes
 router.use('/auth', authRoutes);
@@ -35,5 +36,6 @@ router.use('/price-master', priceMasterRoutes);
 router.use('/price-list', priceMasterRoutes);
 router.use('/caution', cautionRoutes);
 router.use('/dashboard', dashboardRoutes);
+router.use('/audit-quotation', auditQuotationRoutes);
 
 module.exports = router;
