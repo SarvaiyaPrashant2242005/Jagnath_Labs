@@ -13,11 +13,14 @@ const formatTestReport = (tr) => {
     const trObj = tr.toJSON ? tr.toJSON() : { ...tr };
     
     // Resolve Client address mapping dynamically from associated TestRequest -> Client
-    if (trObj.testRequest && trObj.testRequest.client) {
-        const client = trObj.testRequest.client;
-        trObj.reportIssuedTo = client.plantAddress ? `${client.clientName}\n${client.plantAddress}` : client.clientName;
-        trObj.agencyName = client.clientName;
-        trObj.agencyAddress = client.officeAddress;
+    if (trObj.testRequest) {
+        trObj.dateOfSampling = trObj.testRequest.dateOfCollection || null;
+        if (trObj.testRequest.client) {
+            const client = trObj.testRequest.client;
+            trObj.reportIssuedTo = client.plantAddress ? `${client.clientName}\n${client.plantAddress}` : client.clientName;
+            trObj.agencyName = client.clientName;
+            trObj.agencyAddress = client.officeAddress;
+        }
     }
     
     if (trObj.company) {

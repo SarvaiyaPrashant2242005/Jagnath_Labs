@@ -238,57 +238,57 @@ const TestReportPrint = () => {
       {/* ======================= A4 PRINT PAGE ======================= */}
       <div className="print-page">
         
-        {/* Top Header Logo Row */}
+        {/* Top Header Logo & Title Row */}
         {withHeaderFooter ? (
-          <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-              <div>
-                <img src={getLogoUrl()} alt="Company Logo" style={{ height: '75px', maxWidth: '100%', objectFit: 'contain' }} />
-              </div>
+          <div style={{ position: 'relative', width: '100%', minHeight: '75px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px' }}>
+            <div style={{ position: 'absolute', left: 0, top: 0 }}>
+              <img src={getLogoUrl()} alt="Company Logo" style={{ height: '70px', maxWidth: '100%', objectFit: 'contain' }} />
             </div>
-          </>
+            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', textDecoration: 'underline', letterSpacing: '0.5px' }}>
+              TEST REPORT
+            </div>
+          </div>
         ) : (
-          <div style={{ height: '60px', marginBottom: '12px' }}></div> // Spacer for letterhead header
+          <div style={{ position: 'relative', width: '100%', minHeight: '75px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px' }}>
+            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', textDecoration: 'underline', letterSpacing: '0.5px' }}>
+              TEST REPORT
+            </div>
+          </div>
         )}
-
-        {/* Document Title */}
-        <div style={{ textAlign: 'center', fontSize: '1.2rem', fontWeight: 'bold', textDecoration: 'underline', marginTop: '15px', marginBottom: '15px', letterSpacing: '0.5px' }}>
-          TEST REPORT
-        </div>
 
         {/* Main Metadata Grid Table */}
         <table className="print-report-table">
           <colgroup>
-            <col style={{ width: '32%' }} />
-            <col style={{ width: '28%' }} />
-            <col style={{ width: '22%' }} />
-            <col style={{ width: '18%' }} />
+            <col style={{ width: '33%' }} />
+            <col style={{ width: '27%' }} />
+            <col style={{ width: '20%' }} />
+            <col style={{ width: '20%' }} />
           </colgroup>
           <tbody>
             <tr>
               <td colSpan={2} rowSpan={2} style={{ fontWeight: 'bold', fontSize: '0.82rem', verticalAlign: 'middle' }}>
                 UID- {report.reportNumber || report.referenceNo || 'JLT010726RR00307'}
               </td>
-              <td colSpan={2} style={{ textAlign: 'right', fontWeight: 'bold', fontSize: '0.82rem' }}>
+              <td colSpan={2} style={{ textAlign: 'left', fontWeight: 'bold', fontSize: '0.82rem' }}>
                 {report.formatNo || 'Format No. 7.8 F-02'}
               </td>
             </tr>
             <tr>
-              <td colSpan={2} style={{ textAlign: 'right', fontWeight: 'bold', fontSize: '0.82rem' }}>
+              <td colSpan={2} style={{ textAlign: 'left', fontWeight: 'bold', fontSize: '0.82rem' }}>
                 Date: - {formatDateDDMMYYYY(report.formatDate || report.dateOfReceipt || new Date().toISOString())}
               </td>
             </tr>
             <tr>
-              <td>Name Of Work</td>
-              <td colSpan={3} style={{ fontWeight: 'bold' }}>{report.nameOfWork || report.title || 'Waste Water Analysis'}</td>
+              <td>Name of Work</td>
+              <td colSpan={3} style={{ fontWeight: 'bold' }}>{report.nameOfWork || report.title || '-'}</td>
             </tr>
             <tr>
-              <td>Details of sample</td>
-              <td colSpan={3}>{report.detailsOfSample || '-'}</td>
-            </tr>
-            <tr>
-              <td>Mode of Packing</td>
-              <td colSpan={3}>{report.packingDetails || 'Sample Sealed in Plastic Bottle'}</td>
+              <td>Details of sample/Mode of Packing</td>
+              <td colSpan={3}>
+                {report.detailsOfSample && report.packingDetails
+                  ? `${report.detailsOfSample} / ${report.packingDetails}`
+                  : (report.packingDetails || report.detailsOfSample || '-')}
+              </td>
             </tr>
             <tr>
               <td>Report Issued To</td>
@@ -299,11 +299,13 @@ const TestReportPrint = () => {
               <td colSpan={3} style={{ fontWeight: 'bold' }}>{report.reportNumber || report.referenceNo || '-'}</td>
             </tr>
             <tr>
-              <td>Date Of Receipt Of Sample</td>
-              <td colSpan={3}>{formatDateDDMMYYYY(report.dateOfReceipt)}</td>
+              <td>Date of Sampling</td>
+              <td>{formatDateDDMMYYYY(report.dateOfSampling) || '-'}</td>
+              <td>Date of Receipt</td>
+              <td>{formatDateDDMMYYYY(report.dateOfReceipt)}</td>
             </tr>
             <tr>
-              <td>Name Of Agency/Company</td>
+              <td>Name of Agency/Company</td>
               <td colSpan={3}>
                 <div style={{ fontWeight: 'bold', whiteSpace: 'pre-wrap' }}>{report.agencyName || (report.reportIssuedTo ? report.reportIssuedTo.split('\n')[0] : '')}</div>
                 {report.agencyAddress && <div style={{ fontSize: '0.75rem', marginTop: '1px', whiteSpace: 'pre-wrap' }}>{report.agencyAddress}</div>}
@@ -311,19 +313,19 @@ const TestReportPrint = () => {
             </tr>
             <tr>
               <td>Sample Quantity</td>
-              <td colSpan={3}>{report.sampleQuantity || '01 (1 ltr)'}</td>
+              <td colSpan={3}>{report.sampleQuantity || '-'}</td>
             </tr>
             <tr>
               <td>Sampling Location / Type</td>
-              <td colSpan={3}>{report.samplingLocation || 'Inlet CETP'}</td>
+              <td colSpan={3}>{report.samplingLocation || '-'}</td>
             </tr>
             <tr>
               <td>Condition of sample during receipt</td>
-              <td colSpan={3}>{report.conditionOnReceipt || 'Satisfactory'}</td>
+              <td colSpan={3}>{report.conditionOnReceipt || '-'}</td>
             </tr>
             <tr>
               <td>Sample Collected / Submitted by.</td>
-              <td colSpan={3}>{report.sampleCollectedBy || 'By Party'}</td>
+              <td colSpan={3}>{report.sampleCollectedBy || '-'}</td>
             </tr>
             <tr>
               <td>Starting Date Of Test/ Analysis</td>
@@ -334,21 +336,27 @@ const TestReportPrint = () => {
           </tbody>
         </table>
 
-        {/* Section Sub-Header Banner */}
-        <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '0.85rem', border: '1px solid #000', borderTop: 'none', padding: '3px 0', textTransform: 'uppercase' }}>
-          {report.sectionHeader || 'WASTE WATER ANALYSIS'}
-        </div>
-
         {/* Test Parameters Results Table */}
         <table className="print-report-table" style={{ borderTop: 'none' }}>
           <thead>
+            {/* Embedded Sub-Header Section Banner inside parameters table */}
+            <tr style={{ borderBottom: '1px solid #000' }}>
+              <th colSpan={report.showPermissibleLimits !== false ? 6 : 5} style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '0.85rem', padding: '4px 0', textTransform: 'uppercase', background: '#ffffff', color: '#000' }}>
+                <u>{report.sectionHeader || 'PHYSICAL CHEMICAL PARAMETERS'}</u>
+              </th>
+            </tr>
             <tr style={{ textAlign: 'center', fontWeight: 'bold' }}>
-              <th style={{ width: '8%' }}>SR.NO.</th>
-              <th style={{ width: report.showPermissibleLimits !== false ? '28%' : '34%', textAlign: 'left' }}>TESTS PARAMETERS</th>
-              <th style={{ width: report.showPermissibleLimits !== false ? '32%' : '37%', textAlign: 'center' }}>REFERENCE METHOD</th>
-              <th style={{ width: '10%', textAlign: 'center' }}>UNIT</th>
-              <th style={{ width: '11%', textAlign: 'center' }}>RESULTS</th>
-              {report.showPermissibleLimits !== false && <th style={{ width: '11%', textAlign: 'center' }}>PERMISSIBLE LIMITS</th>}
+              <th style={{ width: '6%', textAlign: 'center' }}>SR.NO.</th>
+              <th style={{ width: report.showPermissibleLimits !== false ? '27%' : '37%', textAlign: 'center' }}>TESTS PARAMETERS</th>
+              <th style={{ width: report.showPermissibleLimits !== false ? '35%' : '41%', textAlign: 'center' }}>REFERENCE METHOD</th>
+              <th style={{ width: '8%', textAlign: 'center' }}>UNIT</th>
+              <th style={{ width: '10%', textAlign: 'center' }}>RESULTS</th>
+              {report.showPermissibleLimits !== false && (
+                <th style={{ width: '14%', textAlign: 'center' }}>
+                  PERMISSIBLE LIMIT <br />
+                  <span style={{ fontSize: '0.65rem', fontWeight: 'normal' }}>(IS 10500:2012)</span>
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -382,51 +390,56 @@ const TestReportPrint = () => {
           <div>{report.termsAndConditions || defaultTerms}</div>
         </div>
 
-        {/* Signatures Block (NO STAMP) */}
-        <div style={{ border: '1px solid #000', borderTop: 'none', padding: '6px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', minHeight: '100px' }}>
-          <div>
-            <div style={{ fontWeight: 'bold', fontSize: '0.78rem' }}>Reviewed by,</div>
+        {/* Signatures Block with 2-column layout */}
+        <div style={{ border: '1px solid #000', borderTop: 'none', padding: '10px 15px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', minHeight: '120px' }}>
+          {/* Left Signature Column */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'space-between', height: '100%', minHeight: '120px' }}>
+            <div>
+              <div style={{ fontWeight: 'bold', fontSize: '0.78rem' }}>Reviewed by,</div>
+              <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#334155' }}>(Sr. Analyst/ Analyst)</div>
+            </div>
             {report.reviewedBySignature ? (
-              <div style={{ marginTop: '6px', display: 'flex', justifyContent: 'flex-start' }}>
+              <div style={{ margin: '6px 0', display: 'flex', justifyContent: 'flex-start' }}>
                 <img
                   src={report.reviewedBySignature}
                   alt="Reviewed By Signature"
-                  style={{ maxHeight: '65px', maxWidth: '200px', objectFit: 'contain' }}
+                  style={{ maxHeight: '50px', maxWidth: '150px', objectFit: 'contain' }}
                 />
               </div>
             ) : (
-              <div style={{ marginTop: '3rem' }} />
+              <div style={{ height: '50px' }} />
             )}
-            <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#000000' }}>
-              {report.reviewedBy || 'Sr. Analyst'}
-            </div>
-            <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#334155' }}>(Sr. Analyst/Analyst)</div>
-            <div style={{ fontWeight: 'bold', fontSize: '0.78rem', marginTop: '2px' }}>
+            <div style={{ fontWeight: 'bold', fontSize: '0.78rem' }}>
               Lab Incharge Signatory.
             </div>
           </div>
 
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontWeight: 'bold', fontSize: '0.78rem' }}>Thanking you in anticipation!</div>
-            <div style={{ fontWeight: 'bold', fontSize: '0.78rem' }}>For Jagnath Lab Technologies,</div>
+          {/* Right Signature Column */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'space-between', height: '100%', minHeight: '120px', textAlign: 'right' }}>
+            <div>
+              <div style={{ fontWeight: 'bold', fontSize: '0.78rem' }}>Thanking you in anticipation!</div>
+              <div style={{ fontWeight: 'bold', fontSize: '0.78rem' }}>For Jagnath Lab Technologies,</div>
+            </div>
             {report.signatureImage ? (
-              <div style={{ marginTop: '6px', display: 'flex', justifyContent: 'flex-end' }}>
+              <div style={{ margin: '6px 0', display: 'flex', justifyContent: 'flex-end' }}>
                 <img
                   src={report.signatureImage}
                   alt="Authorized Signature"
-                  style={{ maxHeight: '65px', maxWidth: '200px', objectFit: 'contain' }}
+                  style={{ maxHeight: '50px', maxWidth: '150px', objectFit: 'contain' }}
                 />
               </div>
             ) : (
-              <div style={{ marginTop: '2rem' }} />
+              <div style={{ height: '50px' }} />
             )}
-            <div style={{ fontWeight: 'bold', fontSize: '0.78rem' }}>
-              ({report.authorizedSignatory || 'Technical/Quality Manager'})
+            <div>
+              <div style={{ fontWeight: 'bold', fontSize: '0.78rem', color: '#1e293b' }}>
+                ({report.authorizedSignatory || 'Quality/ Technical Manager'})
+              </div>
+              <div style={{ fontWeight: 'bold', fontSize: '0.78rem', color: '#1e293b' }}>
+                ({report.authorizedSignatoryName || 'Mr. Purvin Raiyani / Mr. Ankit Rathod'})
+              </div>
+              <div style={{ fontWeight: 'bold', fontSize: '0.78rem' }}>Authorized Signatory</div>
             </div>
-            <div style={{ fontWeight: 'bold', fontSize: '0.78rem' }}>
-              ({report.authorizedSignatoryName || 'Mr. Ankit Rathod/ Mr. Purvin Raiyan'})
-            </div>
-            <div style={{ fontWeight: 'bold', fontSize: '0.78rem' }}>Authorized Signatory</div>
           </div>
         </div>
 
@@ -437,24 +450,28 @@ const TestReportPrint = () => {
 
         {/* Footer Information */}
         {withHeaderFooter ? (
-          <div style={{ borderTop: '1px solid #64748b', paddingTop: '4px', fontSize: '0.68rem', fontFamily: 'sans-serif' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ color: '#047857', fontWeight: 600 }}>
-                📍 5-6/B, Nayanjyot Chambers, First Floor, Opp. Vachhera Vada, Gondal-360 311. Dist. : Rajkot. (Guj.)
+          <div style={{ fontSize: '0.66rem', fontFamily: 'sans-serif', marginTop: '45px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-start', gap: '30px', marginLeft: '36%', alignItems: 'flex-start', marginBottom: '6px' }}>
+              {/* Left Column: Address */}
+              <div style={{ color: '#047857', fontWeight: 600, lineHeight: '1.4', whiteSpace: 'nowrap' }}>
+                <div>📍 5-6/B, Nayanjyot Chambers,</div>
+                <div style={{ paddingLeft: '14px' }}>First Floor, Opp. Vachhera Vada,</div>
+                <div style={{ paddingLeft: '14px' }}>Gondal-360 311. Dist. : Rajkot. (Guj.)</div>
               </div>
-              <div style={{ color: '#047857', fontWeight: 600 }}>
-                ✉ jagnathtechnologies@yahoo.com
+              
+              {/* Right Column: Contact info */}
+              <div style={{ color: '#047857', fontWeight: 600, lineHeight: '1.4', textAlign: 'left', whiteSpace: 'nowrap' }}>
+                <div>✉ jagnathtechnologies@yahoo.com</div>
+                <div>🌐 www.jagnath.com</div>
+                <div>📞 +91 8140 5555 15</div>
               </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px' }}>
-              <div style={{ color: '#047857', fontWeight: 600 }}>
-                🌐 www.jagnath.com
-              </div>
-              <div style={{ color: '#047857', fontWeight: 600 }}>
-                📞 +91 8140 5555 15
-              </div>
-            </div>
-            <div style={{ textAlign: 'center', fontSize: '0.65rem', fontWeight: 'bold', color: '#1e293b', marginTop: '4px' }}>
+            
+            {/* Horizontal Line separating columns and Auditors title */}
+            <div style={{ borderTop: '1px solid #000', margin: '4px 0' }}></div>
+
+            {/* Auditors Title */}
+            <div style={{ textAlign: 'center', fontSize: '0.7rem', fontWeight: 'bold', color: '#047857', marginTop: '4px' }}>
               Environment Consultant & Gujarat Pollution Control Board Schedule-II Auditors
             </div>
           </div>
