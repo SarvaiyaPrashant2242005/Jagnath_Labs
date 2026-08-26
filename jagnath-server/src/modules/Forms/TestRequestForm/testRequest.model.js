@@ -190,6 +190,17 @@ const TestRequest = sequelize.define("TestRequest", {
         type: DataTypes.ENUM("Active", "Inactive"),
         defaultValue: "Active",
         allowNull: false,
+    },
+    quotationRequired: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        defaultValue: "No",
+        field: "quotation_required"
+    },
+    quotationType: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        field: "quotation_type"
     }
 }, {
     tableName: "test_requests",

@@ -51,7 +51,16 @@ const createTestRequestSchema = Joi.object({
     cautionId: Joi.string().optional().allow("", null),
     status: Joi.string().valid("Active", "Inactive").optional().allow("", null).messages({
         "any.only": "Status must be Active or Inactive."
-    })
+    }),
+    quotationRequired: Joi.string().valid("Yes", "No").optional().default("No").allow("", null),
+    quotationType: Joi.string().valid("Quotation", "Consulting", "Audit", "General Testing / Consulting", "Monthly Consulting")
+        .when("quotationRequired", {
+            is: "Yes",
+            then: Joi.required().messages({
+                "any.required": "Quotation Type is required when Quotation is requested."
+            }),
+            otherwise: Joi.optional().allow("", null)
+        })
 });
 
 const updateTestRequestSchema = Joi.object({
@@ -99,7 +108,16 @@ const updateTestRequestSchema = Joi.object({
     cautionId: Joi.string().optional().allow("", null),
     status: Joi.string().valid("Active", "Inactive").optional().allow("", null).messages({
         "any.only": "Status must be Active or Inactive."
-    })
+    }),
+    quotationRequired: Joi.string().valid("Yes", "No").optional().allow("", null),
+    quotationType: Joi.string().valid("Quotation", "Consulting", "Audit", "General Testing / Consulting", "Monthly Consulting")
+        .when("quotationRequired", {
+            is: "Yes",
+            then: Joi.required().messages({
+                "any.required": "Quotation Type is required when Quotation is requested."
+            }),
+            otherwise: Joi.optional().allow("", null)
+        })
 });
 
 module.exports = {

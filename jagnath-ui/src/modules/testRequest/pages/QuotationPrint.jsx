@@ -42,14 +42,19 @@ const QuotationPrint = () => {
       setLoading(true);
       setError(false);
 
-      const trRes = await apiService.get(TEST_REQUEST_ENDPOINTS.GET_BY_ID(id));
+      const trRes = await apiService.get(`${TEST_REQUEST_ENDPOINTS.GET_BY_ID(id)}?forQuotation=true`);
       if (!trRes?.data) {
-        setError(true);
+        setError("Failed to load quotation data.");
         setLoading(false);
         return;
       }
 
       const tr = trRes.data;
+      if (tr.quotationRequired === 'No') {
+        setError("Quotation was not requested for this Test Request.");
+        setLoading(false);
+        return;
+      }
       setFormData(tr);
 
       if (tr.company) setSelCompany(tr.company);
@@ -146,7 +151,7 @@ const QuotationPrint = () => {
 
     } catch (err) {
       console.error(err);
-      setError(true);
+      setError(err?.response?.data?.message || err?.message || "Failed to load quotation data.");
     } finally {
       setLoading(false);
     }
@@ -169,7 +174,11 @@ const QuotationPrint = () => {
   }
 
   if (error) {
-    return <div style={{ padding: '2rem', textAlign: 'center', color: 'red', fontFamily: 'sans-serif' }}>Failed to load quotation data.</div>;
+    return (
+      <div style={{ padding: '3rem', textAlign: 'center', color: '#ef4444', fontFamily: 'sans-serif', fontWeight: 'bold', fontSize: '1.2rem', background: '#fef2f2', border: '1px solid #fee2e2', borderRadius: '8px', margin: '2rem' }}>
+        ⚠️ {error}
+      </div>
+    );
   }
 
   // Calculations
@@ -253,7 +262,7 @@ const QuotationPrint = () => {
 
       {/* Subject */}
       <div style={{ marginBottom: '15px', fontWeight: 'bold' }}>
-        SUBJECT: - <span style={{ textDecoration: 'underline' }}>QUOTATION FOR {sampleParticularName.toUpperCase()} SAMPLE ANALYSIS.</span>
+        SUBJECT: - <span style={{ textDecoration: 'underline' }}>{(formData.quotationType || 'QUOTATION').toUpperCase()} FOR {sampleParticularName.toUpperCase()} SAMPLE ANALYSIS.</span>
       </div>
 
       {/* Salutation & Intro Paragraphs */}
