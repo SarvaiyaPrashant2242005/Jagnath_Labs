@@ -585,32 +585,50 @@ module.exports = {
                 const paramName = data.parameterName || data.name;
                 if (!paramName) continue;
 
-                // Resolve category mapping if categoryName is provided
+                // Resolve department mapping - auto create if not exists
+                let departmentId = null;
+                const rawDeptName = (data.departmentName || data.department || "").trim();
+                if (rawDeptName) {
+                    let dept = await Department.findOne({ where: { name: { [Op.iLike]: rawDeptName }, companyId }, transaction });
+                    if (!dept) {
+                        dept = await Department.create({ name: rawDeptName, companyId, status: "Active" }, { transaction });
+                    }
+                    departmentId = dept.id;
+                } else {
+                    let dept = await Department.findOne({ where: { name: "General Department", companyId }, transaction });
+                    if (!dept) {
+                        dept = await Department.create({ name: "General Department", companyId, status: "Active" }, { transaction });
+                    }
+                    departmentId = dept.id;
+                }
+
+                // Resolve category mapping - auto create if not exists
                 let categoryId = null;
                 const rawCatName = (data.categoryName || data.disciplineGroup || "").trim();
                 if (rawCatName) {
-                    let cat = await Category.findOne({ where: { name: { [Op.iLike]: rawCatName }, companyId }, transaction });
+                    let cat = await Category.findOne({ where: { name: { [Op.iLike]: rawCatName }, companyId, departmentId }, transaction });
                     if (!cat) {
-                        throw new Error(`Discipline Group '${rawCatName}' does not exist.`);
+                        cat = await Category.create({ name: rawCatName, companyId, departmentId, status: "Active" }, { transaction });
                     }
                     categoryId = cat.id;
                 } else {
-                    throw new Error("Discipline Group is required.");
+                    let cat = await Category.findOne({ where: { name: "General Group", companyId, departmentId }, transaction });
+                    if (!cat) {
+                        cat = await Category.create({ name: "General Group", companyId, departmentId, status: "Active" }, { transaction });
+                    }
+                    categoryId = cat.id;
                 }
 
-                // Resolve sub category mapping if subCategoryName is provided
+                // Resolve sub category mapping - auto create if not exists
                 let subCategoryId = null;
                 const rawSubCatName = (data.subCategoryName || data.subCategory || "").trim();
                 if (rawSubCatName && categoryId) {
                     let subCat = await SubCategory.findOne({
-                        where: { name: { [Op.iLike]: rawSubCatName }, companyId },
+                        where: { name: { [Op.iLike]: rawSubCatName }, companyId, categoryId },
                         transaction
                     });
                     if (!subCat) {
-                        throw new Error(`Sub Category '${rawSubCatName}' does not exist.`);
-                    }
-                    if (subCat.categoryId !== categoryId) {
-                        throw new Error(`Sub Category '${rawSubCatName}' does not belong to selected Discipline Group '${rawCatName}'.`);
+                        subCat = await SubCategory.create({ name: rawSubCatName, companyId, categoryId, status: "Active" }, { transaction });
                     }
                     subCategoryId = subCat.id;
                 }
@@ -660,7 +678,8 @@ module.exports = {
                         companyId,
                         parameterName: { [Op.iLike]: paramName.trim() },
                         subCategoryId: paramPayload.subCategoryId || null,
-                        locationSampleId: paramPayload.locationSampleId || null
+                        locationSampleId: paramPayload.locationSampleId || null,
+                        testMethod: paramPayload.testMethod ? { [Op.iLike]: paramPayload.testMethod.trim() } : null
                     };
                     existing = await Parameter.findOne({ where: findWhere, transaction });
                 }

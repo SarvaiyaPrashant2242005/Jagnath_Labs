@@ -181,11 +181,12 @@ export const MASTER_SCHEMAS = {
     filename: 'Parameter_Master_Template.xlsx',
     uniqueKeys: ['parameterName'],
     headers: [
+      { key: 'departmentName', label: 'Department *', required: true, type: 'string', aliases: ['department', 'department*', 'departmentname', 'departmentname*', 'Department *', 'Department'] },
       { key: 'categoryName', label: 'Discipline Group *', required: true, type: 'string', aliases: ['disciplinegroup', 'disciplinegroup*', 'disciplinegroupname', 'groupname', 'category', 'categoryname', 'Discipline Group *'] },
       { key: 'subCategoryName', label: 'Sub Category', required: false, type: 'string', aliases: ['subcategory', 'subcategoryname', 'subcategory_name', 'Sub Category'] },
       { key: 'locationOfSample', label: 'Location of Sample', required: false, type: 'string', aliases: ['locationofsample', 'location', 'locationsample', 'locationsamplename', 'location_of_sample', 'Location of Sample', 'Location'] },
       { key: 'parameterName', label: 'Parameter Name *', required: true, type: 'string', aliases: ['parametername', 'parametername*', 'name', 'parameter', 'Parameter Name *'] },
-      { key: 'testMethod', label: 'Test Method', required: false, type: 'string', aliases: ['testmethod', 'test_method', 'referencemethod', 'Test Method'] },
+      { key: 'testMethod', label: 'Test Method', required: false, type: 'string', aliases: ['testmethod', 'test_method', 'testingmethod', 'testing_method', 'referencemethod', 'reference_method', 'method', 'Test Method', 'Testing Method', 'Reference Method'] },
       { key: 'unit', label: 'Unit', required: false, type: 'string', aliases: ['unit', 'units', 'Unit'] },
       { key: 'isPermissibleLimitApplicable', label: 'Permissible Limit Applicable?', required: false, type: 'select', options: ['Yes', 'No'], aliases: ['permissiblelimitapplicable', 'permissiblelimitapplicable?', 'ispermissiblelimitapplicable', 'ispermissiblelimitapplicable?', 'Permissible Limit Applicable?'] },
       { key: 'permissibleLimit', label: 'Permissible Limit', required: false, type: 'string', aliases: ['permissiblelimit', 'limit', 'Permissible Limit'] },
@@ -193,6 +194,7 @@ export const MASTER_SCHEMAS = {
     ],
     sampleData: [
       {
+        'Department *': 'WATER DEPARTMENT',
         'Discipline Group *': 'WATER TESTING',
         'Sub Category': 'Physical Parameters',
         'Location of Sample': 'Drinking Water',
@@ -204,6 +206,7 @@ export const MASTER_SCHEMAS = {
         'Status': 'Active'
       },
       {
+        'Department *': 'WATER DEPARTMENT',
         'Discipline Group *': 'WATER TESTING',
         'Sub Category': 'Physical Parameters',
         'Location of Sample': 'Waste Water',
@@ -494,11 +497,12 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
     } else if (masterType === 'parameter') {
       const nName = normalizeString(normalizedData.parameterName);
       const nSub = normalizeString(normalizedData.subCategoryName);
-      const nLoc = normalizeString(normalizedData.locationOfSample);
-      const paramSignature = `${nName}___${nSub}___${nLoc}`;
+      const nMethod = normalizeString(normalizedData.testMethod);
+      const nCatName = normalizeString(normalizedData.categoryName);
+      const paramSignature = `${nName}___${nSub}___${nMethod}___${nCatName}`;
       if (nName && seenNamesInFile.has(paramSignature)) {
         isDuplicateInFile = true;
-        fileDuplicateMessage = `Duplicate parameter name under same sub category and location in uploaded file (first found at row ${seenNamesInFile.get(paramSignature)}). This row will update the record.`;
+        fileDuplicateMessage = `Duplicate parameter name under same sub category, test method, and discipline group in uploaded file (first found at row ${seenNamesInFile.get(paramSignature)}). This row will update the record.`;
       } else if (nName) {
         seenNamesInFile.set(paramSignature, validRowNum);
       }
@@ -562,11 +566,13 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
       } else if (masterType === 'parameter') {
         const nParamName = normalizeString(normalizedData.parameterName);
         const nSub = normalizeString(normalizedData.subCategoryName);
-        const nLoc = normalizeString(normalizedData.locationOfSample);
+        const nMethod = normalizeString(normalizedData.testMethod);
+        const nCatName = normalizeString(normalizedData.categoryName);
         const dbParam = existingDbRecords.find(p => 
           normalizeString(p.parameterName || p.name) === nParamName &&
           normalizeString(p.subCategoryName) === nSub &&
-          normalizeString(p.locationSampleName) === nLoc
+          normalizeString(p.testMethod) === nMethod &&
+          normalizeString(p.categoryName) === nCatName
         );
         if (dbParam) {
           isDbMatch = true;

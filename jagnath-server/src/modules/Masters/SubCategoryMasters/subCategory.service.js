@@ -277,10 +277,19 @@ const bulkImportSubCategories = async (rows, companyId) => {
 
             let catId = categoryMap.get(rawCategoryName.toLowerCase());
 
-            // If parent discipline does not exist, show a clear row-level validation error
             if (!catId) {
-                errors.push(`Row ${index + 1}: Discipline Group '${rawCategoryName}' does not exist.`);
-                continue;
+                let dept = await db.Department.findOne({ where: { name: "General Department", companyId }, transaction });
+                if (!dept) {
+                    dept = await db.Department.create({ name: "General Department", companyId, status: "Active" }, { transaction });
+                }
+                const newCat = await db.Category.create({
+                    name: rawCategoryName,
+                    companyId,
+                    departmentId: dept.id,
+                    status: "Active"
+                }, { transaction });
+                catId = newCat.id;
+                categoryMap.set(rawCategoryName.toLowerCase(), catId);
             }
 
             // Upsert sub category

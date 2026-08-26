@@ -791,6 +791,7 @@ const ParameterMaster = () => {
   const mapParameterToTemplateRow = (p) => {
     const isLimitApp = p.isPermissibleLimitApplicable === true || p.is_permissible_limit_applicable === true;
     return [
+      p.departmentName || p.department_name || '',
       p.categoryName || p.category_name || '',
       p.subCategoryName || p.sub_category_name || '',
       p.locationSampleName || p.location_sample_name || p.locationOfSample || '',
@@ -804,6 +805,7 @@ const ParameterMaster = () => {
   };
 
   const exportTemplateHeaders = [
+    'Department *',
     'Discipline Group *',
     'Sub Category',
     'Location of Sample',
@@ -939,7 +941,10 @@ const ParameterMaster = () => {
                 <span>Parameter</span>
               </button>
               <button
-                onClick={() => setIsBulkImportOpen(true)}
+                onClick={() => {
+                  fetchSavedParametersForForm();
+                  setIsBulkImportOpen(true);
+                }}
                 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1rem', fontWeight: 600, cursor: 'pointer' }}
               >
                 <FaFileExcel />
@@ -1677,9 +1682,25 @@ const ParameterMaster = () => {
         isOpen={isBulkImportOpen}
         onClose={() => setIsBulkImportOpen(false)}
         masterType="parameter"
-        existingDbRecords={parameters}
+        existingDbRecords={allSavedParameters}
         onImportSuccess={async (validRows) => {
-          const res = await apiService.post(PARAMETER_ENDPOINTS.BULK_IMPORT, { rows: validRows });
+          let rowsToSend = validRows;
+          const updateRowsCount = validRows.filter(r => r._status === 'UPDATE').length;
+          
+          if (updateRowsCount > 0) {
+            const wantToUpdate = window.confirm(
+              `Found ${updateRowsCount} existing parameters that already exist in the database.\n\nDo you want to update these existing parameters?\n- Click "OK" to update them.\n- Click "Cancel" to skip updating and only import new parameters.`
+            );
+            if (!wantToUpdate) {
+              rowsToSend = validRows.filter(r => r._status === 'NEW');
+              if (rowsToSend.length === 0) {
+                triggerToast('No new parameters to import (skipped existing updates).', 'info');
+                return;
+              }
+            }
+          }
+          
+          const res = await apiService.post(PARAMETER_ENDPOINTS.BULK_IMPORT, { rows: rowsToSend });
           if (res && res.success) {
             triggerToast(res.message || 'Parameters imported successfully!', 'success');
             fetchParameters(currentPage, pageSize, searchQuery, statusFilter);

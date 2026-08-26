@@ -686,18 +686,19 @@ const LocationSampleMaster = () => {
           </table>
         </div>
 
-        {/* Pagination */}
+        {/* Pagination Controls */}
         {!loading && filteredLocations.length > 0 && (
-          <div style={{ padding: '1rem', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-            <span style={{ fontSize: '0.825rem', color: '#64748b' }}>
-              Showing {filteredLocations.length} of {totalItems} items
-            </span>
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={(page) => setCurrentPage(page)}
-            />
-          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setCurrentPage(1);
+            }}
+          />
         )}
       </div>
 

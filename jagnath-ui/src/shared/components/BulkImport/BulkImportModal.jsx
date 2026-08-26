@@ -221,6 +221,7 @@ const BulkImportModal = ({
 
   const getColumnMinWidth = (key) => {
     switch (key) {
+      case 'departmentName': return '180px';
       case 'clientName': return '190px';
       case 'email': return '210px';
       case 'contactNumber': return '150px';

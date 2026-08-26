@@ -435,18 +435,19 @@ const DepartmentMaster = () => {
           <button
             onClick={() => setShowDownloadDropdown(prev => !prev)}
             ref={dropdownRef}
-            className="btn-secondary"
+            className="btn-primary"
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: '0.5rem',
-              padding: '0.5rem 1.25rem',
+              padding: '0.6rem 1.25rem',
               fontWeight: 600,
               cursor: 'pointer',
-              backgroundColor: '#ffffff',
-              border: '1px solid #cbd5e1',
+              backgroundColor: '#22c55e',
+              border: 'none',
               borderRadius: '8px',
-              color: '#475569'
+              color: '#ffffff',
+              boxShadow: '0 2px 4px rgba(34, 197, 94, 0.2)'
             }}
           >
             <FaDownload />
@@ -693,18 +694,19 @@ const DepartmentMaster = () => {
           </table>
         </div>
 
-        {/* Pagination */}
+        {/* Pagination Controls */}
         {!loading && filteredDepartments.length > 0 && (
-          <div style={{ padding: '1rem', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-            <span style={{ fontSize: '0.825rem', color: '#64748b' }}>
-              Showing {filteredDepartments.length} of {totalItems} items
-            </span>
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={(page) => setCurrentPage(page)}
-            />
-          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setCurrentPage(1);
+            }}
+          />
         )}
       </div>
 
