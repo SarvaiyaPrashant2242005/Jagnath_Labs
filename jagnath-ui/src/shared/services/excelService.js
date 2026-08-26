@@ -181,37 +181,40 @@ export const MASTER_SCHEMAS = {
     filename: 'Parameter_Master_Template.xlsx',
     uniqueKeys: ['parameterName'],
     headers: [
+      { key: 'departmentName', label: 'Department', required: false, type: 'string', aliases: ['department', 'departmentname', 'department_name', 'Department'] },
       { key: 'categoryName', label: 'Discipline Group *', required: true, type: 'string', aliases: ['disciplinegroup', 'disciplinegroup*', 'disciplinegroupname', 'groupname', 'category', 'categoryname', 'Discipline Group *'] },
       { key: 'subCategoryName', label: 'Sub Category', required: false, type: 'string', aliases: ['subcategory', 'subcategoryname', 'subcategory_name', 'Sub Category'] },
-      { key: 'locationOfSample', label: 'Location of Sample', required: false, type: 'string', aliases: ['locationofsample', 'location', 'locationsample', 'locationsamplename', 'location_of_sample', 'Location of Sample', 'Location'] },
       { key: 'parameterName', label: 'Parameter Name *', required: true, type: 'string', aliases: ['parametername', 'parametername*', 'name', 'parameter', 'Parameter Name *'] },
       { key: 'testMethod', label: 'Test Method', required: false, type: 'string', aliases: ['testmethod', 'test_method', 'referencemethod', 'Test Method'] },
       { key: 'unit', label: 'Unit', required: false, type: 'string', aliases: ['unit', 'units', 'Unit'] },
       { key: 'isPermissibleLimitApplicable', label: 'Permissible Limit Applicable?', required: false, type: 'select', options: ['Yes', 'No'], aliases: ['permissiblelimitapplicable', 'permissiblelimitapplicable?', 'ispermissiblelimitapplicable', 'ispermissiblelimitapplicable?', 'Permissible Limit Applicable?'] },
       { key: 'permissibleLimit', label: 'Permissible Limit', required: false, type: 'string', aliases: ['permissiblelimit', 'limit', 'Permissible Limit'] },
+      { key: 'price', label: 'Price (₹)', required: false, type: 'number', aliases: ['price', 'price*', 'rate', 'testingrate', 'Price', 'Price (₹)', 'Price *'] },
       { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'], aliases: ['status', 'Status'] }
     ],
     sampleData: [
       {
+        'Department': 'Environment',
         'Discipline Group *': 'WATER TESTING',
         'Sub Category': 'Physical Parameters',
-        'Location of Sample': 'Drinking Water',
         'Parameter Name *': 'pH Level',
         'Test Method': 'APHA, 23rd Edition 2017/4500-H-B',
         'Unit': 'pH',
         'Permissible Limit Applicable?': 'Yes',
         'Permissible Limit': '6.5 - 8.5',
+        'Price (₹)': 250,
         'Status': 'Active'
       },
       {
+        'Department': 'Environment',
         'Discipline Group *': 'WATER TESTING',
         'Sub Category': 'Physical Parameters',
-        'Location of Sample': 'Waste Water',
         'Parameter Name *': 'Total Dissolved Solids (TDS)',
         'Test Method': 'IS 3025 (Part 16)',
         'Unit': 'mg/L',
         'Permissible Limit Applicable?': 'Yes',
         'Permissible Limit': '500',
+        'Price (₹)': 350,
         'Status': 'Active'
       }
     ]
@@ -494,11 +497,10 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
     } else if (masterType === 'parameter') {
       const nName = normalizeString(normalizedData.parameterName);
       const nSub = normalizeString(normalizedData.subCategoryName);
-      const nLoc = normalizeString(normalizedData.locationOfSample);
-      const paramSignature = `${nName}___${nSub}___${nLoc}`;
+      const paramSignature = `${nName}___${nSub}`;
       if (nName && seenNamesInFile.has(paramSignature)) {
         isDuplicateInFile = true;
-        fileDuplicateMessage = `Duplicate parameter name under same sub category and location in uploaded file (first found at row ${seenNamesInFile.get(paramSignature)}). This row will update the record.`;
+        fileDuplicateMessage = `Duplicate parameter name under same sub category in uploaded file (first found at row ${seenNamesInFile.get(paramSignature)}). This row will update the record.`;
       } else if (nName) {
         seenNamesInFile.set(paramSignature, validRowNum);
       }
@@ -562,11 +564,9 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
       } else if (masterType === 'parameter') {
         const nParamName = normalizeString(normalizedData.parameterName);
         const nSub = normalizeString(normalizedData.subCategoryName);
-        const nLoc = normalizeString(normalizedData.locationOfSample);
         const dbParam = existingDbRecords.find(p => 
           normalizeString(p.parameterName || p.name) === nParamName &&
-          normalizeString(p.subCategoryName) === nSub &&
-          normalizeString(p.locationSampleName) === nLoc
+          normalizeString(p.subCategoryName) === nSub
         );
         if (dbParam) {
           isDbMatch = true;

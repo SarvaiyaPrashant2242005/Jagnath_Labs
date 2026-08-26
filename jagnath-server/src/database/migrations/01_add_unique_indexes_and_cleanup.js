@@ -202,12 +202,12 @@ const runMigration = async () => {
     `, { transaction });
 
     await sequelize.query(`
-      DROP INDEX IF EXISTS idx_parameters_company_subcat_lower_name;
+      DROP INDEX IF EXISTS idx_parameters_company_subcat_loc_lower_name;
     `, { transaction });
 
     await sequelize.query(`
-      CREATE UNIQUE INDEX IF NOT EXISTS idx_parameters_company_subcat_loc_lower_name
-      ON parameters ("companyId", COALESCE("subCategoryId", '00000000-0000-0000-0000-000000000000'), COALESCE("location_sample_id", '00000000-0000-0000-0000-000000000000'), LOWER(TRIM("parameterName")))
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_parameters_company_subcat_lower_name
+      ON parameters ("companyId", COALESCE("subCategoryId", '00000000-0000-0000-0000-000000000000'), LOWER(TRIM("parameterName")))
       WHERE deleted_at IS NULL;
     `, { transaction });
 
