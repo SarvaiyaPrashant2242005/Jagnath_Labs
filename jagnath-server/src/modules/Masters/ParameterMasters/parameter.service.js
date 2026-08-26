@@ -7,6 +7,7 @@ const Company = require("../CompanyMasters/company.model");
 const Category = require("../CategoryMasters/category.model");
 const SubCategory = require("../SubCategoryMasters/subCategory.model");
 const CategoryParameter = require("../CategoryParameterMasters/categoryParameter.model");
+const PriceMaster = require("../PriceListMasters/price_master.model");
 const Department = require("../DepartmentMasters/department.model");
 const Users = require("../../Auth/Users/users.model");
 const LocationSample = require("../LocationSampleMasters/locationSample.model");
@@ -173,12 +174,11 @@ const createParameter = async (parameterData, userId, reqInfo) => {
         const { categoryId, ...paramFields } = parameterData;
 
         const paramSubCatId = paramFields.subCategoryId || null;
-        const paramLocSampleId = paramFields.locationSampleId || null;
+        delete paramFields.locationSampleId;
         const findWhere = {
             companyId: paramFields.companyId,
             parameterName: { [Op.iLike]: paramFields.parameterName.trim() },
-            subCategoryId: paramSubCatId,
-            locationSampleId: paramLocSampleId
+            subCategoryId: paramSubCatId
         };
 
         let newParameter = await Parameter.findOne({
@@ -196,6 +196,7 @@ const createParameter = async (parameterData, userId, reqInfo) => {
                 unit: paramFields.unit !== undefined ? paramFields.unit : newParameter.unit,
                 isPermissibleLimitApplicable: paramFields.isPermissibleLimitApplicable !== undefined ? paramFields.isPermissibleLimitApplicable : newParameter.isPermissibleLimitApplicable,
                 permissibleLimit: paramFields.permissibleLimit !== undefined ? paramFields.permissibleLimit : newParameter.permissibleLimit,
+                price: paramFields.price !== undefined ? paramFields.price : newParameter.price,
                 status: paramFields.status || newParameter.status
             }, { transaction });
         }
@@ -219,6 +220,31 @@ const createParameter = async (parameterData, userId, reqInfo) => {
                 }, { transaction });
             } else if (existingMapping.status !== 'Active') {
                 await existingMapping.update({ status: 'Active' }, { transaction });
+            }
+
+            // Sync with PriceMaster table
+            const priceVal = paramFields.price !== undefined && paramFields.price !== null ? parseFloat(paramFields.price) : (newParameter.price ? parseFloat(newParameter.price) : 0);
+            if (!isNaN(priceVal)) {
+                const existingPrice = await PriceMaster.findOne({
+                    where: {
+                        companyId: newParameter.companyId,
+                        categoryId,
+                        parameterId: newParameter.id
+                    },
+                    transaction
+                });
+
+                if (existingPrice) {
+                    await existingPrice.update({ price: priceVal, status: "Active" }, { transaction });
+                } else {
+                    await PriceMaster.create({
+                        companyId: newParameter.companyId,
+                        categoryId,
+                        parameterId: newParameter.id,
+                        price: priceVal,
+                        status: "Active"
+                    }, { transaction });
+                }
             }
         }
 
@@ -292,6 +318,29 @@ const updateParameter = async (parameterId, parameterData, userId, companyId, re
                     parameterId,
                     status: "Active"
                 }, { transaction });
+            }
+        }
+
+        const targetCategoryId = categoryId !== undefined ? categoryId : (updatedParameter.categoryId || null);
+        if (targetCategoryId && (paramFields.price !== undefined || updatedParameter.price !== undefined)) {
+            const priceVal = paramFields.price !== undefined && paramFields.price !== null ? parseFloat(paramFields.price) : (updatedParameter.price ? parseFloat(updatedParameter.price) : 0);
+            if (!isNaN(priceVal)) {
+                const existingPrice = await PriceMaster.findOne({
+                    where: { companyId, categoryId: targetCategoryId, parameterId },
+                    transaction
+                });
+
+                if (existingPrice) {
+                    await existingPrice.update({ price: priceVal, status: "Active" }, { transaction });
+                } else {
+                    await PriceMaster.create({
+                        companyId,
+                        categoryId: targetCategoryId,
+                        parameterId,
+                        price: priceVal,
+                        status: "Active"
+                    }, { transaction });
+                }
             }
         }
 
@@ -657,16 +706,25 @@ module.exports = {
                     }
                 }
 
+                // Parse price
+                let price = 0;
+                if (data.price !== undefined && data.price !== null && data.price !== '') {
+                    const parsed = parseFloat(data.price);
+                    if (!isNaN(parsed) && parsed >= 0) {
+                        price = parsed;
+                    }
+                }
+
                 const paramPayload = {
                     companyId,
                     parameterName: paramName,
                     subCategoryId: subCategoryId || data.subCategoryId || null,
-                    locationSampleId: locationSampleId || data.locationSampleId || null,
                     description: data.description || null,
                     testMethod: data.testMethod || data.testing_method || data.referenceMethod || null,
                     unit: data.unit || null,
                     isPermissibleLimitApplicable,
                     permissibleLimit: data.permissibleLimit || data.permissible_limit || data.limit || null,
+                    price,
                     status: (data.status && ['Active', 'Inactive'].includes(String(data.status).trim())) ? String(data.status).trim() : 'Active'
                 };
 
@@ -678,7 +736,6 @@ module.exports = {
                         companyId,
                         parameterName: { [Op.iLike]: paramName.trim() },
                         subCategoryId: paramPayload.subCategoryId || null,
-                        locationSampleId: paramPayload.locationSampleId || null,
                         testMethod: paramPayload.testMethod ? { [Op.iLike]: paramPayload.testMethod.trim() } : null
                     };
                     existing = await Parameter.findOne({ where: findWhere, transaction });
@@ -695,6 +752,13 @@ module.exports = {
                         } else {
                             await CategoryParameter.create({ companyId, categoryId, parameterId: existing.id, status: "Active" }, { transaction });
                         }
+
+                        const existingPrice = await PriceMaster.findOne({ where: { companyId, categoryId, parameterId: existing.id }, transaction });
+                        if (existingPrice) {
+                            await existingPrice.update({ price, status: "Active" }, { transaction });
+                        } else {
+                            await PriceMaster.create({ companyId, categoryId, parameterId: existing.id, price, status: "Active" }, { transaction });
+                        }
                     }
                 } else {
                     const newParam = await Parameter.create(paramPayload, { transaction });
@@ -702,6 +766,13 @@ module.exports = {
 
                     if (categoryId) {
                         await CategoryParameter.create({ companyId, categoryId, parameterId: newParam.id, status: "Active" }, { transaction });
+
+                        const existingPrice = await PriceMaster.findOne({ where: { companyId, categoryId, parameterId: newParam.id }, transaction });
+                        if (existingPrice) {
+                            await existingPrice.update({ price, status: "Active" }, { transaction });
+                        } else {
+                            await PriceMaster.create({ companyId, categoryId, parameterId: newParam.id, price, status: "Active" }, { transaction });
+                        }
                     }
                 }
             }

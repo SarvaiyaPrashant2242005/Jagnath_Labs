@@ -324,7 +324,6 @@ const Sidebar = ({ activeTab, onTabChange, onNewRequest, sidebarRef, isOpen = tr
                   { name: 'Location of Sample', key: 'location-samples', route: '/location-samples', icon: <FaMapMarkerAlt size={14} /> },
                   { name: 'Sub Category', key: 'sub-categories', route: '/sub-categories', icon: <FaSlidersH size={14} /> },
                   { name: 'Parameters', key: 'parameters', route: '/parameters', icon: <FaSlidersH size={14} /> },
-                  { name: 'Price List', key: 'price-lists', route: '/price-lists', icon: <FaFileInvoiceDollar size={14} /> },
                 ].map(item => (
                   <Link
                     key={item.key}

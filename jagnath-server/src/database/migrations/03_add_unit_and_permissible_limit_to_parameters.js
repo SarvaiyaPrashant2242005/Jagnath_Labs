@@ -25,6 +25,11 @@ const runMigration = async () => {
       ALTER TABLE parameters ADD COLUMN IF NOT EXISTS permissible_limit VARCHAR(255);
     `, { transaction });
 
+    // 4. Add price column if not exists
+    await sequelize.query(`
+      ALTER TABLE parameters ADD COLUMN IF NOT EXISTS price NUMERIC(10, 2) DEFAULT 0.00;
+    `, { transaction });
+
     await transaction.commit();
     console.log("✅ Parameter unit & permissible limit migration completed successfully!");
     return { success: true };

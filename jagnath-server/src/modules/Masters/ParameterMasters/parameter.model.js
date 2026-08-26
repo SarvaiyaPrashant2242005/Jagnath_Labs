@@ -64,6 +64,11 @@ const Parameter = sequelize.define("Parameter", {
         allowNull: true,
         field: "permissible_limit"
     },
+    price: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: true,
+        defaultValue: 0.00
+    },
     status: {
         type: DataTypes.ENUM("Active", "Inactive"),
         defaultValue: "Active",

@@ -12,6 +12,10 @@ const runMigration = async () => {
   try {
     console.log("🔍 Checking for existing parameter duplicates considering Location of Sample...");
 
+    await sequelize.query(`
+      ALTER TABLE parameters ADD COLUMN IF NOT EXISTS location_sample_id UUID;
+    `, { transaction });
+
     const [parameterDuplicates] = await sequelize.query(`
       SELECT "companyId",
              COALESCE("subCategoryId", '00000000-0000-0000-0000-000000000000') as subcat,
@@ -62,19 +66,19 @@ const runMigration = async () => {
       console.log("✅ Duplicate Parameters soft-deleted and references remapped.");
     }
 
-    console.log("🛠️ Updating Parameter Unique PostgreSQL Index to include Location of Sample...");
+    console.log("🛠️ Updating Parameter Unique PostgreSQL Index...");
 
     await sequelize.query(`
       DROP INDEX IF EXISTS idx_parameters_company_lower_name;
     `, { transaction });
 
     await sequelize.query(`
-      DROP INDEX IF EXISTS idx_parameters_company_subcat_lower_name;
+      DROP INDEX IF EXISTS idx_parameters_company_subcat_loc_lower_name;
     `, { transaction });
 
     await sequelize.query(`
-      CREATE UNIQUE INDEX IF NOT EXISTS idx_parameters_company_subcat_loc_lower_name
-      ON parameters ("companyId", COALESCE("subCategoryId", '00000000-0000-0000-0000-000000000000'), COALESCE("location_sample_id", '00000000-0000-0000-0000-000000000000'), LOWER(TRIM("parameterName")))
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_parameters_company_subcat_lower_name
+      ON parameters ("companyId", COALESCE("subCategoryId", '00000000-0000-0000-0000-000000000000'), LOWER(TRIM("parameterName")))
       WHERE deleted_at IS NULL;
     `, { transaction });
 

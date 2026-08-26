@@ -75,11 +75,11 @@ const ParameterMaster = () => {
     isPermissibleLimitApplicable: false,
     permissibleLimit: '',
     testMethod: '',
+    price: '',
     status: 'Active',
     companyName: '',
     categoryId: '',
-    subCategoryId: '',
-    locationSampleId: ''
+    subCategoryId: ''
   });
   const [formErrors, setFormErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -327,9 +327,8 @@ const ParameterMaster = () => {
 
     const activeCatId = formData.categoryId ? String(formData.categoryId) : '';
     const activeSubCatId = formData.subCategoryId ? String(formData.subCategoryId) : '';
-    const activeLocId = formData.locationSampleId ? String(formData.locationSampleId) : '';
 
-    const hasFilter = !!(activeCatId || activeSubCatId || activeLocId);
+    const hasFilter = !!(activeCatId || activeSubCatId);
 
     const scoredList = uniqueList.map(p => {
       let score = 0;
@@ -337,7 +336,6 @@ const ParameterMaster = () => {
 
       const pCatId = p.categoryId ? String(p.categoryId) : (p.category?.id ? String(p.category.id) : '');
       const pSubCatId = p.subCategoryId ? String(p.subCategoryId) : (p.subCategory?.id ? String(p.subCategory.id) : '');
-      const pLocId = p.locationSampleId ? String(p.locationSampleId) : (p.locationSample?.id ? String(p.locationSample.id) : '');
 
       if (activeSubCatId && pSubCatId === activeSubCatId) {
         score += 10;
@@ -346,10 +344,6 @@ const ParameterMaster = () => {
       if (activeCatId && pCatId === activeCatId) {
         score += 5;
         matchBadges.push('Discipline Group');
-      }
-      if (activeLocId && pLocId === activeLocId) {
-        score += 2;
-        matchBadges.push('Location');
       }
 
       return {
@@ -368,7 +362,7 @@ const ParameterMaster = () => {
     });
 
     return scoredList;
-  }, [allSavedParameters, formData.categoryId, formData.subCategoryId, formData.locationSampleId]);
+  }, [allSavedParameters, formData.categoryId, formData.subCategoryId]);
 
   const handleSelectExistingParameter = (valOrEvent) => {
     const selectedId = (valOrEvent && typeof valOrEvent === 'object' && valOrEvent.target)
@@ -392,7 +386,6 @@ const ParameterMaster = () => {
     if (matched) {
       const newCatId = formData.categoryId || matched.categoryId || matched.category?.id || '';
       const newSubCatId = formData.subCategoryId || matched.subCategoryId || matched.subCategory?.id || '';
-      const newLocId = formData.locationSampleId || matched.locationSampleId || matched.locationSample?.id || '';
 
       setFormData(prev => ({
         ...prev,
@@ -402,8 +395,7 @@ const ParameterMaster = () => {
         isPermissibleLimitApplicable: matched.isPermissibleLimitApplicable === true || matched.is_permissible_limit_applicable === true,
         permissibleLimit: matched.permissibleLimit || matched.permissible_limit || '',
         categoryId: newCatId,
-        subCategoryId: newSubCatId,
-        locationSampleId: newLocId
+        subCategoryId: newSubCatId
       }));
     }
   };
@@ -543,9 +535,6 @@ const ParameterMaster = () => {
       } else if (sortField === 'subCategoryId') {
         valA = a.subCategory?.name || a.subCategory?.categoryName || '';
         valB = b.subCategory?.name || b.subCategory?.categoryName || '';
-      } else if (sortField === 'locationSampleId') {
-        valA = a.locationSample?.name || a.locationSample?.categoryName || '';
-        valB = b.locationSample?.name || b.locationSample?.categoryName || '';
       } else {
         valA = a[sortField] || '';
         valB = b[sortField] || '';
@@ -652,11 +641,11 @@ const ParameterMaster = () => {
       isPermissibleLimitApplicable: false,
       permissibleLimit: '',
       testMethod: '',
+      price: '',
       status: 'Active',
       companyName: defaultCompanyName,
       categoryId: '',
-      subCategoryId: '',
-      locationSampleId: ''
+      subCategoryId: ''
     });
     setFormErrors({});
     setEditingId(null);
@@ -678,11 +667,11 @@ const ParameterMaster = () => {
       isPermissibleLimitApplicable: param.isPermissibleLimitApplicable === true || param.is_permissible_limit_applicable === true,
       permissibleLimit: param.permissibleLimit || param.permissible_limit || '',
       testMethod: param.testMethod || '',
+      price: param.price !== undefined && param.price !== null ? param.price : '',
       status: param.status || 'Active',
       companyName: param.companyName || (param.company ? (param.company.companyName || param.company.company_name) : ''),
       categoryId: param.categoryId || '',
-      subCategoryId: param.subCategoryId || '',
-      locationSampleId: param.locationSampleId || ''
+      subCategoryId: param.subCategoryId || ''
     });
     setFormErrors({});
     setEditingId(param.id);
@@ -715,12 +704,12 @@ const ParameterMaster = () => {
       isPermissibleLimitApplicable: formData.isPermissibleLimitApplicable,
       permissibleLimit: formData.isPermissibleLimitApplicable ? formData.permissibleLimit : '',
       testMethod: formData.testMethod,
+      price: formData.price !== '' && formData.price !== null ? parseFloat(formData.price) : 0,
       status: formData.status,
       companyId: activeCompId || null,
       companyName: activeCompanyName || formData.companyName,
       categoryId: formData.categoryId || null,
-      subCategoryId: formData.subCategoryId || null,
-      locationSampleId: formData.locationSampleId || null
+      subCategoryId: formData.subCategoryId || null
     };
 
     try {
@@ -1055,7 +1044,6 @@ const ParameterMaster = () => {
                     setFormDepartmentId(e.target.value);
                     handleInputChange({ target: { name: 'categoryId', value: '' } });
                     handleInputChange({ target: { name: 'subCategoryId', value: '' } });
-                    handleInputChange({ target: { name: 'locationSampleId', value: '' } });
                   }}
                   style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.departmentId ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none', backgroundColor: '#ffffff', boxSizing: 'border-box', height: '40px' }}
                 >
@@ -1094,7 +1082,6 @@ const ParameterMaster = () => {
                   onChange={(selectedVal) => {
                     handleInputChange({ target: { name: 'categoryId', value: selectedVal } });
                     handleInputChange({ target: { name: 'subCategoryId', value: '' } });
-                    handleInputChange({ target: { name: 'locationSampleId', value: '' } });
                   }}
                   placeholder="Select Discipline Group"
                   searchPlaceholder="Search discipline group..."
@@ -1126,7 +1113,6 @@ const ParameterMaster = () => {
                   disabled={!formData.categoryId}
                   onChange={(selectedVal) => {
                     handleInputChange({ target: { name: 'subCategoryId', value: selectedVal } });
-                    handleInputChange({ target: { name: 'locationSampleId', value: '' } });
                   }}
                   placeholder="Select Sub Category"
                   searchPlaceholder="Search sub category..."
@@ -1137,33 +1123,6 @@ const ParameterMaster = () => {
                 )}
               </div>
  
-              {/* Location of Sample Dropdown */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Location of Sample</label>
-                  <AddMasterButton
-                    label="Add New Location"
-                    onClick={() => {
-                      if (!formData.subCategoryId) {
-                        triggerToast('Please select a Sub Category first.', 'error');
-                        return;
-                      }
-                      setInlineModal({ isOpen: true, type: 'locationSample', parentData: { subCategoryId: formData.subCategoryId } });
-                    }}
-                  />
-                </div>
-                <SearchableSelect
-                  options={[...formLocationSamplesFiltered].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
-                  value={formData.locationSampleId}
-                  disabled={!formData.subCategoryId}
-                  onChange={(selectedVal) => {
-                    handleInputChange({ target: { name: 'locationSampleId', value: selectedVal } });
-                  }}
-                  placeholder="Select Location of Sample"
-                  searchPlaceholder="Search location..."
-                />
-              </div>
-
               {/* Parameter Name Dropdown OR Manual Entry Text Input */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1280,6 +1239,21 @@ const ParameterMaster = () => {
                   />
                 </div>
               )}
+
+              {/* Price / Testing Rate (₹) */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Price (₹) / Rate</label>
+                <input
+                  type="number"
+                  name="price"
+                  value={formData.price}
+                  onChange={handleInputChange}
+                  placeholder="e.g. 250"
+                  min="0"
+                  step="any"
+                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', fontFamily: 'inherit' }}
+                />
+              </div>
 
               {/* Status sliding toggle switch */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
@@ -1448,10 +1422,10 @@ const ParameterMaster = () => {
                     {renderSortableHeader('PARAMETER NAME', 'parameterName')}
                     {renderSortableHeader('DISCIPLINE GROUP', 'categoryId')}
                     {renderSortableHeader('SUB CATEGORY', 'subCategoryId')}
-                    {renderSortableHeader('LOCATION OF SAMPLE', 'locationSampleId')}
                     {renderSortableHeader('TEST METHOD', 'testMethod')}
                     {renderSortableHeader('UNIT', 'unit')}
                     {renderSortableHeader('PERMISSIBLE LIMIT', 'permissibleLimit')}
+                    {renderSortableHeader('PRICE (₹)', 'price')}
                     {renderSortableHeader('STATUS', 'status')}
                   </tr>
                 </thead>
@@ -1497,11 +1471,13 @@ const ParameterMaster = () => {
                         <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{param.parameterName}</td>
                         <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.categoryName || (param.category ? param.category.categoryName : 'Unassigned')}</td>
                         <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.subCategoryName || 'Unassigned'}</td>
-                        <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.locationSampleName || 'N/A'}</td>
                         <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.testMethod || 'N/A'}</td>
                         <td style={{ padding: '0.75rem 1rem', color: '#334155', fontWeight: 600 }}>{param.unit || '-'}</td>
                         <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>
                           {param.isPermissibleLimitApplicable || param.is_permissible_limit_applicable ? (param.permissibleLimit || param.permissible_limit || 'Applicable') : '-'}
+                        </td>
+                        <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 700 }}>
+                          ₹{param.price !== undefined && param.price !== null ? param.price : 0}
                         </td>
                         <td style={{ padding: '0.75rem 1rem' }}>
                           <span style={{

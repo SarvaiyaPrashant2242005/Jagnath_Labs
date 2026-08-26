@@ -184,37 +184,37 @@ export const MASTER_SCHEMAS = {
       { key: 'departmentName', label: 'Department *', required: true, type: 'string', aliases: ['department', 'department*', 'departmentname', 'departmentname*', 'Department *', 'Department'] },
       { key: 'categoryName', label: 'Discipline Group *', required: true, type: 'string', aliases: ['disciplinegroup', 'disciplinegroup*', 'disciplinegroupname', 'groupname', 'category', 'categoryname', 'Discipline Group *'] },
       { key: 'subCategoryName', label: 'Sub Category', required: false, type: 'string', aliases: ['subcategory', 'subcategoryname', 'subcategory_name', 'Sub Category'] },
-      { key: 'locationOfSample', label: 'Location of Sample', required: false, type: 'string', aliases: ['locationofsample', 'location', 'locationsample', 'locationsamplename', 'location_of_sample', 'Location of Sample', 'Location'] },
       { key: 'parameterName', label: 'Parameter Name *', required: true, type: 'string', aliases: ['parametername', 'parametername*', 'name', 'parameter', 'Parameter Name *'] },
       { key: 'testMethod', label: 'Test Method', required: false, type: 'string', aliases: ['testmethod', 'test_method', 'testingmethod', 'testing_method', 'referencemethod', 'reference_method', 'method', 'Test Method', 'Testing Method', 'Reference Method'] },
       { key: 'unit', label: 'Unit', required: false, type: 'string', aliases: ['unit', 'units', 'Unit'] },
       { key: 'isPermissibleLimitApplicable', label: 'Permissible Limit Applicable?', required: false, type: 'select', options: ['Yes', 'No'], aliases: ['permissiblelimitapplicable', 'permissiblelimitapplicable?', 'ispermissiblelimitapplicable', 'ispermissiblelimitapplicable?', 'Permissible Limit Applicable?'] },
       { key: 'permissibleLimit', label: 'Permissible Limit', required: false, type: 'string', aliases: ['permissiblelimit', 'limit', 'Permissible Limit'] },
+      { key: 'price', label: 'Price (₹)', required: false, type: 'number', aliases: ['price', 'price*', 'rate', 'testingrate', 'Price', 'Price (₹)', 'Price *'] },
       { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'], aliases: ['status', 'Status'] }
     ],
     sampleData: [
       {
-        'Department *': 'WATER DEPARTMENT',
+        'Department *': 'Environment',
         'Discipline Group *': 'WATER TESTING',
         'Sub Category': 'Physical Parameters',
-        'Location of Sample': 'Drinking Water',
         'Parameter Name *': 'pH Level',
         'Test Method': 'APHA, 23rd Edition 2017/4500-H-B',
         'Unit': 'pH',
         'Permissible Limit Applicable?': 'Yes',
         'Permissible Limit': '6.5 - 8.5',
+        'Price (₹)': 250,
         'Status': 'Active'
       },
       {
-        'Department *': 'WATER DEPARTMENT',
+        'Department *': 'Environment',
         'Discipline Group *': 'WATER TESTING',
         'Sub Category': 'Physical Parameters',
-        'Location of Sample': 'Waste Water',
         'Parameter Name *': 'Total Dissolved Solids (TDS)',
         'Test Method': 'IS 3025 (Part 16)',
         'Unit': 'mg/L',
         'Permissible Limit Applicable?': 'Yes',
         'Permissible Limit': '500',
+        'Price (₹)': 350,
         'Status': 'Active'
       }
     ]
