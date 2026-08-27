@@ -1276,6 +1276,7 @@ const TestRequestForm = () => {
                 <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Location of Sample</label>
                 <SearchableSelect
                   options={[
+                    { id: '', name: 'Select Location of Sample' },
                     ...[...locationSamples].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(loc => ({ id: loc.name, name: loc.name })),
                     ...(formData.locationOfSample && !locationSamples.some(l => l.name === formData.locationOfSample)
                       ? [{ id: formData.locationOfSample, name: formData.locationOfSample }]
@@ -1459,24 +1460,6 @@ const TestRequestForm = () => {
                   </span>
                 )}
               </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>
-                    Location of Sample
-                  </label>
-                  <AddMasterButton label="Add New Location" onClick={() => setInlineModal({ isOpen: true, type: 'locationSample', parentData: { companyId: formData.companyId } })} />
-                </div>
-                <SearchableSelect
-                  options={[...locationSamples].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
-                  value={selectedParamLocation}
-                  onChange={(selectedVal) => {
-                    setSelectedParamLocation(selectedVal);
-                  }}
-                  placeholder="All Locations of Sample"
-                  searchPlaceholder="Search location..."
-                />
-              </div>
             </div>
 
             {!formData.categoryId && (!formData.sampleParticular || formData.sampleParticular.length !== 36) ? (
@@ -1501,10 +1484,7 @@ const TestRequestForm = () => {
                   param.subCategoryId === selectedSubCategory ||
                   param.subCategory?.id === selectedSubCategory ||
                   checkedParameters[param.id];
-                const matchesLoc = !selectedParamLocation ||
-                  String(param.locationSampleId || param.location_sample_id) === String(selectedParamLocation) ||
-                  checkedParameters[param.id];
-                return matchesSubCat && matchesLoc;
+                return matchesSubCat;
               });
               const searchFilteredParams = categoryFilteredParams
                 .filter(param => {
