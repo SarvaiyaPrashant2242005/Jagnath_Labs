@@ -1970,9 +1970,6 @@ const TestRequestForm = () => {
             </div>
           </div>
 
-          {/* HIDE MULTIPLE QUOTATIONS FUNCTIONALITY (DISABLED) */}
-          {false && (
-            <>
               {/* Quotation Requirement Card */}
           <div className="test-request-form-card" style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginTop: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc' }}>
@@ -2034,7 +2031,10 @@ const TestRequestForm = () => {
             </div>
           </div>
 
-          {formData.quotationRequired === 'Yes' && formData.quotationType === 'Audit' && (
+          {/* HIDE MULTIPLE QUOTATIONS FUNCTIONALITY (DISABLED) */}
+          {false && (
+            <>
+              {formData.quotationRequired === 'Yes' && formData.quotationType === 'Audit' && (
             <div style={{ marginTop: '2rem' }}>
               {/* Card 1: Basic details */}
               <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
@@ -2289,8 +2289,7 @@ const TestRequestForm = () => {
               <FaPrint />
               <span>Save & TRF PDF</span>
             </button>
-            {/* HIDE MULTIPLE QUOTATIONS FUNCTIONALITY (DISABLED)
-            formData.quotationRequired === 'Yes' && (
+            {formData.quotationRequired === 'Yes' && (
               <button
                 type="button"
                 onClick={handleSaveAndQuotation}
@@ -2300,7 +2299,7 @@ const TestRequestForm = () => {
                 <FaFilePdf />
                 <span>Generate Quotation</span>
               </button>
-            )*/}
+            )}
           </div>
         </div>
 
