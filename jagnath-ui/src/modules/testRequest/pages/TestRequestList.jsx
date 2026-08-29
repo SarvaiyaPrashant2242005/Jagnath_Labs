@@ -411,7 +411,8 @@ const TestRequestList = () => {
                       >
                         <FaPrint size={12} />
                       </button>
-                      {req.quotationRequired === 'Yes' && (
+                      {/* HIDE MULTIPLE QUOTATIONS FUNCTIONALITY (DISABLED)
+                      req.quotationRequired === 'Yes' && (
                         <button 
                           onClick={(e) => { 
                             e.stopPropagation(); 
@@ -426,7 +427,7 @@ const TestRequestList = () => {
                         >
                           <FaFilePdf size={12} />
                         </button>
-                      )}
+                      )*/}
                       <button 
                         onClick={(e) => { e.stopPropagation(); navigate(`/test-requests/edit/${req.id}`); }}
                         style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
