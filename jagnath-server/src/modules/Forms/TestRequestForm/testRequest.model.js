@@ -201,6 +201,16 @@ const TestRequest = sequelize.define("TestRequest", {
         type: DataTypes.STRING,
         allowNull: true,
         field: "quotation_type"
+    },
+    industryType: {
+        type: DataTypes.STRING(50),
+        allowNull: true,
+        field: "industry_type"
+    },
+    industryPrice: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        field: "industry_price"
     }
 }, {
     tableName: "test_requests",

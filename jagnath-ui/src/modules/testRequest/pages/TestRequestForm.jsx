@@ -25,6 +25,7 @@ import {
 import InlineMasterModal from '../../../shared/components/InlineMasterModal/InlineMasterModal';
 import AddMasterButton from '../../../shared/components/InlineMasterModal/AddMasterButton';
 import SearchableSelect from '../../../shared/components/Select/SearchableSelect';
+import { INDUSTRY_TYPES, INDUSTRY_PRICES, INDUSTRY_LABELS } from '../../../shared/constants/industryConstants';
 
 const DEFAULT_INTRO_TEXT = `With the reference to above subject we are herewith sending our offer.
 
@@ -184,7 +185,9 @@ const TestRequestForm = () => {
     includeCaution: false,
     cautionId: '',
     quotationRequired: 'No',
-    quotationType: ''
+    quotationType: '',
+    industryType: '',
+    industryPrice: ''
   });
 
   const [loading, setLoading] = useState(false);
@@ -678,7 +681,9 @@ const TestRequestForm = () => {
           includeCaution: tr.includeCaution !== undefined ? !!tr.includeCaution : false,
           cautionId: tr.cautionId || '',
           quotationRequired: tr.quotationRequired || 'No',
-          quotationType: tr.quotationType || ''
+          quotationType: tr.quotationType || '',
+          industryType: tr.industryType || tr.industry_type || '',
+          industryPrice: tr.industryPrice || tr.industry_price || ''
         });
 
         if (savedSubCatId) {
@@ -865,7 +870,13 @@ const TestRequestForm = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    if (name === 'industryType') {
+      const price = INDUSTRY_PRICES[value] !== undefined ? INDUSTRY_PRICES[value] : '';
+      setFormData(prev => ({ ...prev, industryType: value, industryPrice: price }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
 
     if (name === 'departmentId') {
       setSelectedSubCategory('');
@@ -1313,6 +1324,47 @@ const TestRequestForm = () => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                 <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Date of Collection</label>
                 <input type="date" name="dateOfCollection" value={formData.dateOfCollection} onChange={handleChange} className="premium-input" />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Industry Type</label>
+                <select
+                  name="industryType"
+                  value={formData.industryType}
+                  onChange={handleChange}
+                  className="premium-input"
+                  style={{
+                    backgroundColor: '#ffffff',
+                    color: formData.industryType ? '#0f172a' : '#94a3b8',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="" style={{ color: '#94a3b8' }}>Select Industry Type</option>
+                  {Object.values(INDUSTRY_TYPES).map(type => (
+                    <option key={type} value={type} style={{ color: '#0f172a' }}>
+                      {INDUSTRY_LABELS[type]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Price</label>
+                <input
+                  type="text"
+                  name="industryPrice"
+                  value={formData.industryPrice ? `₹${Number(formData.industryPrice).toLocaleString('en-IN')}` : ''}
+                  className="premium-input"
+                  readOnly={true}
+                  disabled={true}
+                  style={{
+                    backgroundColor: '#f1f5f9',
+                    cursor: 'not-allowed',
+                    color: '#475569',
+                    fontWeight: 600
+                  }}
+                  placeholder="₹0"
+                />
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>

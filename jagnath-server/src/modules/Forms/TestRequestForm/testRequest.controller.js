@@ -3,6 +3,7 @@
  * @description HTTP layer for TestRequest APIs.
  */
 const { createTestRequestSchema, updateTestRequestSchema } = require("./testRequest.validators");
+const { INDUSTRY_PRICES } = require("../../../config/industryConstants");
 const testRequestService = require("./testRequest.service");
 const companyService = require("../../Masters/CompanyMasters/company.service");
 const Company = require("../../Masters/CompanyMasters/company.model");
@@ -121,6 +122,15 @@ const create = async (req, res) => {
             address: value.address !== undefined && value.address !== null && value.address !== "" ? value.address : client.address,
             contactNumber: value.contactNumber !== undefined && value.contactNumber !== null && value.contactNumber !== "" ? value.contactNumber : client.contactNumber
         };
+
+        if (value.industryType && value.industryType.trim() !== "") {
+            const normalizedType = value.industryType.trim().toLowerCase();
+            testRequestData.industryType = normalizedType;
+            testRequestData.industryPrice = INDUSTRY_PRICES[normalizedType] || null;
+        } else {
+            testRequestData.industryType = null;
+            testRequestData.industryPrice = null;
+        }
 
         if (testRequestData.quotationRequired === 'No') {
             testRequestData.quotationType = null;
@@ -328,6 +338,18 @@ const update = async (req, res) => {
             companyId: resolvedCompanyId,
             clientId: resolvedClientId
         };
+
+        if (value.industryType !== undefined) {
+            if (value.industryType && value.industryType.trim() !== "") {
+                const normalizedType = value.industryType.trim().toLowerCase();
+                updateData.industryType = normalizedType;
+                updateData.industryPrice = INDUSTRY_PRICES[normalizedType] || null;
+            } else {
+                updateData.industryType = null;
+                updateData.industryPrice = null;
+            }
+        }
+
         if (updateData.quotationRequired === 'No') {
             updateData.quotationType = null;
         }

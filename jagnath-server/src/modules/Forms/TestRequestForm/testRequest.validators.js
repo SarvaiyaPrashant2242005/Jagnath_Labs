@@ -3,6 +3,7 @@
  * @description Joi validation schemas for TestRequest requests.
  */
 const Joi = require("joi");
+const { INDUSTRY_TYPES } = require("../../../config/industryConstants");
 
 const createTestRequestSchema = Joi.object({
     companyId: Joi.string().required().messages({
@@ -60,7 +61,11 @@ const createTestRequestSchema = Joi.object({
                 "any.required": "Quotation Type is required when Quotation is requested."
             }),
             otherwise: Joi.optional().allow("", null)
-        })
+        }),
+    industryType: Joi.string().valid(...Object.values(INDUSTRY_TYPES)).optional().allow("", null).messages({
+        "any.only": "Industry Type must be small, medium, or large."
+    }),
+    industryPrice: Joi.number().integer().optional().allow(null)
 });
 
 const updateTestRequestSchema = Joi.object({
@@ -117,7 +122,11 @@ const updateTestRequestSchema = Joi.object({
                 "any.required": "Quotation Type is required when Quotation is requested."
             }),
             otherwise: Joi.optional().allow("", null)
-        })
+        }),
+    industryType: Joi.string().valid(...Object.values(INDUSTRY_TYPES)).optional().allow("", null).messages({
+        "any.only": "Industry Type must be small, medium, or large."
+    }),
+    industryPrice: Joi.number().integer().optional().allow(null)
 });
 
 module.exports = {

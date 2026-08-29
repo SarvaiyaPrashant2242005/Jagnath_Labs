@@ -132,24 +132,102 @@ const runMigration = async () => {
         const keeperId = ids[0];
         const removeIds = ids.slice(1);
 
-        await sequelize.query(`
-          UPDATE category_parameter_mapping
-          SET "parameterId" = :keeperId
-          WHERE "parameterId" IN (:removeIds)
-        `, { replacements: { keeperId, removeIds }, transaction });
+        // Remap category_parameter_mapping
+        const [cpmRows] = await sequelize.query(`
+          SELECT id, "companyId", "categoryId", "parameterId"
+          FROM category_parameter_mapping
+          WHERE "parameterId" IN (:removeIds) AND deleted_at IS NULL
+        `, { replacements: { removeIds }, transaction });
 
-        await sequelize.query(`
-          UPDATE price_master
-          SET "parameter_id" = :keeperId
-          WHERE "parameter_id" IN (:removeIds)
-        `, { replacements: { keeperId, removeIds }, transaction });
+        for (const row of cpmRows) {
+          const [exists] = await sequelize.query(`
+            SELECT 1 FROM category_parameter_mapping
+            WHERE "parameterId" = :keeperId
+              AND "companyId" = :companyId
+              AND "categoryId" = :categoryId
+              AND deleted_at IS NULL
+            LIMIT 1
+          `, { replacements: { keeperId, companyId: row.companyId, categoryId: row.categoryId }, transaction });
 
-        await sequelize.query(`
-          UPDATE test_request_parameters
-          SET "parameterId" = :keeperId
-          WHERE "parameterId" IN (:removeIds)
-        `, { replacements: { keeperId, removeIds }, transaction });
+          if (exists.length > 0) {
+            await sequelize.query(`
+              UPDATE category_parameter_mapping
+              SET deleted_at = NOW()
+              WHERE id = :id
+            `, { replacements: { id: row.id }, transaction });
+          } else {
+            await sequelize.query(`
+              UPDATE category_parameter_mapping
+              SET "parameterId" = :keeperId
+              WHERE id = :id
+            `, { replacements: { keeperId, id: row.id }, transaction });
+          }
+        }
 
+        // Remap price_master
+        const [pmRows] = await sequelize.query(`
+          SELECT id, company_id, category_id, parameter_id
+          FROM price_master
+          WHERE "parameter_id" IN (:removeIds) AND deleted_at IS NULL
+        `, { replacements: { removeIds }, transaction });
+
+        for (const row of pmRows) {
+          const [exists] = await sequelize.query(`
+            SELECT 1 FROM price_master
+            WHERE "parameter_id" = :keeperId
+              AND company_id = :companyId
+              AND category_id = :categoryId
+              AND deleted_at IS NULL
+            LIMIT 1
+          `, { replacements: { keeperId, companyId: row.company_id, categoryId: row.category_id }, transaction });
+
+          if (exists.length > 0) {
+            await sequelize.query(`
+              UPDATE price_master
+              SET deleted_at = NOW()
+              WHERE id = :id
+            `, { replacements: { id: row.id }, transaction });
+          } else {
+            await sequelize.query(`
+              UPDATE price_master
+              SET "parameter_id" = :keeperId
+              WHERE id = :id
+            `, { replacements: { keeperId, id: row.id }, transaction });
+          }
+        }
+
+        // Remap test_request_parameters
+        const [trpRows] = await sequelize.query(`
+          SELECT id, "testRequestId", "parameterId"
+          FROM test_request_parameters
+          WHERE "parameterId" IN (:removeIds) AND deleted_at IS NULL
+        `, { replacements: { removeIds }, transaction });
+
+        for (const row of trpRows) {
+          const [exists] = await sequelize.query(`
+            SELECT 1 FROM test_request_parameters
+            WHERE "parameterId" = :keeperId
+              AND "testRequestId" = :testRequestId
+              AND deleted_at IS NULL
+            LIMIT 1
+          `, { replacements: { keeperId, testRequestId: row.testRequestId }, transaction });
+
+          if (exists.length > 0) {
+            await sequelize.query(`
+              UPDATE test_request_parameters
+              SET deleted_at = NOW()
+              WHERE id = :id
+            `, { replacements: { id: row.id }, transaction });
+          } else {
+            await sequelize.query(`
+              UPDATE test_request_parameters
+              SET "parameterId" = :keeperId
+              WHERE id = :id
+            `, { replacements: { keeperId, id: row.id }, transaction });
+          }
+        }
+
+        // Soft delete duplicate parameters
         await sequelize.query(`
           UPDATE parameters
           SET deleted_at = NOW()
