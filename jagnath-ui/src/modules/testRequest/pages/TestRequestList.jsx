@@ -415,11 +415,7 @@ const TestRequestList = () => {
                         <button 
                           onClick={(e) => { 
                             e.stopPropagation(); 
-                            if (req.quotationType === 'Audit') {
-                              navigate(`/test-requests/audit-quotation/edit/${req.id}`);
-                            } else {
-                              window.open(`#/test-requests/quotation/${req.id}`, '_blank'); 
-                            }
+                            window.open(`#/test-requests/quotation/${req.id}`, '_blank'); 
                           }}
                           style={{ background: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                           title="Generate Quotation PDF"

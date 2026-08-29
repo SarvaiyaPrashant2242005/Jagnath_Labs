@@ -1115,14 +1115,10 @@ const TestRequestForm = () => {
   const handleSaveAndQuotation = async () => {
     const savedId = await handleSave();
     if (savedId) {
-      if (formData.quotationType === 'Audit') {
-        window.open(`#/test-requests/audit-quotation/print/${savedId}`, '_blank');
-      } else {
-        window.open(`#/test-requests/quotation/${savedId}`, '_blank');
-        setTimeout(() => {
-          navigate('/test-requests');
-        }, 500);
-      }
+      window.open(`#/test-requests/quotation/${savedId}`, '_blank');
+      setTimeout(() => {
+        navigate('/test-requests');
+      }, 500);
     }
   };
 
