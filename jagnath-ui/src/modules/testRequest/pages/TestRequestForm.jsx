@@ -963,10 +963,11 @@ const TestRequestForm = () => {
       triggerToast('Please select a Sub Category.', 'error');
       return false;
     }
-    if (formData.quotationRequired === 'Yes' && !formData.quotationType) {
-      triggerToast('Please select a Quotation Type.', 'error');
-      return false;
-    }
+    // HIDE MULTIPLE QUOTATIONS FUNCTIONALITY (DISABLED)
+    // if (formData.quotationRequired === 'Yes' && !formData.quotationType) {
+    //   triggerToast('Please select a Quotation Type.', 'error');
+    //   return false;
+    // }
     return true;
   };
 
@@ -1287,6 +1288,7 @@ const TestRequestForm = () => {
                 <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Location of Sample</label>
                 <SearchableSelect
                   options={[
+                    { id: '', name: 'Select Location of Sample' },
                     ...[...locationSamples].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(loc => ({ id: loc.name, name: loc.name })),
                     ...(formData.locationOfSample && !locationSamples.some(l => l.name === formData.locationOfSample)
                       ? [{ id: formData.locationOfSample, name: formData.locationOfSample }]
@@ -1511,24 +1513,6 @@ const TestRequestForm = () => {
                   </span>
                 )}
               </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>
-                    Location of Sample
-                  </label>
-                  <AddMasterButton label="Add New Location" onClick={() => setInlineModal({ isOpen: true, type: 'locationSample', parentData: { companyId: formData.companyId } })} />
-                </div>
-                <SearchableSelect
-                  options={[...locationSamples].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
-                  value={selectedParamLocation}
-                  onChange={(selectedVal) => {
-                    setSelectedParamLocation(selectedVal);
-                  }}
-                  placeholder="All Locations of Sample"
-                  searchPlaceholder="Search location..."
-                />
-              </div>
             </div>
 
             {!formData.categoryId && (!formData.sampleParticular || formData.sampleParticular.length !== 36) ? (
@@ -1553,10 +1537,7 @@ const TestRequestForm = () => {
                   param.subCategoryId === selectedSubCategory ||
                   param.subCategory?.id === selectedSubCategory ||
                   checkedParameters[param.id];
-                const matchesLoc = !selectedParamLocation ||
-                  String(param.locationSampleId || param.location_sample_id) === String(selectedParamLocation) ||
-                  checkedParameters[param.id];
-                return matchesSubCat && matchesLoc;
+                return matchesSubCat;
               });
               const searchFilteredParams = categoryFilteredParams
                 .filter(param => {
@@ -1990,9 +1971,6 @@ const TestRequestForm = () => {
             </div>
           </div>
 
-          {/* HIDE MULTIPLE QUOTATIONS FUNCTIONALITY (DISABLED) */}
-          {false && (
-            <>
               {/* Quotation Requirement Card */}
           <div className="test-request-form-card" style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginTop: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc' }}>
@@ -2030,7 +2008,7 @@ const TestRequestForm = () => {
                 </div>
               </div>
 
-              {/* Quotation Type Dropdown */}
+              {/* HIDE MULTIPLE QUOTATIONS FUNCTIONALITY (DISABLED)
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', opacity: formData.quotationRequired === 'Yes' ? 1 : 0.5 }}>
                 <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>
                   Quotation Type {formData.quotationRequired === 'Yes' && <span style={{ color: '#ef4444' }}>*</span>}
@@ -2051,10 +2029,14 @@ const TestRequestForm = () => {
                   <option value="Monthly Consulting">Monthly Consulting</option>
                 </select>
               </div>
+              */}
             </div>
           </div>
 
-          {formData.quotationRequired === 'Yes' && formData.quotationType === 'Audit' && (
+          {/* HIDE MULTIPLE QUOTATIONS FUNCTIONALITY (DISABLED) */}
+          {false && (
+            <>
+              {formData.quotationRequired === 'Yes' && formData.quotationType === 'Audit' && (
             <div style={{ marginTop: '2rem' }}>
               {/* Card 1: Basic details */}
               <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
