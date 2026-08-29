@@ -8,16 +8,16 @@ const { createTestRequestSchema, updateTestRequestSchema } = require("../src/mod
 console.log("=== RUNNING TEST REQUEST QUOTATION REQUIREMENT VALIDATION TESTS ===");
 
 const runTests = () => {
-    // Test Case 1: Yes without selecting type must fail validation
+    // Test Case 1: Yes without selecting type passes validation
     const case1 = createTestRequestSchema.validate({
         companyId: "comp-123",
         clientId: "client-123",
         quotationRequired: "Yes"
     });
-    if (case1.error && case1.error.message.includes("Quotation Type is required")) {
-        console.log("✅ PASSED: Yes without selecting type fails validation");
+    if (!case1.error) {
+        console.log("✅ PASSED: Yes without selecting type passes validation");
     } else {
-        console.error("❌ FAILED: Yes without selecting type should fail validation", case1.error);
+        console.error("❌ FAILED: Yes without selecting type should pass validation", case1.error);
     }
 
     // Test Case 2: Yes with valid type passes validation

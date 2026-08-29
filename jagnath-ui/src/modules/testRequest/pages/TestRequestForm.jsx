@@ -963,10 +963,11 @@ const TestRequestForm = () => {
       triggerToast('Please select a Sub Category.', 'error');
       return false;
     }
-    if (formData.quotationRequired === 'Yes' && !formData.quotationType) {
-      triggerToast('Please select a Quotation Type.', 'error');
-      return false;
-    }
+    // HIDE MULTIPLE QUOTATIONS FUNCTIONALITY (DISABLED)
+    // if (formData.quotationRequired === 'Yes' && !formData.quotationType) {
+    //   triggerToast('Please select a Quotation Type.', 'error');
+    //   return false;
+    // }
     return true;
   };
 
@@ -2007,7 +2008,7 @@ const TestRequestForm = () => {
                 </div>
               </div>
 
-              {/* Quotation Type Dropdown */}
+              {/* HIDE MULTIPLE QUOTATIONS FUNCTIONALITY (DISABLED)
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', opacity: formData.quotationRequired === 'Yes' ? 1 : 0.5 }}>
                 <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>
                   Quotation Type {formData.quotationRequired === 'Yes' && <span style={{ color: '#ef4444' }}>*</span>}
@@ -2028,6 +2029,7 @@ const TestRequestForm = () => {
                   <option value="Monthly Consulting">Monthly Consulting</option>
                 </select>
               </div>
+              */}
             </div>
           </div>
 
