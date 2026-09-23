@@ -11,6 +11,7 @@
 @import './animation.css';
 @import './dashboard.css';
 @import './responsive.css';
+@import '../../modules/Forms/ProvisionalQuotation/styles/provisionalQuotation.css';
 
 /* Premium Form & Input Styles */
 .premium-ui-form {

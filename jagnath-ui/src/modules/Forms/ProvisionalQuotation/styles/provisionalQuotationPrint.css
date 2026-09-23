@@ -1,0 +1,259 @@
+/**
+ * @file provisionalQuotationPrint.css
+ * @description Official A4 Preview & Clean Print Stylesheet for Provisional Quotations.
+ */
+
+.preview-page-container {
+  padding: 1.5rem;
+  background-color: #f1f5f9;
+  min-height: 100vh;
+}
+
+.a4-preview-scroll-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+  padding-bottom: 3rem;
+}
+
+/* Base A4 Sheet */
+.a4-sheet {
+  background: #ffffff;
+  width: 210mm;
+  min-height: 297mm;
+  padding: 20mm 20mm 15mm 20mm;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: #1e293b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Document Header */
+.company-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: 0.02em;
+  margin: 0 0 4px 0;
+}
+
+.company-sub {
+  font-size: 11px;
+  font-weight: 700;
+  color: #2563eb;
+  letter-spacing: 0.06em;
+  margin: 0 0 2px 0;
+}
+
+.company-accreditation {
+  font-size: 10px;
+  color: #64748b;
+  margin: 0;
+  font-style: italic;
+}
+
+.company-doc-logo {
+  max-height: 60px;
+  max-width: 130px;
+  object-fit: contain;
+}
+
+.header-divider {
+  height: 2px;
+  background: linear-gradient(90deg, #2563eb 0%, #0f172a 100%);
+  margin-top: 12px;
+  margin-bottom: 16px;
+}
+
+/* Metadata & Client Box */
+.meta-line {
+  margin: 0 0 4px 0;
+  font-size: 12px;
+}
+
+.client-recipient-box {
+  background: #f8fafc;
+  border-left: 3px solid #2563eb;
+  padding: 10px 14px;
+  border-radius: 4px;
+}
+
+.recipient-salutation {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.recipient-name {
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.recipient-address {
+  font-size: 12px;
+  color: #334155;
+}
+
+.subject-box {
+  background: #eff6ff;
+  border: 1px dashed #93c5fd;
+  padding: 8px 12px;
+  border-radius: 4px;
+}
+
+.subject-text {
+  font-size: 12.5px;
+  color: #1e3a8a;
+  margin: 0;
+}
+
+.covering-letter-body,
+.covering-letter-body p,
+.covering-letter-body div,
+.covering-letter-body span,
+.covering-letter-body li,
+.intro-paragraphs,
+.intro-paragraphs p,
+.intro-paragraphs div,
+.intro-paragraphs span {
+  font-size: 12.5px !important;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+  line-height: 1.6 !important;
+  color: #1e293b !important;
+}
+
+.covering-letter-body p,
+.intro-paragraphs p {
+  margin: 0 0 10px 0 !important;
+}
+
+/* Document Tables */
+.section-doc-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: #0f172a;
+  border-bottom: 1.5px solid #0f172a;
+  padding-bottom: 4px;
+  margin-bottom: 12px;
+  letter-spacing: 0.03em;
+}
+
+.doc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.doc-table th {
+  background-color: #f1f5f9;
+  color: #0f172a;
+  font-weight: 700;
+  border: 1px solid #cbd5e1;
+  padding: 6px 8px;
+  text-align: left;
+}
+
+.doc-table td {
+  border: 1px solid #e2e8f0;
+  padding: 6px 8px;
+  color: #334155;
+}
+
+.doc-table tfoot td {
+  border-top: 2px solid #94a3b8;
+  padding: 6px 8px;
+}
+
+.doc-scope-list,
+.doc-terms-list {
+  padding-left: 20px;
+  margin: 0;
+}
+
+.doc-scope-list li,
+.doc-terms-list li {
+  font-size: 12px;
+  line-height: 1.55;
+  color: #334155;
+}
+
+/* Signatures */
+.doc-signature-img {
+  max-height: 50px;
+  max-width: 120px;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto 4px auto;
+}
+
+.doc-stamp-img {
+  max-height: 55px;
+  max-width: 110px;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto 4px auto;
+}
+
+.page-number-footer {
+  text-align: right;
+  font-size: 10px;
+  color: #94a3b8;
+  margin-top: 10px;
+}
+
+/* PRINT MEDIA QUERIES */
+@media print {
+  body {
+    background: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide app shell */
+  .preview-toolbar,
+  .dashboard-sidebar,
+  .dashboard-header,
+  .sidebar-backdrop,
+  header,
+  nav {
+    display: none !important;
+  }
+
+  .preview-page-container,
+  .a4-preview-scroll-wrapper,
+  .print-standalone-container {
+    padding: 0 !important;
+    background: #ffffff !important;
+    gap: 0 !important;
+    display: block !important;
+  }
+
+  .a4-sheet,
+  .print-sheet-page {
+    box-shadow: none !important;
+    border: none !important;
+    width: 100% !important;
+    min-height: 100vh !important;
+    padding: 15mm 15mm 12mm 15mm !important;
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+
+  .a4-sheet:last-child,
+  .print-sheet-page:last-child {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+}
