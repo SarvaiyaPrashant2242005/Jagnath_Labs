@@ -52,6 +52,12 @@ const connectDB = async () => {
         const { runMigration: runMigration11 } = require("../database/migrations/11_add_industry_type_and_price_to_test_requests");
         await runMigration11();
 
+        const { runMigration: runMigration12 } = require("../database/migrations/12_add_acceptable_requirement_to_parameters");
+        await runMigration12();
+
+        const { runMigration: runMigration13 } = require("../database/migrations/13_add_is_gpcb_to_parameters");
+        await runMigration13();
+
         // 3. Sync all models with the database
         await sequelize.sync({ alter: true });
         console.log('📂 Database & tables synced!');

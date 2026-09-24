@@ -74,6 +74,7 @@ const ParameterMaster = () => {
     unit: '',
     isPermissibleLimitApplicable: false,
     permissibleLimit: '',
+    acceptableLimit: '',
     testMethod: '',
     price: '',
     status: 'Active',
@@ -378,7 +379,7 @@ const ParameterMaster = () => {
 
     setSelectedExistingParamId(selectedId);
     if (!selectedId) {
-      setFormData(prev => ({ ...prev, parameterName: '', testMethod: '', unit: '', permissibleLimit: '' }));
+      setFormData(prev => ({ ...prev, parameterName: '', testMethod: '', unit: '', permissibleLimit: '', acceptableLimit: '' }));
       return;
     }
 
@@ -394,6 +395,7 @@ const ParameterMaster = () => {
         unit: matched.unit || '',
         isPermissibleLimitApplicable: matched.isPermissibleLimitApplicable === true || matched.is_permissible_limit_applicable === true,
         permissibleLimit: matched.permissibleLimit || matched.permissible_limit || '',
+        acceptableLimit: matched.acceptableLimit || matched.acceptable_limit || '',
         categoryId: newCatId,
         subCategoryId: newSubCatId
       }));
@@ -463,9 +465,11 @@ const ParameterMaster = () => {
         const nameMatch = (p.parameterName || p.name || '').toLowerCase().includes(q);
         const methodMatch = (p.testMethod || '').toLowerCase().includes(q);
         const unitMatch = (p.unit || '').toLowerCase().includes(q);
+        const limitMatch = (p.permissibleLimit || p.permissible_limit || '').toLowerCase().includes(q);
+        const accMatch = (p.acceptableLimit || p.acceptable_limit || '').toLowerCase().includes(q);
         const catMatch = (p.category?.name || p.categoryName || '').toLowerCase().includes(q);
         const subMatch = (p.subCategory?.name || p.subCategoryName || '').toLowerCase().includes(q);
-        if (!nameMatch && !methodMatch && !unitMatch && !catMatch && !subMatch) return false;
+        if (!nameMatch && !methodMatch && !unitMatch && !limitMatch && !accMatch && !catMatch && !subMatch) return false;
       }
 
       return true;
@@ -640,6 +644,7 @@ const ParameterMaster = () => {
       unit: '',
       isPermissibleLimitApplicable: false,
       permissibleLimit: '',
+      acceptableLimit: '',
       testMethod: '',
       price: '',
       status: 'Active',
@@ -666,6 +671,7 @@ const ParameterMaster = () => {
       unit: param.unit || '',
       isPermissibleLimitApplicable: param.isPermissibleLimitApplicable === true || param.is_permissible_limit_applicable === true,
       permissibleLimit: param.permissibleLimit || param.permissible_limit || '',
+      acceptableLimit: param.acceptableLimit || param.acceptable_limit || '',
       testMethod: param.testMethod || '',
       price: param.price !== undefined && param.price !== null ? param.price : '',
       status: param.status || 'Active',
@@ -703,6 +709,7 @@ const ParameterMaster = () => {
       unit: formData.unit,
       isPermissibleLimitApplicable: formData.isPermissibleLimitApplicable,
       permissibleLimit: formData.isPermissibleLimitApplicable ? formData.permissibleLimit : '',
+      acceptableLimit: formData.acceptableLimit || '',
       testMethod: formData.testMethod,
       price: formData.price !== '' && formData.price !== null ? parseFloat(formData.price) : 0,
       status: formData.status,
@@ -787,6 +794,7 @@ const ParameterMaster = () => {
       p.parameterName || p.parameter_name || '',
       p.testMethod || p.test_method || '',
       p.unit || '',
+      p.acceptableLimit || p.acceptable_limit || '',
       isLimitApp ? 'Yes' : 'No',
       isLimitApp ? (p.permissibleLimit || p.permissible_limit || '') : (p.permissibleLimit || p.permissible_limit || ''),
       p.status || 'Active'
@@ -801,6 +809,7 @@ const ParameterMaster = () => {
     'Parameter Name *',
     'Test Method',
     'Unit',
+    'Acceptable / Requirement',
     'Permissible Limit Applicable?',
     'Permissible Limit',
     'Status'
@@ -1202,6 +1211,19 @@ const ParameterMaster = () => {
                 />
               </div>
 
+              {/* Acceptable / Requirement */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Acceptable / Requirement</label>
+                <input
+                  type="text"
+                  name="acceptableLimit"
+                  value={formData.acceptableLimit}
+                  onChange={handleInputChange}
+                  placeholder="e.g. Agreeable, 6.5 - 8.5, 500"
+                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', fontFamily: 'inherit' }}
+                />
+              </div>
+
               {/* Permissible Limit Applicable Switch / Radio */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Permissible Limit Applicable?</label>
@@ -1424,6 +1446,7 @@ const ParameterMaster = () => {
                     {renderSortableHeader('SUB CATEGORY', 'subCategoryId')}
                     {renderSortableHeader('TEST METHOD', 'testMethod')}
                     {renderSortableHeader('UNIT', 'unit')}
+                    {renderSortableHeader('ACCEPTABLE / REQUIREMENT', 'acceptableLimit')}
                     {renderSortableHeader('PERMISSIBLE LIMIT', 'permissibleLimit')}
                     {renderSortableHeader('PRICE (₹)', 'price')}
                     {renderSortableHeader('STATUS', 'status')}
@@ -1432,13 +1455,13 @@ const ParameterMaster = () => {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={11} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                      <td colSpan={12} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                         Loading parameters...
                       </td>
                     </tr>
                   ) : paginatedParameters.length === 0 ? (
                     <tr>
-                      <td colSpan={11} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                      <td colSpan={12} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                         No parameters found.
                       </td>
                     </tr>
@@ -1473,6 +1496,9 @@ const ParameterMaster = () => {
                         <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.subCategoryName || 'Unassigned'}</td>
                         <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.testMethod || 'N/A'}</td>
                         <td style={{ padding: '0.75rem 1rem', color: '#334155', fontWeight: 600 }}>{param.unit || '-'}</td>
+                        <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>
+                          {param.acceptableLimit || param.acceptable_limit || '-'}
+                        </td>
                         <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>
                           {param.isPermissibleLimitApplicable || param.is_permissible_limit_applicable ? (param.permissibleLimit || param.permissible_limit || 'Applicable') : '-'}
                         </td>
@@ -1531,6 +1557,14 @@ const ParameterMaster = () => {
                       </div>
 
                       <div className="master-record-details">
+                        <div className="master-record-detail-item">
+                          <span className="master-record-label">Acceptable / Req.</span>
+                          <span className="master-record-value">{param.acceptableLimit || param.acceptable_limit || '-'}</span>
+                        </div>
+                        <div className="master-record-detail-item">
+                          <span className="master-record-label">Permissible Limit</span>
+                          <span className="master-record-value">{param.permissibleLimit || param.permissible_limit || '-'}</span>
+                        </div>
                         <div className="master-record-detail-item" style={{ gridColumn: '1 / -1' }}>
                           <span className="master-record-label">Test Method</span>
                           <span className="master-record-value">{param.testMethod || 'N/A'}</span>

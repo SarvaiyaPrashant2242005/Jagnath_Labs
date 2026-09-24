@@ -64,6 +64,17 @@ const Parameter = sequelize.define("Parameter", {
         allowNull: true,
         field: "permissible_limit"
     },
+    acceptableLimit: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        field: "acceptable_limit"
+    },
+    isGpcb: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+        allowNull: false,
+        field: "is_gpcb"
+    },
     price: {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: true,

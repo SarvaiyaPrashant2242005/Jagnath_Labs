@@ -133,6 +133,20 @@ const getAllSubCategories = async (query, companyId) => {
         whereClause['$category.departmentId$'] = query.departmentId;
     }
 
+    if (query.gpcbOnly === true || query.gpcbOnly === 'true' || query.gpcb_only === 'true' || query.isGpcb === 'true' || query.is_gpcb === 'true') {
+        const gpcbParams = await db.Parameter.findAll({
+            where: {
+                ...(targetCompanyId ? { companyId: targetCompanyId } : {}),
+                isGpcb: true,
+                deleted_at: null,
+                subCategoryId: { [Op.ne]: null }
+            },
+            attributes: ["subCategoryId"]
+        });
+        const validSubCatIds = Array.from(new Set(gpcbParams.map(p => p.subCategoryId).filter(Boolean)));
+        whereClause.id = { [Op.in]: validSubCatIds };
+    }
+
     const queryOptions = {
         where: whereClause,
         include: [

@@ -57,6 +57,7 @@ const formatTransaction = (trp) => {
         trpObj.unit = trpObj.unit || trpObj.parameter.unit;
         trpObj.isPermissibleLimitApplicable = trpObj.parameter.isPermissibleLimitApplicable;
         trpObj.permissibleLimit = trpObj.parameter.permissibleLimit;
+        trpObj.acceptableLimit = trpObj.parameter.acceptableLimit;
     } else {
         trpObj.parameterName = null;
     }

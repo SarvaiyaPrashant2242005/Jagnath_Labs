@@ -196,6 +196,7 @@ const createParameter = async (parameterData, userId, reqInfo) => {
                 unit: paramFields.unit !== undefined ? paramFields.unit : newParameter.unit,
                 isPermissibleLimitApplicable: paramFields.isPermissibleLimitApplicable !== undefined ? paramFields.isPermissibleLimitApplicable : newParameter.isPermissibleLimitApplicable,
                 permissibleLimit: paramFields.permissibleLimit !== undefined ? paramFields.permissibleLimit : newParameter.permissibleLimit,
+                acceptableLimit: paramFields.acceptableLimit !== undefined ? paramFields.acceptableLimit : newParameter.acceptableLimit,
                 price: paramFields.price !== undefined ? paramFields.price : newParameter.price,
                 status: paramFields.status || newParameter.status
             }, { transaction });
@@ -599,6 +600,10 @@ const getParametersByCompany = async (companyId, options = {}) => {
             queryOptions.subQuery = false;
         }
 
+        if (options.gpcbOnly === true || options.gpcbOnly === 'true') {
+            queryOptions.where.isGpcb = true;
+        }
+
         if (options.limit && options.page && options.all !== 'true' && options.all !== true) {
             queryOptions.limit = parseInt(options.limit);
             queryOptions.offset = (parseInt(options.page) - 1) * queryOptions.limit;
@@ -724,6 +729,7 @@ module.exports = {
                     unit: data.unit || null,
                     isPermissibleLimitApplicable,
                     permissibleLimit: data.permissibleLimit || data.permissible_limit || data.limit || null,
+                    acceptableLimit: data.acceptableLimit || data.acceptable_limit || data.acceptable || data['Acceptable / Requirement'] || data['Acceptable/Requirement'] || data['Acceptable Limit'] || null,
                     price,
                     status: (data.status && ['Active', 'Inactive'].includes(String(data.status).trim())) ? String(data.status).trim() : 'Active'
                 };

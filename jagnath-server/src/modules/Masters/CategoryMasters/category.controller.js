@@ -135,7 +135,8 @@ const getAll = async (req, res) => {
             status: req.query.status,
             sortBy: req.query.sortBy,
             sortOrder: req.query.sortOrder,
-            departmentId: req.query.departmentId
+            departmentId: req.query.departmentId,
+            gpcbOnly: req.query.gpcbOnly || req.query.gpcb_only || req.query.isGpcb || req.query.is_gpcb
         };
 
         const result = await categoryService.getCategoriesByCompany(companyId, options);

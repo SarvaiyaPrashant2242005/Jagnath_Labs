@@ -353,6 +353,45 @@ const getCategoriesByCompany = async (companyId, options = {}) => {
             queryOptions.where.departmentId = options.departmentId;
         }
 
+        if (options.gpcbOnly === true || options.gpcbOnly === 'true') {
+            const SubCategory = require("../SubCategoryMasters/subCategory.model");
+            const Parameter = require("../ParameterMasters/parameter.model");
+            const CategoryParameter = require("../CategoryParameterMasters/categoryParameter.model");
+
+            // Find all category IDs with at least one GPCB parameter
+            const gpcbParams = await Parameter.findAll({
+                where: { companyId, isGpcb: true, deleted_at: null },
+                include: [
+                    {
+                        model: SubCategory,
+                        as: "subCategory",
+                        attributes: ["categoryId"]
+                    },
+                    {
+                        model: CategoryParameter,
+                        as: "categoryParameters",
+                        attributes: ["categoryId"]
+                    }
+                ]
+            });
+
+            const validCatIds = new Set();
+            for (const p of gpcbParams) {
+                if (p.subCategory?.categoryId) {
+                    validCatIds.add(p.subCategory.categoryId);
+                }
+                if (p.categoryParameters) {
+                    for (const cp of p.categoryParameters) {
+                        if (cp.categoryId) {
+                            validCatIds.add(cp.categoryId);
+                        }
+                    }
+                }
+            }
+
+            queryOptions.where.id = { [Op.in]: Array.from(validCatIds) };
+        }
+
         // Apply sorting rules
         if (options.sortBy) {
             const allowedSortFields = ["name", "status", "created_at", "createdAt"];

@@ -112,6 +112,9 @@ const create = async (req, res) => {
             unit: value.unit,
             isPermissibleLimitApplicable: value.isPermissibleLimitApplicable,
             permissibleLimit: value.permissibleLimit,
+            acceptableLimit: value.acceptableLimit,
+            isGpcb: value.isGpcb !== undefined ? value.isGpcb : false,
+            price: value.price !== undefined ? value.price : 0,
             status: value.status || "Active",
             companyId,
             categoryId: value.categoryId,
@@ -172,6 +175,7 @@ const getAll = async (req, res) => {
             categoryId: req.query.categoryId,
             subCategoryId: req.query.subCategoryId,
             departmentId: req.query.departmentId,
+            gpcbOnly: req.query.gpcbOnly || req.query.gpcb_only || req.query.isGpcb || req.query.is_gpcb,
             sortBy: req.query.sortBy,
             sortOrder: req.query.sortOrder
         };
@@ -299,6 +303,9 @@ const update = async (req, res) => {
             unit: value.unit,
             isPermissibleLimitApplicable: value.isPermissibleLimitApplicable,
             permissibleLimit: value.permissibleLimit,
+            acceptableLimit: value.acceptableLimit,
+            isGpcb: value.isGpcb !== undefined ? value.isGpcb : param.isGpcb,
+            price: value.price !== undefined ? value.price : param.price,
             status: value.status,
             companyId: targetCompanyId,
             categoryId: value.categoryId,

@@ -187,6 +187,7 @@ export const MASTER_SCHEMAS = {
       { key: 'parameterName', label: 'Parameter Name *', required: true, type: 'string', aliases: ['parametername', 'parametername*', 'name', 'parameter', 'Parameter Name *'] },
       { key: 'testMethod', label: 'Test Method', required: false, type: 'string', aliases: ['testmethod', 'test_method', 'testingmethod', 'testing_method', 'referencemethod', 'reference_method', 'method', 'Test Method', 'Testing Method', 'Reference Method'] },
       { key: 'unit', label: 'Unit', required: false, type: 'string', aliases: ['unit', 'units', 'Unit'] },
+      { key: 'acceptableLimit', label: 'Acceptable / Requirement', required: false, type: 'string', aliases: ['acceptablelimit', 'acceptable_limit', 'acceptable / requirement', 'acceptable/requirement', 'acceptable', 'requirement', 'Acceptable / Requirement', 'Acceptable Limit'] },
       { key: 'isPermissibleLimitApplicable', label: 'Permissible Limit Applicable?', required: false, type: 'select', options: ['Yes', 'No'], aliases: ['permissiblelimitapplicable', 'permissiblelimitapplicable?', 'ispermissiblelimitapplicable', 'ispermissiblelimitapplicable?', 'Permissible Limit Applicable?'] },
       { key: 'permissibleLimit', label: 'Permissible Limit', required: false, type: 'string', aliases: ['permissiblelimit', 'limit', 'Permissible Limit'] },
       { key: 'price', label: 'Price (₹)', required: false, type: 'number', aliases: ['price', 'price*', 'rate', 'testingrate', 'Price', 'Price (₹)', 'Price *'] },
@@ -200,6 +201,7 @@ export const MASTER_SCHEMAS = {
         'Parameter Name *': 'pH Level',
         'Test Method': 'APHA, 23rd Edition 2017/4500-H-B',
         'Unit': 'pH',
+        'Acceptable / Requirement': '6.5 - 8.5',
         'Permissible Limit Applicable?': 'Yes',
         'Permissible Limit': '6.5 - 8.5',
         'Price (₹)': 250,
@@ -212,8 +214,9 @@ export const MASTER_SCHEMAS = {
         'Parameter Name *': 'Total Dissolved Solids (TDS)',
         'Test Method': 'IS 3025 (Part 16)',
         'Unit': 'mg/L',
+        'Acceptable / Requirement': '500',
         'Permissible Limit Applicable?': 'Yes',
-        'Permissible Limit': '500',
+        'Permissible Limit': '2000',
         'Price (₹)': 350,
         'Status': 'Active'
       }

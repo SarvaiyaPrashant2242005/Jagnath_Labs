@@ -139,6 +139,7 @@ const TestRequestForm = () => {
   const [priceMasterMap, setPriceMasterMap] = useState({});
 
   // State for dynamic parameter checklist & pagination
+  const [isGpcbOnly, setIsGpcbOnly] = useState(false);
   const [parameters, setParameters] = useState([]);
   const [checkedParameters, setCheckedParameters] = useState({});
   const [selectedParamSequence, setSelectedParamSequence] = useState([]);
@@ -745,7 +746,23 @@ const TestRequestForm = () => {
 
   const [categoriesLoading, setCategoriesLoading] = useState(false);
 
-  const fetchCategoriesForDepartment = async (departmentId) => {
+  const fetchDepartmentsList = async (gpcbOnlyFlag = isGpcbOnly) => {
+    try {
+      const activeCompId = formData.companyId || localStorage.getItem('selectedCompanyId') || '';
+      let url = `${DEPARTMENT_ENDPOINTS.GET_ALL}?companyId=${activeCompId}&status=Active&limit=500`;
+      if (gpcbOnlyFlag) {
+        url += '&gpcbOnly=true';
+      }
+      const res = await apiService.get(url);
+      if (res?.data) {
+        setDepartments(res.data.rows || res.data || []);
+      }
+    } catch (e) {
+      console.error("Error fetching departments", e);
+    }
+  };
+
+  const fetchCategoriesForDepartment = async (departmentId, gpcbOnlyFlag = isGpcbOnly) => {
     if (!departmentId) {
       setCategories([]);
       return;
@@ -753,7 +770,11 @@ const TestRequestForm = () => {
     setCategoriesLoading(true);
     try {
       const activeCompId = formData.companyId || localStorage.getItem('selectedCompanyId') || '';
-      const res = await apiService.get(`${CATEGORY_ENDPOINTS.GET_ALL}?departmentId=${departmentId}&companyId=${activeCompId}&status=Active&limit=1000&all=true`);
+      let url = `${CATEGORY_ENDPOINTS.GET_ALL}?departmentId=${departmentId}&companyId=${activeCompId}&status=Active&limit=1000&all=true`;
+      if (gpcbOnlyFlag) {
+        url += '&gpcbOnly=true';
+      }
+      const res = await apiService.get(url);
       const raw = res?.data;
       let list = Array.isArray(raw) ? raw : (raw?.rows || raw?.categories || raw?.data || []);
       setCategories(list.filter(c => c.status === 'Active' || c.status === true || !c.status));
@@ -765,14 +786,18 @@ const TestRequestForm = () => {
     }
   };
 
-  const fetchSubCategoriesForCategory = async (categoryId) => {
+  const fetchSubCategoriesForCategory = async (categoryId, gpcbOnlyFlag = isGpcbOnly) => {
     if (!categoryId) {
       setSubCategories([]);
       return;
     }
     setSubCategoriesLoading(true);
     try {
-      const res = await apiService.get(`${SUB_CATEGORY_ENDPOINTS.GET_ALL}?categoryId=${categoryId}&status=Active&all=true`);
+      let url = `${SUB_CATEGORY_ENDPOINTS.GET_ALL}?categoryId=${categoryId}&status=Active&all=true`;
+      if (gpcbOnlyFlag) {
+        url += '&gpcbOnly=true';
+      }
+      const res = await apiService.get(url);
       const raw = res?.data;
       let list = Array.isArray(raw) ? raw : (raw?.rows || raw?.subCategories || raw?.data || []);
       if (!Array.isArray(list)) list = [];
@@ -796,7 +821,7 @@ const TestRequestForm = () => {
     }
   };
 
-  const fetchParameters = async (subCategoryId, categoryId, extraIncludeIds = []) => {
+  const fetchParameters = async (subCategoryId, categoryId, extraIncludeIds = [], gpcbOnlyFlag = isGpcbOnly) => {
     if (!subCategoryId && !categoryId && (!extraIncludeIds || extraIncludeIds.length === 0)) {
       setParameters([]);
       setParametersLoading(false);
@@ -809,6 +834,9 @@ const TestRequestForm = () => {
         url += `&subCategoryId=${subCategoryId}`;
       } else if (categoryId) {
         url += `&categoryId=${categoryId}`;
+      }
+      if (gpcbOnlyFlag) {
+        url += '&gpcbOnly=true';
       }
       const res = await apiService.get(url);
       let list = [];
@@ -843,6 +871,30 @@ const TestRequestForm = () => {
     }
   };
 
+  const handleToggleGpcb = async (e) => {
+    const nextGpcb = e.target.checked;
+    setIsGpcbOnly(nextGpcb);
+
+    // Clear dependent selection to prevent mismatched stale states
+    setSelectedSubCategory('');
+    setFormData(prev => ({
+      ...prev,
+      departmentId: '',
+      categoryId: '',
+      subCategoryId: ''
+    }));
+    setCategories([]);
+    setSubCategories([]);
+    setParameters([]);
+    setCheckedParameters({});
+    setSelectedParamSequence([]);
+    setParamPage(1);
+    setParamSearch('');
+
+    // Fetch fresh departments list with new GPCB state
+    await fetchDepartmentsList(nextGpcb);
+  };
+
   const handleSubCategoryChange = (e) => {
     const subId = e.target.value;
     setSelectedSubCategory(subId);
@@ -850,9 +902,9 @@ const TestRequestForm = () => {
     setParamPage(1);
     setCheckedParameters({});
     if (subId) {
-      fetchParameters(subId, formData.categoryId);
+      fetchParameters(subId, formData.categoryId, [], isGpcbOnly);
     } else if (formData.categoryId) {
-      fetchParameters('', formData.categoryId);
+      fetchParameters('', formData.categoryId, [], isGpcbOnly);
     } else {
       setParameters([]);
     }
@@ -907,7 +959,7 @@ const TestRequestForm = () => {
       setParamPage(1);
       setParamSearch('');
       if (value) {
-        fetchCategoriesForDepartment(value);
+        fetchCategoriesForDepartment(value, isGpcbOnly);
       } else {
         setCategories([]);
       }
@@ -921,8 +973,8 @@ const TestRequestForm = () => {
       setParamPage(1);
       setParamSearch('');
       if (value) {
-        fetchSubCategoriesForCategory(value);
-        fetchParameters('', value);
+        fetchSubCategoriesForCategory(value, isGpcbOnly);
+        fetchParameters('', value, [], isGpcbOnly);
       } else {
         setSubCategories([]);
       }
@@ -1591,9 +1643,64 @@ const TestRequestForm = () => {
 
           {/* Testing Parameters Card */}
           <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc' }}>
-              <div style={{ width: '12px', height: '24px', background: 'linear-gradient(to bottom, #8b5cf6, #a78bfa)', borderRadius: '6px' }}></div>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Testing Parameters</h3>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ width: '12px', height: '24px', background: 'linear-gradient(to bottom, #8b5cf6, #a78bfa)', borderRadius: '6px' }}></div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Testing Parameters</h3>
+              </div>
+              
+              {/* GPCB Parameters Toggle */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.6rem',
+                  cursor: 'pointer',
+                  padding: '0.45rem 0.9rem',
+                  borderRadius: '10px',
+                  backgroundColor: isGpcbOnly ? '#f0fdf4' : '#f8fafc',
+                  border: isGpcbOnly ? '1.5px solid #86efac' : '1.5px solid #e2e8f0',
+                  transition: 'all 0.2s ease',
+                  userSelect: 'none'
+                }}>
+                  <input
+                    type="checkbox"
+                    id="gpcb-toggle"
+                    checked={isGpcbOnly}
+                    onChange={handleToggleGpcb}
+                    style={{
+                      width: '1.2rem',
+                      height: '1.2rem',
+                      accentColor: '#16a34a',
+                      cursor: 'pointer'
+                    }}
+                  />
+                  <span style={{
+                    fontSize: '0.9rem',
+                    fontWeight: isGpcbOnly ? 700 : 600,
+                    color: isGpcbOnly ? '#15803d' : '#475569'
+                  }}>
+                    GPCB Parameters Only
+                  </span>
+                </label>
+                {isGpcbOnly && (
+                  <span style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    backgroundColor: '#dcfce7',
+                    color: '#15803d',
+                    padding: '0.3rem 0.65rem',
+                    borderRadius: '20px',
+                    border: '1px solid #bbf7d0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem'
+                  }}>
+                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#16a34a', display: 'inline-block' }}></span>
+                    GPCB Mode Active
+                  </span>
+                )}
+              </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
