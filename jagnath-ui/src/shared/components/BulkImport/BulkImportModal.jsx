@@ -185,6 +185,8 @@ const BulkImportModal = ({
     const errStr = Object.values(r._errors || {}).join(' ').toLowerCase();
     return errStr.includes('duplicate') || errStr.includes('exists');
   }).length;
+  const gpcbCount = rows.filter(r => r.data?.isGpcb === 'GPCB' || r.data?.isGpcb === true).length;
+  const normalCount = rows.filter(r => r.data?.isGpcb === 'Normal' || r.data?.isGpcb === false || (!r.data?.isGpcb && r.data?.isGpcb !== 'GPCB')).length;
 
   // Filtered rows for preview table
   const displayedRows = rows.filter(r => {
@@ -601,6 +603,18 @@ const BulkImportModal = ({
                   <div className="stat-title">Total Uploaded</div>
                   <div className="stat-val">{totalCount}</div>
                 </div>
+                {masterType === 'parameter' && (
+                  <>
+                    <div className="stat-card" style={{ background: '#f0fdf4', borderColor: '#bbf7d0' }}>
+                      <div className="stat-title" style={{ color: '#15803d' }}>🏷️ GPCB Tagged</div>
+                      <div className="stat-val" style={{ color: '#16a34a' }}>{gpcbCount}</div>
+                    </div>
+                    <div className="stat-card" style={{ background: '#f8fafc', borderColor: '#cbd5e1' }}>
+                      <div className="stat-title" style={{ color: '#475569' }}>🏷️ Normal Tagged</div>
+                      <div className="stat-val" style={{ color: '#334155' }}>{normalCount}</div>
+                    </div>
+                  </>
+                )}
                 <div className="stat-card new">
                   <div className="stat-title">New Records</div>
                   <div className="stat-val">{newCount}</div>

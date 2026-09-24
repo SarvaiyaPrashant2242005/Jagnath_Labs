@@ -56,6 +56,7 @@ const ParameterMaster = () => {
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [typeFilter, setTypeFilter] = useState('ALL');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [subCategoryFilter, setSubCategoryFilter] = useState('');
   const [subCategoriesFilterList, setSubCategoriesFilterList] = useState([]);
@@ -75,6 +76,7 @@ const ParameterMaster = () => {
     isPermissibleLimitApplicable: false,
     permissibleLimit: '',
     acceptableLimit: '',
+    isGpcb: false,
     testMethod: '',
     price: '',
     status: 'Active',
@@ -396,6 +398,7 @@ const ParameterMaster = () => {
         isPermissibleLimitApplicable: matched.isPermissibleLimitApplicable === true || matched.is_permissible_limit_applicable === true,
         permissibleLimit: matched.permissibleLimit || matched.permissible_limit || '',
         acceptableLimit: matched.acceptableLimit || matched.acceptable_limit || '',
+        isGpcb: matched.isGpcb === true || matched.is_gpcb === true,
         categoryId: newCatId,
         subCategoryId: newSubCatId
       }));
@@ -417,9 +420,12 @@ const ParameterMaster = () => {
       if (response && response.data) {
         const raw = response.data;
         const list = Array.isArray(raw) ? raw : (raw.rows || raw.parameters || raw.data || []);
-        setParameters(Array.isArray(list) ? list : []);
+        const validList = Array.isArray(list) ? list : [];
+        setParameters(validList);
+        setAllSavedParameters(validList);
       } else {
         setParameters([]);
+        setAllSavedParameters([]);
       }
     } catch (err) {
       if (err.status !== 404 && err.errorCode !== 'NOT_FOUND') {
@@ -459,7 +465,14 @@ const ParameterMaster = () => {
         if (statusStr !== statusFilter.toLowerCase()) return false;
       }
 
-      // 4. Search Query Filter
+      // 4. Type Filter (GPCB / Normal)
+      if (typeFilter !== 'ALL') {
+        const isParamGpcb = p.isGpcb === true || p.is_gpcb === true;
+        if (typeFilter === 'GPCB' && !isParamGpcb) return false;
+        if (typeFilter === 'Normal' && isParamGpcb) return false;
+      }
+
+      // 5. Search Query Filter
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
         const nameMatch = (p.parameterName || p.name || '').toLowerCase().includes(q);
@@ -477,7 +490,7 @@ const ParameterMaster = () => {
 
     // Sort Latest Added First (descending order by timestamp or ID)
     return list;
-  }, [parameters, departmentFilter, categoryFilter, subCategoryFilter, statusFilter, searchQuery]);
+  }, [parameters, departmentFilter, categoryFilter, subCategoryFilter, statusFilter, typeFilter, searchQuery]);
 
   const handleSort = (field) => {
     if (sortField !== field) {
@@ -645,6 +658,7 @@ const ParameterMaster = () => {
       isPermissibleLimitApplicable: false,
       permissibleLimit: '',
       acceptableLimit: '',
+      isGpcb: false,
       testMethod: '',
       price: '',
       status: 'Active',
@@ -672,6 +686,7 @@ const ParameterMaster = () => {
       isPermissibleLimitApplicable: param.isPermissibleLimitApplicable === true || param.is_permissible_limit_applicable === true,
       permissibleLimit: param.permissibleLimit || param.permissible_limit || '',
       acceptableLimit: param.acceptableLimit || param.acceptable_limit || '',
+      isGpcb: param.isGpcb === true || param.is_gpcb === true,
       testMethod: param.testMethod || '',
       price: param.price !== undefined && param.price !== null ? param.price : '',
       status: param.status || 'Active',
@@ -710,6 +725,7 @@ const ParameterMaster = () => {
       isPermissibleLimitApplicable: formData.isPermissibleLimitApplicable,
       permissibleLimit: formData.isPermissibleLimitApplicable ? formData.permissibleLimit : '',
       acceptableLimit: formData.acceptableLimit || '',
+      isGpcb: formData.isGpcb === true,
       testMethod: formData.testMethod,
       price: formData.price !== '' && formData.price !== null ? parseFloat(formData.price) : 0,
       status: formData.status,
@@ -786,6 +802,7 @@ const ParameterMaster = () => {
   // Helper to map parameter record to bulk import template columns format
   const mapParameterToTemplateRow = (p) => {
     const isLimitApp = p.isPermissibleLimitApplicable === true || p.is_permissible_limit_applicable === true;
+    const isGpcb = p.isGpcb === true || p.is_gpcb === true;
     return [
       p.departmentName || p.department_name || '',
       p.categoryName || p.category_name || '',
@@ -797,6 +814,7 @@ const ParameterMaster = () => {
       p.acceptableLimit || p.acceptable_limit || '',
       isLimitApp ? 'Yes' : 'No',
       isLimitApp ? (p.permissibleLimit || p.permissible_limit || '') : (p.permissibleLimit || p.permissible_limit || ''),
+      isGpcb ? 'GPCB' : 'Normal',
       p.status || 'Active'
     ];
   };
@@ -812,6 +830,7 @@ const ParameterMaster = () => {
     'Acceptable / Requirement',
     'Permissible Limit Applicable?',
     'Permissible Limit',
+    'Parameter Type',
     'Status'
   ];
 
@@ -1262,6 +1281,29 @@ const ParameterMaster = () => {
                 </div>
               )}
 
+              {/* Parameter Type (GPCB vs Normal) Switch / Radio */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Parameter Type</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', height: '42px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600, color: '#64748b' }}>
+                    <input
+                      type="radio"
+                      name="isGpcb"
+                      checked={formData.isGpcb === false}
+                      onChange={() => setFormData(prev => ({ ...prev, isGpcb: false }))}
+                    /> Normal
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600, color: '#15803d' }}>
+                    <input
+                      type="radio"
+                      name="isGpcb"
+                      checked={formData.isGpcb === true}
+                      onChange={() => setFormData(prev => ({ ...prev, isGpcb: true }))}
+                    /> GPCB
+                  </label>
+                </div>
+              </div>
+
               {/* Price / Testing Rate (₹) */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Price (₹) / Rate</label>
@@ -1413,13 +1455,31 @@ const ParameterMaster = () => {
 
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setCurrentPage(1);
+              }}
               style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem' }}
             >
               <option value="ALL">ALL STATUS</option>
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
             </select>
+
+            {/* Type Filter (All Types / GPCB / Normal) */}
+            <select
+              value={typeFilter}
+              onChange={(e) => {
+                setTypeFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', backgroundColor: typeFilter === 'GPCB' ? '#f0fdf4' : '#ffffff', color: typeFilter === 'GPCB' ? '#15803d' : '#1e293b', fontWeight: typeFilter !== 'ALL' ? 600 : 400 }}
+            >
+              <option value="ALL">ALL TYPES</option>
+              <option value="GPCB">GPCB</option>
+              <option value="Normal">Normal</option>
+            </select>
+
             <input
               type="text"
               placeholder="Search parameter name..."
@@ -1444,6 +1504,7 @@ const ParameterMaster = () => {
                     {renderSortableHeader('PARAMETER NAME', 'parameterName')}
                     {renderSortableHeader('DISCIPLINE GROUP', 'categoryId')}
                     {renderSortableHeader('SUB CATEGORY', 'subCategoryId')}
+                    {renderSortableHeader('TYPE', 'isGpcb')}
                     {renderSortableHeader('TEST METHOD', 'testMethod')}
                     {renderSortableHeader('UNIT', 'unit')}
                     {renderSortableHeader('ACCEPTABLE / REQUIREMENT', 'acceptableLimit')}
@@ -1455,71 +1516,88 @@ const ParameterMaster = () => {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={12} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                      <td colSpan={13} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                         Loading parameters...
                       </td>
                     </tr>
                   ) : paginatedParameters.length === 0 ? (
                     <tr>
-                      <td colSpan={12} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                      <td colSpan={13} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                         No parameters found.
                       </td>
                     </tr>
                   ) : (
-                    paginatedParameters.map((param, index) => (
-                      <tr
-                        key={param.id}
-                        onClick={() => handleOpenEdit(param)}
-                        style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background-color 0.15s' }}
-                        className="company-table-row"
-                      >
-                        <td style={{ padding: '0.75rem 1rem', display: 'flex', gap: '0.5rem' }}>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleOpenEdit(param); }}
-                            style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
-                            title="Edit"
-                          >
-                            <FaEdit size={12} />
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleDelete(param.id, param.parameterName); }}
-                            style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
-                            title="Delete"
-                          >
-                            <FaTrash size={12} />
-                          </button>
-                        </td>
-                        <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
-                        <td style={{ padding: '0.75rem 1rem', color: '#64748b', fontWeight: 500 }}>{param.departmentName || (param.category?.department?.name) || 'Department Not Assigned'}</td>
-                        <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{param.parameterName}</td>
-                        <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.categoryName || (param.category ? param.category.categoryName : 'Unassigned')}</td>
-                        <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.subCategoryName || 'Unassigned'}</td>
-                        <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.testMethod || 'N/A'}</td>
-                        <td style={{ padding: '0.75rem 1rem', color: '#334155', fontWeight: 600 }}>{param.unit || '-'}</td>
-                        <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>
-                          {param.acceptableLimit || param.acceptable_limit || '-'}
-                        </td>
-                        <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>
-                          {param.isPermissibleLimitApplicable || param.is_permissible_limit_applicable ? (param.permissibleLimit || param.permissible_limit || 'Applicable') : '-'}
-                        </td>
-                        <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 700 }}>
-                          ₹{param.price !== undefined && param.price !== null ? param.price : 0}
-                        </td>
-                        <td style={{ padding: '0.75rem 1rem' }}>
-                          <span style={{
-                            display: 'inline-block',
-                            padding: '0.125rem 0.5rem',
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
-                            borderRadius: '12px',
-                            backgroundColor: param.status === 'Active' ? '#dcfce7' : '#fee2e2',
-                            color: param.status === 'Active' ? '#15803d' : '#991b1b'
-                          }}>
-                            {param.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))
+                    paginatedParameters.map((param, index) => {
+                      const isGpcb = param.isGpcb === true || param.is_gpcb === true;
+                      return (
+                        <tr
+                          key={param.id}
+                          onClick={() => handleOpenEdit(param)}
+                          style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background-color 0.15s' }}
+                          className="company-table-row"
+                        >
+                          <td style={{ padding: '0.75rem 1rem', display: 'flex', gap: '0.5rem' }}>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleOpenEdit(param); }}
+                              style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
+                              title="Edit"
+                            >
+                              <FaEdit size={12} />
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDelete(param.id, param.parameterName); }}
+                              style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
+                              title="Delete"
+                            >
+                              <FaTrash size={12} />
+                            </button>
+                          </td>
+                          <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
+                          <td style={{ padding: '0.75rem 1rem', color: '#64748b', fontWeight: 500 }}>{param.departmentName || (param.category?.department?.name) || 'Department Not Assigned'}</td>
+                          <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{param.parameterName}</td>
+                          <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.categoryName || (param.category ? param.category.categoryName : 'Unassigned')}</td>
+                          <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.subCategoryName || 'Unassigned'}</td>
+                          <td style={{ padding: '0.75rem 1rem' }}>
+                            <span style={{
+                              display: 'inline-block',
+                              padding: '0.15rem 0.55rem',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              borderRadius: '12px',
+                              backgroundColor: isGpcb ? '#dcfce7' : '#f1f5f9',
+                              color: isGpcb ? '#15803d' : '#475569',
+                              border: isGpcb ? '1px solid #bbf7d0' : '1px solid #e2e8f0'
+                            }}>
+                              {isGpcb ? 'GPCB' : 'Normal'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.testMethod || 'N/A'}</td>
+                          <td style={{ padding: '0.75rem 1rem', color: '#334155', fontWeight: 600 }}>{param.unit || '-'}</td>
+                          <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>
+                            {param.acceptableLimit || param.acceptable_limit || '-'}
+                          </td>
+                          <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>
+                            {param.isPermissibleLimitApplicable || param.is_permissible_limit_applicable ? (param.permissibleLimit || param.permissible_limit || 'Applicable') : '-'}
+                          </td>
+                          <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 700 }}>
+                            ₹{param.price !== undefined && param.price !== null ? param.price : 0}
+                          </td>
+                          <td style={{ padding: '0.75rem 1rem' }}>
+                            <span style={{
+                              display: 'inline-block',
+                              padding: '0.125rem 0.5rem',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              borderRadius: '12px',
+                              backgroundColor: param.status === 'Active' ? '#dcfce7' : '#fee2e2',
+                              color: param.status === 'Active' ? '#15803d' : '#991b1b'
+                            }}>
+                              {param.status}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -1537,56 +1615,78 @@ const ParameterMaster = () => {
                 </div>
               ) : (
                 <div className="master-card-grid">
-                  {paginatedParameters.map((param, index) => (
-                    <div key={param.id} className="master-record-card" onClick={() => handleOpenEdit(param)}>
-                      <div className="master-record-card-header">
-                        <div>
-                          <div className="master-record-title">{param.parameterName}</div>
-                          <div className="master-record-subtitle">#{(currentPage - 1) * pageSize + index + 1} • {param.categoryName || (param.category ? param.category.categoryName : 'Unassigned')}</div>
+                  {paginatedParameters.map((param, index) => {
+                    const isGpcb = param.isGpcb === true || param.is_gpcb === true;
+                    return (
+                      <div key={param.id} className="master-record-card" onClick={() => handleOpenEdit(param)}>
+                        <div className="master-record-card-header">
+                          <div>
+                            <div className="master-record-title">{param.parameterName}</div>
+                            <div className="master-record-subtitle">#{(currentPage - 1) * pageSize + index + 1} • {param.categoryName || (param.category ? param.category.categoryName : 'Unassigned')}</div>
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+                            <span style={{
+                              padding: '0.15rem 0.5rem',
+                              fontSize: '0.7rem',
+                              fontWeight: 700,
+                              borderRadius: '10px',
+                              backgroundColor: isGpcb ? '#dcfce7' : '#f1f5f9',
+                              color: isGpcb ? '#15803d' : '#475569',
+                              border: isGpcb ? '1px solid #bbf7d0' : '1px solid #e2e8f0'
+                            }}>
+                              {isGpcb ? 'GPCB' : 'Normal'}
+                            </span>
+                            <span style={{
+                              padding: '0.2rem 0.6rem',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              borderRadius: '12px',
+                              backgroundColor: param.status === 'Active' ? '#dcfce7' : '#fee2e2',
+                              color: param.status === 'Active' ? '#15803d' : '#991b1b'
+                            }}>
+                              {param.status}
+                            </span>
+                          </div>
                         </div>
-                        <span style={{
-                          padding: '0.2rem 0.6rem',
-                          fontSize: '0.75rem',
-                          fontWeight: 700,
-                          borderRadius: '12px',
-                          backgroundColor: param.status === 'Active' ? '#dcfce7' : '#fee2e2',
-                          color: param.status === 'Active' ? '#15803d' : '#991b1b'
-                        }}>
-                          {param.status}
-                        </span>
-                      </div>
 
-                      <div className="master-record-details">
-                        <div className="master-record-detail-item">
-                          <span className="master-record-label">Acceptable / Req.</span>
-                          <span className="master-record-value">{param.acceptableLimit || param.acceptable_limit || '-'}</span>
+                        <div className="master-record-details">
+                          <div className="master-record-detail-item">
+                            <span className="master-record-label">Type</span>
+                            <span className="master-record-value" style={{ fontWeight: 600, color: isGpcb ? '#15803d' : '#475569' }}>
+                              {isGpcb ? 'GPCB Approved' : 'Normal'}
+                            </span>
+                          </div>
+                          <div className="master-record-detail-item">
+                            <span className="master-record-label">Acceptable / Req.</span>
+                            <span className="master-record-value">{param.acceptableLimit || param.acceptable_limit || '-'}</span>
+                          </div>
+                          <div className="master-record-detail-item">
+                            <span className="master-record-label">Permissible Limit</span>
+                            <span className="master-record-value">{param.permissibleLimit || param.permissible_limit || '-'}</span>
+                          </div>
+                          <div className="master-record-detail-item" style={{ gridColumn: '1 / -1' }}>
+                            <span className="master-record-label">Test Method</span>
+                            <span className="master-record-value">{param.testMethod || 'N/A'}</span>
+                          </div>
                         </div>
-                        <div className="master-record-detail-item">
-                          <span className="master-record-label">Permissible Limit</span>
-                          <span className="master-record-value">{param.permissibleLimit || param.permissible_limit || '-'}</span>
-                        </div>
-                        <div className="master-record-detail-item" style={{ gridColumn: '1 / -1' }}>
-                          <span className="master-record-label">Test Method</span>
-                          <span className="master-record-value">{param.testMethod || 'N/A'}</span>
-                        </div>
-                      </div>
 
-                      <div className="master-record-actions">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleOpenEdit(param); }}
-                          style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-                        >
-                          <FaEdit size={12} /> Edit
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleDelete(param.id, param.parameterName); }}
-                          style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-                        >
-                          <FaTrash size={12} /> Delete
-                        </button>
+                        <div className="master-record-actions">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleOpenEdit(param); }}
+                            style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                          >
+                            <FaEdit size={12} /> Edit
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDelete(param.id, param.parameterName); }}
+                            style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                          >
+                            <FaTrash size={12} /> Delete
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1612,14 +1712,30 @@ const ParameterMaster = () => {
                       {catName} <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500, marginLeft: '0.25rem' }}>({params.length})</span>
                     </h4>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      {params.map((p, idx) => (
-                        <div key={p.id} style={{ display: 'flex', alignItems: 'center', padding: '0.35rem 0', borderBottom: idx !== params.length - 1 ? '1px dashed #e2e8f0' : 'none' }}>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontWeight: 500, color: '#334155', fontSize: '0.85rem' }}>{p.parameterName}</div>
-                            {p.testMethod && <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.15rem' }}>Method: {p.testMethod}</div>}
+                      {params.map((p, idx) => {
+                        const isGpcb = p.isGpcb === true || p.is_gpcb === true;
+                        return (
+                          <div key={p.id} style={{ display: 'flex', alignItems: 'center', padding: '0.35rem 0', borderBottom: idx !== params.length - 1 ? '1px dashed #e2e8f0' : 'none', justifyContent: 'space-between', gap: '0.5rem' }}>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                <span style={{ fontWeight: 500, color: '#334155', fontSize: '0.85rem' }}>{p.parameterName}</span>
+                                <span style={{
+                                  padding: '0.1rem 0.4rem',
+                                  fontSize: '0.65rem',
+                                  fontWeight: 700,
+                                  borderRadius: '8px',
+                                  backgroundColor: isGpcb ? '#dcfce7' : '#f1f5f9',
+                                  color: isGpcb ? '#15803d' : '#64748b',
+                                  border: isGpcb ? '1px solid #bbf7d0' : '1px solid #e2e8f0'
+                                }}>
+                                  {isGpcb ? 'GPCB' : 'Normal'}
+                                </span>
+                              </div>
+                              {p.testMethod && <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.15rem' }}>Method: {p.testMethod}</div>}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 ))}
@@ -1713,7 +1829,8 @@ const ParameterMaster = () => {
           const res = await apiService.post(PARAMETER_ENDPOINTS.BULK_IMPORT, { rows: rowsToSend });
           if (res && res.success) {
             triggerToast(res.message || 'Parameters imported successfully!', 'success');
-            fetchParameters(currentPage, pageSize, searchQuery, statusFilter);
+            fetchParameters();
+            fetchSavedParametersForForm();
           } else {
             throw new Error(res?.message || 'Failed to import parameters.');
           }

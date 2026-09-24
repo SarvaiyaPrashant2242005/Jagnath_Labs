@@ -197,6 +197,7 @@ const createParameter = async (parameterData, userId, reqInfo) => {
                 isPermissibleLimitApplicable: paramFields.isPermissibleLimitApplicable !== undefined ? paramFields.isPermissibleLimitApplicable : newParameter.isPermissibleLimitApplicable,
                 permissibleLimit: paramFields.permissibleLimit !== undefined ? paramFields.permissibleLimit : newParameter.permissibleLimit,
                 acceptableLimit: paramFields.acceptableLimit !== undefined ? paramFields.acceptableLimit : newParameter.acceptableLimit,
+                isGpcb: paramFields.isGpcb !== undefined ? paramFields.isGpcb : newParameter.isGpcb,
                 price: paramFields.price !== undefined ? paramFields.price : newParameter.price,
                 status: paramFields.status || newParameter.status
             }, { transaction });
@@ -602,6 +603,10 @@ const getParametersByCompany = async (companyId, options = {}) => {
 
         if (options.gpcbOnly === true || options.gpcbOnly === 'true') {
             queryOptions.where.isGpcb = true;
+        } else if (options.type === 'GPCB' || options.isGpcb === 'true' || options.isGpcb === true) {
+            queryOptions.where.isGpcb = true;
+        } else if (options.type === 'Normal' || options.type === 'NORMAL' || options.isGpcb === 'false' || options.isGpcb === false) {
+            queryOptions.where.isGpcb = false;
         }
 
         if (options.limit && options.page && options.all !== 'true' && options.all !== true) {
@@ -720,6 +725,17 @@ module.exports = {
                     }
                 }
 
+                // Parse isGpcb
+                let isGpcb = false;
+                if (data.isGpcb !== undefined && data.isGpcb !== null) {
+                    isGpcb = data.isGpcb === true || String(data.isGpcb).toLowerCase() === 'true' || String(data.isGpcb).toLowerCase() === 'gpcb';
+                } else if (data.is_gpcb !== undefined && data.is_gpcb !== null) {
+                    isGpcb = data.is_gpcb === true || String(data.is_gpcb).toLowerCase() === 'true' || String(data.is_gpcb).toLowerCase() === 'gpcb';
+                } else if (data.parameterType || data.type) {
+                    const typeStr = String(data.parameterType || data.type).trim().toUpperCase();
+                    isGpcb = typeStr === 'GPCB';
+                }
+
                 const paramPayload = {
                     companyId,
                     parameterName: paramName,
@@ -730,6 +746,7 @@ module.exports = {
                     isPermissibleLimitApplicable,
                     permissibleLimit: data.permissibleLimit || data.permissible_limit || data.limit || null,
                     acceptableLimit: data.acceptableLimit || data.acceptable_limit || data.acceptable || data['Acceptable / Requirement'] || data['Acceptable/Requirement'] || data['Acceptable Limit'] || null,
+                    isGpcb,
                     price,
                     status: (data.status && ['Active', 'Inactive'].includes(String(data.status).trim())) ? String(data.status).trim() : 'Active'
                 };
@@ -784,7 +801,19 @@ module.exports = {
             }
 
             await transaction.commit();
-            return { createdCount, updatedCount, totalProcessed: records.length };
+            
+            let gpcbCount = 0;
+            let normalCount = 0;
+            for (const item of records) {
+                const data = item.data || {};
+                const isGpcb = data.isGpcb === true || String(data.isGpcb).toLowerCase() === 'true' || String(data.isGpcb).toLowerCase() === 'gpcb' ||
+                               data.is_gpcb === true || String(data.is_gpcb).toLowerCase() === 'true' || String(data.is_gpcb).toLowerCase() === 'gpcb' ||
+                               String(data.parameterType || data.type || '').trim().toUpperCase() === 'GPCB';
+                if (isGpcb) gpcbCount++;
+                else normalCount++;
+            }
+
+            return { createdCount, updatedCount, totalProcessed: records.length, gpcbCount, normalCount };
         } catch (error) {
             await transaction.rollback();
             throw error;

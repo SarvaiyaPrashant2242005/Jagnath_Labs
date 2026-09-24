@@ -175,7 +175,9 @@ const getAll = async (req, res) => {
             categoryId: req.query.categoryId,
             subCategoryId: req.query.subCategoryId,
             departmentId: req.query.departmentId,
-            gpcbOnly: req.query.gpcbOnly || req.query.gpcb_only || req.query.isGpcb || req.query.is_gpcb,
+            type: req.query.type,
+            isGpcb: req.query.isGpcb || req.query.is_gpcb,
+            gpcbOnly: req.query.gpcbOnly || req.query.gpcb_only,
             sortBy: req.query.sortBy,
             sortOrder: req.query.sortOrder
         };
@@ -424,9 +426,10 @@ const bulkImport = async (req, res) => {
 
         const result = await parameterService.bulkImportParameters(rows, companyIdToUse, userId, reqInfo);
 
+        const gpcbMsg = result.gpcbCount !== undefined ? ` — ${result.gpcbCount} tagged GPCB, ${result.normalCount} tagged Normal` : '';
         return res.status(200).json(successResponse(
             "PARAMETERS_BULK_IMPORTED",
-            `Successfully processed ${result.totalProcessed} parameters (${result.createdCount} created, ${result.updatedCount} updated).`,
+            `Successfully processed ${result.totalProcessed} parameters (${result.createdCount} created, ${result.updatedCount} updated)${gpcbMsg}.`,
             "Bulk import completed.",
             result
         ));

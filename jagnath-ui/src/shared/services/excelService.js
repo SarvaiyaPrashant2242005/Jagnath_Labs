@@ -190,6 +190,7 @@ export const MASTER_SCHEMAS = {
       { key: 'acceptableLimit', label: 'Acceptable / Requirement', required: false, type: 'string', aliases: ['acceptablelimit', 'acceptable_limit', 'acceptable / requirement', 'acceptable/requirement', 'acceptable', 'requirement', 'Acceptable / Requirement', 'Acceptable Limit'] },
       { key: 'isPermissibleLimitApplicable', label: 'Permissible Limit Applicable?', required: false, type: 'select', options: ['Yes', 'No'], aliases: ['permissiblelimitapplicable', 'permissiblelimitapplicable?', 'ispermissiblelimitapplicable', 'ispermissiblelimitapplicable?', 'Permissible Limit Applicable?'] },
       { key: 'permissibleLimit', label: 'Permissible Limit', required: false, type: 'string', aliases: ['permissiblelimit', 'limit', 'Permissible Limit'] },
+      { key: 'isGpcb', label: 'Parameter Type', required: false, type: 'select', options: ['GPCB', 'Normal'], aliases: ['parametertype', 'type', 'isgpcb', 'is_gpcb', 'gpcb', 'gpcbapproved', 'Parameter Type', 'Type', 'GPCB'] },
       { key: 'price', label: 'Price (₹)', required: false, type: 'number', aliases: ['price', 'price*', 'rate', 'testingrate', 'Price', 'Price (₹)', 'Price *'] },
       { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'], aliases: ['status', 'Status'] }
     ],
@@ -204,6 +205,7 @@ export const MASTER_SCHEMAS = {
         'Acceptable / Requirement': '6.5 - 8.5',
         'Permissible Limit Applicable?': 'Yes',
         'Permissible Limit': '6.5 - 8.5',
+        'Parameter Type': 'GPCB',
         'Price (₹)': 250,
         'Status': 'Active'
       },
@@ -217,6 +219,7 @@ export const MASTER_SCHEMAS = {
         'Acceptable / Requirement': '500',
         'Permissible Limit Applicable?': 'Yes',
         'Permissible Limit': '2000',
+        'Parameter Type': 'Normal',
         'Price (₹)': 350,
         'Status': 'Active'
       }
@@ -309,10 +312,19 @@ export const parseExcelFile = (file) => {
       try {
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
-        const firstSheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[firstSheetName];
-        const rawJson = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
-        resolve(rawJson);
+        let allRows = [];
+        
+        // If workbook contains multiple sheets, read each sheet and attach _sheetName
+        workbook.SheetNames.forEach(sheetName => {
+          const worksheet = workbook.Sheets[sheetName];
+          const rawJson = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+          rawJson.forEach(row => {
+            row._sheetName = sheetName;
+          });
+          allRows = allRows.concat(rawJson);
+        });
+
+        resolve(allRows);
       } catch (err) {
         reject(new Error('Failed to parse Excel file. Please ensure it is a valid .xlsx or .xls file.'));
       }
@@ -458,6 +470,68 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
         normalizedData['status'] = 'Active';
       }
     });
+
+    // Auto-classification of GPCB for parameter master
+    if (masterType === 'parameter') {
+      let isGpcbAssigned = null;
+
+      // 1. Check if row came from a sheet explicitly named 'GPCB'
+      if (row._sheetName && normalizeString(row._sheetName).includes('gpcb')) {
+        isGpcbAssigned = 'GPCB';
+      }
+
+      // 2. Check if the row explicitly specified a Parameter Type / isGpcb column in file
+      if (!isGpcbAssigned && normalizedData['isGpcb']) {
+        const typeVal = String(normalizedData['isGpcb']).trim().toLowerCase();
+        if (typeVal === 'gpcb' || typeVal === 'true' || typeVal === 'yes' || typeVal === '1') {
+          isGpcbAssigned = 'GPCB';
+        } else if (typeVal === 'normal' || typeVal === 'false' || typeVal === 'no' || typeVal === '0') {
+          isGpcbAssigned = 'Normal';
+        }
+      }
+
+      // 3. Automated matching against existing GPCB reference dataset in database
+      if (!isGpcbAssigned && existingDbRecords && existingDbRecords.length > 0) {
+        const nDept = normalizeString(normalizedData.departmentName);
+        const nCat = normalizeString(normalizedData.categoryName);
+        const nSub = normalizeString(normalizedData.subCategoryName);
+        const nParam = normalizeString(normalizedData.parameterName);
+        const nMethod = normalizeString(normalizedData.testMethod);
+
+        // Find match in GPCB subset (isGpcb === true in existing records)
+        const gpcbMatch = existingDbRecords.find(p => {
+          if (!p.isGpcb && !p.is_gpcb) return false;
+
+          const pParam = normalizeString(p.parameterName || p.name);
+          if (pParam !== nParam) return false;
+
+          // If discipline group / category is present, match
+          const pCat = normalizeString(p.categoryName || (p.category ? p.category.name : ''));
+          if (nCat && pCat && pCat !== nCat) return false;
+
+          // If sub category is present, match
+          const pSub = normalizeString(p.subCategoryName || (p.subCategory ? p.subCategory.name : ''));
+          if (nSub && pSub && pSub !== nSub) return false;
+
+          // If department is present, match
+          const pDept = normalizeString(p.departmentName || (p.category?.department ? p.category.department.name : ''));
+          if (nDept && pDept && pDept !== nDept) return false;
+
+          // If test method is present on both, compare
+          const pMethod = normalizeString(p.testMethod);
+          if (nMethod && pMethod && pMethod !== nMethod) return false;
+
+          return true;
+        });
+
+        if (gpcbMatch) {
+          isGpcbAssigned = 'GPCB';
+        }
+      }
+
+      // Default to Normal if not classified as GPCB
+      normalizedData['isGpcb'] = isGpcbAssigned === 'GPCB' ? 'GPCB' : 'Normal';
+    }
 
     // Check for internal file duplicates
     let isDuplicateInFile = false;
