@@ -6,7 +6,8 @@
 const Joi = require("joi");
 
 const createSubCategorySchema = Joi.object({
-    companyId: Joi.string().uuid().optional(),
+    companyId: Joi.string().trim().optional().allow("", null),
+    companyName: Joi.string().trim().optional().allow("", null),
     categoryId: Joi.string().uuid().required().messages({
         "any.required": "Discipline Group (Category) ID is required",
         "string.guid": "Discipline Group (Category) ID must be a valid UUID"
@@ -20,7 +21,9 @@ const createSubCategorySchema = Joi.object({
 });
 
 const updateSubCategorySchema = Joi.object({
-    categoryId: Joi.string().uuid().optional(),
+    companyId: Joi.string().trim().optional().allow("", null),
+    companyName: Joi.string().trim().optional().allow("", null),
+    categoryId: Joi.string().uuid().optional().allow("", null),
     name: Joi.string().trim().min(2).max(150).optional(),
     description: Joi.string().trim().allow("", null).optional(),
     status: Joi.string().valid("Active", "Inactive").optional()

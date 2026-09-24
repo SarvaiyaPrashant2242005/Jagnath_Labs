@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   FaTag, FaPlus, FaDownload, FaEdit, FaTrash, FaCheck,
   FaExclamationCircle, FaFileExcel, FaCopy, FaFileCsv,
@@ -6,15 +6,24 @@ import {
 } from 'react-icons/fa';
 import { priceMasterService } from '../services/priceMasterService';
 import { apiService } from '../../../shared/services/apiService';
-import { CATEGORY_ENDPOINTS, PARAMETER_ENDPOINTS, PRICE_MASTER_ENDPOINTS, SUB_CATEGORY_ENDPOINTS } from '../../../shared/services/apiEndpoints';
+import { CATEGORY_ENDPOINTS, PARAMETER_ENDPOINTS, PRICE_MASTER_ENDPOINTS, SUB_CATEGORY_ENDPOINTS, DEPARTMENT_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 import Pagination from '../../../shared/components/Pagination';
 import BulkImportModal from '../../../shared/components/BulkImport/BulkImportModal';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 import { downloadCSV, downloadExcel } from '../../../shared/utils/exportUtils';
 
+import InlineMasterModal from '../../../shared/components/InlineMasterModal/InlineMasterModal';
+import AddMasterButton from '../../../shared/components/InlineMasterModal/AddMasterButton';
+import SearchableSelect from '../../../shared/components/Select/SearchableSelect';
+
+
 const PriceMasterPage = () => {
+  // Inline master modal state
+  const [inlineModal, setInlineModal] = useState({ isOpen: false, type: null, parentData: {} });
   // Data States
   const [prices, setPrices] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [formDepartmentId, setFormDepartmentId] = useState('');
   const [categories, setCategories] = useState([]);
   const [subCategories, setSubCategories] = useState([]);
   const [parameters, setParameters] = useState([]);
@@ -70,6 +79,10 @@ const PriceMasterPage = () => {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [selectedCategory, setSelectedCategory] = useState('');
 
+  // Sorting State
+  const [sortField, setSortField] = useState(null);
+  const [sortDirection, setSortDirection] = useState(null); // 'asc', 'desc', or null
+
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -109,30 +122,93 @@ const PriceMasterPage = () => {
 
   useEffect(() => {
     fetchCategoriesAndParameters();
+
+    const handleCompanyChange = () => {
+      fetchCategoriesAndParameters();
+      setCurrentPage(1);
+      fetchPrices();
+    };
+
+    window.addEventListener('companyChanged', handleCompanyChange);
+    return () => window.removeEventListener('companyChanged', handleCompanyChange);
   }, []);
 
   useEffect(() => {
     fetchPrices();
-  }, [currentPage, pageSize, searchQuery, statusFilter, selectedCategory]);
+  }, [currentPage, pageSize, searchQuery, statusFilter, selectedCategory, sortField, sortDirection]);
 
-  // Filter parameters dropdown based on selected category in form
-  useEffect(() => {
-    if (formData.categoryId) {
-      setFilteredParameters(parameters);
-    } else {
-      setFilteredParameters([]);
-    }
-  }, [formData.categoryId, parameters]);
+  const formCategoriesFiltered = useMemo(() => {
+    if (!formDepartmentId) return [];
+    return categories.filter(c => String(c.departmentId || c.department_id) === String(formDepartmentId));
+  }, [categories, formDepartmentId]);
+
+  // Filter and sort parameters dropdown based on selected category & subCategory in form
+  const sortedAndFilteredParameters = useMemo(() => {
+    if (!formData.categoryId) return [];
+
+    const activeCatId = String(formData.categoryId);
+    const activeSubCatId = formData.subCategoryId ? String(formData.subCategoryId) : '';
+
+    return [...parameters].map(p => {
+      let score = 0;
+      let matchBadges = [];
+
+      const pCatId = p.categoryId ? String(p.categoryId) : (p.category?.id ? String(p.category.id) : '');
+      const pSubCatId = p.subCategoryId ? String(p.subCategoryId) : (p.subCategory?.id ? String(p.subCategory.id) : '');
+
+      if (activeSubCatId && pSubCatId === activeSubCatId) {
+        score += 10;
+        matchBadges.push('Sub Category');
+      }
+      if (activeCatId && pCatId === activeCatId) {
+        score += 5;
+        matchBadges.push('Discipline Group');
+      }
+
+      return {
+        ...p,
+        parameterName: p.parameterName || p.name || '',
+        testMethod: p.testingStandard || p.testMethod || '',
+        matchScore: score,
+        isMatching: score > 0,
+        matchBadges
+      };
+    }).sort((a, b) => {
+      if (b.matchScore !== a.matchScore) {
+        return b.matchScore - a.matchScore;
+      }
+      return (a.parameterName || '').localeCompare(b.parameterName || '');
+    });
+  }, [parameters, formData.categoryId, formData.subCategoryId]);
+
 
   // Fetch Sub Categories when form opens or category changes
   useEffect(() => {
     const fetchSubCats = async () => {
       try {
         const url = formData.categoryId
-          ? `${SUB_CATEGORY_ENDPOINTS.GET_ALL}?categoryId=${formData.categoryId}`
-          : SUB_CATEGORY_ENDPOINTS.GET_ALL;
+          ? `${SUB_CATEGORY_ENDPOINTS.GET_ALL}?categoryId=${formData.categoryId}&limit=1000&all=true`
+          : `${SUB_CATEGORY_ENDPOINTS.GET_ALL}?limit=1000&all=true`;
         const res = await apiService.get(url);
-        setSubCategories(res?.data || []);
+        if (res && res.data) {
+          const raw = res.data;
+          let list = Array.isArray(raw) ? raw : (raw.rows || raw.subCategories || raw.data || []);
+          if (!Array.isArray(list)) list = [];
+
+          if (formData.categoryId) {
+            const matched = list.filter(s => {
+              const sCatId = s.categoryId || s.category_id || (s.category ? s.category.id : '');
+              return String(sCatId) === String(formData.categoryId);
+            });
+            if (matched.length > 0 || list.length > 0) {
+              list = matched.length > 0 ? matched : list;
+            }
+          }
+
+          setSubCategories(list);
+        } else {
+          setSubCategories([]);
+        }
       } catch {
         setSubCategories([]);
       }
@@ -160,10 +236,17 @@ const PriceMasterPage = () => {
 
   const fetchCategoriesAndParameters = async () => {
     try {
-      const [catRes, paramRes] = await Promise.all([
+      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
+      const deptUrl = activeCompId ? `${DEPARTMENT_ENDPOINTS.GET_ALL}?companyId=${activeCompId}&status=Active&limit=500` : `${DEPARTMENT_ENDPOINTS.GET_ALL}?status=Active&limit=500`;
+      
+      const [deptRes, catRes, paramRes] = await Promise.all([
+        apiService.get(deptUrl),
         apiService.get(CATEGORY_ENDPOINTS.GET_ALL),
         apiService.get(PARAMETER_ENDPOINTS.GET_ALL)
       ]);
+      if (deptRes?.data) {
+        setDepartments(deptRes.data.rows || deptRes.data || []);
+      }
       if (catRes?.data) {
         setCategories(Array.isArray(catRes.data) ? catRes.data : (catRes.data.rows || []));
       }
@@ -185,6 +268,10 @@ const PriceMasterPage = () => {
         status: statusFilter,
         categoryId: selectedCategory
       };
+      if (sortField && sortDirection) {
+        params.sortBy = sortField;
+        params.sortOrder = sortDirection;
+      }
 
       const res = await priceMasterService.getAll(params);
       if (res?.data) {
@@ -205,11 +292,52 @@ const PriceMasterPage = () => {
     }
   };
 
-  // Quick Add Category Handler
+  const handleSort = (field) => {
+    if (sortField !== field) {
+      setSortField(field);
+      setSortDirection('asc');
+    } else if (sortDirection === 'asc') {
+      setSortDirection('desc');
+    } else {
+      setSortField(null);
+      setSortDirection(null);
+    }
+  };
+
+  const renderSortableHeader = (label, field) => {
+    const isSorted = sortField === field;
+    return (
+      <th
+        onClick={() => handleSort(field)}
+        style={{
+          padding: '0.75rem 1rem',
+          color: '#475569',
+          fontWeight: 600,
+          cursor: 'pointer',
+          userSelect: 'none',
+          transition: 'background-color 0.15s'
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <span>{label}</span>
+          <span style={{ fontSize: '0.7rem', color: isSorted ? '#2563eb' : '#cbd5e1', transition: 'color 0.15s' }}>
+            {isSorted ? (sortDirection === 'asc' ? '▲' : '▼') : '↕'}
+          </span>
+        </div>
+      </th>
+    );
+  };
+
   const handleCreateCategoryDirect = async (e) => {
     e.preventDefault();
     if (!newCatName.trim()) {
       triggerToast('Category name is required.', 'error');
+      return;
+    }
+    if (!formDepartmentId) {
+      triggerToast('Please select a Department first.', 'error');
       return;
     }
 
@@ -217,7 +345,8 @@ const PriceMasterPage = () => {
       setIsSavingCat(true);
       const res = await apiService.post(CATEGORY_ENDPOINTS.CREATE, {
         name: newCatName.trim(),
-        status: 'Active'
+        status: 'Active',
+        departmentId: formDepartmentId
       });
 
       const createdCat = res?.data;
@@ -296,20 +425,28 @@ const PriceMasterPage = () => {
   // Open Create Form
   const handleOpenCreate = () => {
     setEditingId(null);
+    setFormDepartmentId('');
     setFormData({
-      categoryId: categories.length > 0 ? categories[0].id : '',
+      categoryId: '',
+      subCategoryId: '',
       parameterId: '',
       price: '',
       status: 'Active'
     });
     setFormErrors({});
     setIsFormOpen(true);
+    document.querySelector('.dashboard-content-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Open Edit Form
   const handleOpenEdit = (item) => {
     setEditingId(item.id);
     const catId = item.categoryId || (item.category ? item.category.id : '');
+    const matchedCat = categories.find(c => String(c.id) === String(catId));
+    const matchedDeptId = matchedCat ? (matchedCat.departmentId || matchedCat.department_id || '') : '';
+    setFormDepartmentId(matchedDeptId);
+
     const subCatId = item.parameter?.subCategoryId || item.subCategoryId || '';
     setFormData({
       categoryId: catId,
@@ -320,12 +457,17 @@ const PriceMasterPage = () => {
     });
     setFormErrors({});
     setIsFormOpen(true);
+    document.querySelector('.dashboard-content-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     const errors = {};
 
+    if (!formDepartmentId) {
+      errors.departmentId = 'Department is required.';
+    }
     if (!formData.categoryId) {
       errors.categoryId = 'Discipline Group is required.';
     }
@@ -606,6 +748,28 @@ const PriceMasterPage = () => {
 
           <form onSubmit={handleFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
+              
+              {/* Department Select */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Department *</label>
+                <select
+                  value={formDepartmentId}
+                  onChange={(e) => {
+                    setFormDepartmentId(e.target.value);
+                    setFormData({ ...formData, categoryId: '', subCategoryId: '', parameterId: '' });
+                    setSubCategories([]);
+                  }}
+                  style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.departmentId ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none', backgroundColor: '#ffffff', boxSizing: 'border-box', height: '40px' }}
+                >
+                  <option value="">Select Department</option>
+                  {departments.map(d => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+                {formErrors.departmentId && (
+                  <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 500 }}>{formErrors.departmentId}</span>
+                )}
+              </div>
 
               {/* Discipline Group Dropdown & Quick Add Link */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
@@ -614,55 +778,72 @@ const PriceMasterPage = () => {
                   {!editingId && (
                     <button
                       type="button"
-                      onClick={() => setIsAddCatModalOpen(true)}
+                      onClick={() => {
+                        if (!formDepartmentId) {
+                          triggerToast('Please select a Department first.', 'error');
+                          return;
+                        }
+                        setIsAddCatModalOpen(true);
+                      }}
                       style={{ background: 'none', border: 'none', color: '#22c55e', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}
                     >
                       <FaPlus size={10} /> Add New Group
                     </button>
                   )}
                 </div>
-                <select
+                <SearchableSelect
+                  options={[...formCategoriesFiltered].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
                   value={formData.categoryId}
-                  onChange={async (e) => {
-                    const catId = e.target.value;
-                    setFormData({ ...formData, categoryId: catId, subCategoryId: '', parameterId: '' });
-                    if (catId) {
+                  disabled={!formDepartmentId}
+                  onChange={async (selectedVal) => {
+                    setFormData({ ...formData, categoryId: selectedVal, subCategoryId: '', parameterId: '' });
+                    if (selectedVal) {
                       try {
-                        const res = await apiService.get(`${SUB_CATEGORY_ENDPOINTS.GET_ALL}?categoryId=${catId}`);
+                        const res = await apiService.get(`${SUB_CATEGORY_ENDPOINTS.GET_ALL}?categoryId=${selectedVal}`);
                         setSubCategories(res?.data || []);
                       } catch { setSubCategories([]); }
                     } else { setSubCategories([]); }
                   }}
-                  style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.categoryId ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none', backgroundColor: '#ffffff' }}
-                >
-                  <option value="">-- Select Discipline Group --</option>
-                  {[...categories].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-                {formErrors.categoryId && (
-                  <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 500 }}>{formErrors.categoryId}</span>
-                )}
-              </div>
+                  placeholder="-- Select Discipline Group --"
+                  searchPlaceholder="Search discipline group..."
+                  hasError={!!formErrors.categoryId}
+                />
+                {
+                  formErrors.categoryId && (
+                    <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 500 }}>{formErrors.categoryId}</span>
+                  )
+                }
+              </div >
 
               {/* Sub Category Dropdown */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Sub Category</label>
-                <select
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Sub Category</label>
+                  {!editingId && (
+                    <AddMasterButton
+                      label="Add New Sub Category"
+                      onClick={() => {
+                        if (!formData.categoryId) {
+                          triggerToast('Please select a Discipline Group first.', 'error');
+                          return;
+                        }
+                        setInlineModal({ isOpen: true, type: 'subCategory', parentData: { categoryId: formData.categoryId, departmentId: formDepartmentId } });
+                      }}
+                    />
+                  )}
+                </div>
+                <SearchableSelect
+                  options={[...subCategories].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
                   value={formData.subCategoryId}
                   disabled={!formData.categoryId}
-                  onChange={(e) => setFormData({ ...formData, subCategoryId: e.target.value })}
-                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', backgroundColor: !formData.categoryId ? '#f1f5f9' : '#ffffff' }}
-                >
-                  <option value="">-- Select Sub Category --</option>
-                  {[...subCategories].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
-              </div>
+                  onChange={(selectedVal) => setFormData({ ...formData, subCategoryId: selectedVal })}
+                  placeholder="-- Select Sub Category --"
+                  searchPlaceholder="Search sub category..."
+                />
+              </div >
 
               {/* Parameter Dropdown & Quick Add Link */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+              < div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Parameter *</label>
                   {!editingId && (
@@ -675,26 +856,26 @@ const PriceMasterPage = () => {
                     </button>
                   )}
                 </div>
-                <select
+                <SearchableSelect
+                  options={sortedAndFilteredParameters}
                   value={formData.parameterId}
+                  onChange={(selectedId) => setFormData({ ...formData, parameterId: selectedId })}
+                  placeholder="-- Select Parameter --"
+                  searchPlaceholder="Search parameter name or standard..."
+                  hasError={!!formErrors.parameterId}
                   disabled={!formData.categoryId}
-                  onChange={(e) => setFormData({ ...formData, parameterId: e.target.value })}
-                  style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.parameterId ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none', backgroundColor: !formData.categoryId ? '#f1f5f9' : '#ffffff' }}
-                >
-                  <option value="">-- Select Parameter --</option>
-                  {[...filteredParameters].sort((a, b) => ((a.name || a.parameterName) || '').localeCompare((b.name || b.parameterName) || '')).map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name || p.parameterName} {p.testingStandard ? `(${p.testingStandard})` : ''}
-                    </option>
-                  ))}
-                </select>
-                {formErrors.parameterId && (
-                  <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 500 }}>{formErrors.parameterId}</span>
-                )}
-              </div>
+                  customOptionLabel=""
+                />
+
+                {
+                  formErrors.parameterId && (
+                    <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 500 }}>{formErrors.parameterId}</span>
+                  )
+                }
+              </div >
 
               {/* Price Input */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+              < div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Price (₹) *</label>
                 <input
                   type="number"
@@ -705,13 +886,15 @@ const PriceMasterPage = () => {
                   onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                   style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.price ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none' }}
                 />
-                {formErrors.price && (
-                  <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 500 }}>{formErrors.price}</span>
-                )}
-              </div>
+                {
+                  formErrors.price && (
+                    <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 500 }}>{formErrors.price}</span>
+                  )
+                }
+              </div >
 
               {/* Status Sliding Toggle Switch */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+              < div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Status</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', height: '42px' }}>
                   <button
@@ -744,12 +927,12 @@ const PriceMasterPage = () => {
                     {formData.status === 'Active' ? 'ACTIVE' : 'INACTIVE'}
                   </span>
                 </div>
-              </div>
+              </div >
 
-            </div>
+            </div >
 
             {/* Action Buttons */}
-            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+            < div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
               <button
                 type="button"
                 onClick={() => setIsFormOpen(false)}
@@ -765,10 +948,10 @@ const PriceMasterPage = () => {
                 <FaSave />
                 <span>{submitting ? 'Saving...' : 'Save'}</span>
               </button>
-            </div>
+            </div >
 
-          </form>
-        </div>
+          </form >
+        </div >
       )}
 
       {/* Main Table View Card */}
@@ -857,11 +1040,11 @@ const PriceMasterPage = () => {
                 </th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ACTIONS</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>DISCIPLINE GROUP</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SUB CATEGORY</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>PARAMETER</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600, textAlign: 'right' }}>PRICE (₹)</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600, textAlign: 'center' }}>STATUS</th>
+                {renderSortableHeader('DISCIPLINE GROUP', 'categoryId')}
+                {renderSortableHeader('SUB CATEGORY', 'subCategory')}
+                {renderSortableHeader('PARAMETER', 'parameter')}
+                {renderSortableHeader('PRICE (₹)', 'price')}
+                {renderSortableHeader('STATUS', 'status')}
               </tr>
             </thead>
             <tbody>
@@ -908,7 +1091,7 @@ const PriceMasterPage = () => {
                       >
                         <FaTrash size={12} />
                       </button>
-                    </td>
+                    </td >
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 500 }}>
                       {item.category ? item.category.name : '-'}
@@ -940,179 +1123,186 @@ const PriceMasterPage = () => {
                         {item.status}
                       </span>
                     </td>
-                  </tr>
+                  </tr >
                 ))
               )}
-            </tbody>
-          </table>
-        </div>
+            </tbody >
+          </table >
+        </div >
 
         {/* Mobile Cards View */}
-        <div className="show-on-mobile">
-          {loading ? (
-            <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-              Loading price master records...
-            </div>
-          ) : prices.length === 0 ? (
-            <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-              No prices found.
-            </div>
-          ) : (
-            <div className="master-card-grid">
-              {prices.map((item) => (
-                <div key={item.id} className="master-record-card" onClick={() => handleOpenEdit(item)}>
-                  <div className="master-record-card-header">
-                    <div>
-                      <div className="master-record-title">{item.parameter?.name || item.parameter?.parameterName || 'Parameter'}</div>
-                      <div className="master-record-subtitle">
-                        {item.category?.name} {item.parameter?.subCategory ? `• ${item.parameter.subCategory.name}` : ''} • ₹{Number(item.price || 0).toFixed(2)}
+        < div className="show-on-mobile" >
+          {
+            loading ? (
+              <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }} >
+                Loading price master records...
+              </div >
+            ) : prices.length === 0 ? (
+              <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                No prices found.
+              </div>
+            ) : (
+              <div className="master-card-grid">
+                {prices.map((item) => (
+                  <div key={item.id} className="master-record-card" onClick={() => handleOpenEdit(item)}>
+                    <div className="master-record-card-header">
+                      <div>
+                        <div className="master-record-title">{item.parameter?.name || item.parameter?.parameterName || 'Parameter'}</div>
+                        <div className="master-record-subtitle">
+                          {item.category?.name} {item.parameter?.subCategory ? `• ${item.parameter.subCategory.name}` : ''} • ₹{Number(item.price || 0).toFixed(2)}
+                        </div>
                       </div>
+                      <span style={{
+                        padding: '0.2rem 0.6rem',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        borderRadius: '12px',
+                        backgroundColor: item.status === 'Active' ? '#dcfce7' : '#fee2e2',
+                        color: item.status === 'Active' ? '#15803d' : '#991b1b'
+                      }}>
+                        {item.status}
+                      </span>
                     </div>
-                    <span style={{
-                      padding: '0.2rem 0.6rem',
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      borderRadius: '12px',
-                      backgroundColor: item.status === 'Active' ? '#dcfce7' : '#fee2e2',
-                      color: item.status === 'Active' ? '#15803d' : '#991b1b'
-                    }}>
-                      {item.status}
-                    </span>
-                  </div>
 
-                  <div className="master-record-actions">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleOpenEdit(item); }}
-                      style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-                    >
-                      <FaEdit size={12} /> Edit
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleDelete(item.id, item.parameter?.parameterName || item.parameter?.name); }}
-                      style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-                    >
-                      <FaTrash size={12} /> Delete
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                    <div className="master-record-actions">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleOpenEdit(item); }}
+                        style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                      >
+                        <FaEdit size={12} /> Edit
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDelete(item.id, item.parameter?.parameterName || item.parameter?.name); }}
+                        style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                      >
+                        <FaTrash size={12} /> Delete
+                      </button>
+                    </div >
+                  </div >
+                ))}
+              </div >
+            )}
+        </div >
 
         {/* Pagination */}
-        {!loading && totalItems > 0 && (
-          <div style={{ marginTop: '1.25rem' }}>
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              pageSize={pageSize}
-              totalItems={totalItems}
-              onPageChange={(page) => setCurrentPage(page)}
-              onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
-            />
-          </div>
-        )}
+        {
+          !loading && totalItems > 0 && (
+            <div style={{ marginTop: '1.25rem' }}>
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                pageSize={pageSize}
+                totalItems={totalItems}
+                onPageChange={(page) => setCurrentPage(page)}
+                onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
+              />
+            </div>
+          )
+        }
 
-      </div>
+      </div >
 
       {/* Quick Add Category Modal */}
-      {isAddCatModalOpen && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(15, 23, 42, 0.5)',
-          backdropFilter: 'blur(4px)',
-          zIndex: 9999,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: '1rem'
-        }}>
-          <div style={{ background: '#ffffff', borderRadius: '12px', width: '100%', maxWidth: '420px', border: '1px solid #e2e8f0', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.25rem', borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Add New Category</h3>
-              <button onClick={() => setIsAddCatModalOpen(false)} style={{ border: 'none', background: 'none', color: '#64748b', cursor: 'pointer' }}><FaTimes /></button>
+      {
+        isAddCatModalOpen && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.5)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 9999,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: '1rem'
+          }}>
+            <div style={{ background: '#ffffff', borderRadius: '12px', width: '100%', maxWidth: '420px', border: '1px solid #e2e8f0', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.25rem', borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Add New Category</h3>
+                <button onClick={() => setIsAddCatModalOpen(false)} style={{ border: 'none', background: 'none', color: '#64748b', cursor: 'pointer' }}><FaTimes /></button>
+              </div>
+              <form onSubmit={handleCreateCategoryDirect} style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Category Name *</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Environmental Water Test"
+                    value={newCatName}
+                    onChange={(e) => setNewCatName(e.target.value)}
+                    autoFocus
+                    required
+                    style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.9rem', outline: 'none' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+                  <button type="button" onClick={() => setIsAddCatModalOpen(false)} style={{ padding: '0.45rem 1rem', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#ffffff', color: '#475569', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+                  <button type="submit" disabled={isSavingCat} style={{ padding: '0.45rem 1.2rem', border: 'none', borderRadius: '6px', backgroundColor: '#22c55e', color: '#ffffff', fontWeight: 600, cursor: 'pointer', opacity: isSavingCat ? 0.7 : 1 }}>{isSavingCat ? 'Saving...' : 'Create Category'}</button>
+                </div>
+              </form>
             </div>
-            <form onSubmit={handleCreateCategoryDirect} style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Category Name *</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Environmental Water Test"
-                  value={newCatName}
-                  onChange={(e) => setNewCatName(e.target.value)}
-                  autoFocus
-                  required
-                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.9rem', outline: 'none' }}
-                />
-              </div>
-              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
-                <button type="button" onClick={() => setIsAddCatModalOpen(false)} style={{ padding: '0.45rem 1rem', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#ffffff', color: '#475569', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
-                <button type="submit" disabled={isSavingCat} style={{ padding: '0.45rem 1.2rem', border: 'none', borderRadius: '6px', backgroundColor: '#22c55e', color: '#ffffff', fontWeight: 600, cursor: 'pointer', opacity: isSavingCat ? 0.7 : 1 }}>{isSavingCat ? 'Saving...' : 'Create Category'}</button>
-              </div>
-            </form>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Quick Add Parameter Modal */}
-      {isAddParamModalOpen && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(15, 23, 42, 0.5)',
-          backdropFilter: 'blur(4px)',
-          zIndex: 9999,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: '1rem'
-        }}>
-          <div style={{ background: '#ffffff', borderRadius: '12px', width: '100%', maxWidth: '440px', border: '1px solid #e2e8f0', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.25rem', borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Add New Parameter</h3>
-              <button onClick={() => setIsAddParamModalOpen(false)} style={{ border: 'none', background: 'none', color: '#64748b', cursor: 'pointer' }}><FaTimes /></button>
+      {
+        isAddParamModalOpen && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.5)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 9999,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: '1rem'
+          }}>
+            <div style={{ background: '#ffffff', borderRadius: '12px', width: '100%', maxWidth: '440px', border: '1px solid #e2e8f0', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.25rem', borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Add New Parameter</h3>
+                <button onClick={() => setIsAddParamModalOpen(false)} style={{ border: 'none', background: 'none', color: '#64748b', cursor: 'pointer' }}><FaTimes /></button>
+              </div>
+              <form onSubmit={handleCreateParameterDirect} style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Parameter Name *</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Biochemical Oxygen Demand (BOD)"
+                    value={newParamName}
+                    onChange={(e) => setNewParamName(e.target.value)}
+                    autoFocus
+                    required
+                    style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.9rem', outline: 'none' }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Test Method / Standard (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. IS 3025 (Part 44)"
+                    value={newParamTestMethod}
+                    onChange={(e) => setNewParamTestMethod(e.target.value)}
+                    style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.9rem', outline: 'none' }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+                  <button type="button" onClick={() => setIsAddParamModalOpen(false)} style={{ padding: '0.45rem 1rem', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#ffffff', color: '#475569', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+                  <button type="submit" disabled={isSavingParam} style={{ padding: '0.45rem 1.2rem', border: 'none', borderRadius: '6px', backgroundColor: '#22c55e', color: '#ffffff', fontWeight: 600, cursor: 'pointer', opacity: isSavingParam ? 0.7 : 1 }}>{isSavingParam ? 'Saving...' : 'Create Parameter'}</button>
+                </div>
+              </form>
             </div>
-            <form onSubmit={handleCreateParameterDirect} style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Parameter Name *</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Biochemical Oxygen Demand (BOD)"
-                  value={newParamName}
-                  onChange={(e) => setNewParamName(e.target.value)}
-                  autoFocus
-                  required
-                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.9rem', outline: 'none' }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Test Method / Standard (Optional)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. IS 3025 (Part 44)"
-                  value={newParamTestMethod}
-                  onChange={(e) => setNewParamTestMethod(e.target.value)}
-                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.9rem', outline: 'none' }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
-                <button type="button" onClick={() => setIsAddParamModalOpen(false)} style={{ padding: '0.45rem 1rem', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#ffffff', color: '#475569', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
-                <button type="submit" disabled={isSavingParam} style={{ padding: '0.45rem 1.2rem', border: 'none', borderRadius: '6px', backgroundColor: '#22c55e', color: '#ffffff', fontWeight: 600, cursor: 'pointer', opacity: isSavingParam ? 0.7 : 1 }}>{isSavingParam ? 'Saving...' : 'Create Parameter'}</button>
-              </div>
-            </form>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Bulk Excel Import Modal */}
       <BulkImportModal
@@ -1150,7 +1340,29 @@ const PriceMasterPage = () => {
         loading={deleting}
       />
 
-    </div>
+      {/* Inline Master Creation Modal */}
+      <InlineMasterModal
+        isOpen={inlineModal.isOpen}
+        onClose={() => setInlineModal({ isOpen: false, type: null, parentData: {} })}
+        masterType={inlineModal.type}
+        parentData={inlineModal.parentData}
+        onSuccess={async (createdItem) => {
+          if (inlineModal.type === 'subCategory') {
+            if (formData.categoryId) {
+              try {
+                const res = await apiService.get(`${SUB_CATEGORY_ENDPOINTS.GET_ALL}?categoryId=${formData.categoryId}`);
+                setSubCategories(res?.data || []);
+              } catch (e) {
+                console.error("Error fetching subcategories", e);
+              }
+            }
+            if (createdItem?.id) {
+              setFormData(prev => ({ ...prev, subCategoryId: createdItem.id }));
+            }
+          }
+        }}
+      />
+    </div >
   );
 };
 

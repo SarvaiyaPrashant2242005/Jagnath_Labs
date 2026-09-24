@@ -51,9 +51,9 @@ const createPrice = async (data, userId) => {
     return await PriceMaster.findByPk(newRecord.id, {
         include: [
             { model: Category, as: "category", attributes: ["id", "name"] },
-            { 
-                model: Parameter, 
-                as: "parameter", 
+            {
+                model: Parameter,
+                as: "parameter",
                 attributes: ["id", "parameterName", "testMethod", "subCategoryId"],
                 include: [{ model: db.SubCategory, as: "subCategory", attributes: ["id", "name"] }]
             }
@@ -97,6 +97,28 @@ const getPricesByCompany = async (companyId, options = {}) => {
         };
     }
 
+    let orderClause = [["created_at", "DESC"]];
+    if (options.sortBy) {
+        const orderDirection = options.sortOrder === "desc" || options.sortOrder === "DESC" ? "DESC" : "ASC";
+        if (options.sortBy === "categoryId" || options.sortBy === "category") {
+            orderClause = [[{ model: Category, as: "category" }, "name", orderDirection]];
+        } else if (options.sortBy === "parameter") {
+            orderClause = [[{ model: Parameter, as: "parameter" }, "parameterName", orderDirection]];
+        } else if (options.sortBy === "subCategory") {
+            orderClause = [[
+                { model: Parameter, as: "parameter" },
+                { model: db.SubCategory, as: "subCategory" },
+                "name",
+                orderDirection
+            ]];
+        } else {
+            const allowedSortFields = ["price", "status", "created_at", "createdAt"];
+            if (allowedSortFields.includes(options.sortBy)) {
+                orderClause = [[options.sortBy, orderDirection]];
+            }
+        }
+    }
+
     if (limit) {
         const pageNum = parseInt(page) || 1;
         const limitNum = parseInt(limit) || 10;
@@ -106,7 +128,7 @@ const getPricesByCompany = async (companyId, options = {}) => {
             where,
             include,
             distinct: true,
-            order: [["created_at", "DESC"]],
+            order: orderClause,
             limit: limitNum,
             offset
         });
@@ -117,7 +139,7 @@ const getPricesByCompany = async (companyId, options = {}) => {
     const prices = await PriceMaster.findAll({
         where,
         include,
-        order: [["created_at", "DESC"]]
+        order: orderClause
     });
 
     return prices;
@@ -131,9 +153,9 @@ const getPriceById = async (id, companyId) => {
         where: { id, companyId },
         include: [
             { model: Category, as: "category", attributes: ["id", "name"] },
-            { 
-                model: Parameter, 
-                as: "parameter", 
+            {
+                model: Parameter,
+                as: "parameter",
                 attributes: ["id", "parameterName", "testMethod", "subCategoryId"],
                 include: [{ model: db.SubCategory, as: "subCategory", attributes: ["id", "name"] }]
             }
@@ -197,12 +219,38 @@ module.exports = {
                 if (!catId && rawCatName) {
                     let cat = await Category.findOne({ where: { name: { [Op.iLike]: rawCatName }, companyId }, transaction });
                     if (!cat) {
-                        throw new Error(`Discipline Group '${rawCatName}' does not exist.`);
+                        let dept = await Department.findOne({ where: { name: "General Department", companyId }, transaction });
+                        if (!dept) {
+                            dept = await Department.create({ name: "General Department", companyId, status: "Active" }, { transaction });
+                        }
+                        cat = await Category.create({ name: rawCatName, companyId, departmentId: dept.id, status: "Active" }, { transaction });
                     }
                     catId = cat.id;
                 }
                 if (!catId) {
-                    throw new Error("Discipline Group is required.");
+                    let dept = await Department.findOne({ where: { name: "General Department", companyId }, transaction });
+                    if (!dept) {
+                        dept = await Department.create({ name: "General Department", companyId, status: "Active" }, { transaction });
+                    }
+                    let cat = await Category.findOne({ where: { name: "General Group", companyId, departmentId: dept.id }, transaction });
+                    if (!cat) {
+                        cat = await Category.create({ name: "General Group", companyId, departmentId: dept.id, status: "Active" }, { transaction });
+                    }
+                    catId = cat.id;
+                }
+
+                // Resolve Sub Category ID if provided
+                let subCategoryId = null;
+                const rawSubCatName = (data.subCategoryName || "").trim();
+                if (rawSubCatName) {
+                    let subCat = await db.SubCategory.findOne({
+                        where: { name: { [Op.iLike]: rawSubCatName }, categoryId: catId, companyId },
+                        transaction
+                    });
+                    if (!subCat) {
+                        subCat = await db.SubCategory.create({ name: rawSubCatName, categoryId: catId, companyId, status: "Active" }, { transaction });
+                    }
+                    subCategoryId = subCat.id;
                 }
 
                 // Resolve Parameter ID
@@ -211,7 +259,15 @@ module.exports = {
                 if (!paramId && rawParamName) {
                     let param = await Parameter.findOne({ where: { parameterName: { [Op.iLike]: rawParamName }, companyId }, transaction });
                     if (!param) {
-                        throw new Error(`Parameter '${rawParamName}' does not exist.`);
+                        param = await Parameter.create({
+                            companyId,
+                            parameterName: rawParamName,
+                            subCategoryId: subCategoryId,
+                            status: "Active",
+                            isPermissibleLimitApplicable: false
+                        }, { transaction });
+                    } else if (subCategoryId && param.subCategoryId !== subCategoryId) {
+                        await param.update({ subCategoryId }, { transaction });
                     }
                     paramId = param.id;
                 }
@@ -219,30 +275,14 @@ module.exports = {
                     throw new Error("Parameter Name is required.");
                 }
 
-                // Verify hierarchy mapping: Discipline Group -> Parameter
+                // Verify and Auto-link hierarchy mapping: Discipline Group -> Parameter
                 const CategoryParameter = require("../CategoryParameterMasters/categoryParameter.model");
                 const mapping = await CategoryParameter.findOne({
                     where: { categoryId: catId, parameterId: paramId, companyId },
                     transaction
                 });
                 if (!mapping) {
-                    throw new Error(`Parameter '${rawParamName}' is not linked to Discipline Group '${rawCatName}'.`);
-                }
-
-                // Verify Sub Category if provided
-                const rawSubCatName = (data.subCategoryName || "").trim();
-                if (rawSubCatName) {
-                    const subCat = await db.SubCategory.findOne({
-                        where: { name: { [Op.iLike]: rawSubCatName }, categoryId: catId, companyId },
-                        transaction
-                    });
-                    if (!subCat) {
-                        throw new Error(`Sub Category '${rawSubCatName}' does not exist under Discipline Group '${rawCatName}'.`);
-                    }
-                    const param = await Parameter.findByPk(paramId, { transaction });
-                    if (param.subCategoryId !== subCat.id) {
-                        throw new Error(`Parameter '${rawParamName}' does not belong to Sub Category '${rawSubCatName}'.`);
-                    }
+                    await CategoryParameter.create({ categoryId: catId, parameterId: paramId, companyId, status: "Active" }, { transaction });
                 }
 
                 // Validate and parse Price

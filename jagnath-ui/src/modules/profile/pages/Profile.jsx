@@ -20,6 +20,7 @@ const Profile = () => {
     const updatedUser = { ...user, ...formData };
     setUser(updatedUser);
     sessionStorage.setItem('user', JSON.stringify(updatedUser));
+    localStorage.setItem('user', JSON.stringify(updatedUser));
     setIsEditing(false);
   };
 

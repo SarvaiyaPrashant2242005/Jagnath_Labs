@@ -214,7 +214,7 @@
     font-size: 1.1rem;
   }
 }
-=======
+
 .timeline-section {
   padding: clamp(60px, 8vw, 120px) 6%;
   background: var(--bg-light);

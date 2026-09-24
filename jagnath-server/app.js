@@ -24,13 +24,39 @@ const masterRouter = require("./src/routes.index");
 const app = express();
 
 // Parses incoming requests with JSON payloads (adds parsed data to req.body)
-app.use(express.json());
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
+
+// Global middleware to sanitize companyId from headers, query, and body to prevent "undefined" or "null" string errors
+app.use((req, res, next) => {
+    const sanitize = (val) => {
+        if (val === "undefined" || val === "null" || val === "") {
+            return undefined;
+        }
+        return val;
+    };
+
+    if (req.headers && req.headers["x-company-id"]) {
+        req.headers["x-company-id"] = sanitize(req.headers["x-company-id"]);
+    }
+    if (req.query) {
+        if (req.query.companyId) req.query.companyId = sanitize(req.query.companyId);
+        if (req.query.company_id) req.query.company_id = sanitize(req.query.company_id);
+    }
+    if (req.body) {
+        if (req.body.companyId) req.body.companyId = sanitize(req.body.companyId);
+        if (req.body.company_id) req.body.company_id = sanitize(req.body.company_id);
+    }
+    next();
+});
 
 // Enables Cross-Origin Resource Sharing (CORS) to allow requests from external domains/frontends
 app.use(cors());
 
 // Enhances application security by setting various HTTP headers (guards against XSS, clickjacking, etc.)
-app.use(helmet());
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 
 // Parses cookie headers and populates req.cookies with an object keyed by the cookie names
 app.use(cookieParser());
@@ -70,5 +96,8 @@ app.get("/jagnath/test", (req, res) => {
 
 // Mount the master router
 app.use("/api", masterRouter);
+
+// Serve static uploads
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 module.exports = app;

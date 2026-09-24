@@ -53,6 +53,18 @@ const Company = sequelize.define("Company", {
         type: DataTypes.STRING,
         allowNull: true,
     },
+    test_request_logo: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
+    test_report_logo: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
+    quotation_logo: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
     signature: {
         type: DataTypes.STRING,
         allowNull: true,

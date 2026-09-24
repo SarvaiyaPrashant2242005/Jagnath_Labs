@@ -141,6 +141,19 @@ const createClient = async (clientData, userId, reqInfo) => {
 
     const transaction = await sequelize.transaction();
     try {
+        if (clientData.clientName && clientData.companyId) {
+            const existingClient = await Client.findOne({
+                where: {
+                    companyId: clientData.companyId,
+                    clientName: { [Op.iLike]: clientData.clientName.trim() }
+                },
+                transaction
+            });
+            if (existingClient) {
+                throw new Error(`Client "${clientData.clientName}" already exists for this company.`);
+            }
+        }
+
         const newClient = await Client.create(clientData, { transaction });
 
         if (emails.length > 0) {
@@ -216,6 +229,20 @@ const updateClient = async (clientId, clientData, userId, reqInfo) => {
         });
         if (!client) {
             throw new Error("Client not found.");
+        }
+
+        if (clientData.clientName && clientData.clientName.trim() !== client.clientName) {
+            const duplicateClient = await Client.findOne({
+                where: {
+                    id: { [Op.ne]: clientId },
+                    companyId: client.companyId,
+                    clientName: { [Op.iLike]: clientData.clientName.trim() }
+                },
+                transaction
+            });
+            if (duplicateClient) {
+                throw new Error(`Client "${clientData.clientName}" already exists for this company.`);
+            }
         }
 
         const oldValues = getLoggableValues(client);
@@ -368,6 +395,17 @@ const getClientsByCompany = async (companyId, options = {}) => {
             attributes: { exclude: ["deleted_at"] }
         };
 
+        // Apply sorting rules
+        if (options.sortBy) {
+            const allowedSortFields = ["clientName", "email", "contactNumber", "officeAddress", "plantAddress", "city", "state", "status", "created_at", "createdAt"];
+            if (allowedSortFields.includes(options.sortBy)) {
+                const orderDirection = options.sortOrder === "desc" || options.sortOrder === "DESC" ? "DESC" : "ASC";
+                queryOptions.order = [[options.sortBy, orderDirection]];
+            }
+        } else {
+            queryOptions.order = [['created_at', 'DESC']];
+        }
+
         if (options.limit && options.page) {
             queryOptions.limit = parseInt(options.limit);
             queryOptions.offset = (parseInt(options.page) - 1) * queryOptions.limit;
@@ -463,10 +501,15 @@ module.exports = {
 
             for (const item of records) {
                 const raw = item.data || item;
+                const officeAddr = raw.officeAddress || raw.office_address || raw.address || 'N/A';
+                const plantAddr = raw.plantAddress || raw.plant_address || raw.address || 'N/A';
+
                 const data = {
                     clientName: raw.clientName || 'Unnamed Client',
                     contactNumber: raw.contactNumber || 'N/A',
-                    address: raw.address || 'N/A',
+                    officeAddress: officeAddr,
+                    plantAddress: plantAddr,
+                    address: officeAddr,
                     city: raw.city || 'N/A',
                     state: raw.state || 'N/A',
                     email: raw.email && String(raw.email).trim() !== '' ? String(raw.email).trim() : null,
@@ -475,7 +518,7 @@ module.exports = {
                     companyId
                 };
 
-                const { clientName, contactNumber, email, gender, address, city, state, status } = data;
+                const { clientName, contactNumber, email, gender, officeAddress, plantAddress, address, city, state, status } = data;
                 const rawData = raw;
                 const rowNum = item._originalIndex || (records.indexOf(item) + 1);
                 const errors = [];
@@ -519,6 +562,8 @@ module.exports = {
                     contactNumber,
                     email: email || null,
                     gender,
+                    officeAddress,
+                    plantAddress,
                     address,
                     city,
                     state,

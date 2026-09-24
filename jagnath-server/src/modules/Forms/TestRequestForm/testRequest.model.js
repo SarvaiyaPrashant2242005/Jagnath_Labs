@@ -84,6 +84,14 @@ const TestRequest = sequelize.define("TestRequest", {
         type: DataTypes.TEXT,
         allowNull: true,
     },
+    departmentId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: "departments",
+            key: "id"
+        }
+    },
     categoryId: {
         type: DataTypes.UUID,
         allowNull: true,
@@ -182,6 +190,27 @@ const TestRequest = sequelize.define("TestRequest", {
         type: DataTypes.ENUM("Active", "Inactive"),
         defaultValue: "Active",
         allowNull: false,
+    },
+    quotationRequired: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        defaultValue: "No",
+        field: "quotation_required"
+    },
+    quotationType: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        field: "quotation_type"
+    },
+    industryType: {
+        type: DataTypes.STRING(50),
+        allowNull: true,
+        field: "industry_type"
+    },
+    industryPrice: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        field: "industry_price"
     }
 }, {
     tableName: "test_requests",

@@ -24,12 +24,15 @@ db.ClientEmail = require("../modules/Masters/ClientMasters/clientEmail.model");
 db.Parameter = require("../modules/Masters/ParameterMasters/parameter.model");
 db.Category = require("../modules/Masters/CategoryMasters/category.model");
 db.TestRequest = require("../modules/Forms/TestRequestForm/testRequest.model");
+db.TestReport = require("../modules/Forms/TestReportForm/testReport.model");
 db.CategoryParameter = require("../modules/Masters/CategoryParameterMasters/categoryParameter.model");
 db.TestRequestParameter = require("../modules/Transactions/TestRequestParameters/testRequestParameter.model");
 db.PriceMaster = require("../modules/Masters/PriceListMasters/price_master.model");
 db.Caution = require("../modules/Masters/CautionMasters/caution.model");
 db.SubCategory = require("../modules/Masters/SubCategoryMasters/subCategory.model");
 db.LocationSample = require("../modules/Masters/LocationSampleMasters/locationSample.model");
+db.Department = require("../modules/Masters/DepartmentMasters/department.model");
+db.AuditQuotation = require("../modules/Forms/AuditQuotationForm/auditQuotation.model");
 
 // Define Associations
 db.Users.hasMany(db.RefreshTokens, { foreignKey: "user_id" });
@@ -58,6 +61,9 @@ db.Category.belongsTo(db.Company, { foreignKey: "companyId", as: "company" });
 
 db.Company.hasMany(db.TestRequest, { foreignKey: "companyId", as: "testRequests" });
 db.TestRequest.belongsTo(db.Company, { foreignKey: "companyId", as: "company" });
+
+db.Company.hasMany(db.TestReport, { foreignKey: "companyId", as: "testReports" });
+db.TestReport.belongsTo(db.Company, { foreignKey: "companyId", as: "company" });
 
 db.Client.hasMany(db.TestRequest, { foreignKey: "clientId", as: "testRequests" });
 db.TestRequest.belongsTo(db.Client, { foreignKey: "clientId", as: "client" });
@@ -98,6 +104,9 @@ db.TestRequest.belongsTo(db.Caution, { foreignKey: "cautionId", as: "caution" })
 db.Category.hasMany(db.SubCategory, { foreignKey: "categoryId", as: "subCategories" });
 db.SubCategory.belongsTo(db.Category, { foreignKey: "categoryId", as: "category" });
 
+db.Category.hasMany(db.TestRequest, { foreignKey: "categoryId", as: "testRequests" });
+db.TestRequest.belongsTo(db.Category, { foreignKey: "categoryId", as: "category" });
+
 db.Company.hasMany(db.SubCategory, { foreignKey: "companyId", as: "subCategories" });
 db.SubCategory.belongsTo(db.Company, { foreignKey: "companyId", as: "company" });
 
@@ -113,5 +122,29 @@ db.LocationSample.belongsTo(db.Company, { foreignKey: "companyId", as: "company"
 
 db.LocationSample.hasMany(db.Parameter, { foreignKey: "locationSampleId", as: "parameters" });
 db.Parameter.belongsTo(db.LocationSample, { foreignKey: "locationSampleId", as: "locationSample" });
+
+// SubCategory - LocationSample Associations
+db.SubCategory.hasMany(db.LocationSample, { foreignKey: "subCategoryId", as: "locationSamples" });
+db.LocationSample.belongsTo(db.SubCategory, { foreignKey: "subCategoryId", as: "subCategory" });
+
+// Department Associations
+db.Company.hasMany(db.Department, { foreignKey: "companyId", as: "departments" });
+db.Department.belongsTo(db.Company, { foreignKey: "companyId", as: "company" });
+
+db.Department.hasMany(db.Category, { foreignKey: "departmentId", as: "categories" });
+db.Category.belongsTo(db.Department, { foreignKey: "departmentId", as: "department" });
+
+db.Department.hasMany(db.TestRequest, { foreignKey: "departmentId", as: "testRequests" });
+db.TestRequest.belongsTo(db.Department, { foreignKey: "departmentId", as: "department" });
+
+// TestRequest - TestReport Associations
+db.TestRequest.hasOne(db.TestReport, { foreignKey: "testRequestId", as: "testReport" });
+db.TestReport.belongsTo(db.TestRequest, { foreignKey: "testRequestId", as: "testRequest" });
+
+// AuditQuotation Associations
+db.TestRequest.hasOne(db.AuditQuotation, { foreignKey: "testRequestId", as: "auditQuotation" });
+db.AuditQuotation.belongsTo(db.TestRequest, { foreignKey: "testRequestId", as: "testRequest" });
+db.AuditQuotation.belongsTo(db.Company, { foreignKey: "companyId", as: "company" });
+db.AuditQuotation.belongsTo(db.Client, { foreignKey: "clientId", as: "client" });
 
 module.exports = db;

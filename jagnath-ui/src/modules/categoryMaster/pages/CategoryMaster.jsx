@@ -5,7 +5,7 @@ import {
   FaFilePdf, FaPrint, FaChevronDown
 } from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
-import { CATEGORY_ENDPOINTS, COMPANY_ENDPOINTS } from '../../../shared/services/apiEndpoints';
+import { CATEGORY_ENDPOINTS, COMPANY_ENDPOINTS, DEPARTMENT_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 import Pagination from '../../../shared/components/Pagination';
 import BulkImportModal from '../../../shared/components/BulkImport/BulkImportModal';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
@@ -15,6 +15,8 @@ const CategoryMaster = () => {
   // Category & Company states
   const [categories, setCategories] = useState([]);
   const [companies, setCompanies] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [departmentFilter, setDepartmentFilter] = useState('ALL');
   const [loading, setLoading] = useState(false);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
 
@@ -39,6 +41,10 @@ const CategoryMaster = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
 
+  // Sorting State
+  const [sortField, setSortField] = useState(null);
+  const [sortDirection, setSortDirection] = useState(null); // 'asc', 'desc', or null
+
   // Download Dropdown toggle
   const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
   const dropdownRef = useRef(null);
@@ -48,7 +54,8 @@ const CategoryMaster = () => {
     name: '',
     description: '',
     status: 'Active',
-    companyName: ''
+    companyName: '',
+    departmentId: ''
   });
   const [formErrors, setFormErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -98,8 +105,15 @@ const CategoryMaster = () => {
         search: searchQuery,
         status: statusFilter
       });
+      if (departmentFilter && departmentFilter !== 'ALL') {
+        params.append('departmentId', departmentFilter);
+      }
       if (activeCompId) {
         params.append('companyId', activeCompId);
+      }
+      if (sortField && sortDirection) {
+        params.append('sortBy', sortField);
+        params.append('sortOrder', sortDirection);
       }
 
       const url = `${CATEGORY_ENDPOINTS.GET_ALL}?${params.toString()}`;
@@ -133,18 +147,77 @@ const CategoryMaster = () => {
     }
   };
 
+  const handleSort = (field) => {
+    if (sortField !== field) {
+      setSortField(field);
+      setSortDirection('asc');
+    } else if (sortDirection === 'asc') {
+      setSortDirection('desc');
+    } else {
+      setSortField(null);
+      setSortDirection(null);
+    }
+  };
+
+  const renderSortableHeader = (label, field) => {
+    const isSorted = sortField === field;
+    return (
+      <th
+        onClick={() => handleSort(field)}
+        style={{
+          padding: '0.75rem 1rem',
+          color: '#475569',
+          fontWeight: 600,
+          cursor: 'pointer',
+          userSelect: 'none',
+          transition: 'background-color 0.15s'
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <span>{label}</span>
+          <span style={{ fontSize: '0.7rem', color: isSorted ? '#2563eb' : '#cbd5e1', transition: 'color 0.15s' }}>
+            {isSorted ? (sortDirection === 'asc' ? '▲' : '▼') : '↕'}
+          </span>
+        </div>
+      </th>
+    );
+  };
+
+  const fetchDepartmentsList = async () => {
+    try {
+      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
+      const params = new URLSearchParams({
+        page: '1',
+        limit: '100',
+        status: 'Active'
+      });
+      if (activeCompId) params.append('companyId', activeCompId);
+      const response = await apiService.get(`${DEPARTMENT_ENDPOINTS.GET_ALL}?${params.toString()}`);
+      if (response && response.data) {
+        const list = response.data.rows || response.data || [];
+        setDepartments(list);
+      }
+    } catch (err) {
+      setDepartments([]);
+    }
+  };
+
   useEffect(() => {
     fetchCategories();
-  }, [currentPage, pageSize, searchQuery, statusFilter]);
+  }, [currentPage, pageSize, searchQuery, statusFilter, departmentFilter, sortField, sortDirection]);
 
   useEffect(() => {
     const initializeData = async () => {
       await fetchCompanies();
+      await fetchDepartmentsList();
       await fetchCategories();
     };
     initializeData();
 
     const handleCompanyChange = () => {
+      fetchDepartmentsList();
       fetchCategories();
     };
     window.addEventListener('companyChanged', handleCompanyChange);
@@ -156,6 +229,9 @@ const CategoryMaster = () => {
     const errors = {};
     if (!formData.name.trim()) {
       errors.name = 'Category Name is required.';
+    }
+    if (!formData.departmentId) {
+      errors.departmentId = 'Department is required.';
     }
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -179,11 +255,14 @@ const CategoryMaster = () => {
       name: '',
       description: '',
       status: 'Active',
-      companyName: defaultCompanyName
+      companyName: defaultCompanyName,
+      departmentId: ''
     });
     setFormErrors({});
     setEditingId(null);
     setIsFormOpen(true);
+    document.querySelector('.dashboard-content-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Open Form for Edit
@@ -192,11 +271,14 @@ const CategoryMaster = () => {
       name: category.name || '',
       description: category.description || '',
       status: category.status || 'Active',
-      companyName: category.companyName || (category.company ? (category.company.companyName || category.company.company_name) : '')
+      companyName: category.companyName || (category.company ? (category.company.companyName || category.company.company_name) : ''),
+      departmentId: category.departmentId || ''
     });
     setFormErrors({});
     setEditingId(category.id);
     setIsFormOpen(true);
+    document.querySelector('.dashboard-content-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Submit Handler
@@ -219,7 +301,8 @@ const CategoryMaster = () => {
       name: formData.name,
       description: formData.description,
       status: formData.status,
-      companyName: activeCompanyName || formData.companyName
+      companyName: activeCompanyName || formData.companyName,
+      departmentId: formData.departmentId || null
     };
 
     try {
@@ -506,6 +589,25 @@ const CategoryMaster = () => {
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
 
+              {/* Department Select */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Department *</label>
+                <select
+                  name="departmentId"
+                  value={formData.departmentId}
+                  onChange={handleInputChange}
+                  style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.departmentId ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none', backgroundColor: '#ffffff' }}
+                >
+                  <option value="">Select Department</option>
+                  {departments.map(d => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+                {formErrors.departmentId && (
+                  <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 500 }}>{formErrors.departmentId}</span>
+                )}
+              </div>
+
               {/* Category Name */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Discipline Group Name *</label>
@@ -605,6 +707,16 @@ const CategoryMaster = () => {
           </div>
           <div className="master-filter-inputs" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             <select
+              value={departmentFilter}
+              onChange={(e) => setDepartmentFilter(e.target.value)}
+              style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', backgroundColor: '#ffffff' }}
+            >
+              <option value="ALL">ALL DEPARTMENTS</option>
+              {departments.map(d => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
+            <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem' }}
@@ -630,20 +742,21 @@ const CategoryMaster = () => {
               <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ACTIONS</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>CATEGORY NAME</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATUS</th>
+                {renderSortableHeader('DEPARTMENT', 'departmentId')}
+                {renderSortableHeader('CATEGORY NAME', 'name')}
+                {renderSortableHeader('STATUS', 'status')}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                     Loading categories...
                   </td>
                 </tr>
               ) : categories.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                     No categories found.
                   </td>
                 </tr>
@@ -672,6 +785,7 @@ const CategoryMaster = () => {
                       </button>
                     </td>
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#64748b', fontWeight: 500 }}>{category.departmentName || "Department Not Assigned"}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{category.categoryName || category.name}</td>
                     <td style={{ padding: '0.75rem 1rem' }}>
                       <span style={{

@@ -1,24 +1,32 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  FaFolder, FaPlus, FaDownload, FaEdit, FaTrash, FaCheck, 
-  FaExclamationCircle, FaFileExcel, FaCopy, FaFileCsv, 
-  FaFilePdf, FaPrint, FaChevronDown 
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import {
+  FaFolder, FaPlus, FaDownload, FaEdit, FaTrash, FaCheck,
+  FaExclamationCircle, FaFileExcel, FaCopy, FaFileCsv,
+  FaFilePdf, FaPrint, FaChevronDown
 } from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
-import { SUB_CATEGORY_ENDPOINTS, CATEGORY_ENDPOINTS } from '../../../shared/services/apiEndpoints';
+import { SUB_CATEGORY_ENDPOINTS, CATEGORY_ENDPOINTS, DEPARTMENT_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 import Pagination from '../../../shared/components/Pagination';
 import BulkImportModal from '../../../shared/components/BulkImport/BulkImportModal';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 import { downloadCSV, downloadExcel } from '../../../shared/utils/exportUtils';
+
+import InlineMasterModal from '../../../shared/components/InlineMasterModal/InlineMasterModal';
+import AddMasterButton from '../../../shared/components/InlineMasterModal/AddMasterButton';
 
 /**
  * @component SubCategoryMaster
  * @description Master management UI for Sub Categories. Matches exact UI/UX color schemes & structure of Discipline Group Master.
  */
 const SubCategoryMaster = () => {
+  // Inline Master Modal State
+  const [inlineModal, setInlineModal] = useState({ isOpen: false, type: null, parentData: {} });
   // State
   const [subCategories, setSubCategories] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [departmentFilter, setDepartmentFilter] = useState('ALL');
+  const [formDepartmentId, setFormDepartmentId] = useState('');
   const [loading, setLoading] = useState(false);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
 
@@ -29,20 +37,22 @@ const SubCategoryMaster = () => {
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [totalItems, setTotalItems] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-  
+
   // Toast notifications state
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
   // Form visibility and editing state
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  
+
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+
+  // Sorting State
+  const [sortField, setSortField] = useState(null);
+  const [sortDirection, setSortDirection] = useState(null); // 'asc', 'desc', or null
 
   // Download Dropdown toggle
   const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
@@ -81,41 +91,56 @@ const SubCategoryMaster = () => {
   const fetchCategories = async () => {
     try {
       const activeCompId = localStorage.getItem('selectedCompanyId') || '';
-      const params = new URLSearchParams({ limit: 100, status: 'Active' });
+      const params = new URLSearchParams({ limit: 1000, status: 'Active', all: 'true' });
       if (activeCompId) params.append('companyId', activeCompId);
-      
+
       const response = await apiService.get(`${CATEGORY_ENDPOINTS.GET_ALL}?${params.toString()}`);
       if (response && response.data) {
-        setCategories(response.data);
+        const raw = response.data;
+        const catList = Array.isArray(raw) ? raw : (raw.rows || raw.categories || raw.data || []);
+        setCategories(Array.isArray(catList) ? catList : []);
+      } else {
+        setCategories([]);
       }
     } catch (err) {
       setCategories([]);
     }
   };
 
-  // Fetch Sub Categories
+  const fetchDepartmentsList = async () => {
+    try {
+      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
+      const params = new URLSearchParams({
+        page: '1',
+        limit: '100',
+        status: 'Active'
+      });
+      if (activeCompId) params.append('companyId', activeCompId);
+      const response = await apiService.get(`${DEPARTMENT_ENDPOINTS.GET_ALL}?${params.toString()}`);
+      if (response && response.data) {
+        const list = response.data.rows || response.data || [];
+        setDepartments(list);
+      }
+    } catch (err) {
+      setDepartments([]);
+    }
+  };
+
+  // Fetch all Sub Categories once (UI-side filtering)
   const fetchSubCategories = async () => {
     setLoading(true);
     try {
       const activeCompId = localStorage.getItem('selectedCompanyId') || '';
-      const params = new URLSearchParams({
-        page: currentPage,
-        limit: pageSize,
-        search: searchQuery,
-        status: statusFilter
-      });
+      const params = new URLSearchParams({ limit: 5000, all: 'true' });
       if (activeCompId) params.append('companyId', activeCompId);
-      if (categoryFilter) params.append('categoryId', categoryFilter);
-      
+
       const url = `${SUB_CATEGORY_ENDPOINTS.GET_ALL}?${params.toString()}`;
       const response = await apiService.get(url);
-      
+
       if (response && response.data) {
-        setSubCategories(response.data);
-        if (response.meta) {
-          setTotalItems(response.meta.totalItems || response.data.length);
-          setTotalPages(response.meta.totalPages || 1);
-        }
+        const raw = response.data;
+        const list = Array.isArray(raw) ? raw : (raw.rows || raw.subCategories || raw.data || []);
+        setSubCategories(Array.isArray(list) ? list : []);
       } else {
         setSubCategories([]);
       }
@@ -126,19 +151,133 @@ const SubCategoryMaster = () => {
     }
   };
 
+  // Pure UI-side Filtering
+  const filteredSubCategories = useMemo(() => {
+    return subCategories.filter(s => {
+      // 1a. Department Filter
+      if (departmentFilter !== 'ALL') {
+        const sDeptId = s.category?.departmentId || s.category?.department_id || '';
+        if (String(sDeptId) !== String(departmentFilter)) return false;
+      }
+
+      // 1b. Category / Discipline Group Filter
+      if (categoryFilter) {
+        const sCatId = s.categoryId || s.category_id || (s.category ? s.category.id : '');
+        if (String(sCatId) !== String(categoryFilter)) return false;
+      }
+
+      // 2. Status Filter
+      if (statusFilter !== 'ALL') {
+        const statusStr = (s.status || 'Active').toString().toLowerCase();
+        if (statusStr !== statusFilter.toLowerCase()) return false;
+      }
+
+      // 3. Search Query Filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const nameMatch = (s.name || '').toLowerCase().includes(q);
+        const descMatch = (s.description || '').toLowerCase().includes(q);
+        const catNameMatch = (s.category?.name || s.category?.categoryName || '').toLowerCase().includes(q);
+        if (!nameMatch && !descMatch && !catNameMatch) return false;
+      }
+
+      return true;
+    });
+  }, [subCategories, categoryFilter, statusFilter, searchQuery]);
+
+  const handleSort = (field) => {
+    if (sortField !== field) {
+      setSortField(field);
+      setSortDirection('asc');
+    } else if (sortDirection === 'asc') {
+      setSortDirection('desc');
+    } else {
+      setSortField(null);
+      setSortDirection(null);
+    }
+  };
+
+  const renderSortableHeader = (label, field) => {
+    const isSorted = sortField === field;
+    return (
+      <th
+        onClick={() => handleSort(field)}
+        style={{
+          padding: '0.75rem 1rem',
+          color: '#475569',
+          fontWeight: 600,
+          cursor: 'pointer',
+          userSelect: 'none',
+          transition: 'background-color 0.15s'
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <span>{label}</span>
+          <span style={{ fontSize: '0.7rem', color: isSorted ? '#2563eb' : '#cbd5e1', transition: 'color 0.15s' }}>
+            {isSorted ? (sortDirection === 'asc' ? '▲' : '▼') : '↕'}
+          </span>
+        </div>
+      </th>
+    );
+  };
+
+  const sortedSubCategories = useMemo(() => {
+    if (!sortField || !sortDirection) return filteredSubCategories;
+    const sorted = [...filteredSubCategories];
+    sorted.sort((a, b) => {
+      let valA = '';
+      let valB = '';
+      if (sortField === 'categoryId') {
+        valA = a.category?.name || a.category?.categoryName || '';
+        valB = b.category?.name || b.category?.categoryName || '';
+      } else {
+        valA = a[sortField] || '';
+        valB = b[sortField] || '';
+      }
+      valA = String(valA).toLowerCase();
+      valB = String(valB).toLowerCase();
+      if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+      if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [filteredSubCategories, sortField, sortDirection]);
+
+  const categoriesForFilter = useMemo(() => {
+    if (departmentFilter === 'ALL') return categories;
+    return categories.filter(c => String(c.departmentId || c.department_id) === String(departmentFilter));
+  }, [categories, departmentFilter]);
+
+  const filteredCategoriesForForm = useMemo(() => {
+    if (!formDepartmentId) return [];
+    return categories.filter(c => String(c.departmentId || c.department_id) === String(formDepartmentId));
+  }, [categories, formDepartmentId]);
+
+  const totalItems = sortedSubCategories.length;
+  const totalPages = Math.ceil(totalItems / pageSize) || 1;
+  const paginatedSubCategories = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return sortedSubCategories.slice(start, start + pageSize);
+  }, [sortedSubCategories, currentPage, pageSize]);
+
+
   useEffect(() => {
     fetchCategories();
+    fetchDepartmentsList();
   }, []);
 
   useEffect(() => {
     fetchSubCategories();
-  }, [currentPage, pageSize, searchQuery, categoryFilter, statusFilter]);
+  }, [currentPage, pageSize, searchQuery, categoryFilter, departmentFilter, statusFilter]);
 
   // Listen to company switch
   useEffect(() => {
     const handleCompanySwitch = () => {
       setCurrentPage(1);
       fetchCategories();
+      fetchDepartmentsList();
       fetchSubCategories();
     };
     window.addEventListener('companyChanged', handleCompanySwitch);
@@ -147,18 +286,22 @@ const SubCategoryMaster = () => {
 
   const handleOpenCreate = () => {
     setEditingId(null);
+    setFormDepartmentId('');
     setFormData({
-      categoryId: categories.length > 0 ? categories[0].id : '',
+      categoryId: '',
       name: '',
       description: '',
       status: 'Active'
     });
     setFormErrors({});
     setIsFormOpen(true);
+    document.querySelector('.dashboard-content-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleOpenEdit = (item) => {
     setEditingId(item.id);
+    setFormDepartmentId(item.category?.departmentId || item.category?.department_id || '');
     setFormData({
       categoryId: item.categoryId || (item.category ? item.category.id : ''),
       name: item.name || '',
@@ -167,6 +310,8 @@ const SubCategoryMaster = () => {
     });
     setFormErrors({});
     setIsFormOpen(true);
+    document.querySelector('.dashboard-content-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleInputChange = (e) => {
@@ -179,6 +324,7 @@ const SubCategoryMaster = () => {
 
   const validateForm = () => {
     const errors = {};
+    if (!formDepartmentId) errors.departmentId = 'Department is required';
     if (!formData.categoryId) errors.categoryId = 'Discipline Group is required';
     if (!formData.name.trim()) errors.name = 'Sub Category Name is required';
     setFormErrors(errors);
@@ -238,9 +384,9 @@ const SubCategoryMaster = () => {
 
   // Export handlers matching CategoryMaster
   const handleDownloadExcel = () => {
-    if (subCategories.length === 0) return;
+    if (filteredSubCategories.length === 0) return;
     const headers = ['Discipline Group', 'Sub Category Name', 'Description', 'Status'];
-    const rows = subCategories.map(sc => [
+    const rows = filteredSubCategories.map(sc => [
       sc.category ? sc.category.name : 'N/A',
       sc.name,
       sc.description || 'None',
@@ -251,9 +397,9 @@ const SubCategoryMaster = () => {
   };
 
   const handleDownloadCSV = () => {
-    if (subCategories.length === 0) return;
+    if (filteredSubCategories.length === 0) return;
     const headers = ['Discipline Group', 'Sub Category Name', 'Description', 'Status'];
-    const rows = subCategories.map(sc => [
+    const rows = filteredSubCategories.map(sc => [
       sc.category ? sc.category.name : 'N/A',
       sc.name,
       sc.description || 'None',
@@ -331,7 +477,7 @@ const SubCategoryMaster = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      
+
       {/* Toast Notification Container */}
       {toast.show && (
         <div style={{
@@ -365,8 +511,8 @@ const SubCategoryMaster = () => {
         <div className="master-top-bar-actions" style={{ display: 'flex', gap: '0.75rem', position: 'relative' }} ref={dropdownRef}>
           {!isFormOpen && (
             <>
-              <button 
-                onClick={handleOpenCreate} 
+              <button
+                onClick={handleOpenCreate}
                 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1rem', fontWeight: 600, cursor: 'pointer' }}
               >
                 <FaPlus />
@@ -383,20 +529,20 @@ const SubCategoryMaster = () => {
           )}
 
           {/* Premium Download Button */}
-          <button 
-            onClick={() => setShowDownloadDropdown(!showDownloadDropdown)} 
+          <button
+            onClick={() => setShowDownloadDropdown(!showDownloadDropdown)}
             disabled={subCategories.length === 0}
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '0.5rem', 
-              backgroundColor: '#22c55e', 
-              color: '#ffffff', 
-              border: 'none', 
-              borderRadius: '8px', 
-              padding: '0.5rem 1.25rem', 
-              fontWeight: 600, 
-              cursor: 'pointer', 
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              backgroundColor: '#22c55e',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '0.5rem 1.25rem',
+              fontWeight: 600,
+              cursor: 'pointer',
               opacity: subCategories.length === 0 ? 0.6 : 1,
               boxShadow: '0 2px 4px rgba(34, 197, 94, 0.2)'
             }}
@@ -464,21 +610,47 @@ const SubCategoryMaster = () => {
           <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '1.25rem', color: '#1e293b' }}>
             {editingId ? 'Edit Sub Category' : 'Add New Sub Category'}
           </h3>
-          
+
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
-              
+
+              {/* Department Select */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Department *</label>
+                <select
+                  name="departmentId"
+                  value={formDepartmentId}
+                  onChange={(e) => {
+                    setFormDepartmentId(e.target.value);
+                    setFormData(prev => ({ ...prev, categoryId: '' }));
+                  }}
+                  style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.departmentId ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none', backgroundColor: '#ffffff' }}
+                >
+                  <option value="">Select Department</option>
+                  {departments.map(d => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+                {formErrors.departmentId && (
+                  <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 500 }}>{formErrors.departmentId}</span>
+                )}
+              </div>
+
               {/* Discipline Group Dropdown */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Discipline Group *</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Discipline Group *</label>
+                  <AddMasterButton label="Add New Group" onClick={() => setInlineModal({ isOpen: true, type: 'category', parentData: { departmentId: formDepartmentId } })} />
+                </div>
                 <select
                   name="categoryId"
                   value={formData.categoryId}
                   onChange={handleInputChange}
-                  style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.categoryId ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none', backgroundColor: '#ffffff' }}
+                  disabled={!formDepartmentId}
+                  style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.categoryId ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none', backgroundColor: !formDepartmentId ? '#f1f5f9' : '#ffffff', cursor: !formDepartmentId ? 'not-allowed' : 'default' }}
                 >
                   <option value="">Select Discipline Group</option>
-                  {[...categories].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(cat => (
+                  {filteredCategoriesForForm.map(cat => (
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
                 </select>
@@ -490,8 +662,8 @@ const SubCategoryMaster = () => {
               {/* Sub Category Name */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Sub Category Name *</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
@@ -506,7 +678,7 @@ const SubCategoryMaster = () => {
               {/* Description */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: 'span 2' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Description</label>
-                <textarea 
+                <textarea
                   name="description"
                   value={formData.description}
                   onChange={handleInputChange}
@@ -556,15 +728,15 @@ const SubCategoryMaster = () => {
 
             {/* Action Buttons */}
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => setIsFormOpen(false)}
                 style={{ padding: '0.5rem 1.25rem', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', backgroundColor: '#ffffff', color: '#475569', fontWeight: 600 }}
               >
                 Cancel
               </button>
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 disabled={submitting}
                 style={{ padding: '0.5rem 1.25rem', border: 'none', borderRadius: '6px', cursor: 'pointer', backgroundColor: '#22c55e', color: '#ffffff', fontWeight: 600, opacity: submitting ? 0.7 : 1 }}
               >
@@ -578,7 +750,7 @@ const SubCategoryMaster = () => {
 
       {/* Main Table view */}
       <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
-        
+
         {/* Table Filters */}
         <div className="master-table-filters" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
           <div style={{ fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>
@@ -586,12 +758,26 @@ const SubCategoryMaster = () => {
           </div>
           <div className="master-filter-inputs" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             <select
+              value={departmentFilter}
+              onChange={(e) => {
+                setDepartmentFilter(e.target.value);
+                setCategoryFilter('');
+                setCurrentPage(1);
+              }}
+              style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', backgroundColor: '#ffffff' }}
+            >
+              <option value="ALL">ALL DEPARTMENTS</option>
+              {departments.map(d => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
+            <select
               value={categoryFilter}
               onChange={(e) => { setCategoryFilter(e.target.value); setCurrentPage(1); }}
-              style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem' }}
+              style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', backgroundColor: '#ffffff' }}
             >
               <option value="">ALL DISCIPLINE GROUPS</option>
-              {[...categories].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(cat => (
+              {[...categoriesForFilter].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(cat => (
                 <option key={cat.id} value={cat.id}>{cat.name}</option>
               ))}
             </select>
@@ -621,41 +807,42 @@ const SubCategoryMaster = () => {
               <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ACTIONS</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>DISCIPLINE GROUP</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SUB CATEGORY NAME</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATUS</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>DEPARTMENT</th>
+                {renderSortableHeader('DISCIPLINE GROUP', 'categoryId')}
+                {renderSortableHeader('SUB CATEGORY NAME', 'name')}
+                {renderSortableHeader('STATUS', 'status')}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                     Loading Sub Categories...
                   </td>
                 </tr>
-              ) : subCategories.length === 0 ? (
+              ) : paginatedSubCategories.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                     No Sub Categories found.
                   </td>
                 </tr>
               ) : (
-                subCategories.map((item, index) => (
-                  <tr 
-                    key={item.id} 
+                paginatedSubCategories.map((item, index) => (
+                  <tr
+                    key={item.id}
                     onClick={() => handleOpenEdit(item)}
                     style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background-color 0.15s' }}
                     className="company-table-row"
                   >
                     <td style={{ padding: '0.75rem 1rem', display: 'flex', gap: '0.5rem' }}>
-                      <button 
+                      <button
                         onClick={(e) => { e.stopPropagation(); handleOpenEdit(item); }}
                         style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                         title="Edit"
                       >
                         <FaEdit size={12} />
                       </button>
-                      <button 
+                      <button
                         onClick={(e) => { e.stopPropagation(); handleDelete(item.id, item.name); }}
                         style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                         title="Delete"
@@ -664,10 +851,11 @@ const SubCategoryMaster = () => {
                       </button>
                     </td>
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#64748b', fontWeight: 500 }}>{item.category?.department?.name || item.category?.departmentName || "Department Not Assigned"}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#2563eb', fontWeight: 600 }}>{item.category ? item.category.name : 'N/A'}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{item.name}</td>
                     <td style={{ padding: '0.75rem 1rem' }}>
-                      <span style={{ 
+                      <span style={{
                         display: 'inline-block',
                         padding: '0.125rem 0.5rem',
                         fontSize: '0.75rem',
@@ -690,18 +878,18 @@ const SubCategoryMaster = () => {
         <div className="show-on-mobile">
           {loading ? (
             <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>Loading Sub Categories...</div>
-          ) : subCategories.length === 0 ? (
+          ) : paginatedSubCategories.length === 0 ? (
             <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>No Sub Categories found.</div>
           ) : (
             <div className="master-card-grid">
-              {subCategories.map((item, index) => (
+              {paginatedSubCategories.map((item, index) => (
                 <div key={item.id} className="master-record-card" onClick={() => handleOpenEdit(item)}>
                   <div className="master-record-card-header">
                     <div>
                       <div className="master-record-title">{item.name}</div>
-                      <div className="master-record-subtitle">{item.category?.name || 'N/A'} • #{ (currentPage - 1) * pageSize + index + 1 }</div>
+                      <div className="master-record-subtitle">{item.category?.name || 'N/A'} • #{(currentPage - 1) * pageSize + index + 1}</div>
                     </div>
-                    <span style={{ 
+                    <span style={{
                       padding: '0.2rem 0.6rem',
                       fontSize: '0.75rem',
                       fontWeight: 700,
@@ -714,13 +902,13 @@ const SubCategoryMaster = () => {
                   </div>
 
                   <div className="master-record-actions">
-                    <button 
+                    <button
                       onClick={(e) => { e.stopPropagation(); handleOpenEdit(item); }}
                       style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                     >
                       <FaEdit size={12} /> Edit
                     </button>
-                    <button 
+                    <button
                       onClick={(e) => { e.stopPropagation(); handleDelete(item.id, item.name); }}
                       style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                     >
@@ -734,7 +922,7 @@ const SubCategoryMaster = () => {
         </div>
 
         {/* Pagination Controls */}
-        <Pagination 
+        <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
           totalItems={totalItems}
@@ -785,6 +973,29 @@ const SubCategoryMaster = () => {
         }}
       />
 
+      {/* Inline Master Creation Modal */}
+      <InlineMasterModal
+        isOpen={inlineModal.isOpen}
+        onClose={() => setInlineModal({ isOpen: false, type: null, parentData: {} })}
+        masterType={inlineModal.type}
+        parentData={inlineModal.parentData}
+        onSuccess={async (createdItem) => {
+          if (inlineModal.type === 'category') {
+            try {
+              const res = await apiService.get(CATEGORY_ENDPOINTS.GET_ALL);
+              if (res?.data) {
+                const list = Array.isArray(res.data) ? res.data : [res.data];
+                setCategories(list.filter(cat => cat.status === 'Active'));
+              }
+            } catch (e) {
+              console.error("Error refreshing categories", e);
+            }
+            if (createdItem?.id) {
+              setFormData(prev => ({ ...prev, categoryId: createdItem.id }));
+            }
+          }
+        }}
+      />
     </div>
   );
 };

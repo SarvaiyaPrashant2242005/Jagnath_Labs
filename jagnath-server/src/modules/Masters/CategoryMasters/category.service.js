@@ -47,7 +47,13 @@ const formatCategory = (category) => {
     } else {
         catObj.companyName = null;
     }
+    if (catObj.department) {
+        catObj.departmentName = catObj.department.name;
+    } else {
+        catObj.departmentName = catObj.departmentId ? "Unknown Department" : "Department Not Assigned";
+    }
     delete catObj.company;
+    delete catObj.department;
     return catObj;
 };
 
@@ -108,6 +114,20 @@ const getChangesBlock = (oldValues, newValues) => {
 const createCategory = async (categoryData, userId, reqInfo) => {
     const transaction = await sequelize.transaction();
     try {
+        if (categoryData.name && categoryData.companyId) {
+            const existingCat = await Category.findOne({
+                where: {
+                    companyId: categoryData.companyId,
+                    departmentId: categoryData.departmentId || null,
+                    name: { [Op.iLike]: categoryData.name.trim() }
+                },
+                transaction
+            });
+            if (existingCat) {
+                throw new Error(`Discipline Group "${categoryData.name}" already exists under this department for this company.`);
+            }
+        }
+
         const newCategory = await Category.create(categoryData, { transaction });
 
         // Fetch company name for logging
@@ -169,6 +189,22 @@ const updateCategory = async (categoryId, categoryData, userId, companyId, reqIn
         }
         if (!category) {
             throw new Error("Category not found or access denied.");
+        }
+
+        const checkName = categoryData.name ? categoryData.name.trim() : category.name;
+        const checkDept = categoryData.departmentId !== undefined ? categoryData.departmentId : category.departmentId;
+
+        const duplicateCat = await Category.findOne({
+            where: {
+                id: { [Op.ne]: categoryId },
+                companyId: category.companyId,
+                departmentId: checkDept || null,
+                name: { [Op.iLike]: checkName }
+            },
+            transaction
+        });
+        if (duplicateCat) {
+            throw new Error(`Discipline Group "${checkName}" already exists under this department for this company.`);
         }
 
         const oldValues = getLoggableValues(category);
@@ -281,6 +317,10 @@ const getCategoryById = async (categoryId, companyId) => {
                 model: Company,
                 as: "company",
                 attributes: ["company_name"]
+            }, {
+                model: require("../DepartmentMasters/department.model"),
+                as: "department",
+                attributes: ["name"]
             }],
             attributes: { exclude: ["deleted_at"] }
         });
@@ -301,9 +341,28 @@ const getCategoriesByCompany = async (companyId, options = {}) => {
                 model: Company,
                 as: "company",
                 attributes: ["company_name"]
+            }, {
+                model: require("../DepartmentMasters/department.model"),
+                as: "department",
+                attributes: ["name"]
             }],
             attributes: { exclude: ["deleted_at"] }
         };
+
+        if (options.departmentId) {
+            queryOptions.where.departmentId = options.departmentId;
+        }
+
+        // Apply sorting rules
+        if (options.sortBy) {
+            const allowedSortFields = ["name", "status", "created_at", "createdAt"];
+            if (allowedSortFields.includes(options.sortBy)) {
+                const orderDirection = options.sortOrder === "desc" || options.sortOrder === "DESC" ? "DESC" : "ASC";
+                queryOptions.order = [[options.sortBy, orderDirection]];
+            }
+        } else {
+            queryOptions.order = [['created_at', 'DESC']];
+        }
 
         if (options.limit && options.page) {
             queryOptions.limit = parseInt(options.limit);

@@ -7,6 +7,8 @@ const Company = require("../CompanyMasters/company.model");
 const Category = require("../CategoryMasters/category.model");
 const SubCategory = require("../SubCategoryMasters/subCategory.model");
 const CategoryParameter = require("../CategoryParameterMasters/categoryParameter.model");
+const PriceMaster = require("../PriceListMasters/price_master.model");
+const Department = require("../DepartmentMasters/department.model");
 const Users = require("../../Auth/Users/users.model");
 const LocationSample = require("../LocationSampleMasters/locationSample.model");
 const sequelize = require("../../../config/database");
@@ -52,15 +54,46 @@ const formatParameter = (param) => {
     }
     delete paramObj.company;
 
-    // Resolve category details from mapping
+    // Resolve category & department details from mapping or subcategory
+    let categoryId = null;
+    let categoryName = null;
+    let departmentId = null;
+    let departmentName = null;
+
     if (paramObj.categoryParameters && paramObj.categoryParameters.length > 0) {
         const mapping = paramObj.categoryParameters[0];
-        paramObj.categoryId = mapping.categoryId;
-        paramObj.categoryName = mapping.category ? mapping.category.name : null;
-    } else {
-        paramObj.categoryId = null;
-        paramObj.categoryName = null;
+        categoryId = mapping.categoryId;
+        if (mapping.category) {
+            categoryName = mapping.category.name;
+            departmentId = mapping.category.departmentId || mapping.category.department_id || null;
+            departmentName = mapping.category.department ? mapping.category.department.name : null;
+        }
     }
+
+    if (!categoryId && paramObj.subCategory && paramObj.subCategory.category) {
+        categoryId = paramObj.subCategory.category.id || paramObj.subCategory.category.categoryId;
+        categoryName = paramObj.subCategory.category.name;
+        departmentId = paramObj.subCategory.category.departmentId || paramObj.subCategory.category.department_id || null;
+        departmentName = paramObj.subCategory.category.department ? paramObj.subCategory.category.department.name : null;
+    }
+
+    if (!departmentId && paramObj.subCategory && paramObj.subCategory.category) {
+        departmentId = paramObj.subCategory.category.departmentId || paramObj.subCategory.category.department_id || null;
+        departmentName = paramObj.subCategory.category.department ? paramObj.subCategory.category.department.name : null;
+    }
+
+    paramObj.categoryId = categoryId;
+    paramObj.categoryName = categoryName;
+    paramObj.departmentId = departmentId;
+    paramObj.departmentName = departmentName;
+
+    paramObj.category = categoryId ? {
+        id: categoryId,
+        name: categoryName,
+        departmentId: departmentId,
+        departmentName: departmentName
+    } : null;
+
     delete paramObj.categoryParameters;
 
     if (paramObj.subCategory) {
@@ -140,11 +173,16 @@ const createParameter = async (parameterData, userId, reqInfo) => {
     try {
         const { categoryId, ...paramFields } = parameterData;
 
+        const paramSubCatId = paramFields.subCategoryId || null;
+        delete paramFields.locationSampleId;
+        const findWhere = {
+            companyId: paramFields.companyId,
+            parameterName: { [Op.iLike]: paramFields.parameterName.trim() },
+            subCategoryId: paramSubCatId
+        };
+
         let newParameter = await Parameter.findOne({
-            where: {
-                companyId: paramFields.companyId,
-                parameterName: { [Op.iLike]: paramFields.parameterName.trim() }
-            },
+            where: findWhere,
             transaction
         });
 
@@ -155,6 +193,10 @@ const createParameter = async (parameterData, userId, reqInfo) => {
             await newParameter.update({
                 description: paramFields.description || newParameter.description,
                 testMethod: paramFields.testMethod || newParameter.testMethod,
+                unit: paramFields.unit !== undefined ? paramFields.unit : newParameter.unit,
+                isPermissibleLimitApplicable: paramFields.isPermissibleLimitApplicable !== undefined ? paramFields.isPermissibleLimitApplicable : newParameter.isPermissibleLimitApplicable,
+                permissibleLimit: paramFields.permissibleLimit !== undefined ? paramFields.permissibleLimit : newParameter.permissibleLimit,
+                price: paramFields.price !== undefined ? paramFields.price : newParameter.price,
                 status: paramFields.status || newParameter.status
             }, { transaction });
         }
@@ -178,6 +220,31 @@ const createParameter = async (parameterData, userId, reqInfo) => {
                 }, { transaction });
             } else if (existingMapping.status !== 'Active') {
                 await existingMapping.update({ status: 'Active' }, { transaction });
+            }
+
+            // Sync with PriceMaster table
+            const priceVal = paramFields.price !== undefined && paramFields.price !== null ? parseFloat(paramFields.price) : (newParameter.price ? parseFloat(newParameter.price) : 0);
+            if (!isNaN(priceVal)) {
+                const existingPrice = await PriceMaster.findOne({
+                    where: {
+                        companyId: newParameter.companyId,
+                        categoryId,
+                        parameterId: newParameter.id
+                    },
+                    transaction
+                });
+
+                if (existingPrice) {
+                    await existingPrice.update({ price: priceVal, status: "Active" }, { transaction });
+                } else {
+                    await PriceMaster.create({
+                        companyId: newParameter.companyId,
+                        categoryId,
+                        parameterId: newParameter.id,
+                        price: priceVal,
+                        status: "Active"
+                    }, { transaction });
+                }
             }
         }
 
@@ -251,6 +318,29 @@ const updateParameter = async (parameterId, parameterData, userId, companyId, re
                     parameterId,
                     status: "Active"
                 }, { transaction });
+            }
+        }
+
+        const targetCategoryId = categoryId !== undefined ? categoryId : (updatedParameter.categoryId || null);
+        if (targetCategoryId && (paramFields.price !== undefined || updatedParameter.price !== undefined)) {
+            const priceVal = paramFields.price !== undefined && paramFields.price !== null ? parseFloat(paramFields.price) : (updatedParameter.price ? parseFloat(updatedParameter.price) : 0);
+            if (!isNaN(priceVal)) {
+                const existingPrice = await PriceMaster.findOne({
+                    where: { companyId, categoryId: targetCategoryId, parameterId },
+                    transaction
+                });
+
+                if (existingPrice) {
+                    await existingPrice.update({ price: priceVal, status: "Active" }, { transaction });
+                } else {
+                    await PriceMaster.create({
+                        companyId,
+                        categoryId: targetCategoryId,
+                        parameterId,
+                        price: priceVal,
+                        status: "Active"
+                    }, { transaction });
+                }
             }
         }
 
@@ -360,7 +450,17 @@ const getParameterById = async (parameterId, companyId) => {
                 {
                     model: SubCategory,
                     as: "subCategory",
-                    attributes: ["id", "name"]
+                    attributes: ["id", "name", "categoryId"],
+                    include: [{
+                        model: Category,
+                        as: "category",
+                        attributes: ["id", "name", "departmentId"],
+                        include: [{
+                            model: Department,
+                            as: "department",
+                            attributes: ["id", "name"]
+                        }]
+                    }]
                 },
                 {
                     model: LocationSample,
@@ -373,7 +473,12 @@ const getParameterById = async (parameterId, companyId) => {
                     include: [{
                         model: Category,
                         as: "category",
-                        attributes: ["name"]
+                        attributes: ["id", "name", "departmentId"],
+                        include: [{
+                            model: Department,
+                            as: "department",
+                            attributes: ["id", "name"]
+                        }]
                     }]
                 }
             ],
@@ -390,37 +495,75 @@ const getParameterById = async (parameterId, companyId) => {
  */
 const getParametersByCompany = async (companyId, options = {}) => {
     try {
+        let whereClause = {};
+        if (companyId && companyId !== 'ALL') {
+            whereClause.companyId = companyId;
+        }
+
         let queryOptions = {
-            where: { companyId },
+            where: whereClause,
             include: [
                 {
                     model: Company,
                     as: "company",
-                    attributes: ["company_name"]
+                    attributes: ["company_name"],
+                    required: false
                 },
                 {
                     model: SubCategory,
                     as: "subCategory",
-                    attributes: ["id", "name"]
+                    attributes: ["id", "name", "categoryId"],
+                    required: false,
+                    include: [{
+                        model: Category,
+                        as: "category",
+                        attributes: ["id", "name", "departmentId"],
+                        required: false,
+                        include: [{
+                            model: Department,
+                            as: "department",
+                            attributes: ["id", "name"],
+                            required: false
+                        }]
+                    }]
                 },
                 {
                     model: LocationSample,
                     as: "locationSample",
-                    attributes: ["id", "name"]
+                    attributes: ["id", "name"],
+                    required: false
                 },
                 {
                     model: CategoryParameter,
                     as: "categoryParameters",
+                    required: false,
                     include: [{
                         model: Category,
                         as: "category",
-                        attributes: ["name"]
+                        attributes: ["id", "name", "departmentId"],
+                        required: false,
+                        include: [{
+                            model: Department,
+                            as: "department",
+                            attributes: ["id", "name"],
+                            required: false
+                        }]
                     }]
                 }
             ],
             attributes: { exclude: ["deleted_at"] },
             distinct: true
         };
+
+        if (options.sortBy) {
+            const allowedSortFields = ["parameterName", "testMethod", "unit", "permissibleLimit", "status", "created_at", "createdAt"];
+            if (allowedSortFields.includes(options.sortBy)) {
+                const orderDirection = options.sortOrder === "desc" || options.sortOrder === "DESC" ? "DESC" : "ASC";
+                queryOptions.order = [[options.sortBy, orderDirection]];
+            }
+        } else {
+            queryOptions.order = [['created_at', 'DESC']];
+        }
 
         if (options.search) {
             queryOptions.where.parameterName = { [Op.iLike]: `%${options.search}%` };
@@ -435,11 +578,28 @@ const getParametersByCompany = async (companyId, options = {}) => {
         }
 
         if (options.categoryId) {
-            queryOptions.include[2].where = { categoryId: options.categoryId };
-            queryOptions.include[2].required = true;
+            queryOptions.where[Op.and] = queryOptions.where[Op.and] || [];
+            queryOptions.where[Op.and].push({
+                [Op.or]: [
+                    { '$categoryParameters.categoryId$': options.categoryId },
+                    { '$subCategory.category.id$': options.categoryId }
+                ]
+            });
+            queryOptions.subQuery = false;
         }
 
-        if (options.limit && options.page) {
+        if (options.departmentId) {
+            queryOptions.where[Op.and] = queryOptions.where[Op.and] || [];
+            queryOptions.where[Op.and].push({
+                [Op.or]: [
+                    { '$categoryParameters.category.departmentId$': options.departmentId },
+                    { '$subCategory.category.departmentId$': options.departmentId }
+                ]
+            });
+            queryOptions.subQuery = false;
+        }
+
+        if (options.limit && options.page && options.all !== 'true' && options.all !== true) {
             queryOptions.limit = parseInt(options.limit);
             queryOptions.offset = (parseInt(options.page) - 1) * queryOptions.limit;
 
@@ -474,34 +634,85 @@ module.exports = {
                 const paramName = data.parameterName || data.name;
                 if (!paramName) continue;
 
-                // Resolve category mapping if categoryName is provided
+                // Resolve department mapping - auto create if not exists
+                let departmentId = null;
+                const rawDeptName = (data.departmentName || data.department || "").trim();
+                if (rawDeptName) {
+                    let dept = await Department.findOne({ where: { name: { [Op.iLike]: rawDeptName }, companyId }, transaction });
+                    if (!dept) {
+                        dept = await Department.create({ name: rawDeptName, companyId, status: "Active" }, { transaction });
+                    }
+                    departmentId = dept.id;
+                } else {
+                    let dept = await Department.findOne({ where: { name: "General Department", companyId }, transaction });
+                    if (!dept) {
+                        dept = await Department.create({ name: "General Department", companyId, status: "Active" }, { transaction });
+                    }
+                    departmentId = dept.id;
+                }
+
+                // Resolve category mapping - auto create if not exists
                 let categoryId = null;
                 const rawCatName = (data.categoryName || data.disciplineGroup || "").trim();
                 if (rawCatName) {
-                    let cat = await Category.findOne({ where: { name: { [Op.iLike]: rawCatName }, companyId }, transaction });
+                    let cat = await Category.findOne({ where: { name: { [Op.iLike]: rawCatName }, companyId, departmentId }, transaction });
                     if (!cat) {
-                        throw new Error(`Discipline Group '${rawCatName}' does not exist.`);
+                        cat = await Category.create({ name: rawCatName, companyId, departmentId, status: "Active" }, { transaction });
                     }
                     categoryId = cat.id;
                 } else {
-                    throw new Error("Discipline Group is required.");
+                    let cat = await Category.findOne({ where: { name: "General Group", companyId, departmentId }, transaction });
+                    if (!cat) {
+                        cat = await Category.create({ name: "General Group", companyId, departmentId, status: "Active" }, { transaction });
+                    }
+                    categoryId = cat.id;
                 }
 
-                // Resolve sub category mapping if subCategoryName is provided
+                // Resolve sub category mapping - auto create if not exists
                 let subCategoryId = null;
                 const rawSubCatName = (data.subCategoryName || data.subCategory || "").trim();
                 if (rawSubCatName && categoryId) {
                     let subCat = await SubCategory.findOne({
-                        where: { name: { [Op.iLike]: rawSubCatName }, companyId },
+                        where: { name: { [Op.iLike]: rawSubCatName }, companyId, categoryId },
                         transaction
                     });
                     if (!subCat) {
-                        throw new Error(`Sub Category '${rawSubCatName}' does not exist.`);
-                    }
-                    if (subCat.categoryId !== categoryId) {
-                        throw new Error(`Sub Category '${rawSubCatName}' does not belong to selected Discipline Group '${rawCatName}'.`);
+                        subCat = await SubCategory.create({ name: rawSubCatName, companyId, categoryId, status: "Active" }, { transaction });
                     }
                     subCategoryId = subCat.id;
+                }
+
+                // Resolve location of sample mapping if locationOfSample is provided
+                let locationSampleId = null;
+                const rawLocName = (data.locationOfSample || data.locationSampleName || data.locationOfSampleName || data.locationSample || "").trim();
+                if (rawLocName) {
+                    let loc = await LocationSample.findOne({
+                        where: { name: { [Op.iLike]: rawLocName }, companyId },
+                        transaction
+                    });
+                    if (!loc) {
+                        loc = await LocationSample.create({ name: rawLocName, companyId, status: "Active" }, { transaction });
+                    }
+                    locationSampleId = loc.id;
+                }
+
+                // Parse isPermissibleLimitApplicable
+                let isPermissibleLimitApplicable = false;
+                const rawLimitApp = data.isPermissibleLimitApplicable || data.permissibleLimitApplicable || data.is_permissible_limit_applicable;
+                if (rawLimitApp !== undefined && rawLimitApp !== null) {
+                    const strVal = String(rawLimitApp).trim().toLowerCase();
+                    if (strVal === 'yes' || strVal === 'true' || strVal === '1' || rawLimitApp === true) {
+                        isPermissibleLimitApplicable = true;
+                    }
+                }
+
+                // Parse price
+                let price = 0;
+                if (data.price !== undefined && data.price !== null && data.price !== '') {
+                    const parsed = parseFloat(data.price);
+                    if (!isNaN(parsed) && parsed >= 0) {
+                        price = parsed;
+                    }
                 }
 
                 const paramPayload = {
@@ -509,7 +720,11 @@ module.exports = {
                     parameterName: paramName,
                     subCategoryId: subCategoryId || data.subCategoryId || null,
                     description: data.description || null,
-                    testMethod: data.testMethod || null,
+                    testMethod: data.testMethod || data.testing_method || data.referenceMethod || null,
+                    unit: data.unit || null,
+                    isPermissibleLimitApplicable,
+                    permissibleLimit: data.permissibleLimit || data.permissible_limit || data.limit || null,
+                    price,
                     status: (data.status && ['Active', 'Inactive'].includes(String(data.status).trim())) ? String(data.status).trim() : 'Active'
                 };
 
@@ -517,7 +732,13 @@ module.exports = {
                 if (item._dbId) {
                     existing = await Parameter.findOne({ where: { id: item._dbId, companyId }, transaction });
                 } else {
-                    existing = await Parameter.findOne({ where: { parameterName: paramName, companyId }, transaction });
+                    const findWhere = {
+                        companyId,
+                        parameterName: { [Op.iLike]: paramName.trim() },
+                        subCategoryId: paramPayload.subCategoryId || null,
+                        testMethod: paramPayload.testMethod ? { [Op.iLike]: paramPayload.testMethod.trim() } : null
+                    };
+                    existing = await Parameter.findOne({ where: findWhere, transaction });
                 }
 
                 if (existing) {
@@ -531,6 +752,13 @@ module.exports = {
                         } else {
                             await CategoryParameter.create({ companyId, categoryId, parameterId: existing.id, status: "Active" }, { transaction });
                         }
+
+                        const existingPrice = await PriceMaster.findOne({ where: { companyId, categoryId, parameterId: existing.id }, transaction });
+                        if (existingPrice) {
+                            await existingPrice.update({ price, status: "Active" }, { transaction });
+                        } else {
+                            await PriceMaster.create({ companyId, categoryId, parameterId: existing.id, price, status: "Active" }, { transaction });
+                        }
                     }
                 } else {
                     const newParam = await Parameter.create(paramPayload, { transaction });
@@ -538,6 +766,13 @@ module.exports = {
 
                     if (categoryId) {
                         await CategoryParameter.create({ companyId, categoryId, parameterId: newParam.id, status: "Active" }, { transaction });
+
+                        const existingPrice = await PriceMaster.findOne({ where: { companyId, categoryId, parameterId: newParam.id }, transaction });
+                        if (existingPrice) {
+                            await existingPrice.update({ price, status: "Active" }, { transaction });
+                        } else {
+                            await PriceMaster.create({ companyId, categoryId, parameterId: newParam.id, price, status: "Active" }, { transaction });
+                        }
                     }
                 }
             }

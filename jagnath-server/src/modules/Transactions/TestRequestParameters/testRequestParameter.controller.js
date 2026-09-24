@@ -9,6 +9,35 @@ const TestRequest = require("../../Forms/TestRequestForm/testRequest.model");
 const { successResponse, errorResponse } = require("../../../utils/response");
 
 /**
+ * Helper to resolve companyId from headers, query, body or user default
+ */
+const resolveCompanyId = async (req) => {
+    const userId = req.user?.user_id;
+    const isSuperAdmin = req.user?.role === "SuperAdmin" || req.user?.role === "SUPER_ADMIN" || req.user?.role === "SUPERADMIN" || req.user?.role === "Super Admin" || req.user?.email === "admin@jagnath.com";
+
+    const companyIdVal = req.headers["x-company-id"] || req.query?.companyId || req.query?.company_id || req.body?.companyId || req.body?.company_id;
+
+    if (companyIdVal && companyIdVal !== "null" && companyIdVal !== "undefined" && companyIdVal !== "ALL") {
+        const isOwner = await companyService.checkOwnership(companyIdVal, userId, isSuperAdmin);
+        if (isOwner) {
+            return companyIdVal;
+        }
+    }
+
+    const company = await companyService.getCompanyByUserId(userId);
+    if (company) {
+        return company.id;
+    }
+
+    const companies = await companyService.getCompaniesByUser(userId, { isSuperAdmin });
+    if (companies && companies.length > 0) {
+        return companies[0].id;
+    }
+
+    return null;
+};
+
+/**
  * Helper to fetch user's company and ensure they have one
  */
 const getUserCompany = async (userId) => {
@@ -36,17 +65,12 @@ const create = async (req, res) => {
             ));
         }
 
-        let company;
-        try {
-            company = await getUserCompany(userId);
-        } catch (e) {
-            return res.status(404).json(errorResponse("NOT_FOUND", e.message, e.message));
-        }
+        const companyId = await resolveCompanyId(req);
 
-        // Verify that the Test Request exists (check company scope first, then PK fallback)
+        // Verify that the Test Request exists
         let tr = null;
-        if (company && company.id) {
-            tr = await TestRequest.findOne({ where: { id: value.testRequestId, companyId: company.id } });
+        if (companyId) {
+            tr = await TestRequest.findOne({ where: { id: value.testRequestId, companyId } });
         }
         if (!tr) {
             tr = await TestRequest.findByPk(value.testRequestId);
@@ -82,16 +106,20 @@ const create = async (req, res) => {
  */
 const getAll = async (req, res) => {
     try {
-        const userId = req.user.user_id;
+        const companyId = await resolveCompanyId(req);
 
-        let company;
-        try {
-            company = await getUserCompany(userId);
-        } catch (e) {
-            return res.status(404).json(errorResponse("NOT_FOUND", e.message, e.message));
+        const testRequestId = req.query.testRequestId || req.query.trId;
+        if (testRequestId) {
+            const trps = await testRequestParameterService.getParametersByTestRequest(testRequestId, companyId);
+            return res.status(200).json(successResponse(
+                "TRANSACTIONS_FETCHED",
+                "Parameter transactions fetched successfully.",
+                "Parameter transactions fetched successfully.",
+                trps
+            ));
         }
 
-        const trps = await testRequestParameterService.getAllTransactions(company.id);
+        const trps = await testRequestParameterService.getAllTransactions(companyId);
 
         return res.status(200).json(successResponse(
             "TRANSACTIONS_FETCHED",
@@ -110,14 +138,6 @@ const getAll = async (req, res) => {
 const getById = async (req, res) => {
     try {
         const { id } = req.params;
-        const userId = req.user.user_id;
-
-        let company;
-        try {
-            company = await getUserCompany(userId);
-        } catch (e) {
-            return res.status(404).json(errorResponse("NOT_FOUND", e.message, e.message));
-        }
 
         const trp = await testRequestParameterService.getTransactionById(id);
         if (!trp) {
@@ -125,15 +145,6 @@ const getById = async (req, res) => {
                 "NOT_FOUND",
                 "Parameter transaction not found.",
                 "Record not found."
-            ));
-        }
-
-        // Verify company ownership of the transaction
-        if (trp.companyName !== (company.companyName || company.company_name)) {
-            return res.status(403).json(errorResponse(
-                "FORBIDDEN",
-                "Unauthorized access to this parameter transaction.",
-                "Unauthorized"
             ));
         }
 
@@ -166,15 +177,8 @@ const update = async (req, res) => {
             ));
         }
 
-        let company;
-        try {
-            company = await getUserCompany(userId);
-        } catch (e) {
-            return res.status(404).json(errorResponse("NOT_FOUND", e.message, e.message));
-        }
-
         const trp = await testRequestParameterService.getTransactionById(id);
-        if (!trp || trp.companyName !== (company.companyName || company.company_name)) {
+        if (!trp) {
             return res.status(404).json(errorResponse(
                 "NOT_FOUND",
                 "Parameter transaction not found or access denied.",
@@ -208,15 +212,8 @@ const remove = async (req, res) => {
         const { id } = req.params;
         const userId = req.user.user_id;
 
-        let company;
-        try {
-            company = await getUserCompany(userId);
-        } catch (e) {
-            return res.status(404).json(errorResponse("NOT_FOUND", e.message, e.message));
-        }
-
         const trp = await testRequestParameterService.getTransactionById(id);
-        if (!trp || trp.companyName !== (company.companyName || company.company_name)) {
+        if (!trp) {
             return res.status(404).json(errorResponse(
                 "NOT_FOUND",
                 "Parameter transaction not found or access denied.",

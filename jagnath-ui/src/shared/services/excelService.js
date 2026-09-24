@@ -72,8 +72,9 @@ export const MASTER_SCHEMAS = {
       { key: 'contactNumber', label: 'Contact Number *', required: true, type: 'string', aliases: ['contactnumber', 'contactnumber*', 'contactno', 'contactno.', 'mobilenumber', 'mobile', 'phone', 'contact_number', 'Contact Number *', 'Contact No'] },
       { key: 'email', label: 'Email', required: false, type: 'email', aliases: ['email', 'emailaddress', 'email_address', 'Email Address'] },
       { key: 'gender', label: 'Gender', required: false, type: 'select', options: ['Male', 'Female', 'Other'], aliases: ['gender', 'Gender'] },
-      { key: 'address', label: 'Address', required: false, type: 'string', aliases: ['address', 'communicationaddress', 'communication_address', 'Address', 'Communication Address'] },
-      { key: 'city', label: 'City', required: false, type: 'string', aliases: ['city', 'City'] },
+      { key: 'officeAddress', label: 'Office Address *', required: true, type: 'string', aliases: ['officeaddress', 'officeaddress*', 'office_address', 'address', 'Address', 'Office Address'] },
+      { key: 'plantAddress', label: 'Plant / Industry Address *', required: true, type: 'string', aliases: ['plantaddress', 'plantaddress*', 'plant_address', 'industryaddress', 'Plant / Industry Address'] },
+      { key: 'city', label: 'City *', required: true, type: 'string', aliases: ['city', 'city*', 'City *', 'City'] },
       { key: 'state', label: 'State', required: false, type: 'string', aliases: ['state', 'State'] },
       { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'], aliases: ['status', 'Status'] }
     ],
@@ -83,8 +84,9 @@ export const MASTER_SCHEMAS = {
         'Contact Number *': '9876543210',
         'Email': 'contact@alphatech.com',
         'Gender': 'Male',
-        'Address': '123 Tech Park',
-        'City': 'Surat',
+        'Office Address *': '123 Tech Park, Ring Road',
+        'Plant / Industry Address *': 'Plot 45, GIDC Industrial Estate',
+        'City *': 'Surat',
         'State': 'Gujarat',
         'Status': 'Active'
       },
@@ -93,9 +95,33 @@ export const MASTER_SCHEMAS = {
         'Contact Number *': '9123456789',
         'Email': 'info@greeneco.org',
         'Gender': 'Female',
-        'Address': '45 Eco Zone',
-        'City': 'Ahmedabad',
+        'Office Address *': '45 Eco Tower, SG Highway',
+        'Plant / Industry Address *': 'Phase 2, Sanand Industrial Area',
+        'City *': 'Ahmedabad',
         'State': 'Gujarat',
+        'Status': 'Active'
+      }
+    ]
+  },
+
+  locationSample: {
+    title: 'Location of Sample Master',
+    filename: 'Location_Sample_Master_Template.xlsx',
+    uniqueKeys: ['name'],
+    headers: [
+      { key: 'name', label: 'Location Name *', required: true, type: 'string', aliases: ['locationname', 'locationname*', 'name', 'location_name', 'Location Name *'] },
+      { key: 'description', label: 'Description', required: false, type: 'string', aliases: ['description', 'Description'] },
+      { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'], aliases: ['status', 'Status'] }
+    ],
+    sampleData: [
+      {
+        'Location Name *': 'Tap Water Inlet',
+        'Description': 'Main municipal water supply tap at facility entrance',
+        'Status': 'Active'
+      },
+      {
+        'Location Name *': 'Effluent Treatment Plant Discharge',
+        'Description': 'Final outlet pipe after primary and secondary treatment',
         'Status': 'Active'
       }
     ]
@@ -155,28 +181,40 @@ export const MASTER_SCHEMAS = {
     filename: 'Parameter_Master_Template.xlsx',
     uniqueKeys: ['parameterName'],
     headers: [
+      { key: 'departmentName', label: 'Department *', required: true, type: 'string', aliases: ['department', 'department*', 'departmentname', 'departmentname*', 'Department *', 'Department'] },
       { key: 'categoryName', label: 'Discipline Group *', required: true, type: 'string', aliases: ['disciplinegroup', 'disciplinegroup*', 'disciplinegroupname', 'groupname', 'category', 'categoryname', 'Discipline Group *'] },
       { key: 'subCategoryName', label: 'Sub Category', required: false, type: 'string', aliases: ['subcategory', 'subcategoryname', 'subcategory_name', 'Sub Category'] },
       { key: 'parameterName', label: 'Parameter Name *', required: true, type: 'string', aliases: ['parametername', 'parametername*', 'name', 'parameter', 'Parameter Name *'] },
-      { key: 'testMethod', label: 'Test Method', required: false, type: 'string', aliases: ['testmethod', 'test_method', 'Test Method'] },
-      { key: 'description', label: 'Description', required: false, type: 'string', aliases: ['description', 'Description'] },
+      { key: 'testMethod', label: 'Test Method', required: false, type: 'string', aliases: ['testmethod', 'test_method', 'testingmethod', 'testing_method', 'referencemethod', 'reference_method', 'method', 'Test Method', 'Testing Method', 'Reference Method'] },
+      { key: 'unit', label: 'Unit', required: false, type: 'string', aliases: ['unit', 'units', 'Unit'] },
+      { key: 'isPermissibleLimitApplicable', label: 'Permissible Limit Applicable?', required: false, type: 'select', options: ['Yes', 'No'], aliases: ['permissiblelimitapplicable', 'permissiblelimitapplicable?', 'ispermissiblelimitapplicable', 'ispermissiblelimitapplicable?', 'Permissible Limit Applicable?'] },
+      { key: 'permissibleLimit', label: 'Permissible Limit', required: false, type: 'string', aliases: ['permissiblelimit', 'limit', 'Permissible Limit'] },
+      { key: 'price', label: 'Price (₹)', required: false, type: 'number', aliases: ['price', 'price*', 'rate', 'testingrate', 'Price', 'Price (₹)', 'Price *'] },
       { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'], aliases: ['status', 'Status'] }
     ],
     sampleData: [
       {
-        'Discipline Group *': 'Drinking Water',
+        'Department *': 'Environment',
+        'Discipline Group *': 'WATER TESTING',
         'Sub Category': 'Physical Parameters',
         'Parameter Name *': 'pH Level',
         'Test Method': 'APHA, 23rd Edition 2017/4500-H-B',
-        'Description': 'Acidity or alkalinity measure of water',
+        'Unit': 'pH',
+        'Permissible Limit Applicable?': 'Yes',
+        'Permissible Limit': '6.5 - 8.5',
+        'Price (₹)': 250,
         'Status': 'Active'
       },
       {
-        'Discipline Group *': 'Drinking Water',
+        'Department *': 'Environment',
+        'Discipline Group *': 'WATER TESTING',
         'Sub Category': 'Physical Parameters',
         'Parameter Name *': 'Total Dissolved Solids (TDS)',
         'Test Method': 'IS 3025 (Part 16)',
-        'Description': 'Inorganic salts and small amounts of organic matter dissolved in water',
+        'Unit': 'mg/L',
+        'Permissible Limit Applicable?': 'Yes',
+        'Permissible Limit': '500',
+        'Price (₹)': 350,
         'Status': 'Active'
       }
     ]
@@ -347,7 +385,7 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
     // Map Excel header labels to internal keys using central header normalization & aliases
     Object.keys(row).forEach(rawHeader => {
       const normRaw = normalizeExcelHeader(rawHeader);
-      
+
       // Look for a matching schema header field
       const matchedField = schema.headers.find(h => {
         if (normalizeExcelHeader(h.key) === normRaw) return true;
@@ -419,39 +457,72 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
     });
 
     // Check for internal file duplicates
+    let isDuplicateInFile = false;
+    let fileDuplicateMessage = '';
+
     if (masterType === 'client') {
       const nEmail = normalizeEmail(normalizedData.email);
       const nPhone = normalizePhone(normalizedData.contactNumber);
 
       if (nEmail && seenEmailsInFile.has(nEmail)) {
-        const msg = `Duplicate email in uploaded file. First found at row ${seenEmailsInFile.get(nEmail)}.`;
-        cellErrors['email'] = msg;
-        cellErrors['_row'] = msg;
-        isRowValid = false;
+        isDuplicateInFile = true;
+        fileDuplicateMessage = `Duplicate email in uploaded file (first found at row ${seenEmailsInFile.get(nEmail)}). This row will update the record.`;
+      } else if (nPhone && seenPhonesInFile.has(nPhone)) {
+        isDuplicateInFile = true;
+        fileDuplicateMessage = `Duplicate phone number in uploaded file (first found at row ${seenPhonesInFile.get(nPhone)}). This row will update the record.`;
       }
 
-      if (nPhone && seenPhonesInFile.has(nPhone)) {
-        const msg = `Duplicate phone number in uploaded file. First found at row ${seenPhonesInFile.get(nPhone)}.`;
-        cellErrors['contactNumber'] = msg;
-        cellErrors['_row'] = cellErrors['_row'] ? `${cellErrors['_row']} | ${msg}` : msg;
-        isRowValid = false;
-      }
-
-      if (isRowValid) {
+      if (isRowValid && !isDuplicateInFile) {
         if (nEmail) seenEmailsInFile.set(nEmail, validRowNum);
         if (nPhone) seenPhonesInFile.set(nPhone, validRowNum);
       }
-    } else if (masterType === 'category' || masterType === 'parameter') {
-      const fieldKey = masterType === 'category' ? 'categoryName' : 'parameterName';
-      const nName = normalizeString(normalizedData[fieldKey]);
-
+    } else if (masterType === 'category') {
+      const nName = normalizeString(normalizedData.categoryName);
       if (nName && seenNamesInFile.has(nName)) {
-        const msg = `Duplicate ${masterType === 'category' ? 'discipline group' : 'parameter'} in uploaded file. First found at row ${seenNamesInFile.get(nName)}.`;
-        cellErrors[fieldKey] = msg;
-        cellErrors['_row'] = msg;
-        isRowValid = false;
+        isDuplicateInFile = true;
+        fileDuplicateMessage = `Duplicate discipline group in uploaded file (first found at row ${seenNamesInFile.get(nName)}). This row will update the record.`;
       } else if (nName) {
         seenNamesInFile.set(nName, validRowNum);
+      }
+    } else if (masterType === 'subCategory') {
+      const nCatName = normalizeString(normalizedData.categoryName);
+      const nSubName = normalizeString(normalizedData.name);
+      const subCatSignature = `${nCatName}___${nSubName}`;
+      if (nSubName && seenNamesInFile.has(subCatSignature)) {
+        isDuplicateInFile = true;
+        fileDuplicateMessage = `Duplicate sub category in uploaded file (first found at row ${seenNamesInFile.get(subCatSignature)}). This row will update the record.`;
+      } else if (nSubName) {
+        seenNamesInFile.set(subCatSignature, validRowNum);
+      }
+    } else if (masterType === 'parameter') {
+      const nName = normalizeString(normalizedData.parameterName);
+      const nSub = normalizeString(normalizedData.subCategoryName);
+      const nMethod = normalizeString(normalizedData.testMethod);
+      const nCatName = normalizeString(normalizedData.categoryName);
+      const paramSignature = `${nName}___${nSub}___${nMethod}___${nCatName}`;
+      if (nName && seenNamesInFile.has(paramSignature)) {
+        isDuplicateInFile = true;
+        fileDuplicateMessage = `Duplicate parameter name under same sub category, test method, and discipline group in uploaded file (first found at row ${seenNamesInFile.get(paramSignature)}). This row will update the record.`;
+      } else if (nName) {
+        seenNamesInFile.set(paramSignature, validRowNum);
+      }
+    } else if (masterType === 'pricelist') {
+      const nCatName = normalizeString(normalizedData.categoryName);
+      const nParamName = normalizeString(normalizedData.parameterName);
+      const priceSignature = `${nCatName}___${nParamName}`;
+      if (nParamName && seenNamesInFile.has(priceSignature)) {
+        isDuplicateInFile = true;
+        fileDuplicateMessage = `Duplicate price list item in uploaded file (first found at row ${seenNamesInFile.get(priceSignature)}). This row will update the record.`;
+      } else if (nParamName) {
+        seenNamesInFile.set(priceSignature, validRowNum);
+      }
+    } else if (masterType === 'user') {
+      const nEmail = normalizeEmail(normalizedData.email);
+      if (nEmail && seenNamesInFile.has(nEmail)) {
+        isDuplicateInFile = true;
+        fileDuplicateMessage = `Duplicate user email in uploaded file (first found at row ${seenNamesInFile.get(nEmail)}). This row will update the record.`;
+      } else if (nEmail) {
+        seenNamesInFile.set(nEmail, validRowNum);
       }
     }
 
@@ -468,7 +539,7 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
         const phoneClient = nPhone ? existingDbRecords.find(c => normalizePhone(c.contactNumber) === nPhone) : null;
 
         if (emailClient && phoneClient && emailClient.id !== phoneClient.id) {
-          const msg = `Email belongs to client ID ${emailClient.id}, but phone number belongs to client ID ${phoneClient.id}.`;
+          const msg = `Email belongs to client '${emailClient.clientName}', but phone number belongs to client '${phoneClient.clientName}'.`;
           cellErrors['email'] = msg;
           cellErrors['contactNumber'] = msg;
           cellErrors['_row'] = msg;
@@ -484,12 +555,46 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
           isDbMatch = true;
           matchingDbId = dbCat.id;
         }
+      } else if (masterType === 'subCategory') {
+        const nCatName = normalizeString(normalizedData.categoryName);
+        const nSubName = normalizeString(normalizedData.name);
+        const dbSub = existingDbRecords.find(s => normalizeString(s.categoryName) === nCatName && normalizeString(s.name || s.subCategoryName) === nSubName);
+        if (dbSub) {
+          isDbMatch = true;
+          matchingDbId = dbSub.id;
+        }
       } else if (masterType === 'parameter') {
         const nParamName = normalizeString(normalizedData.parameterName);
-        const dbParam = existingDbRecords.find(p => normalizeString(p.parameterName || p.name) === nParamName);
+        const nSub = normalizeString(normalizedData.subCategoryName);
+        const nMethod = normalizeString(normalizedData.testMethod);
+        const nCatName = normalizeString(normalizedData.categoryName);
+        const dbParam = existingDbRecords.find(p => 
+          normalizeString(p.parameterName || p.name) === nParamName &&
+          normalizeString(p.subCategoryName) === nSub &&
+          normalizeString(p.testMethod) === nMethod &&
+          normalizeString(p.categoryName) === nCatName
+        );
         if (dbParam) {
           isDbMatch = true;
           matchingDbId = dbParam.id;
+        }
+      } else if (masterType === 'pricelist') {
+        const nCatName = normalizeString(normalizedData.categoryName);
+        const nParamName = normalizeString(normalizedData.parameterName);
+        const dbPrice = existingDbRecords.find(pr => 
+          normalizeString(pr.categoryName) === nCatName &&
+          normalizeString(pr.parameterName) === nParamName
+        );
+        if (dbPrice) {
+          isDbMatch = true;
+          matchingDbId = dbPrice.id;
+        }
+      } else if (masterType === 'user') {
+        const nEmail = normalizeEmail(normalizedData.email);
+        const dbUser = existingDbRecords.find(u => normalizeEmail(u.email) === nEmail);
+        if (dbUser) {
+          isDbMatch = true;
+          matchingDbId = dbUser.id;
         }
       }
     }
@@ -497,8 +602,13 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
     let statusTag = 'NEW';
     if (!isRowValid) {
       statusTag = 'ERROR';
-    } else if (isDbMatch) {
+    } else if (isDuplicateInFile || isDbMatch) {
       statusTag = 'UPDATE';
+      if (isDuplicateInFile) {
+        cellErrors['_row'] = fileDuplicateMessage;
+      } else {
+        cellErrors['_row'] = "Duplicate data exists in database. This row will update the existing record.";
+      }
     }
 
     evaluatedRows.push({
@@ -513,3 +623,18 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
 
   return evaluatedRows;
 };
+
+const excelService = {
+  MASTER_SCHEMAS,
+  downloadTemplate,
+  parseExcelFile,
+  exportFailedRowsToExcel,
+  validateMasterRows,
+  normalizeExcelHeader,
+  normalizeEmail,
+  normalizePhone,
+  normalizeString,
+  sanitizeSpreadsheetValue
+};
+
+export default excelService;

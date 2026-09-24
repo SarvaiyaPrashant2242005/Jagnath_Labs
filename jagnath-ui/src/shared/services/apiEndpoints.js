@@ -10,8 +10,25 @@
 console.log("ENV OBJECT:", import.meta.env);
 console.log("API URL:", import.meta.env.VITE_API_BASE_URL);
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
-console.log("API_BASE_URL:", API_BASE_URL);
+const getBaseUrls = () => {
+  const envUrl = import.meta.env.VITE_API_BASE_URL;
+  if (envUrl) {
+    const apiBase = envUrl;
+    const backendRoot = envUrl.endsWith('/api') ? envUrl.slice(0, -4) : envUrl;
+    return { apiBase, backendRoot };
+  }
+  
+  // Dynamic fallback based on window location to support hosting without env variables
+  const protocol = typeof window !== 'undefined' ? window.location.protocol : 'http:';
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+  const apiBase = `${protocol}//${hostname}:5000/api`;
+  const backendRoot = `${protocol}//${hostname}:5000`;
+  return { apiBase, backendRoot };
+};
+
+const { apiBase, backendRoot } = getBaseUrls();
+export const API_BASE_URL = apiBase;
+export const BACKEND_ROOT_URL = backendRoot;
 // ─── Auth Endpoints ─────────────────────────────────────────────────────────────
 export const AUTH_ENDPOINTS = {
   LOGIN: `${API_BASE_URL}/auth/login`,
@@ -59,6 +76,15 @@ export const PARAMETER_ENDPOINTS = {
   UPDATE: (id) => `${API_BASE_URL}/parameter/${id}`,
   DELETE: (id) => `${API_BASE_URL}/parameter/${id}`,
   BULK_IMPORT: `${API_BASE_URL}/parameter/bulk-import`,
+};
+
+// ─── Department Endpoints ────────────────────────────────────────────────────────
+export const DEPARTMENT_ENDPOINTS = {
+  CREATE: `${API_BASE_URL}/department`,
+  GET_ALL: `${API_BASE_URL}/department`,
+  GET_BY_ID: (id) => `${API_BASE_URL}/department/${id}`,
+  UPDATE: (id) => `${API_BASE_URL}/department/${id}`,
+  DELETE: (id) => `${API_BASE_URL}/department/${id}`,
 };
 
 // ─── Category (Discipline Group) Endpoints ─────────────────────────────────────
@@ -109,6 +135,15 @@ export const TEST_REQUEST_ENDPOINTS = {
   DELETE: (id) => `${API_BASE_URL}/test-request/${id}`,
 };
 
+// ─── Test Report Endpoints ──────────────────────────────────────────────────────
+export const TEST_REPORT_ENDPOINTS = {
+  CREATE: `${API_BASE_URL}/test-report`,
+  GET_ALL: `${API_BASE_URL}/test-report`,
+  GET_BY_ID: (id) => `${API_BASE_URL}/test-report/${id}`,
+  UPDATE: (id) => `${API_BASE_URL}/test-report/${id}`,
+  DELETE: (id) => `${API_BASE_URL}/test-report/${id}`,
+};
+
 // ─── Test Request Parameter (Transaction) Endpoints ─────────────────────────────
 export const TEST_REQUEST_PARAMETER_ENDPOINTS = {
   CREATE: `${API_BASE_URL}/test-request-parameter`,
@@ -137,6 +172,11 @@ export const CAUTION_ENDPOINTS = {
   GET_BY_ID: (id) => `${API_BASE_URL}/caution/${id}`,
   UPDATE: (id) => `${API_BASE_URL}/caution/${id}`,
   DELETE: (id) => `${API_BASE_URL}/caution/${id}`,
+};
+
+// ─── Dashboard Endpoints ─────────────────────────────────────────────────────────
+export const DASHBOARD_ENDPOINTS = {
+  GET_STATS: `${API_BASE_URL}/dashboard/stats`,
 };
 
 

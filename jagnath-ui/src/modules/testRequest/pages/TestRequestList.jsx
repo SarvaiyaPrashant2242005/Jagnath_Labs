@@ -40,6 +40,16 @@ const TestRequestList = () => {
   useEffect(() => {
     fetchCategories();
     fetchClients();
+
+    const handleCompanyChange = () => {
+      fetchCategories();
+      fetchClients();
+      setCurrentPage(1);
+      fetchRequests();
+    };
+
+    window.addEventListener('companyChanged', handleCompanyChange);
+    return () => window.removeEventListener('companyChanged', handleCompanyChange);
   }, []);
 
   const fetchCategories = async () => {
@@ -401,13 +411,18 @@ const TestRequestList = () => {
                       >
                         <FaPrint size={12} />
                       </button>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); window.open(`#/test-requests/quotation/${req.id}`, '_blank'); }}
-                        style={{ background: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
-                        title="Generate Quotation PDF"
-                      >
-                        <FaFilePdf size={12} />
-                      </button>
+                      {req.quotationRequired === 'Yes' && (
+                        <button 
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            window.open(`#/test-requests/quotation/${req.id}`, '_blank'); 
+                          }}
+                          style={{ background: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
+                          title="Generate Quotation PDF"
+                        >
+                          <FaFilePdf size={12} />
+                        </button>
+                      )}
                       <button 
                         onClick={(e) => { e.stopPropagation(); navigate(`/test-requests/edit/${req.id}`); }}
                         style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}

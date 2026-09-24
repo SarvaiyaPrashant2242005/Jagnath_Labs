@@ -25,6 +25,18 @@ const LocationSample = sequelize.define("LocationSample", {
         type: DataTypes.STRING(150),
         allowNull: false,
     },
+    subCategoryId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: "sub_categories",
+            key: "id"
+        }
+    },
+    description: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    },
     status: {
         type: DataTypes.ENUM("Active", "Inactive"),
         defaultValue: "Active",

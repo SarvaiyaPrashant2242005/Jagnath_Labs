@@ -7,6 +7,7 @@ import SuperAdminDashboard from './modules/superAdmin/pages/SuperAdminDashboard'
 import CompanyMaster from './modules/companyMaster/pages/CompanyMaster';
 import ClientMaster from './modules/clientMaster/pages/ClientMaster';
 import CategoryMaster from './modules/categoryMaster/pages/CategoryMaster';
+import DepartmentMaster from './modules/departmentMaster/pages/DepartmentMaster';
 import SubCategoryMaster from './modules/subCategoryMaster/pages/SubCategoryMaster';
 import ParameterMaster from './modules/parameterMaster/pages/ParameterMaster';
 import UserMaster from './modules/userMaster/pages/UserMaster';
@@ -15,10 +16,19 @@ import TestRequestForm from './modules/testRequest/pages/TestRequestForm';
 import TestRequestList from './modules/testRequest/pages/TestRequestList';
 import TestRequestPrint from './modules/testRequest/pages/TestRequestPrint';
 import QuotationPrint from './modules/testRequest/pages/QuotationPrint';
+import AuditQuotationForm from './modules/testRequest/pages/AuditQuotationForm';
+import AuditQuotationPrint from './modules/testRequest/pages/AuditQuotationPrint';
+import TestReportList from './modules/testReport/pages/TestReportList';
+import TestReportForm from './modules/testReport/pages/TestReportForm';
+import TestReportPrint from './modules/testReport/pages/TestReportPrint';
 import Profile from './modules/profile/pages/Profile';
 import PriceList from './modules/pricelist/pages/PriceList';
 import CautionMaster from './modules/cautionMaster/pages/CautionMaster';
 import LocationSampleMaster from './modules/locationSampleMaster/pages/LocationSampleMaster';
+import ProvisionalQuotationList from './modules/Forms/ProvisionalQuotation/pages/ProvisionalQuotationList';
+import ProvisionalQuotationForm from './modules/Forms/ProvisionalQuotation/pages/ProvisionalQuotationForm';
+import ProvisionalQuotationPreview from './modules/Forms/ProvisionalQuotation/pages/ProvisionalQuotationPreview';
+import ProvisionalQuotationPrint from './modules/Forms/ProvisionalQuotation/pages/ProvisionalQuotationPrint';
 import { getStoredUser } from './modules/auth/services/authService';
 import './assets/styles/index.css';
 
@@ -30,9 +40,27 @@ const DashboardView = () => {
 };
 
 
+// Helper to get active token across tab sessions
+const getActiveToken = () => {
+  const token = sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken') || localStorage.getItem('token');
+  if (token && !sessionStorage.getItem('accessToken')) {
+    sessionStorage.setItem('accessToken', token);
+    sessionStorage.setItem('token', token);
+  }
+  const refresh = localStorage.getItem('refreshToken');
+  if (refresh && !sessionStorage.getItem('refreshToken')) {
+    sessionStorage.setItem('refreshToken', refresh);
+  }
+  const user = localStorage.getItem('user');
+  if (user && !sessionStorage.getItem('user')) {
+    sessionStorage.setItem('user', user);
+  }
+  return token;
+};
+
 // Protected Route Wrapper Component
 const ProtectedRoute = ({ children }) => {
-  const token = sessionStorage.getItem('accessToken');
+  const token = getActiveToken();
   const user = getStoredUser();
   const isAuthenticated = !!(token && user);
 
@@ -45,7 +73,7 @@ const ProtectedRoute = ({ children }) => {
 
 // Protected Print Route (No Dashboard Layout)
 const ProtectedPrintRoute = ({ children }) => {
-  const token = sessionStorage.getItem('accessToken');
+  const token = getActiveToken();
   const user = getStoredUser();
   const isAuthenticated = !!(token && user);
 
@@ -58,7 +86,7 @@ const ProtectedPrintRoute = ({ children }) => {
 
 // Redirect Route if already authenticated
 const PublicRoute = ({ children }) => {
-  const token = sessionStorage.getItem('accessToken');
+  const token = getActiveToken();
   const user = getStoredUser();
   const isAuthenticated = !!(token && user);
 
@@ -123,9 +151,18 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/companies"
+          element={
+            <ProtectedRoute>
+              <CompanyMaster />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Dynamic Placeholder pages for all LIMS routes in sidebar */}
         <Route path="/clients" element={<ProtectedRoute><ClientMaster /></ProtectedRoute>} />
+        <Route path="/departments" element={<ProtectedRoute><DepartmentMaster /></ProtectedRoute>} />
         <Route path="/categories" element={<ProtectedRoute><CategoryMaster /></ProtectedRoute>} />
         <Route path="/location-samples" element={<ProtectedRoute><LocationSampleMaster /></ProtectedRoute>} />
         <Route path="/sub-categories" element={<ProtectedRoute><SubCategoryMaster /></ProtectedRoute>} />
@@ -137,10 +174,23 @@ function App() {
         <Route path="/test-requests" element={<ProtectedRoute><TestRequestList /></ProtectedRoute>} />
         <Route path="/test-requests/add" element={<ProtectedRoute><TestRequestForm /></ProtectedRoute>} />
         <Route path="/test-requests/edit/:id" element={<ProtectedRoute><TestRequestForm /></ProtectedRoute>} />
+        <Route path="/test-requests/audit-quotation/edit/:testRequestId" element={<ProtectedRoute><AuditQuotationForm /></ProtectedRoute>} />
+        <Route path="/test-reports" element={<ProtectedRoute><TestReportList /></ProtectedRoute>} />
+        <Route path="/test-reports/add" element={<ProtectedRoute><TestReportForm /></ProtectedRoute>} />
+        <Route path="/test-reports/edit/:id" element={<ProtectedRoute><TestReportForm /></ProtectedRoute>} />
+
+        {/* Provisional Estimated Quotation Routes */}
+        <Route path="/quotations/provisional" element={<ProtectedRoute><ProvisionalQuotationList /></ProtectedRoute>} />
+        <Route path="/quotations/provisional/add" element={<ProtectedRoute><ProvisionalQuotationForm /></ProtectedRoute>} />
+        <Route path="/quotations/provisional/edit/:id" element={<ProtectedRoute><ProvisionalQuotationForm /></ProtectedRoute>} />
+        <Route path="/quotations/provisional/preview/:id" element={<ProtectedRoute><ProvisionalQuotationPreview /></ProtectedRoute>} />
+        <Route path="/quotations/provisional/print/:id" element={<ProtectedPrintRoute><ProvisionalQuotationPrint /></ProtectedPrintRoute>} />
 
         {/* Print Routes without DashboardLayout */}
         <Route path="/test-requests/print/:id" element={<ProtectedPrintRoute><TestRequestPrint /></ProtectedPrintRoute>} />
         <Route path="/test-requests/quotation/:id" element={<ProtectedPrintRoute><QuotationPrint /></ProtectedPrintRoute>} />
+        <Route path="/test-requests/audit-quotation/print/:id" element={<ProtectedPrintRoute><AuditQuotationPrint /></ProtectedPrintRoute>} />
+        <Route path="/test-reports/print/:id" element={<ProtectedPrintRoute><TestReportPrint /></ProtectedPrintRoute>} />
         <Route path="/reports" element={<ProtectedRoute><PlaceholderPage title="Reports Directory" /></ProtectedRoute>} />
         <Route path="/invoices" element={<ProtectedRoute><PlaceholderPage title="Invoices Directory" /></ProtectedRoute>} />
         <Route path="/dispatch" element={<ProtectedRoute><PlaceholderPage title="Dispatch Directory" /></ProtectedRoute>} />

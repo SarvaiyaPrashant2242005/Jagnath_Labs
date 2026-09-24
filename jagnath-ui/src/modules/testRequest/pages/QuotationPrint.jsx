@@ -9,7 +9,8 @@ import {
   TEST_REQUEST_PARAMETER_ENDPOINTS,
   COMPANY_ENDPOINTS,
   CAUTION_ENDPOINTS,
-  PRICE_MASTER_ENDPOINTS
+  PRICE_MASTER_ENDPOINTS,
+  BACKEND_ROOT_URL
 } from '../../../shared/services/apiEndpoints';
 
 const QuotationPrint = () => {
@@ -41,14 +42,19 @@ const QuotationPrint = () => {
       setLoading(true);
       setError(false);
 
-      const trRes = await apiService.get(TEST_REQUEST_ENDPOINTS.GET_BY_ID(id));
+      const trRes = await apiService.get(`${TEST_REQUEST_ENDPOINTS.GET_BY_ID(id)}?forQuotation=true`);
       if (!trRes?.data) {
-        setError(true);
+        setError("Failed to load quotation data.");
         setLoading(false);
         return;
       }
 
       const tr = trRes.data;
+      if (tr.quotationRequired === 'No') {
+        setError("Quotation was not requested for this Test Request.");
+        setLoading(false);
+        return;
+      }
       setFormData(tr);
 
       if (tr.company) setSelCompany(tr.company);
@@ -83,7 +89,8 @@ const QuotationPrint = () => {
       const pMap = {};
       pList.forEach(pm => {
         if (pm.parameterId) {
-          pMap[pm.parameterId] = parseFloat(pm.price || 0);
+          const parsed = parseFloat(pm.price || 0);
+          pMap[pm.parameterId] = isNaN(parsed) ? 0 : parsed;
         }
       });
       setPriceMap(pMap);
@@ -113,14 +120,19 @@ const QuotationPrint = () => {
         const trpRes = await apiService.get(TEST_REQUEST_PARAMETER_ENDPOINTS.GET_ALL);
         if (trpRes?.data) {
           const trps = Array.isArray(trpRes.data) ? trpRes.data : (trpRes.data?.rows || [trpRes.data]);
-          const matchingTrps = trps.filter(t => t.testRequestId === id);
+          const matchingTrps = trps.filter(t => t.testRequestId === id || t.test_request_id === id);
 
           const selectedList = [];
           matchingTrps.forEach(trp => {
-            const paramObj = allCategoryParams.find(p => p.id === trp.parameterId) || { id: trp.parameterId, parameterName: trp.parameterName || 'Parameter' };
-            const pPrice = trp.price !== undefined && trp.price !== null ? parseFloat(trp.price) : (pMap[trp.parameterId] || 0);
+            const pId = trp.parameterId || trp.parameter_id || trp.id;
+            const catParam = allCategoryParams.find(p => p.id === pId || p.parameterId === pId || p.parameter_id === pId);
+            const parsedPrice = trp.price !== undefined && trp.price !== null ? parseFloat(trp.price) : parseFloat(catParam?.price || 0);
+            const pPrice = isNaN(parsedPrice) ? 0 : parsedPrice;
             selectedList.push({
-              ...paramObj,
+              ...(catParam || {}),
+              id: pId,
+              parameterName: trp.parameterName || trp.parameter?.parameterName || catParam?.parameterName || catParam?.name || 'Parameter',
+              testMethod: trp.testMethod || trp.test_method || catParam?.testMethod || catParam?.defaultTestMethod || '',
               price: pPrice
             });
           });
@@ -139,10 +151,22 @@ const QuotationPrint = () => {
 
     } catch (err) {
       console.error(err);
-      setError(true);
+      setError(err?.response?.data?.message || err?.message || "Failed to load quotation data.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const getLogoUrl = () => {
+    if (!selCompany) return '/Images/Navbar_Logo.png';
+    const logoPath = selCompany.quotation_logo || selCompany.quotationLogo || selCompany.logo;
+    if (!logoPath) return '/Images/Navbar_Logo.png';
+    const cleanPath = logoPath.replace(/\\/g, '/');
+    const idx = cleanPath.lastIndexOf('uploads/');
+    if (idx !== -1) {
+      return `${BACKEND_ROOT_URL}/${cleanPath.substring(idx)}`;
+    }
+    return logoPath;
   };
 
   if (loading) {
@@ -150,11 +174,19 @@ const QuotationPrint = () => {
   }
 
   if (error) {
-    return <div style={{ padding: '2rem', textAlign: 'center', color: 'red', fontFamily: 'sans-serif' }}>Failed to load quotation data.</div>;
+    return (
+      <div style={{ padding: '3rem', textAlign: 'center', color: '#ef4444', fontFamily: 'sans-serif', fontWeight: 'bold', fontSize: '1.2rem', background: '#fef2f2', border: '1px solid #fee2e2', borderRadius: '8px', margin: '2rem' }}>
+        ⚠️ {error}
+      </div>
+    );
   }
 
   // Calculations
-  const subtotal = parameters.reduce((sum, item) => sum + (item.price || 0), 0);
+  const rawSubtotal = parameters.reduce((sum, item) => {
+    const val = parseFloat(item.price);
+    return sum + (isNaN(val) ? 0 : val);
+  }, 0);
+  const subtotal = isNaN(rawSubtotal) ? 0 : rawSubtotal;
   const gstAmount = subtotal * 0.18;
   const grandTotal = Math.round(subtotal + gstAmount);
 
@@ -210,9 +242,8 @@ const QuotationPrint = () => {
         }
       `}</style>
 
-      {/* Top Header Logo */}
       <div style={{ textAlign: 'center', marginBottom: '8px' }}>
-        <img src="/Images/Navbar_Logo.png" alt="JAGNATH LAB TECHNOLOGIES" style={{ height: '70px', objectFit: 'contain' }} />
+        <img src={getLogoUrl()} alt="Company Logo" style={{ height: '110px', maxWidth: '100%', objectFit: 'contain' }} />
       </div>
       <div style={{ borderBottom: '1.5px solid #000000', marginBottom: '15px' }}></div>
 
@@ -231,7 +262,7 @@ const QuotationPrint = () => {
 
       {/* Subject */}
       <div style={{ marginBottom: '15px', fontWeight: 'bold' }}>
-        SUBJECT: - <span style={{ textDecoration: 'underline' }}>QUOTATION FOR {sampleParticularName.toUpperCase()} SAMPLE ANALYSIS.</span>
+        SUBJECT: - <span style={{ textDecoration: 'underline' }}>{(formData.quotationType || 'QUOTATION').toUpperCase()} FOR {sampleParticularName.toUpperCase()} SAMPLE ANALYSIS.</span>
       </div>
 
       {/* Salutation & Intro Paragraphs */}
@@ -319,7 +350,7 @@ const QuotationPrint = () => {
         </ol>
       </div>
 
-      {/* Caution Section (Printed if Include Caution = YES) */}
+      {/* Quotation Section (Printed if Include Quotation = YES) */}
       {(formData.includeCaution || formData.include_caution) && selCaution && (
         <div style={{
           border: '1px solid #000000',
@@ -329,7 +360,7 @@ const QuotationPrint = () => {
           background: '#fff'
         }}>
           <div style={{ fontWeight: 'bold', textDecoration: 'underline', marginBottom: '3px' }}>
-            CAUTION / NOTICE: {selCaution.title}
+            QUOTATION: {selCaution.title}
           </div>
           <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.3' }}>
             {selCaution.description}

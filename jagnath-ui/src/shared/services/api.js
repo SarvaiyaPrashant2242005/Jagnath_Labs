@@ -1,18 +1,25 @@
 import axios from 'axios';
+import { API_BASE_URL } from './apiEndpoints';
 
 const api = axios.create({
-  baseURL: 'http://localhost:5000/api',
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Request interceptor to attach JWT token
+// Request interceptor to attach JWT token and selected company context
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem("accessToken") ||
+                  localStorage.getItem("accessToken") ||
+                  localStorage.getItem("token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    const companyId = localStorage.getItem('selectedCompanyId');
+    if (companyId && companyId !== 'undefined' && companyId !== 'null') {
+      config.headers['x-company-id'] = companyId;
     }
     return config;
   },

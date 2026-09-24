@@ -9,6 +9,10 @@ const createCategorySchema = Joi.object({
         "any.required": "Category Name is required.",
         "string.empty": "Category Name must not be empty."
     }),
+    departmentId: Joi.string().trim().required().messages({
+        "any.required": "Department is required.",
+        "string.empty": "Department must not be empty."
+    }),
     description: Joi.string().optional().allow("", null),
     status: Joi.string().valid("Active", "Inactive").required().messages({
         "any.only": "Status must be Active or Inactive.",
@@ -22,6 +26,7 @@ const updateCategorySchema = Joi.object({
     name: Joi.string().optional().messages({
         "string.empty": "Category Name must not be empty."
     }),
+    departmentId: Joi.string().trim().optional().allow("", null),
     description: Joi.string().optional().allow("", null),
     status: Joi.string().valid("Active", "Inactive").optional().messages({
         "any.only": "Status must be Active or Inactive."

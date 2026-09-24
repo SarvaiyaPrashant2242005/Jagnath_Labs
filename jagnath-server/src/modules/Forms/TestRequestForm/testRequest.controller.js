@@ -3,6 +3,7 @@
  * @description HTTP layer for TestRequest APIs.
  */
 const { createTestRequestSchema, updateTestRequestSchema } = require("./testRequest.validators");
+const { INDUSTRY_PRICES } = require("../../../config/industryConstants");
 const testRequestService = require("./testRequest.service");
 const companyService = require("../../Masters/CompanyMasters/company.service");
 const Company = require("../../Masters/CompanyMasters/company.model");
@@ -122,6 +123,19 @@ const create = async (req, res) => {
             contactNumber: value.contactNumber !== undefined && value.contactNumber !== null && value.contactNumber !== "" ? value.contactNumber : client.contactNumber
         };
 
+        if (value.industryType && value.industryType.trim() !== "") {
+            const normalizedType = value.industryType.trim().toLowerCase();
+            testRequestData.industryType = normalizedType;
+            testRequestData.industryPrice = INDUSTRY_PRICES[normalizedType] || null;
+        } else {
+            testRequestData.industryType = null;
+            testRequestData.industryPrice = null;
+        }
+
+        if (testRequestData.quotationRequired === 'No') {
+            testRequestData.quotationType = null;
+        }
+
         delete testRequestData.companyName;
         delete testRequestData.clientName;
 
@@ -209,6 +223,15 @@ const getById = async (req, res) => {
         let tr = await testRequestService.getTestRequestById(id, null);
         if (!tr) {
             return res.status(404).json(errorResponse("NOT_FOUND", "Test Request not found.", "Test Request not found."));
+        }
+
+        // Validate if this request is allowed to generate a quotation
+        if (req.query.forQuotation === 'true' && tr.quotationRequired === 'No') {
+            return res.status(400).json(errorResponse(
+                "BAD_REQUEST",
+                "Quotation was not requested for this Test Request.",
+                "Quotation was not requested for this Test Request."
+            ));
         }
 
         // Verify company ownership if not SuperAdmin
@@ -315,6 +338,21 @@ const update = async (req, res) => {
             companyId: resolvedCompanyId,
             clientId: resolvedClientId
         };
+
+        if (value.industryType !== undefined) {
+            if (value.industryType && value.industryType.trim() !== "") {
+                const normalizedType = value.industryType.trim().toLowerCase();
+                updateData.industryType = normalizedType;
+                updateData.industryPrice = INDUSTRY_PRICES[normalizedType] || null;
+            } else {
+                updateData.industryType = null;
+                updateData.industryPrice = null;
+            }
+        }
+
+        if (updateData.quotationRequired === 'No') {
+            updateData.quotationType = null;
+        }
         if (value.cautionId !== undefined) {
             updateData.cautionId = (value.cautionId && typeof value.cautionId === 'string' && value.cautionId.trim() !== "") ? value.cautionId : null;
         }
@@ -358,19 +396,14 @@ const remove = async (req, res) => {
         const { id } = req.params;
         const userId = req.user.user_id;
 
-        let company;
-        try {
-            company = await getUserCompany(userId);
-        } catch (e) {
-            return res.status(404).json(errorResponse("NOT_FOUND", e.message, e.message));
-        }
+        const companyId = await resolveCompanyId({}, req.query, userId, req.headers, req.user);
 
         const reqInfo = {
             ip: req.ip || req.connection.remoteAddress,
             userAgent: req.headers["user-agent"]
         };
 
-        await testRequestService.deleteTestRequest(id, userId, company.id, reqInfo);
+        await testRequestService.deleteTestRequest(id, userId, companyId, reqInfo);
 
         return res.status(200).json(successResponse(
             "TEST_REQUEST_DELETED",

@@ -1,20 +1,32 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   FaSlidersH, FaPlus, FaDownload, FaEdit, FaTrash, FaCheck,
   FaExclamationCircle, FaFileExcel, FaCopy, FaFileCsv,
   FaFilePdf, FaPrint, FaChevronDown, FaTimes
 } from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
-import { PARAMETER_ENDPOINTS, COMPANY_ENDPOINTS, CATEGORY_ENDPOINTS, SUB_CATEGORY_ENDPOINTS, LOCATION_SAMPLE_ENDPOINTS } from '../../../shared/services/apiEndpoints';
+import { PARAMETER_ENDPOINTS, COMPANY_ENDPOINTS, CATEGORY_ENDPOINTS, SUB_CATEGORY_ENDPOINTS, LOCATION_SAMPLE_ENDPOINTS, DEPARTMENT_ENDPOINTS } from '../../../shared/services/apiEndpoints';
 import Pagination from '../../../shared/components/Pagination';
 import BulkImportModal from '../../../shared/components/BulkImport/BulkImportModal';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog/ConfirmDialog';
 import { downloadCSV, downloadExcel } from '../../../shared/utils/exportUtils';
 
+import InlineMasterModal from '../../../shared/components/InlineMasterModal/InlineMasterModal';
+import AddMasterButton from '../../../shared/components/InlineMasterModal/AddMasterButton';
+import SearchableSelect from '../../../shared/components/Select/SearchableSelect';
+import DisciplineGroupAssignModal from '../../../shared/components/DisciplineGroupAssignModal/DisciplineGroupAssignModal';
+import { FaTags } from 'react-icons/fa';
+
 const ParameterMaster = () => {
+  // Inline master modal state
+  const [inlineModal, setInlineModal] = useState({ isOpen: false, type: null, parentData: {} });
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   // Parameter, Company & Category states
   const [parameters, setParameters] = useState([]);
   const [companies, setCompanies] = useState([]);
+  const [departmentsList, setDepartmentsList] = useState([]);
+  const [departmentFilter, setDepartmentFilter] = useState('ALL');
+  const [formDepartmentId, setFormDepartmentId] = useState('');
   const [categoriesList, setCategoriesList] = useState([]);
   const [subCategoriesList, setSubCategoriesList] = useState([]);
   const [locationSamplesList, setLocationSamplesList] = useState([]);
@@ -28,8 +40,6 @@ const ParameterMaster = () => {
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [totalItems, setTotalItems] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
 
   // Toast notifications state
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
@@ -38,12 +48,21 @@ const ParameterMaster = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
+  // Saved parameters auto-fill state
+  const [allSavedParameters, setAllSavedParameters] = useState([]);
+  const [selectedExistingParamId, setSelectedExistingParamId] = useState('');
+  const [isManualNameEntry, setIsManualNameEntry] = useState(false);
+
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [subCategoryFilter, setSubCategoryFilter] = useState('');
   const [subCategoriesFilterList, setSubCategoriesFilterList] = useState([]);
+
+  // Sorting State
+  const [sortField, setSortField] = useState(null);
+  const [sortDirection, setSortDirection] = useState(null); // 'asc', 'desc', or null
 
   // Download Dropdown toggle
   const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
@@ -52,13 +71,15 @@ const ParameterMaster = () => {
   // Form inputs state
   const [formData, setFormData] = useState({
     parameterName: '',
-    description: '',
+    unit: '',
+    isPermissibleLimitApplicable: false,
+    permissibleLimit: '',
     testMethod: '',
+    price: '',
     status: 'Active',
     companyName: '',
     categoryId: '',
-    subCategoryId: '',
-    locationSampleId: ''
+    subCategoryId: ''
   });
   const [formErrors, setFormErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -149,15 +170,31 @@ const ParameterMaster = () => {
     }
   };
 
+  const fetchDepartmentsList = async () => {
+    try {
+      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
+      const url = activeCompId ? `${DEPARTMENT_ENDPOINTS.GET_ALL}?companyId=${activeCompId}&limit=500&status=Active` : `${DEPARTMENT_ENDPOINTS.GET_ALL}?limit=500&status=Active`;
+      const response = await apiService.get(url);
+      if (response && response.data) {
+        setDepartmentsList(response.data.rows || response.data || []);
+      } else {
+        setDepartmentsList([]);
+      }
+    } catch (err) {
+      setDepartmentsList([]);
+    }
+  };
+
   // Fetch categories to populate dropdown options
   const fetchCategoriesForDropdown = async () => {
     try {
       const activeCompId = localStorage.getItem('selectedCompanyId') || '';
-      const url = activeCompId ? `${CATEGORY_ENDPOINTS.GET_ALL}?companyId=${activeCompId}` : CATEGORY_ENDPOINTS.GET_ALL;
+      const url = activeCompId ? `${CATEGORY_ENDPOINTS.GET_ALL}?companyId=${activeCompId}&limit=1000&all=true` : `${CATEGORY_ENDPOINTS.GET_ALL}?limit=1000&all=true`;
       const response = await apiService.get(url);
       if (response && response.data) {
-        const categories = Array.isArray(response.data) ? response.data : [response.data];
-        setCategoriesList(categories.filter(cat => cat.status === 'Active'));
+        const raw = response.data;
+        const categories = Array.isArray(raw) ? raw : (raw.rows || raw.categories || raw.data || []);
+        setCategoriesList(Array.isArray(categories) ? categories.filter(cat => cat.status === 'Active' || cat.status === true || !cat.status) : []);
       } else {
         setCategoriesList([]);
       }
@@ -170,14 +207,33 @@ const ParameterMaster = () => {
   const fetchSubCategoriesForDropdown = async (catId = '') => {
     try {
       const activeCompId = localStorage.getItem('selectedCompanyId') || '';
-      const params = new URLSearchParams({ status: 'Active', limit: 100 });
+      const params = new URLSearchParams({ limit: 5000, all: 'true' });
       if (activeCompId) params.append('companyId', activeCompId);
-      if (catId) params.append('categoryId', catId);
 
       const response = await apiService.get(`${SUB_CATEGORY_ENDPOINTS.GET_ALL}?${params.toString()}`);
       if (response && response.data) {
-        const subs = Array.isArray(response.data) ? response.data : [response.data];
-        setSubCategoriesList(subs.filter(s => s.status === 'Active'));
+        const raw = response.data;
+        let subs = Array.isArray(raw) ? raw : (raw.rows || raw.subCategories || raw.data || []);
+        if (!Array.isArray(subs)) subs = [];
+
+        let activeSubs = subs.filter(s => s.status === 'Active' || s.status === true || !s.status);
+
+        if (catId) {
+          const selectedCat = categoriesList.find(c => String(c.id) === String(catId));
+          const catName = selectedCat ? (selectedCat.name || selectedCat.categoryName || '').toLowerCase().trim() : '';
+
+          const matched = activeSubs.filter(s => {
+            const sCatId = s.categoryId || s.category_id || (s.category ? s.category.id : '');
+            const sCatName = (s.category?.name || s.category?.categoryName || s.categoryName || '').toLowerCase().trim();
+            const idMatch = sCatId && String(sCatId) === String(catId);
+            const nameMatch = catName && sCatName && sCatName === catName;
+            return idMatch || nameMatch;
+          });
+
+          activeSubs = matched.length > 0 ? matched : activeSubs;
+        }
+
+        setSubCategoriesList(activeSubs);
       } else {
         setSubCategoriesList([]);
       }
@@ -203,62 +259,301 @@ const ParameterMaster = () => {
     }
   };
 
-  useEffect(() => {
-    fetchSubCategoriesForDropdown(formData.categoryId);
-  }, [formData.categoryId, isFormOpen]);
+  // Fetch saved parameters for auto-fill dropdown
+  const fetchSavedParametersForForm = async () => {
+    try {
+      const activeCompId = localStorage.getItem('selectedCompanyId') || '';
+      const params = new URLSearchParams({ limit: 5000 });
+      if (activeCompId) params.append('companyId', activeCompId);
 
-  // Fetch all parameters
+      const response = await apiService.get(`${PARAMETER_ENDPOINTS.GET_ALL}?${params.toString()}`);
+      if (response && response.data) {
+        const list = Array.isArray(response.data) ? response.data : (response.data.rows || [response.data]);
+        setAllSavedParameters(list);
+      } else {
+        setAllSavedParameters([]);
+      }
+    } catch {
+      setAllSavedParameters([]);
+    }
+  };
+
+  useEffect(() => {
+    if (isFormOpen) {
+      fetchSavedParametersForForm();
+    }
+  }, [isFormOpen]);
+
+  const formCategoriesFiltered = useMemo(() => {
+    if (!formDepartmentId) return [];
+    return categoriesList.filter(c => String(c.departmentId || c.department_id) === String(formDepartmentId));
+  }, [categoriesList, formDepartmentId]);
+
+  const formSubCategoriesFiltered = useMemo(() => {
+    if (!formData.categoryId) return [];
+    return subCategoriesList.filter(s => String(s.categoryId || s.category_id) === String(formData.categoryId));
+  }, [subCategoriesList, formData.categoryId]);
+
+  const formLocationSamplesFiltered = useMemo(() => {
+    return locationSamplesList;
+  }, [locationSamplesList]);
+
+  const filterCategoriesFiltered = useMemo(() => {
+    if (departmentFilter === 'ALL') return categoriesList;
+    return categoriesList.filter(c => String(c.departmentId || c.department_id) === String(departmentFilter));
+  }, [categoriesList, departmentFilter]);
+
+  const filterSubCategoriesFiltered = useMemo(() => {
+    if (categoryFilter === '') {
+      if (departmentFilter === 'ALL') return subCategoriesList;
+      return subCategoriesList.filter(s => String(s.category?.departmentId || s.category?.department_id) === String(departmentFilter));
+    }
+    return subCategoriesList.filter(s => String(s.categoryId || s.category_id) === String(categoryFilter));
+  }, [subCategoriesList, departmentFilter, categoryFilter]);
+
+  // Unique list of saved parameters sorted by match relevance and name
+  const uniqueSavedParameters = useMemo(() => {
+    const map = new Map();
+    allSavedParameters.forEach(p => {
+      if (p.parameterName) {
+        const key = `${(p.parameterName || '').toLowerCase().trim()}_${(p.testMethod || '').toLowerCase().trim()}`;
+        if (!map.has(key)) {
+          map.set(key, p);
+        }
+      }
+    });
+
+    const uniqueList = Array.from(map.values());
+
+    const activeCatId = formData.categoryId ? String(formData.categoryId) : '';
+    const activeSubCatId = formData.subCategoryId ? String(formData.subCategoryId) : '';
+
+    const hasFilter = !!(activeCatId || activeSubCatId);
+
+    const scoredList = uniqueList.map(p => {
+      let score = 0;
+      let matchBadges = [];
+
+      const pCatId = p.categoryId ? String(p.categoryId) : (p.category?.id ? String(p.category.id) : '');
+      const pSubCatId = p.subCategoryId ? String(p.subCategoryId) : (p.subCategory?.id ? String(p.subCategory.id) : '');
+
+      if (activeSubCatId && pSubCatId === activeSubCatId) {
+        score += 10;
+        matchBadges.push('Sub Category');
+      }
+      if (activeCatId && pCatId === activeCatId) {
+        score += 5;
+        matchBadges.push('Discipline Group');
+      }
+
+      return {
+        ...p,
+        matchScore: score,
+        isMatching: score > 0,
+        matchBadges
+      };
+    });
+
+    scoredList.sort((a, b) => {
+      if (hasFilter && b.matchScore !== a.matchScore) {
+        return b.matchScore - a.matchScore;
+      }
+      return (a.parameterName || '').localeCompare(b.parameterName || '');
+    });
+
+    return scoredList;
+  }, [allSavedParameters, formData.categoryId, formData.subCategoryId]);
+
+  const handleSelectExistingParameter = (valOrEvent) => {
+    const selectedId = (valOrEvent && typeof valOrEvent === 'object' && valOrEvent.target)
+      ? valOrEvent.target.value
+      : valOrEvent;
+
+    if (selectedId === '__CUSTOM_MANUAL__') {
+      setIsManualNameEntry(true);
+      setSelectedExistingParamId('');
+      setFormData(prev => ({ ...prev, parameterName: '' }));
+      return;
+    }
+
+    setSelectedExistingParamId(selectedId);
+    if (!selectedId) {
+      setFormData(prev => ({ ...prev, parameterName: '', testMethod: '', unit: '', permissibleLimit: '' }));
+      return;
+    }
+
+    const matched = allSavedParameters.find(p => String(p.id) === String(selectedId));
+    if (matched) {
+      const newCatId = formData.categoryId || matched.categoryId || matched.category?.id || '';
+      const newSubCatId = formData.subCategoryId || matched.subCategoryId || matched.subCategory?.id || '';
+
+      setFormData(prev => ({
+        ...prev,
+        parameterName: matched.parameterName || '',
+        testMethod: matched.testMethod || '',
+        unit: matched.unit || '',
+        isPermissibleLimitApplicable: matched.isPermissibleLimitApplicable === true || matched.is_permissible_limit_applicable === true,
+        permissibleLimit: matched.permissibleLimit || matched.permissible_limit || '',
+        categoryId: newCatId,
+        subCategoryId: newSubCatId
+      }));
+    }
+  };
+
+
+  // Fetch all parameters once (pure UI filtering)
   const fetchParameters = async () => {
     setLoading(true);
     try {
       const activeCompId = localStorage.getItem('selectedCompanyId') || '';
-      const isCards = viewMode === 'cards';
-      const params = new URLSearchParams({
-        page: isCards ? 1 : currentPage,
-        limit: isCards ? 1000 : pageSize,
-        search: searchQuery,
-        status: statusFilter
-      });
+      const params = new URLSearchParams({ limit: 5000, all: 'true' });
       if (activeCompId) {
         params.append('companyId', activeCompId);
       }
-      if (categoryFilter) {
-        params.append('categoryId', categoryFilter);
-      }
-      if (subCategoryFilter) {
-        params.append('subCategoryId', subCategoryFilter);
-      }
-
       const url = `${PARAMETER_ENDPOINTS.GET_ALL}?${params.toString()}`;
       const response = await apiService.get(url);
       if (response && response.data) {
-        if (response.data.rows !== undefined) {
-          setParameters(response.data.rows);
-          setTotalItems(response.data.total);
-          setTotalPages(response.data.totalPages);
-        } else {
-          const paramList = Array.isArray(response.data) ? response.data : [response.data];
-          setParameters(paramList);
-          setTotalItems(paramList.length);
-          setTotalPages(1);
-        }
+        const raw = response.data;
+        const list = Array.isArray(raw) ? raw : (raw.rows || raw.parameters || raw.data || []);
+        setParameters(Array.isArray(list) ? list : []);
       } else {
         setParameters([]);
-        setTotalItems(0);
-        setTotalPages(0);
       }
     } catch (err) {
       if (err.status !== 404 && err.errorCode !== 'NOT_FOUND') {
         triggerToast(err.messageToShow || err.message || 'Failed to fetch parameters.', 'error');
       } else {
         setParameters([]);
-        setTotalItems(0);
-        setTotalPages(0);
       }
     } finally {
       setLoading(false);
     }
   };
+
+  // Pure UI-side Filtering & Sorting (Latest Added First) for Parameters
+  const filteredParameters = useMemo(() => {
+    const list = parameters.filter(p => {
+      // 0. Department Filter
+      if (departmentFilter && departmentFilter !== 'ALL') {
+        const pDeptId = p.departmentId || p.category?.departmentId || p.category?.department_id || p.subCategory?.category?.departmentId || p.subCategory?.category?.department_id || '';
+        if (String(pDeptId) !== String(departmentFilter)) return false;
+      }
+
+      // 1. Discipline Group Filter
+      if (categoryFilter) {
+        const pCatId = p.categoryId || p.category_id || (p.category ? p.category.id : '');
+        if (String(pCatId) !== String(categoryFilter)) return false;
+      }
+
+      // 2. Sub Category Filter
+      if (subCategoryFilter) {
+        const pSubCatId = p.subCategoryId || p.sub_category_id || (p.subCategory ? p.subCategory.id : '');
+        if (String(pSubCatId) !== String(subCategoryFilter)) return false;
+      }
+
+      // 3. Status Filter
+      if (statusFilter !== 'ALL') {
+        const statusStr = (p.status || 'Active').toString().toLowerCase();
+        if (statusStr !== statusFilter.toLowerCase()) return false;
+      }
+
+      // 4. Search Query Filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const nameMatch = (p.parameterName || p.name || '').toLowerCase().includes(q);
+        const methodMatch = (p.testMethod || '').toLowerCase().includes(q);
+        const unitMatch = (p.unit || '').toLowerCase().includes(q);
+        const catMatch = (p.category?.name || p.categoryName || '').toLowerCase().includes(q);
+        const subMatch = (p.subCategory?.name || p.subCategoryName || '').toLowerCase().includes(q);
+        if (!nameMatch && !methodMatch && !unitMatch && !catMatch && !subMatch) return false;
+      }
+
+      return true;
+    });
+
+    // Sort Latest Added First (descending order by timestamp or ID)
+    return list;
+  }, [parameters, departmentFilter, categoryFilter, subCategoryFilter, statusFilter, searchQuery]);
+
+  const handleSort = (field) => {
+    if (sortField !== field) {
+      setSortField(field);
+      setSortDirection('asc');
+    } else if (sortDirection === 'asc') {
+      setSortDirection('desc');
+    } else {
+      setSortField(null);
+      setSortDirection(null);
+    }
+  };
+
+  const renderSortableHeader = (label, field) => {
+    const isSorted = sortField === field;
+    return (
+      <th
+        onClick={() => handleSort(field)}
+        style={{
+          padding: '0.75rem 1rem',
+          color: '#475569',
+          fontWeight: 600,
+          cursor: 'pointer',
+          userSelect: 'none',
+          transition: 'background-color 0.15s'
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <span>{label}</span>
+          <span style={{ fontSize: '0.7rem', color: isSorted ? '#2563eb' : '#cbd5e1', transition: 'color 0.15s' }}>
+            {isSorted ? (sortDirection === 'asc' ? '▲' : '▼') : '↕'}
+          </span>
+        </div>
+      </th>
+    );
+  };
+
+  const sortedParameters = useMemo(() => {
+    if (!sortField || !sortDirection) {
+      // Sort Latest Added First (descending order by timestamp or ID)
+      return [...filteredParameters].sort((a, b) => {
+        const timeA = new Date(a.createdAt || a.created_at || a.updatedAt || a.updated_at || 0).getTime();
+        const timeB = new Date(b.createdAt || b.created_at || b.updatedAt || b.updated_at || 0).getTime();
+        if (timeA !== timeB && timeA > 0 && timeB > 0) {
+          return timeB - timeA;
+        }
+        return String(b.id || '').localeCompare(String(a.id || ''));
+      });
+    }
+    const sorted = [...filteredParameters];
+    sorted.sort((a, b) => {
+      let valA = '';
+      let valB = '';
+      if (sortField === 'categoryId') {
+        valA = a.category?.name || a.category?.categoryName || '';
+        valB = b.category?.name || b.category?.categoryName || '';
+      } else if (sortField === 'subCategoryId') {
+        valA = a.subCategory?.name || a.subCategory?.categoryName || '';
+        valB = b.subCategory?.name || b.subCategory?.categoryName || '';
+      } else {
+        valA = a[sortField] || '';
+        valB = b[sortField] || '';
+      }
+      valA = String(valA).toLowerCase();
+      valB = String(valB).toLowerCase();
+      if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+      if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [filteredParameters, sortField, sortDirection]);
+
+  const totalItems = sortedParameters.length;
+  const totalPages = Math.ceil(totalItems / pageSize) || 1;
+  const paginatedParameters = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return sortedParameters.slice(start, start + pageSize);
+  }, [sortedParameters, currentPage, pageSize]);
 
   const fetchSubCategoriesForToolbarFilter = async (catId) => {
     if (!catId) {
@@ -266,8 +561,19 @@ const ParameterMaster = () => {
       return;
     }
     try {
-      const response = await apiService.get(`${SUB_CATEGORY_ENDPOINTS.GET_ALL}?categoryId=${catId}&status=Active`);
-      setSubCategoriesFilterList(response?.data || []);
+      const response = await apiService.get(`${SUB_CATEGORY_ENDPOINTS.GET_ALL}?limit=5000&all=true`);
+      if (response && response.data) {
+        const raw = response.data;
+        let list = Array.isArray(raw) ? raw : (raw.rows || raw.subCategories || raw.data || []);
+        if (!Array.isArray(list)) list = [];
+        const matched = list.filter(s => {
+          const sCatId = s.categoryId || s.category_id || (s.category ? s.category.id : '');
+          return String(sCatId) === String(catId);
+        });
+        setSubCategoriesFilterList(matched);
+      } else {
+        setSubCategoriesFilterList([]);
+      }
     } catch {
       setSubCategoriesFilterList([]);
     }
@@ -275,19 +581,23 @@ const ParameterMaster = () => {
 
   useEffect(() => {
     fetchParameters();
-  }, [currentPage, pageSize, searchQuery, statusFilter, categoryFilter, subCategoryFilter, viewMode]);
+  }, []);
 
   useEffect(() => {
     const initializeData = async () => {
       await fetchCompanies();
+      await fetchDepartmentsList();
       await fetchCategoriesForDropdown();
+      await fetchSubCategoriesForDropdown();
       await fetchLocationSamplesForDropdown();
       await fetchParameters();
     };
     initializeData();
 
     const handleCompanyChange = () => {
+      fetchDepartmentsList();
       fetchCategoriesForDropdown();
+      fetchSubCategoriesForDropdown();
       fetchLocationSamplesForDropdown();
       fetchParameters();
     };
@@ -298,8 +608,14 @@ const ParameterMaster = () => {
   // Form validation
   const validateForm = () => {
     const errors = {};
+    if (!formDepartmentId) {
+      errors.departmentId = 'Department is required.';
+    }
     if (!formData.categoryId) {
-      errors.categoryId = 'Category is required.';
+      errors.categoryId = 'Discipline Group is required.';
+    }
+    if (!formData.subCategoryId) {
+      errors.subCategoryId = 'Sub Category is required.';
     }
     if (!formData.parameterName.trim()) {
       errors.parameterName = 'Parameter Name is required.';
@@ -316,46 +632,54 @@ const ParameterMaster = () => {
     }
   };
 
-  // Open Form for Create
   const handleOpenCreate = () => {
     const defaultCompanyName = companies.length > 0 ? (companies[0].companyName || companies[0].company_name) : '';
-    const initialCatId = categoriesList.length > 0 ? categoriesList[0].id : '';
-    if (initialCatId) {
-      fetchSubCategoriesForDropdown(initialCatId);
-    }
+    setFormDepartmentId('');
     setFormData({
       parameterName: '',
-      description: '',
+      unit: '',
+      isPermissibleLimitApplicable: false,
+      permissibleLimit: '',
       testMethod: '',
+      price: '',
       status: 'Active',
       companyName: defaultCompanyName,
-      categoryId: initialCatId,
-      subCategoryId: '',
-      locationSampleId: ''
+      categoryId: '',
+      subCategoryId: ''
     });
     setFormErrors({});
     setEditingId(null);
+    setSelectedExistingParamId('');
+    setIsManualNameEntry(false);
     setIsFormOpen(true);
+    document.querySelector('.dashboard-content-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Open Form for Edit
   const handleOpenEdit = (param) => {
-    if (param.categoryId) {
-      fetchSubCategoriesForDropdown(param.categoryId);
-    }
+    const matchedCat = categoriesList.find(c => String(c.id) === String(param.categoryId));
+    const matchedDeptId = matchedCat ? (matchedCat.departmentId || matchedCat.department_id || '') : '';
+    setFormDepartmentId(matchedDeptId);
+    
     setFormData({
       parameterName: param.parameterName || '',
-      description: param.description || '',
+      unit: param.unit || '',
+      isPermissibleLimitApplicable: param.isPermissibleLimitApplicable === true || param.is_permissible_limit_applicable === true,
+      permissibleLimit: param.permissibleLimit || param.permissible_limit || '',
       testMethod: param.testMethod || '',
+      price: param.price !== undefined && param.price !== null ? param.price : '',
       status: param.status || 'Active',
       companyName: param.companyName || (param.company ? (param.company.companyName || param.company.company_name) : ''),
       categoryId: param.categoryId || '',
-      subCategoryId: param.subCategoryId || '',
-      locationSampleId: param.locationSampleId || ''
+      subCategoryId: param.subCategoryId || ''
     });
     setFormErrors({});
     setEditingId(param.id);
+    setSelectedExistingParamId('');
+    setIsManualNameEntry(true);
     setIsFormOpen(true);
+    document.querySelector('.dashboard-content-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Submit Handler
@@ -376,13 +700,16 @@ const ParameterMaster = () => {
 
     const payload = {
       parameterName: formData.parameterName,
-      description: formData.description,
+      unit: formData.unit,
+      isPermissibleLimitApplicable: formData.isPermissibleLimitApplicable,
+      permissibleLimit: formData.isPermissibleLimitApplicable ? formData.permissibleLimit : '',
       testMethod: formData.testMethod,
+      price: formData.price !== '' && formData.price !== null ? parseFloat(formData.price) : 0,
       status: formData.status,
+      companyId: activeCompId || null,
       companyName: activeCompanyName || formData.companyName,
       categoryId: formData.categoryId || null,
-      subCategoryId: formData.subCategoryId || null,
-      locationSampleId: formData.locationSampleId || null
+      subCategoryId: formData.subCategoryId || null
     };
 
     try {
@@ -394,9 +721,10 @@ const ParameterMaster = () => {
         triggerToast('Parameter created successfully.', 'success');
       }
       setIsFormOpen(false);
+      setCurrentPage(1);
       fetchParameters();
     } catch (err) {
-      triggerToast(err.messageToShow || err.message || 'Operation failed. Please try again.', 'error');
+      triggerToast(err.messageToShow || err.message || err.error?.userMessage || err.error?.message || 'Operation failed. Please try again.', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -443,65 +771,78 @@ const ParameterMaster = () => {
     }
   };
 
+  // Fetch all parameters matching current filters for complete data export
+  const fetchAllExportData = async () => {
+    return filteredParameters;
+  };
+
+  // Helper to map parameter record to bulk import template columns format
+  const mapParameterToTemplateRow = (p) => {
+    const isLimitApp = p.isPermissibleLimitApplicable === true || p.is_permissible_limit_applicable === true;
+    return [
+      p.departmentName || p.department_name || '',
+      p.categoryName || p.category_name || '',
+      p.subCategoryName || p.sub_category_name || '',
+      p.locationSampleName || p.location_sample_name || p.locationOfSample || '',
+      p.parameterName || p.parameter_name || '',
+      p.testMethod || p.test_method || '',
+      p.unit || '',
+      isLimitApp ? 'Yes' : 'No',
+      isLimitApp ? (p.permissibleLimit || p.permissible_limit || '') : (p.permissibleLimit || p.permissible_limit || ''),
+      p.status || 'Active'
+    ];
+  };
+
+  const exportTemplateHeaders = [
+    'Department *',
+    'Discipline Group *',
+    'Sub Category',
+    'Location of Sample',
+    'Parameter Name *',
+    'Test Method',
+    'Unit',
+    'Permissible Limit Applicable?',
+    'Permissible Limit',
+    'Status'
+  ];
+
   // CSV Export
-  const handleDownloadCSV = () => {
-    if (parameters.length === 0) return;
-    const headers = ['Parameter Name', 'Category', 'Test Method', 'Description', 'Status'];
-    const rows = parameters.map(p => [
-      p.parameterName,
-      p.categoryName || 'Unassigned',
-      p.testMethod || 'N/A',
-      p.description || 'None',
-      p.status
-    ]);
-    downloadCSV(headers, rows, 'Parameters_Report.csv');
+  const handleDownloadCSV = async () => {
+    const exportData = await fetchAllExportData();
+    if (!exportData || exportData.length === 0) return;
+    const rows = exportData.map(mapParameterToTemplateRow);
+    downloadCSV(exportTemplateHeaders, rows, 'Parameters_Report.csv');
     setShowDownloadDropdown(false);
   };
 
-  // Excel Export
-  const handleDownloadExcel = () => {
-    if (parameters.length === 0) return;
-    const headers = ['Parameter Name', 'Category', 'Test Method', 'Description', 'Status'];
-    const rows = parameters.map(p => [
-      p.parameterName,
-      p.categoryName || 'Unassigned',
-      p.testMethod || 'N/A',
-      p.description || 'None',
-      p.status
-    ]);
-    downloadExcel(headers, rows, 'Parameters_Report.xlsx');
+  // Excel Export (matches exact bulk import template format with filled data)
+  const handleDownloadExcel = async () => {
+    const exportData = await fetchAllExportData();
+    if (!exportData || exportData.length === 0) return;
+    const rows = exportData.map(mapParameterToTemplateRow);
+    downloadExcel(exportTemplateHeaders, rows, 'Parameter_Master_Export.xlsx');
     setShowDownloadDropdown(false);
   };
 
   // Copy to Clipboard
-  const handleCopy = () => {
-    if (parameters.length === 0) return;
-    const headers = ['Parameter Name', 'Category', 'Test Method', 'Description', 'Status'];
-    const rows = parameters.map(p => [
-      p.parameterName,
-      p.categoryName || 'Unassigned',
-      p.testMethod || 'N/A',
-      p.description || 'None',
-      p.status
-    ]);
-    const text = [headers.join('\t'), ...rows.map(r => r.join('\t'))].join('\n');
+  const handleCopy = async () => {
+    const exportData = await fetchAllExportData();
+    if (!exportData || exportData.length === 0) return;
+    const rows = exportData.map(mapParameterToTemplateRow);
+    const text = [exportTemplateHeaders.join('\t'), ...rows.map(r => r.join('\t'))].join('\n');
     navigator.clipboard.writeText(text);
     triggerToast('Copied to clipboard successfully.', 'success');
     setShowDownloadDropdown(false);
   };
 
   // PDF Export
-  const handlePrintPDF = () => {
-    if (parameters.length === 0) return;
+  const handlePrintPDF = async () => {
+    const exportData = await fetchAllExportData();
+    if (!exportData || exportData.length === 0) return;
     const printWindow = window.open('', '_blank');
-    const headers = ['Parameter Name', 'Category', 'Test Method', 'Description', 'Status'];
-    const rows = parameters.map(p => `
+    const rows = exportData.map(mapParameterToTemplateRow).map(r => `
       <tr>
-        <td>${p.parameterName}</td>
-        <td>${p.categoryName || 'Unassigned'}</td>
-        <td>${p.testMethod || 'N/A'}</td>
-        <td>${p.description || 'None'}</td>
-        <td>${p.status}</td>
+        ${r.map(cell => `<td>${cell || '-'}</td>`).join('')}
       </tr>
     `).join('');
 
@@ -512,15 +853,15 @@ const ParameterMaster = () => {
           <style>
             body { font-family: sans-serif; padding: 20px; }
             table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: left; font-size: 13px; }
-            th { background-color: #f8fafc; }
+            th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: left; font-size: 12px; }
+            th { background-color: #f8fafc; font-weight: bold; }
           </style>
         </head>
         <body>
-          <h2>Parameters Report</h2>
+          <h2>Parameter Master Report</h2>
           <table>
             <thead>
-              <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
+              <tr>${exportTemplateHeaders.map(h => `<th>${h}</th>`).join('')}</tr>
             </thead>
             <tbody>
               ${rows}
@@ -589,12 +930,22 @@ const ParameterMaster = () => {
                 <span>Parameter</span>
               </button>
               <button
-                onClick={() => setIsBulkImportOpen(true)}
+                onClick={() => {
+                  fetchSavedParametersForForm();
+                  setIsBulkImportOpen(true);
+                }}
                 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1rem', fontWeight: 600, cursor: 'pointer' }}
               >
                 <FaFileExcel />
                 <span>Bulk Import</span>
               </button>
+              {/* <button
+                onClick={() => setIsAssignModalOpen(true)}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#7c3aed', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1rem', fontWeight: 600, cursor: 'pointer', boxShadow: '0 2px 4px rgba(124, 58, 237, 0.2)' }}
+              >
+                <FaTags />
+                <span>Assign Groups</span>
+              </button> */}
             </>
           )}
 
@@ -683,6 +1034,28 @@ const ParameterMaster = () => {
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
+              
+              {/* Department Select */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Department *</label>
+                <select
+                  value={formDepartmentId}
+                  onChange={(e) => {
+                    setFormDepartmentId(e.target.value);
+                    handleInputChange({ target: { name: 'categoryId', value: '' } });
+                    handleInputChange({ target: { name: 'subCategoryId', value: '' } });
+                  }}
+                  style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.departmentId ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none', backgroundColor: '#ffffff', boxSizing: 'border-box', height: '40px' }}
+                >
+                  <option value="">Select Department</option>
+                  {departmentsList.map(d => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+                {formErrors.departmentId && (
+                  <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 500 }}>{formErrors.departmentId}</span>
+                )}
+              </div>
 
               {/* Discipline Group Dropdown & Quick Add Link */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
@@ -690,74 +1063,114 @@ const ParameterMaster = () => {
                   <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Discipline Group *</label>
                   <button
                     type="button"
-                    onClick={() => setIsAddCatModalOpen(true)}
+                    onClick={() => {
+                      if (!formDepartmentId) {
+                        triggerToast('Please select a Department first.', 'error');
+                        return;
+                      }
+                      setIsAddCatModalOpen(true);
+                    }}
                     style={{ background: 'none', border: 'none', color: '#22c55e', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}
                   >
                     <FaPlus size={10} /> Add New Group
                   </button>
                 </div>
-                <select
-                  name="categoryId"
+                <SearchableSelect
+                  options={[...formCategoriesFiltered].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
                   value={formData.categoryId}
-                  onChange={(e) => {
-                    handleInputChange(e);
-                    fetchSubCategoriesForDropdown(e.target.value);
+                  disabled={!formDepartmentId}
+                  onChange={(selectedVal) => {
+                    handleInputChange({ target: { name: 'categoryId', value: selectedVal } });
+                    handleInputChange({ target: { name: 'subCategoryId', value: '' } });
                   }}
-                  style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.categoryId ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', cursor: 'pointer', outline: 'none', backgroundColor: '#ffffff' }}
-                >
-                  <option value="">Select Discipline Group</option>
-                  {[...categoriesList].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
-                </select>
+                  placeholder="Select Discipline Group"
+                  searchPlaceholder="Search discipline group..."
+                  hasError={!!formErrors.categoryId}
+                />
                 {formErrors.categoryId && (
                   <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 500 }}>{formErrors.categoryId}</span>
                 )}
               </div>
-
+ 
               {/* Sub Category Dropdown */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Sub Category</label>
-                <select
-                  name="subCategoryId"
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Sub Category *</label>
+                  <AddMasterButton
+                    label="Add New Sub Category"
+                    onClick={() => {
+                      if (!formData.categoryId) {
+                        triggerToast('Please select a Discipline Group first.', 'error');
+                        return;
+                      }
+                      setInlineModal({ isOpen: true, type: 'subCategory', parentData: { categoryId: formData.categoryId, departmentId: formDepartmentId } });
+                    }}
+                  />
+                </div>
+                <SearchableSelect
+                  options={[...formSubCategoriesFiltered].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
                   value={formData.subCategoryId}
-                  onChange={handleInputChange}
-                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', cursor: 'pointer', outline: 'none', backgroundColor: '#ffffff' }}
-                >
-                  <option value="">Select Sub Category</option>
-                  {[...subCategoriesList].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(sub => (
-                    <option key={sub.id} value={sub.id}>{sub.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Location of Sample Dropdown */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Location of Sample</label>
-                <select
-                  name="locationSampleId"
-                  value={formData.locationSampleId}
-                  onChange={handleInputChange}
-                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', cursor: 'pointer', outline: 'none', backgroundColor: '#ffffff' }}
-                >
-                  <option value="">Select Location of Sample</option>
-                  {[...locationSamplesList].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(loc => (
-                    <option key={loc.id} value={loc.id}>{loc.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Parameter Name */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Parameter Name *</label>
-                <input
-                  type="text"
-                  name="parameterName"
-                  value={formData.parameterName}
-                  onChange={handleInputChange}
-                  placeholder="e.g. pH Level"
-                  style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.parameterName ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none' }}
+                  disabled={!formData.categoryId}
+                  onChange={(selectedVal) => {
+                    handleInputChange({ target: { name: 'subCategoryId', value: selectedVal } });
+                  }}
+                  placeholder="Select Sub Category"
+                  searchPlaceholder="Search sub category..."
+                  hasError={!!formErrors.subCategoryId}
                 />
+                {formErrors.subCategoryId && (
+                  <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 500 }}>{formErrors.subCategoryId}</span>
+                )}
+              </div>
+ 
+              {/* Parameter Name Dropdown OR Manual Entry Text Input */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Parameter Name *</label>
+                  {!editingId && uniqueSavedParameters.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newManual = !isManualNameEntry;
+                        setIsManualNameEntry(newManual);
+                        setSelectedExistingParamId('');
+                        if (newManual) {
+                          setFormData(prev => ({ ...prev, parameterName: '' }));
+                        }
+                      }}
+                      style={{ background: 'none', border: 'none', color: '#22c55e', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}
+                    >
+                      {isManualNameEntry ? '≡ Select Saved Parameter' : '+ Manual Entry'}
+                    </button>
+                  )}
+                </div>
+
+                {!isManualNameEntry && uniqueSavedParameters.length > 0 && !editingId ? (
+                  <SearchableSelect
+                    options={uniqueSavedParameters}
+                    value={selectedExistingParamId}
+                    onChange={(selectedId) => handleSelectExistingParameter(selectedId)}
+                    placeholder="Select Parameter Name"
+                    searchPlaceholder="Search parameter name or test method..."
+                    hasError={!!formErrors.parameterName}
+                    customOptionLabel="+ Enter Custom Parameter Name (Manual)..."
+                    onCustomOptionSelect={() => {
+                      setIsManualNameEntry(true);
+                      setSelectedExistingParamId('');
+                      setFormData(prev => ({ ...prev, parameterName: '' }));
+                    }}
+                  />
+                ) : (
+                  <input
+                    type="text"
+                    name="parameterName"
+                    value={formData.parameterName}
+                    onChange={handleInputChange}
+                    placeholder="e.g. pH Level"
+                    style={{ padding: '0.55rem 0.75rem', border: `1px solid ${formErrors.parameterName ? '#ef4444' : '#cbd5e1'}`, borderRadius: '8px', fontSize: '0.9rem', outline: 'none' }}
+                  />
+                )}
+
                 {formErrors.parameterName && (
                   <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 500 }}>{formErrors.parameterName}</span>
                 )}
@@ -776,16 +1189,69 @@ const ParameterMaster = () => {
                 />
               </div>
 
-              {/* Description */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: 'span 2' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Description</label>
-                <textarea
-                  name="description"
-                  value={formData.description}
+              {/* Unit */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Unit</label>
+                <input
+                  type="text"
+                  name="unit"
+                  value={formData.unit}
                   onChange={handleInputChange}
-                  placeholder="Optional description of the test parameter"
-                  rows={2}
-                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
+                  placeholder="e.g. mg/L, %, pH"
+                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', fontFamily: 'inherit' }}
+                />
+              </div>
+
+              {/* Permissible Limit Applicable Switch / Radio */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Permissible Limit Applicable?</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', height: '42px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600, color: '#1e293b' }}>
+                    <input
+                      type="radio"
+                      name="isPermissibleLimitApplicable"
+                      checked={formData.isPermissibleLimitApplicable === true}
+                      onChange={() => setFormData(prev => ({ ...prev, isPermissibleLimitApplicable: true }))}
+                    /> Yes
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600, color: '#64748b' }}>
+                    <input
+                      type="radio"
+                      name="isPermissibleLimitApplicable"
+                      checked={formData.isPermissibleLimitApplicable === false}
+                      onChange={() => setFormData(prev => ({ ...prev, isPermissibleLimitApplicable: false, permissibleLimit: '' }))}
+                    /> No
+                  </label>
+                </div>
+              </div>
+
+              {/* Permissible Limit Value (Shown if Applicable) */}
+              {formData.isPermissibleLimitApplicable && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Permissible Limit Value *</label>
+                  <input
+                    type="text"
+                    name="permissibleLimit"
+                    value={formData.permissibleLimit}
+                    onChange={handleInputChange}
+                    placeholder="e.g. 6.5 - 8.5 or Max 100 mg/L"
+                    style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', fontFamily: 'inherit' }}
+                  />
+                </div>
+              )}
+
+              {/* Price / Testing Rate (₹) */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Price (₹) / Rate</label>
+                <input
+                  type="number"
+                  name="price"
+                  value={formData.price}
+                  onChange={handleInputChange}
+                  placeholder="e.g. 250"
+                  min="0"
+                  step="any"
+                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', fontFamily: 'inherit' }}
                 />
               </div>
 
@@ -872,6 +1338,23 @@ const ParameterMaster = () => {
                 Cards
               </button>
             </div>
+            {/* Department Filter */}
+            <select
+              value={departmentFilter}
+              onChange={(e) => {
+                setDepartmentFilter(e.target.value);
+                setCategoryFilter('');
+                setSubCategoryFilter('');
+                setCurrentPage(1);
+              }}
+              style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', backgroundColor: '#ffffff' }}
+            >
+              <option value="ALL">ALL DEPARTMENTS</option>
+              {departmentsList.map(d => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
+
             {/* Discipline Group Filter */}
             <select
               value={categoryFilter}
@@ -879,13 +1362,13 @@ const ParameterMaster = () => {
                 const catId = e.target.value;
                 setCategoryFilter(catId);
                 setSubCategoryFilter('');
-                fetchSubCategoriesForToolbarFilter(catId);
                 setCurrentPage(1);
               }}
-              style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem' }}
+              disabled={departmentFilter === 'ALL'}
+              style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', backgroundColor: departmentFilter === 'ALL' ? '#f1f5f9' : '#ffffff', cursor: departmentFilter === 'ALL' ? 'not-allowed' : 'default' }}
             >
               <option value="">ALL DISCIPLINE GROUPS</option>
-              {[...categoriesList].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(cat => (
+              {[...filterCategoriesFiltered].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(cat => (
                 <option key={cat.id} value={cat.id}>{cat.name}</option>
               ))}
             </select>
@@ -898,10 +1381,10 @@ const ParameterMaster = () => {
                 setCurrentPage(1);
               }}
               disabled={!categoryFilter}
-              style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', backgroundColor: !categoryFilter ? '#f1f5f9' : '#ffffff' }}
+              style={{ padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', backgroundColor: !categoryFilter ? '#f1f5f9' : '#ffffff', cursor: !categoryFilter ? 'not-allowed' : 'default' }}
             >
               <option value="">ALL SUB CATEGORIES</option>
-              {[...subCategoriesFilterList].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(sub => (
+              {[...filterSubCategoriesFiltered].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(sub => (
                 <option key={sub.id} value={sub.id}>{sub.name}</option>
               ))}
             </select>
@@ -935,29 +1418,32 @@ const ParameterMaster = () => {
                   <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                     <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ACTIONS</th>
                     <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
-                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>PARAMETER NAME</th>
-                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>DISCIPLINE GROUP</th>
-                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SUB CATEGORY</th>
-                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>LOCATION OF SAMPLE</th>
-                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>TEST METHOD</th>
-                    <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>STATUS</th>
+                    {renderSortableHeader('DEPARTMENT', 'departmentId')}
+                    {renderSortableHeader('PARAMETER NAME', 'parameterName')}
+                    {renderSortableHeader('DISCIPLINE GROUP', 'categoryId')}
+                    {renderSortableHeader('SUB CATEGORY', 'subCategoryId')}
+                    {renderSortableHeader('TEST METHOD', 'testMethod')}
+                    {renderSortableHeader('UNIT', 'unit')}
+                    {renderSortableHeader('PERMISSIBLE LIMIT', 'permissibleLimit')}
+                    {renderSortableHeader('PRICE (₹)', 'price')}
+                    {renderSortableHeader('STATUS', 'status')}
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                      <td colSpan={11} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                         Loading parameters...
                       </td>
                     </tr>
-                  ) : parameters.length === 0 ? (
+                  ) : paginatedParameters.length === 0 ? (
                     <tr>
-                      <td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                      <td colSpan={11} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                         No parameters found.
                       </td>
                     </tr>
                   ) : (
-                    parameters.map((param, index) => (
+                    paginatedParameters.map((param, index) => (
                       <tr
                         key={param.id}
                         onClick={() => handleOpenEdit(param)}
@@ -981,11 +1467,18 @@ const ParameterMaster = () => {
                           </button>
                         </td>
                         <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
+                        <td style={{ padding: '0.75rem 1rem', color: '#64748b', fontWeight: 500 }}>{param.departmentName || (param.category?.department?.name) || 'Department Not Assigned'}</td>
                         <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{param.parameterName}</td>
                         <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.categoryName || (param.category ? param.category.categoryName : 'Unassigned')}</td>
                         <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.subCategoryName || 'Unassigned'}</td>
-                        <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.locationSampleName || 'N/A'}</td>
                         <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.testMethod || 'N/A'}</td>
+                        <td style={{ padding: '0.75rem 1rem', color: '#334155', fontWeight: 600 }}>{param.unit || '-'}</td>
+                        <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>
+                          {param.isPermissibleLimitApplicable || param.is_permissible_limit_applicable ? (param.permissibleLimit || param.permissible_limit || 'Applicable') : '-'}
+                        </td>
+                        <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 700 }}>
+                          ₹{param.price !== undefined && param.price !== null ? param.price : 0}
+                        </td>
                         <td style={{ padding: '0.75rem 1rem' }}>
                           <span style={{
                             display: 'inline-block',
@@ -1012,13 +1505,13 @@ const ParameterMaster = () => {
                 <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                   Loading parameters...
                 </div>
-              ) : parameters.length === 0 ? (
+              ) : paginatedParameters.length === 0 ? (
                 <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                   No parameters found.
                 </div>
               ) : (
                 <div className="master-card-grid">
-                  {parameters.map((param, index) => (
+                  {paginatedParameters.map((param, index) => (
                     <div key={param.id} className="master-record-card" onClick={() => handleOpenEdit(param)}>
                       <div className="master-record-card-header">
                         <div>
@@ -1068,13 +1561,13 @@ const ParameterMaster = () => {
           <div style={{ minHeight: '300px' }}>
             {loading ? (
               <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>Loading parameters...</div>
-            ) : parameters.length === 0 ? (
+            ) : filteredParameters.length === 0 ? (
               <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>No parameters found.</div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem', alignItems: 'start' }}>
                 {Object.entries(
-                  parameters.reduce((acc, param) => {
-                    const cat = param.categoryName || 'Unassigned';
+                  filteredParameters.reduce((acc, param) => {
+                    const cat = param.categoryName || (param.category ? param.category.categoryName : 'Unassigned');
                     if (!acc[cat]) acc[cat] = [];
                     acc[cat].push(param);
                     return acc;
@@ -1165,9 +1658,25 @@ const ParameterMaster = () => {
         isOpen={isBulkImportOpen}
         onClose={() => setIsBulkImportOpen(false)}
         masterType="parameter"
-        existingDbRecords={parameters}
+        existingDbRecords={allSavedParameters}
         onImportSuccess={async (validRows) => {
-          const res = await apiService.post(PARAMETER_ENDPOINTS.BULK_IMPORT, { rows: validRows });
+          let rowsToSend = validRows;
+          const updateRowsCount = validRows.filter(r => r._status === 'UPDATE').length;
+          
+          if (updateRowsCount > 0) {
+            const wantToUpdate = window.confirm(
+              `Found ${updateRowsCount} existing parameters that already exist in the database.\n\nDo you want to update these existing parameters?\n- Click "OK" to update them.\n- Click "Cancel" to skip updating and only import new parameters.`
+            );
+            if (!wantToUpdate) {
+              rowsToSend = validRows.filter(r => r._status === 'NEW');
+              if (rowsToSend.length === 0) {
+                triggerToast('No new parameters to import (skipped existing updates).', 'info');
+                return;
+              }
+            }
+          }
+          
+          const res = await apiService.post(PARAMETER_ENDPOINTS.BULK_IMPORT, { rows: rowsToSend });
           if (res && res.success) {
             triggerToast(res.message || 'Parameters imported successfully!', 'success');
             fetchParameters(currentPage, pageSize, searchQuery, statusFilter);
@@ -1196,6 +1705,37 @@ const ParameterMaster = () => {
         loading={deleting}
       />
 
+      {/* Inline Master Creation Modal */}
+      <InlineMasterModal
+        isOpen={inlineModal.isOpen}
+        onClose={() => setInlineModal({ isOpen: false, type: null, parentData: {} })}
+        masterType={inlineModal.type}
+        parentData={inlineModal.parentData}
+        onSuccess={(createdItem) => {
+          if (inlineModal.type === 'subCategory') {
+            if (formData.categoryId) {
+              fetchSubCategoriesForDropdown(formData.categoryId);
+            }
+            if (createdItem?.id) {
+              setFormData(prev => ({ ...prev, subCategoryId: createdItem.id }));
+            }
+          } else if (inlineModal.type === 'locationSample') {
+            fetchLocationSamplesForDropdown();
+            if (createdItem?.id) {
+              setFormData(prev => ({ ...prev, locationSampleId: createdItem.id }));
+            }
+          }
+        }}
+      />
+      <DisciplineGroupAssignModal
+        isOpen={isAssignModalOpen}
+        onClose={() => setIsAssignModalOpen(false)}
+        parameters={parameters}
+        categories={categoriesList}
+        subCategories={subCategoriesList}
+        locationSamples={locationSamplesList}
+        onSuccess={fetchParameters}
+      />
     </div>
   );
 };

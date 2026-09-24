@@ -53,6 +53,10 @@ const formatTransaction = (trp) => {
     }
     if (trpObj.parameter) {
         trpObj.parameterName = trpObj.parameter.parameterName;
+        trpObj.testMethod = trpObj.testMethod || trpObj.parameter.testMethod;
+        trpObj.unit = trpObj.unit || trpObj.parameter.unit;
+        trpObj.isPermissibleLimitApplicable = trpObj.parameter.isPermissibleLimitApplicable;
+        trpObj.permissibleLimit = trpObj.parameter.permissibleLimit;
     } else {
         trpObj.parameterName = null;
     }
@@ -354,20 +358,24 @@ const getTransactionById = async (trpId) => {
 /**
  * Get all transactions.
  */
-const getAllTransactions = async (companyId) => {
+const getAllTransactions = async (companyId = null) => {
     try {
+        const trInclude = {
+            model: TestRequest,
+            as: "testRequest",
+            include: [{
+                model: Company,
+                as: "company",
+                attributes: ["company_name"]
+            }]
+        };
+        if (companyId && companyId !== 'ALL') {
+            trInclude.where = { companyId };
+        }
+
         const trps = await TestRequestParameter.findAll({
             include: [
-                {
-                    model: TestRequest,
-                    as: "testRequest",
-                    where: { companyId },
-                    include: [{
-                        model: Company,
-                        as: "company",
-                        attributes: ["company_name"]
-                    }]
-                },
+                trInclude,
                 {
                     model: Parameter,
                     as: "parameter",
@@ -386,25 +394,29 @@ const getAllTransactions = async (companyId) => {
 /**
  * Get parameters by Test Request ID.
  */
-const getParametersByTestRequest = async (testRequestId, companyId) => {
+const getParametersByTestRequest = async (testRequestId, companyId = null) => {
     try {
+        const trInclude = {
+            model: TestRequest,
+            as: "testRequest",
+            include: [{
+                model: Company,
+                as: "company",
+                attributes: ["company_name"]
+            }]
+        };
+        if (companyId && companyId !== 'ALL') {
+            trInclude.where = { companyId };
+        }
+
         const trps = await TestRequestParameter.findAll({
             where: { testRequestId },
             include: [
-                {
-                    model: TestRequest,
-                    as: "testRequest",
-                    where: { companyId },
-                    include: [{
-                        model: Company,
-                        as: "company",
-                        attributes: ["company_name"]
-                    }]
-                },
+                trInclude,
                 {
                     model: Parameter,
                     as: "parameter",
-                    attributes: ["parameterName"]
+                    attributes: ["id", "parameterName", "testMethod", "unit", "isPermissibleLimitApplicable", "permissibleLimit"]
                 }
             ],
             attributes: { exclude: ["deleted_at"] },

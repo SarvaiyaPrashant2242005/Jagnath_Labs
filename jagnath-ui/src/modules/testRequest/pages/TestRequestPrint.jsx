@@ -8,7 +8,8 @@ import {
   TEST_REQUEST_ENDPOINTS,
   TEST_REQUEST_PARAMETER_ENDPOINTS,
   COMPANY_ENDPOINTS,
-  CAUTION_ENDPOINTS
+  CAUTION_ENDPOINTS,
+  BACKEND_ROOT_URL
 } from '../../../shared/services/apiEndpoints';
 
 const TestRequestPrint = () => {
@@ -104,19 +105,30 @@ const TestRequestPrint = () => {
         const trpRes = await apiService.get(TEST_REQUEST_PARAMETER_ENDPOINTS.GET_ALL);
         if (trpRes?.data) {
           const trps = Array.isArray(trpRes.data) ? trpRes.data : (trpRes.data?.rows || [trpRes.data]);
-          const matchingTrps = trps.filter(t => t.testRequestId === id);
-          const checks = {};
-          matchingTrps.forEach(t => {
-            if (t.parameterId) checks[t.parameterId] = true;
-          });
-          setCheckedParameters(checks);
+          const matchingTrps = trps.filter(t => t.testRequestId === id || t.test_request_id === id);
 
-          const selectedParamsOnly = allCategoryParams.filter(p => checks[p.id]);
-          setParameters(selectedParamsOnly.length > 0 ? selectedParamsOnly : allCategoryParams);
+          const checks = {};
+          const selectedList = [];
+
+          matchingTrps.forEach(t => {
+            const pId = t.parameterId || t.parameter_id || t.id;
+            if (pId) checks[pId] = true;
+
+            const catParam = allCategoryParams.find(p => p.id === pId || p.parameterId === pId || p.parameter_id === pId);
+            selectedList.push({
+              id: pId,
+              parameterName: t.parameterName || t.parameter?.parameterName || (catParam ? (catParam.parameterName || catParam.name) : 'Parameter'),
+              testMethod: t.testMethod || t.test_method || (catParam ? (catParam.testMethod || catParam.defaultTestMethod) : '')
+            });
+          });
+
+          setCheckedParameters(checks);
+          setParameters(selectedList.length > 0 ? selectedList : allCategoryParams);
         } else {
           setParameters(allCategoryParams);
         }
       } catch (e) {
+        console.error("Error fetching test request parameters for print:", e);
         setParameters(allCategoryParams);
       }
 
@@ -130,6 +142,18 @@ const TestRequestPrint = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const getLogoUrl = () => {
+    if (!selCompany) return '/Images/Navbar_Logo.png';
+    const logoPath = selCompany.test_request_logo || selCompany.testRequestLogo || selCompany.logo;
+    if (!logoPath) return '/Images/Navbar_Logo.png';
+    const cleanPath = logoPath.replace(/\\/g, '/');
+    const idx = cleanPath.lastIndexOf('uploads/');
+    if (idx !== -1) {
+      return `${BACKEND_ROOT_URL}/${cleanPath.substring(idx)}`;
+    }
+    return logoPath;
   };
 
   if (loading) {
@@ -149,8 +173,8 @@ const TestRequestPrint = () => {
         <table className="print-header-table">
           <tbody>
             <tr>
-              <td className="header-logo-cell" style={{ textAlign: 'center', padding: '4px' }}>
-                <img src="/Images/Navbar_Logo.png" alt="Logo" style={{ height: '65px', objectFit: 'contain', display: 'block', margin: '0 auto' }} />
+              <td className="header-logo-cell" style={{ textAlign: 'center', padding: '0px' }}>
+                <img src={getLogoUrl()} alt="Logo" style={{ height: '85px', width: '100%', objectFit: 'cover', display: 'block', margin: '0 auto' }} />
               </td>
               <td className="header-title-cell">
                 <h2>FORMATS</h2>
@@ -327,8 +351,8 @@ const TestRequestPrint = () => {
         <table className="print-header-table">
           <tbody>
             <tr>
-              <td className="header-logo-cell" style={{ textAlign: 'center', padding: '4px' }}>
-                <img src="/Images/Navbar_Logo.png" alt="Logo" style={{ height: '65px', objectFit: 'contain', display: 'block', margin: '0 auto' }} />
+              <td className="header-logo-cell" style={{ textAlign: 'center', padding: '0px' }}>
+                <img src={getLogoUrl()} alt="Logo" style={{ height: '85px', width: '100%', objectFit: 'cover', display: 'block', margin: '0 auto' }} />
               </td>
               <td className="header-title-cell">
                 <h2>FORMATS</h2>
@@ -364,19 +388,21 @@ const TestRequestPrint = () => {
           <tbody>
             {Array.from({ length: Math.max(20, parameters.length) }).map((_, i) => {
               const param = parameters[i];
+              const pName = param ? (param.parameterName || param.name || param.parameter?.parameterName || '') : '';
+              const pMethod = param ? (param.testMethod || param.defaultTestMethod || param.test_method || '') : '';
               return (
                 <tr key={i}>
                   <td style={{ textAlign: 'center' }}>{i + 1}.</td>
-                  <td style={{ textAlign: 'left', paddingLeft: '8px' }}>{param ? (param.parameterName || param.name) : ''}</td>
-                  <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{param ? '√' : ''}</td>
-                  <td style={{ textAlign: 'center' }}>{param ? (param.testMethod || param.defaultTestMethod || '') : ''}</td>
+                  <td style={{ textAlign: 'left', paddingLeft: '8px' }}>{pName}</td>
+                  <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{param && pName ? '√' : ''}</td>
+                  <td style={{ textAlign: 'center' }}>{pMethod}</td>
                 </tr>
               );
             })}
           </tbody>
         </table>
 
-        {/* Caution / Notice Section (Printed if Include Caution = YES) */}
+        {/* Quotation / Notice Section (Printed if Include Quotation = YES) */}
         {(formData.includeCaution || formData.include_caution) && selCaution && (
           <div style={{
             marginTop: '0.8rem',
@@ -387,7 +413,7 @@ const TestRequestPrint = () => {
             background: '#fff'
           }}>
             <div style={{ fontWeight: 'bold', textDecoration: 'underline', marginBottom: '0.25rem' }}>
-              CAUTION / NOTICE: {selCaution.title}
+              QUOTATION: {selCaution.title}
             </div>
             <div style={{ whiteSpace: 'pre-wrap', color: '#111' }}>
               {selCaution.description}

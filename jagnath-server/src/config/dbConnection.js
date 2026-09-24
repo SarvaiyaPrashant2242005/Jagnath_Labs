@@ -11,11 +11,6 @@ require("../database/index");
 /**
  * Authenticates the database connection asynchronously.
  * Logs success on connection or logs the failure and terminates the application with exit code 1.
- * 
- * @async
- * @function connectDB
- * @returns {Promise<void>} Resolves when connection is successfully authenticated.
- * @throws {Error} Exits the process if authentication fails.
  */
 const connectDB = async () => {
     try {
@@ -23,16 +18,43 @@ const connectDB = async () => {
         await sequelize.authenticate();
         console.log("✅ PostgreSQL Connected Successfully");
 
-        // 2. Sync all models with the database (alter: false to prevent PostgreSQL alter conflict crashes)
-        await sequelize.sync({ alter: true });
-        console.log('📂 Database & tables synced!');
-
-        // 3. Run migrations
+        // 2. Run migrations first so referenced tables/columns exist before model constraints sync
         const { runMigration: runMigration01 } = require("../database/migrations/01_add_unique_indexes_and_cleanup");
         await runMigration01();
 
         const { runMigration: runMigration02 } = require("../database/migrations/02_add_office_and_plant_address_to_clients");
         await runMigration02();
+
+        const { runMigration: runMigration03 } = require("../database/migrations/03_add_unit_and_permissible_limit_to_parameters");
+        await runMigration03();
+
+        const { runMigration: runMigration04 } = require("../database/migrations/04_create_test_reports_table");
+        await runMigration04();
+
+        const { runMigration: runMigration05 } = require("../database/migrations/05_update_parameter_unique_index_with_location");
+        await runMigration05();
+
+        const { runMigration: runMigration06 } = require("../database/migrations/06_add_department_master");
+        await runMigration06();
+
+        const { runMigration: runMigration07 } = require("../database/migrations/07_add_reviewed_by_signature_to_reports");
+        await runMigration07();
+
+        const { runMigration: runMigration08 } = require("../database/migrations/08_update_parameter_unique_index_with_test_method");
+        await runMigration08();
+
+        const { runMigration: runMigration09 } = require("../database/migrations/09_add_quotation_required_and_type_to_test_requests");
+        await runMigration09();
+
+        const { runMigration: runMigration10 } = require("../database/migrations/10_create_audit_quotations_table");
+        await runMigration10();
+
+        const { runMigration: runMigration11 } = require("../database/migrations/11_add_industry_type_and_price_to_test_requests");
+        await runMigration11();
+
+        // 3. Sync all models with the database
+        await sequelize.sync({ alter: true });
+        console.log('📂 Database & tables synced!');
 
         // 4. Seed default data if needed
         const { seedDefaultUser } = require("../database/seeders");

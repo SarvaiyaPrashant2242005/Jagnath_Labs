@@ -135,6 +135,15 @@ const createCompany = async (companyData, userId, files, generatedId, reqInfo) =
             if (files.logo && files.logo.length > 0) {
                 dataToInsert.logo = files.logo[0].path;
             }
+            if (files.test_request_logo && files.test_request_logo.length > 0) {
+                dataToInsert.test_request_logo = files.test_request_logo[0].path;
+            }
+            if (files.test_report_logo && files.test_report_logo.length > 0) {
+                dataToInsert.test_report_logo = files.test_report_logo[0].path;
+            }
+            if (files.quotation_logo && files.quotation_logo.length > 0) {
+                dataToInsert.quotation_logo = files.quotation_logo[0].path;
+            }
             if (files.signature && files.signature.length > 0) {
                 dataToInsert.signature = files.signature[0].path;
             }
@@ -161,6 +170,22 @@ const createCompany = async (companyData, userId, files, generatedId, reqInfo) =
         }
 
         const newCompany = await Company.create(dataToInsert, { transaction });
+
+        const initialDepartments = [
+            "Environment",
+            "Agriculture",
+            "Food",
+            "Clinical (Pathology)",
+            "Consulting"
+        ];
+        const Department = require("../DepartmentMasters/department.model");
+        for (const deptName of initialDepartments) {
+            await Department.create({
+                companyId: newCompany.id,
+                name: deptName,
+                status: 'Active'
+            }, { transaction });
+        }
 
         await UserCompanies.findOrCreate({
             where: { user_id: targetUserId, company_id: newCompany.id },
@@ -244,9 +269,34 @@ const updateCompany = async (companyId, companyData, userId, files, reqInfo) => 
             if (files.logo && files.logo.length > 0) {
                 dataToUpdate.logo = files.logo[0].path;
             }
+            if (files.test_request_logo && files.test_request_logo.length > 0) {
+                dataToUpdate.test_request_logo = files.test_request_logo[0].path;
+            }
+            if (files.test_report_logo && files.test_report_logo.length > 0) {
+                dataToUpdate.test_report_logo = files.test_report_logo[0].path;
+            }
+            if (files.quotation_logo && files.quotation_logo.length > 0) {
+                dataToUpdate.quotation_logo = files.quotation_logo[0].path;
+            }
             if (files.signature && files.signature.length > 0) {
                 dataToUpdate.signature = files.signature[0].path;
             }
+        }
+
+        if (companyData.removeLogo === 'true' || companyData.removeLogo === true) {
+            dataToUpdate.logo = null;
+        }
+        if (companyData.removeTestRequestLogo === 'true' || companyData.removeTestRequestLogo === true) {
+            dataToUpdate.test_request_logo = null;
+        }
+        if (companyData.removeTestReportLogo === 'true' || companyData.removeTestReportLogo === true) {
+            dataToUpdate.test_report_logo = null;
+        }
+        if (companyData.removeQuotationLogo === 'true' || companyData.removeQuotationLogo === true) {
+            dataToUpdate.quotation_logo = null;
+        }
+        if (companyData.removeSignature === 'true' || companyData.removeSignature === true) {
+            dataToUpdate.signature = null;
         }
 
         const bcrypt = require("bcrypt");
@@ -384,9 +434,18 @@ const getCompaniesByUser = async (userId, options = {}) => {
         whereClause.status = options.status;
     }
 
+    let orderClause = [['created_at', 'DESC']];
+    if (options.sortBy) {
+        const allowedSortFields = ["company_code", "company_name", "company_email", "contact_number", "address", "status", "created_at", "createdAt"];
+        if (allowedSortFields.includes(options.sortBy)) {
+            const orderDirection = options.sortOrder === "desc" || options.sortOrder === "DESC" ? "DESC" : "ASC";
+            orderClause = [[options.sortBy, orderDirection]];
+        }
+    }
+
     let queryOptions = {
         where: whereClause,
-        order: [['created_at', 'DESC']]
+        order: orderClause
     };
 
     if (options.limit && options.page) {

@@ -8,7 +8,7 @@ import {
   FaCheckCircle, FaExclamationTriangle, FaTrash, FaSyncAlt,
   FaFilter, FaInfoCircle
 } from 'react-icons/fa';
-import { downloadTemplate, parseExcelFile, validateMasterRows, exportFailedRowsToExcel, MASTER_SCHEMAS } from '../../services/excelService';
+import excelService, { downloadTemplate, parseExcelFile, validateMasterRows, exportFailedRowsToExcel, MASTER_SCHEMAS } from '../../services/excelService';
 
 const BulkImportModal = ({
   isOpen,
@@ -221,6 +221,7 @@ const BulkImportModal = ({
 
   const getColumnMinWidth = (key) => {
     switch (key) {
+      case 'departmentName': return '180px';
       case 'clientName': return '190px';
       case 'email': return '210px';
       case 'contactNumber': return '150px';
@@ -228,7 +229,13 @@ const BulkImportModal = ({
       case 'city': return '130px';
       case 'state': return '130px';
       case 'categoryName': return '200px';
+      case 'subCategoryName': return '180px';
+      case 'locationOfSample': return '180px';
       case 'parameterName': return '200px';
+      case 'testMethod': return '190px';
+      case 'unit': return '100px';
+      case 'isPermissibleLimitApplicable': return '190px';
+      case 'permissibleLimit': return '150px';
       case 'description': return '220px';
       case 'gender': return '110px';
       case 'status': return '110px';
@@ -700,7 +707,7 @@ const BulkImportModal = ({
                               {r._status === 'UPDATE' && '⚠️ Update'}
                               {r._status === 'ERROR' && '❌ Error'}
                             </span>
-                            {r._status === 'ERROR' && r._errors && Object.keys(r._errors).length > 0 && (
+                            {r._status === 'ERROR' && r._errors && Object.keys(r._errors).filter(k => k !== '_row').length > 0 && (
                               <div
                                 style={{
                                   fontSize: '0.725rem',
@@ -717,7 +724,27 @@ const BulkImportModal = ({
                                   marginTop: '0.2rem'
                                 }}
                               >
-                                {Object.values(r._errors).join(' • ')}
+                                {Object.keys(r._errors).filter(k => k !== '_row').map(k => r._errors[k]).join(' • ')}
+                              </div>
+                            )}
+                            {r._status === 'UPDATE' && r._errors && r._errors['_row'] && (
+                              <div
+                                style={{
+                                  fontSize: '0.725rem',
+                                  color: '#b45309',
+                                  fontWeight: 600,
+                                  background: '#fffbeb',
+                                  border: '1px solid #fde68a',
+                                  borderRadius: '6px',
+                                  padding: '0.35rem 0.5rem',
+                                  whiteSpace: 'normal',
+                                  wordBreak: 'break-word',
+                                  lineHeight: '1.3',
+                                  maxWidth: '250px',
+                                  marginTop: '0.2rem'
+                                }}
+                              >
+                                {r._errors['_row']}
                               </div>
                             )}
                           </div>

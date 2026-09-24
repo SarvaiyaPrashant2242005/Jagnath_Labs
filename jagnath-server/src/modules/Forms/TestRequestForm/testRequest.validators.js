@@ -3,6 +3,7 @@
  * @description Joi validation schemas for TestRequest requests.
  */
 const Joi = require("joi");
+const { INDUSTRY_TYPES } = require("../../../config/industryConstants");
 
 const createTestRequestSchema = Joi.object({
     companyId: Joi.string().required().messages({
@@ -29,6 +30,7 @@ const createTestRequestSchema = Joi.object({
     sampleParticular: Joi.string().optional().allow("", null),
     categoryId: Joi.string().optional().allow("", null),
     subCategoryId: Joi.string().optional().allow("", null),
+    departmentId: Joi.string().optional().allow("", null),
     equipmentAvailability: Joi.string().optional().allow("", null),
     referenceStandardAvailability: Joi.string().optional().allow("", null),
     sampleAdequacy: Joi.string().optional().allow("", null),
@@ -50,7 +52,13 @@ const createTestRequestSchema = Joi.object({
     cautionId: Joi.string().optional().allow("", null),
     status: Joi.string().valid("Active", "Inactive").optional().allow("", null).messages({
         "any.only": "Status must be Active or Inactive."
-    })
+    }),
+    quotationRequired: Joi.string().valid("Yes", "No").optional().default("No").allow("", null),
+    quotationType: Joi.string().valid("Quotation", "Consulting", "Audit", "General Testing / Consulting", "Monthly Consulting").optional().allow("", null),
+    industryType: Joi.string().valid(...Object.values(INDUSTRY_TYPES)).optional().allow("", null).messages({
+        "any.only": "Industry Type must be small, medium, or large."
+    }),
+    industryPrice: Joi.number().integer().optional().allow(null)
 });
 
 const updateTestRequestSchema = Joi.object({
@@ -76,6 +84,7 @@ const updateTestRequestSchema = Joi.object({
     sampleParticular: Joi.string().optional().allow("", null),
     categoryId: Joi.string().optional().allow("", null),
     subCategoryId: Joi.string().optional().allow("", null),
+    departmentId: Joi.string().optional().allow("", null),
     equipmentAvailability: Joi.string().optional().allow("", null),
     referenceStandardAvailability: Joi.string().optional().allow("", null),
     sampleAdequacy: Joi.string().optional().allow("", null),
@@ -97,7 +106,13 @@ const updateTestRequestSchema = Joi.object({
     cautionId: Joi.string().optional().allow("", null),
     status: Joi.string().valid("Active", "Inactive").optional().allow("", null).messages({
         "any.only": "Status must be Active or Inactive."
-    })
+    }),
+    quotationRequired: Joi.string().valid("Yes", "No").optional().allow("", null),
+    quotationType: Joi.string().valid("Quotation", "Consulting", "Audit", "General Testing / Consulting", "Monthly Consulting").optional().allow("", null),
+    industryType: Joi.string().valid(...Object.values(INDUSTRY_TYPES)).optional().allow("", null).messages({
+        "any.only": "Industry Type must be small, medium, or large."
+    }),
+    industryPrice: Joi.number().integer().optional().allow(null)
 });
 
 module.exports = {
