@@ -349,23 +349,14 @@ export const buildAnnexureBFromTRF = (selectedTR, trParams = [], masters = {}) =
     const allCats = masters.categories || [];
     const allSubCats = masters.subCategories || [];
     const priceMasters = masters.priceMasters || [];
+    const seenParamKeys = new Set();
 
     paramList.forEach((trp, idx) => {
       const pId = trp.parameterId || trp.parameter_id || (typeof trp.parameter === 'object' ? trp.parameter?.id : trp.id);
       const paramObj = (typeof trp.parameter === 'object' && trp.parameter) ? trp.parameter : allParams.find(p => p.id === pId);
 
-      const desc = paramObj?.parameterName || paramObj?.name || trp.description || trp.name || `Parameter #${idx + 1}`;
+      const desc = (paramObj?.parameterName || paramObj?.name || trp.description || trp.name || `Parameter #${idx + 1}`).trim();
       
-      // Determine rate
-      let rate = parseFloat(trp.price);
-      if (isNaN(rate) || rate === 0) {
-        const pm = priceMasters.find(pr => pr.parameterId === pId || pr.parameter_id === pId);
-        if (pm) rate = parseFloat(pm.price || pm.rate || 0);
-      }
-      if (isNaN(rate) || rate === 0) {
-        rate = parseFloat(paramObj?.price || paramObj?.rate || 0) || 0;
-      }
-
       // Determine Category / Discipline
       let cat = '';
       if (paramObj?.category && typeof paramObj.category === 'object') {
@@ -387,6 +378,24 @@ export const buildAnnexureBFromTRF = (selectedTR, trParams = [], masters = {}) =
       }
 
       const rawCat = cat.trim();
+
+      // Deduplication check: prevent duplicate parameter entries within the same category
+      const uniqueKey = `${rawCat}___${pId || desc}`;
+      if (seenParamKeys.has(uniqueKey)) {
+        return;
+      }
+      seenParamKeys.add(uniqueKey);
+
+      // Determine rate
+      let rate = parseFloat(trp.price);
+      if (isNaN(rate) || rate === 0) {
+        const pm = priceMasters.find(pr => pr.parameterId === pId || pr.parameter_id === pId);
+        if (pm) rate = parseFloat(pm.price || pm.rate || 0);
+      }
+      if (isNaN(rate) || rate === 0) {
+        rate = parseFloat(paramObj?.price || paramObj?.rate || 0) || 0;
+      }
+
       let srNo = '';
       let cleanCat = rawCat;
       const match = rawCat.match(/^([0-9]+[A-Za-z\-]*)\.\s*(.*)$/);

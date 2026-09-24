@@ -620,7 +620,9 @@ const TestRequestForm = () => {
               if (t.parameterId) {
                 checks[t.parameterId] = true;
                 checks[`_id_${t.parameterId}`] = t.id; // Store transaction ID for updates/deletes
-                loadedSeq.push(t.parameterId);
+                if (!loadedSeq.includes(t.parameterId)) {
+                  loadedSeq.push(t.parameterId);
+                }
               }
             });
             setCheckedParameters(checks);
@@ -959,10 +961,6 @@ const TestRequestForm = () => {
       triggerToast('Please select a Discipline Group.', 'error');
       return false;
     }
-    if (!selectedSubCategory && !formData.subCategoryId) {
-      triggerToast('Please select a Sub Category.', 'error');
-      return false;
-    }
     // HIDE MULTIPLE QUOTATIONS FUNCTIONALITY (DISABLED)
     // if (formData.quotationRequired === 'Yes' && !formData.quotationType) {
     //   triggerToast('Please select a Quotation Type.', 'error');
@@ -1042,10 +1040,10 @@ const TestRequestForm = () => {
         });
       }
 
-      const orderedParamIds = [
+      const orderedParamIds = Array.from(new Set([
         ...selectedParamSequence.filter(id => checkedParamIds.includes(id)),
         ...checkedParamIds.filter(id => !selectedParamSequence.includes(id))
-      ];
+      ]));
 
       for (let i = 0; i < orderedParamIds.length; i++) {
         const pId = orderedParamIds[i];
@@ -1479,7 +1477,7 @@ const TestRequestForm = () => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>
-                    Sub Category <span style={{ color: '#ef4444' }}>*</span> {subCategoriesLoading && <span style={{ fontSize: '0.75rem', color: '#64748b' }}>(Loading...)</span>}
+                    Sub Category {subCategoriesLoading && <span style={{ fontSize: '0.75rem', color: '#64748b' }}>(Loading...)</span>}
                   </label>
                   <AddMasterButton
                     label="Add New Sub Category"
@@ -1514,10 +1512,6 @@ const TestRequestForm = () => {
             {!formData.categoryId && (!formData.sampleParticular || formData.sampleParticular.length !== 36) ? (
               <div style={{ padding: '2.5rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1', fontWeight: 500 }}>
                 Please select a Discipline Group to begin.
-              </div>
-            ) : (!selectedSubCategory && !formData.subCategoryId && subCategories.length > 0 && parameters.length === 0) ? (
-              <div style={{ padding: '2.5rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1', fontWeight: 500 }}>
-                Please select a Sub Category to view test parameters.
               </div>
             ) : parametersLoading ? (
               <div style={{ padding: '2.5rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
