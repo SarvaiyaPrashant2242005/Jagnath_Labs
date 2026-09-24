@@ -18,7 +18,7 @@ const Sidebar = ({ activeTab, onTabChange, onNewRequest, sidebarRef, isOpen = tr
   useEffect(() => {
     if (['companies', 'clients', 'departments', 'categories', 'sub-categories', 'parameters', 'price-lists', 'cautions', 'location-samples'].includes(activeTab)) {
       setOpenGroup('masters');
-    } else if (['requests', 'new-request', 'test-reports'].includes(activeTab)) {
+    } else if (['requests', 'new-request', 'test-reports', 'provisional-quotations'].includes(activeTab)) {
       setOpenGroup('workflow');
     } else if (['reports', 'invoices', 'dispatch', 'settings'].includes(activeTab)) {
       setOpenGroup('reports');
@@ -361,6 +361,17 @@ const Sidebar = ({ activeTab, onTabChange, onNewRequest, sidebarRef, isOpen = tr
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <FaClipboardList size={14} />
                     <span>Test Requests</span>
+                  </div>
+                </Link>
+                <Link
+                  to="/quotations/provisional"
+                  className={`submenu-item ${activeTab === 'provisional-quotations' ? 'active-sub' : ''}`}
+                  onClick={() => handleItemClick('provisional-quotations')}
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <FaFileInvoiceDollar size={14} />
+                    <span>Quotations</span>
                   </div>
                 </Link>
                 <Link

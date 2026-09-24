@@ -2,13 +2,6 @@
 
 This document provides a detailed breakdown of all the tables, columns, data types, and relationships in the PostgreSQL database. This can be used to construct a visualization in drawSQL or other database design tools.
 
-## Summary
-* **Total Tables**: 17
-* **Primary Key Format**: UUID
-* **Soft Delete Mechanism**: `deleted_at` (TIMESTAMP)
-
----
-
 ## Tables and Columns
 
 ### Table: `users` (Model: `Users`)
@@ -353,47 +346,75 @@ This document provides a detailed breakdown of all the tables, columns, data typ
 | `updated_at` | `TIMESTAMP WITH TIME ZONE` | `NO` |  | `` |
 | `deleted_at` | `TIMESTAMP WITH TIME ZONE` | `YES` |  | `` |
 
----
-
 ## Entity-Relationship (ER) Connections
 
-This table maps the exact relationships and foreign keys between the tables (useful for drawSQL links):
+Here is the mapping of foreign key connections and associations defined in the Sequelize index configuration:
 
-| Source Table (ForeignKey Owner) | Foreign Key Column | Target Reference Table | Relation Type / Notes |
+| Source Table | Column / Key | Target Table | Association Type |
 | --- | --- | --- | --- |
-| `refresh_tokens` | `user_id` | `users` | `belongsTo` |
-| `user_companies` | `user_id` | `users` | `belongsTo` (Many-to-Many Join) |
-| `user_companies` | `company_id` | `companies` | `belongsTo` (Many-to-Many Join) |
-| `companies` | `userId` | `users` | `belongsTo` (One-to-One Owner) |
-| `clients` | `companyId` | `companies` | `belongsTo` |
-| `parameters` | `companyId` | `companies` | `belongsTo` |
-| `parameters` | `subCategoryId` | `sub_categories` | `belongsTo` |
-| `parameters` | `location_sample_id` | `location_of_samples` | `belongsTo` |
-| `categories` | `companyId` | `companies` | `belongsTo` |
-| `categories` | `departmentId` | `departments` | `belongsTo` |
-| `test_requests` | `companyId` | `companies` | `belongsTo` |
-| `test_requests` | `clientId` | `clients` | `belongsTo` |
-| `test_requests` | `departmentId` | `departments` | `belongsTo` |
-| `test_requests` | `category_id` | `categories` | `belongsTo` |
-| `test_requests` | `caution_id` | `caution_master` | `belongsTo` |
-| `test_requests` | `sub_category_id` | `sub_categories` | `belongsTo` |
-| `test_reports` | `companyId` | `companies` | `belongsTo` |
-| `test_reports` | `test_request_id` | `test_requests` | `belongsTo` (One-to-One) |
-| `category_parameter_mapping` | `companyId` | `companies` | `belongsTo` |
-| `category_parameter_mapping` | `categoryId` | `categories` | `belongsTo` |
-| `category_parameter_mapping` | `parameterId` | `parameters` | `belongsTo` |
-| `test_request_parameters` | `testRequestId` | `test_requests` | `belongsTo` (Many-to-Many Join) |
-| `test_request_parameters` | `parameterId` | `parameters` | `belongsTo` (Many-to-Many Join) |
-| `price_master` | `company_id` | `companies` | `belongsTo` |
-| `price_master` | `category_id` | `categories` | `belongsTo` |
-| `price_master` | `parameter_id` | `parameters` | `belongsTo` |
-| `caution_master` | `companyId` | `companies` | `belongsTo` |
-| `sub_categories` | `companyId` | `companies` | `belongsTo` |
-| `sub_categories` | `categoryId` | `categories` | `belongsTo` |
-| `location_of_samples` | `company_id` | `companies` | `belongsTo` |
-| `location_of_samples` | `subCategoryId` | `sub_categories` | `belongsTo` |
-| `location_of_samples` | `locationSampleId` | `parameters` | `belongsTo` |
-| `departments` | `companyId` | `companies` | `belongsTo` |
-| `audit_quotations` | `test_request_id` | `test_requests` | `belongsTo` (One-to-One) |
-| `audit_quotations` | `company_id` | `companies` | `belongsTo` |
-| `audit_quotations` | `client_id` | `clients` | `belongsTo` |
+| `users` | `user_id` | `refresh_tokens` | `HasMany` |
+| `users` | `user_id` | `companies` | `BelongsToMany` |
+| `users` | `userId` | `companies` | `HasOne` |
+| `refresh_tokens` | `user_id` | `users` | `BelongsTo` |
+| `companies` | `company_id` | `users` | `BelongsToMany` |
+| `companies` | `userId` | `users` | `BelongsTo` |
+| `companies` | `companyId` | `clients` | `HasMany` |
+| `companies` | `companyId` | `parameters` | `HasMany` |
+| `companies` | `companyId` | `categories` | `HasMany` |
+| `companies` | `companyId` | `test_requests` | `HasMany` |
+| `companies` | `companyId` | `test_reports` | `HasMany` |
+| `companies` | `companyId` | `category_parameter_mapping` | `HasMany` |
+| `companies` | `companyId` | `price_master` | `HasMany` |
+| `companies` | `companyId` | `caution_master` | `HasMany` |
+| `companies` | `companyId` | `sub_categories` | `HasMany` |
+| `companies` | `companyId` | `location_of_samples` | `HasMany` |
+| `companies` | `companyId` | `departments` | `HasMany` |
+| `clients` | `companyId` | `companies` | `BelongsTo` |
+| `clients` | `clientId` | `test_requests` | `HasMany` |
+| `parameters` | `companyId` | `companies` | `BelongsTo` |
+| `parameters` | `parameterId` | `category_parameter_mapping` | `HasMany` |
+| `parameters` | `parameterId` | `test_request_parameters` | `HasMany` |
+| `parameters` | `parameterId` | `price_master` | `HasMany` |
+| `parameters` | `subCategoryId` | `sub_categories` | `BelongsTo` |
+| `parameters` | `locationSampleId` | `location_of_samples` | `BelongsTo` |
+| `categories` | `companyId` | `companies` | `BelongsTo` |
+| `categories` | `categoryId` | `category_parameter_mapping` | `HasMany` |
+| `categories` | `categoryId` | `price_master` | `HasMany` |
+| `categories` | `categoryId` | `sub_categories` | `HasMany` |
+| `categories` | `categoryId` | `test_requests` | `HasMany` |
+| `categories` | `departmentId` | `departments` | `BelongsTo` |
+| `test_requests` | `companyId` | `companies` | `BelongsTo` |
+| `test_requests` | `clientId` | `clients` | `BelongsTo` |
+| `test_requests` | `testRequestId` | `test_request_parameters` | `HasMany` |
+| `test_requests` | `cautionId` | `caution_master` | `BelongsTo` |
+| `test_requests` | `categoryId` | `categories` | `BelongsTo` |
+| `test_requests` | `subCategoryId` | `sub_categories` | `BelongsTo` |
+| `test_requests` | `departmentId` | `departments` | `BelongsTo` |
+| `test_requests` | `testRequestId` | `test_reports` | `HasOne` |
+| `test_requests` | `testRequestId` | `audit_quotations` | `HasOne` |
+| `test_reports` | `companyId` | `companies` | `BelongsTo` |
+| `test_reports` | `testRequestId` | `test_requests` | `BelongsTo` |
+| `category_parameter_mapping` | `companyId` | `companies` | `BelongsTo` |
+| `category_parameter_mapping` | `categoryId` | `categories` | `BelongsTo` |
+| `category_parameter_mapping` | `parameterId` | `parameters` | `BelongsTo` |
+| `test_request_parameters` | `testRequestId` | `test_requests` | `BelongsTo` |
+| `test_request_parameters` | `parameterId` | `parameters` | `BelongsTo` |
+| `price_master` | `companyId` | `companies` | `BelongsTo` |
+| `price_master` | `categoryId` | `categories` | `BelongsTo` |
+| `price_master` | `parameterId` | `parameters` | `BelongsTo` |
+| `caution_master` | `companyId` | `companies` | `BelongsTo` |
+| `caution_master` | `cautionId` | `test_requests` | `HasMany` |
+| `sub_categories` | `categoryId` | `categories` | `BelongsTo` |
+| `sub_categories` | `companyId` | `companies` | `BelongsTo` |
+| `sub_categories` | `subCategoryId` | `parameters` | `HasMany` |
+| `sub_categories` | `subCategoryId` | `test_requests` | `HasMany` |
+| `sub_categories` | `subCategoryId` | `location_of_samples` | `HasMany` |
+| `location_of_samples` | `companyId` | `companies` | `BelongsTo` |
+| `location_of_samples` | `locationSampleId` | `parameters` | `HasMany` |
+| `location_of_samples` | `subCategoryId` | `sub_categories` | `BelongsTo` |
+| `departments` | `companyId` | `companies` | `BelongsTo` |
+| `departments` | `departmentId` | `categories` | `HasMany` |
+| `departments` | `departmentId` | `test_requests` | `HasMany` |
+| `audit_quotations` | `testRequestId` | `test_requests` | `BelongsTo` |
+| `audit_quotations` | `companyId` | `companies` | `BelongsTo` |
+| `audit_quotations` | `clientId` | `clients` | `BelongsTo` |

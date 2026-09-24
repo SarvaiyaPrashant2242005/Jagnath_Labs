@@ -545,10 +545,10 @@ const TestRequestForm = () => {
         apiService.get(`${DEPARTMENT_ENDPOINTS.GET_ALL}?companyId=${targetCompanyId}&status=Active&limit=500`),
         apiService.get(CATEGORY_ENDPOINTS.GET_ALL)
       ]);
- 
+
       const cList = Array.isArray(compRes?.data) ? compRes.data : [compRes?.data];
       if (compRes?.data) setCompanies(cList);
- 
+
       if (deptRes?.data) {
         setDepartments(deptRes.data.rows || deptRes.data || []);
       }
@@ -557,7 +557,7 @@ const TestRequestForm = () => {
         const catList = Array.isArray(catRes.data) ? catRes.data : [catRes.data];
         setCategories(catList.filter(cat => cat.status === 'Active'));
       }
- 
+
       if (cautionRes?.data) {
         const cautionList = Array.isArray(cautionRes.data) ? cautionRes.data : [cautionRes.data];
         setCautions(cautionList.filter(c => c.status === true || c.status === 'Active'));
@@ -620,7 +620,9 @@ const TestRequestForm = () => {
               if (t.parameterId) {
                 checks[t.parameterId] = true;
                 checks[`_id_${t.parameterId}`] = t.id; // Store transaction ID for updates/deletes
-                loadedSeq.push(t.parameterId);
+                if (!loadedSeq.includes(t.parameterId)) {
+                  loadedSeq.push(t.parameterId);
+                }
               }
             });
             setCheckedParameters(checks);
@@ -870,7 +872,7 @@ const TestRequestForm = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
+
     if (name === 'industryType') {
       const price = INDUSTRY_PRICES[value] !== undefined ? INDUSTRY_PRICES[value] : '';
       setFormData(prev => ({ ...prev, industryType: value, industryPrice: price }));
@@ -959,14 +961,11 @@ const TestRequestForm = () => {
       triggerToast('Please select a Discipline Group.', 'error');
       return false;
     }
-    if (!selectedSubCategory && !formData.subCategoryId) {
-      triggerToast('Please select a Sub Category.', 'error');
-      return false;
-    }
-    if (formData.quotationRequired === 'Yes' && !formData.quotationType) {
-      triggerToast('Please select a Quotation Type.', 'error');
-      return false;
-    }
+    // HIDE MULTIPLE QUOTATIONS FUNCTIONALITY (DISABLED)
+    // if (formData.quotationRequired === 'Yes' && !formData.quotationType) {
+    //   triggerToast('Please select a Quotation Type.', 'error');
+    //   return false;
+    // }
     return true;
   };
 
@@ -1041,10 +1040,10 @@ const TestRequestForm = () => {
         });
       }
 
-      const orderedParamIds = [
+      const orderedParamIds = Array.from(new Set([
         ...selectedParamSequence.filter(id => checkedParamIds.includes(id)),
         ...checkedParamIds.filter(id => !selectedParamSequence.includes(id))
-      ];
+      ]));
 
       for (let i = 0; i < orderedParamIds.length; i++) {
         const pId = orderedParamIds[i];
@@ -1114,14 +1113,10 @@ const TestRequestForm = () => {
   const handleSaveAndQuotation = async () => {
     const savedId = await handleSave();
     if (savedId) {
-      if (formData.quotationType === 'Audit') {
-        window.open(`#/test-requests/audit-quotation/print/${savedId}`, '_blank');
-      } else {
-        window.open(`#/test-requests/quotation/${savedId}`, '_blank');
-        setTimeout(() => {
-          navigate('/test-requests');
-        }, 500);
-      }
+      window.open(`#/test-requests/quotation/${savedId}`, '_blank');
+      setTimeout(() => {
+        navigate('/test-requests');
+      }, 500);
     }
   };
 
@@ -1287,6 +1282,7 @@ const TestRequestForm = () => {
                 <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Location of Sample</label>
                 <SearchableSelect
                   options={[
+                    { id: '', name: 'Select Location of Sample' },
                     ...[...locationSamples].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(loc => ({ id: loc.name, name: loc.name })),
                     ...(formData.locationOfSample && !locationSamples.some(l => l.name === formData.locationOfSample)
                       ? [{ id: formData.locationOfSample, name: formData.locationOfSample }]
@@ -1445,7 +1441,7 @@ const TestRequestForm = () => {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
-              
+
               {/* Department Selector */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                 <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Department <span style={{ color: '#ef4444' }}>*</span></label>
@@ -1481,7 +1477,7 @@ const TestRequestForm = () => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>
-                    Sub Category <span style={{ color: '#ef4444' }}>*</span> {subCategoriesLoading && <span style={{ fontSize: '0.75rem', color: '#64748b' }}>(Loading...)</span>}
+                    Sub Category {subCategoriesLoading && <span style={{ fontSize: '0.75rem', color: '#64748b' }}>(Loading...)</span>}
                   </label>
                   <AddMasterButton
                     label="Add New Sub Category"
@@ -1511,33 +1507,11 @@ const TestRequestForm = () => {
                   </span>
                 )}
               </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>
-                    Location of Sample
-                  </label>
-                  <AddMasterButton label="Add New Location" onClick={() => setInlineModal({ isOpen: true, type: 'locationSample', parentData: { companyId: formData.companyId } })} />
-                </div>
-                <SearchableSelect
-                  options={[...locationSamples].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
-                  value={selectedParamLocation}
-                  onChange={(selectedVal) => {
-                    setSelectedParamLocation(selectedVal);
-                  }}
-                  placeholder="All Locations of Sample"
-                  searchPlaceholder="Search location..."
-                />
-              </div>
             </div>
 
             {!formData.categoryId && (!formData.sampleParticular || formData.sampleParticular.length !== 36) ? (
               <div style={{ padding: '2.5rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1', fontWeight: 500 }}>
                 Please select a Discipline Group to begin.
-              </div>
-            ) : (!selectedSubCategory && !formData.subCategoryId && subCategories.length > 0 && parameters.length === 0) ? (
-              <div style={{ padding: '2.5rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1', fontWeight: 500 }}>
-                Please select a Sub Category to view test parameters.
               </div>
             ) : parametersLoading ? (
               <div style={{ padding: '2.5rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
@@ -1553,10 +1527,7 @@ const TestRequestForm = () => {
                   param.subCategoryId === selectedSubCategory ||
                   param.subCategory?.id === selectedSubCategory ||
                   checkedParameters[param.id];
-                const matchesLoc = !selectedParamLocation ||
-                  String(param.locationSampleId || param.location_sample_id) === String(selectedParamLocation) ||
-                  checkedParameters[param.id];
-                return matchesSubCat && matchesLoc;
+                return matchesSubCat;
               });
               const searchFilteredParams = categoryFilteredParams
                 .filter(param => {
@@ -1990,10 +1961,7 @@ const TestRequestForm = () => {
             </div>
           </div>
 
-          {/* HIDE MULTIPLE QUOTATIONS FUNCTIONALITY (DISABLED) */}
-          {false && (
-            <>
-              {/* Quotation Requirement Card */}
+          {/* Quotation Requirement Card */}
           <div className="test-request-form-card" style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginTop: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc' }}>
               <div style={{ width: '12px', height: '24px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '6px' }}></div>
@@ -2030,7 +1998,7 @@ const TestRequestForm = () => {
                 </div>
               </div>
 
-              {/* Quotation Type Dropdown */}
+              {/* HIDE MULTIPLE QUOTATIONS FUNCTIONALITY (DISABLED)
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', opacity: formData.quotationRequired === 'Yes' ? 1 : 0.5 }}>
                 <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>
                   Quotation Type {formData.quotationRequired === 'Yes' && <span style={{ color: '#ef4444' }}>*</span>}
@@ -2051,222 +2019,226 @@ const TestRequestForm = () => {
                   <option value="Monthly Consulting">Monthly Consulting</option>
                 </select>
               </div>
+              */}
             </div>
           </div>
 
-          {formData.quotationRequired === 'Yes' && formData.quotationType === 'Audit' && (
-            <div style={{ marginTop: '2rem' }}>
-              {/* Card 1: Basic details */}
-              <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
-                  <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Basic Quotation Details</h3>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Quotation Reference Number</label>
-                    <input type="text" name="quotationNumber" value={quotationData.quotationNumber} onChange={handleQuotationChange} className="premium-input" />
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Quotation Date</label>
-                    <input type="text" name="quotationDate" placeholder="dd/mm/yyyy" value={quotationData.quotationDate} onChange={handleQuotationChange} className="premium-input" />
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Revised Date (Optional)</label>
-                    <input type="text" name="revisedDate" placeholder="dd/mm/yyyy" value={quotationData.revisedDate} onChange={handleQuotationChange} className="premium-input" />
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Financial Year / Year</label>
-                    <input type="text" name="financialYear" value={quotationData.financialYear} onChange={handleQuotationChange} className="premium-input" />
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', gridColumn: '1 / -1' }}>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Audit Reference</label>
-                    <input type="text" name="reference" value={quotationData.reference} onChange={handleQuotationChange} className="premium-input" />
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', gridColumn: '1 / -1' }}>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Subject Heading</label>
-                    <textarea name="subject" value={quotationData.subject} onChange={handleQuotationChange} className="premium-input" rows={2}></textarea>
-                  </div>
-                </div>
-              </div>
-
-              {/* Card 2: Letter Content */}
-              <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
-                  <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Page 1 - Letter Content</h3>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Introductory & Accreditation Paragraphs</label>
-                  <textarea name="introText" value={quotationData.introText} onChange={handleQuotationChange} className="premium-input" rows={6} style={{ fontSize: '0.85rem' }}></textarea>
-                </div>
-              </div>
-
-              {/* Card 3: Scope of Work */}
-              <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
-                  <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Page 2 - Scope of Work</h3>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Scope Points Text</label>
-                  <textarea name="scopeText" value={quotationData.scopeText} onChange={handleQuotationChange} className="premium-input" rows={5} style={{ fontSize: '0.85rem' }}></textarea>
-                </div>
-              </div>
-
-              {/* Card 4: Charges Table */}
-              <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Page 2 - Detail of Charges</h3>
-                  </div>
-                  <button type="button" onClick={addQuotationChargeRow} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', backgroundColor: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.4rem 0.8rem', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }}>
-                    <FaPlus /> Add Row
-                  </button>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  {quotationData.charges?.map((item, index) => (
-                    <div key={index} style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '1rem', background: '#f8fafc' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                        <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#475569' }}>Row #{item.srNo}</span>
-                        <button type="button" onClick={() => removeQuotationChargeRow(index)} style={{ border: 'none', background: 'transparent', color: '#ef4444', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
-                          <FaTrash size={12} /> Remove
-                        </button>
+          {/* HIDE MULTIPLE QUOTATIONS FUNCTIONALITY (DISABLED) */}
+          {false && (
+            <>
+              {formData.quotationRequired === 'Yes' && formData.quotationType === 'Audit' && (
+                <div style={{ marginTop: '2rem' }}>
+                  {/* Card 1: Basic details */}
+                  <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
+                      <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Basic Quotation Details</h3>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Quotation Reference Number</label>
+                        <input type="text" name="quotationNumber" value={quotationData.quotationNumber} onChange={handleQuotationChange} className="premium-input" />
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                        <div>
-                          <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Description of Work</label>
-                          <input type="text" value={item.description} onChange={(e) => handleQuotationChargeRowChange(index, 'description', e.target.value)} className="premium-input" style={{ fontSize: '0.85rem', height: '36px' }} />
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem' }}>
-                          <div>
-                            <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Qty</label>
-                            <input type="number" value={item.qty} onChange={(e) => handleQuotationChargeRowChange(index, 'qty', e.target.value)} className="premium-input" style={{ fontSize: '0.85rem', height: '36px' }} />
-                          </div>
-                          <div>
-                            <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Unit</label>
-                            <input type="text" value={item.unit} onChange={(e) => handleQuotationChargeRowChange(index, 'unit', e.target.value)} className="premium-input" style={{ fontSize: '0.85rem', height: '36px' }} />
-                          </div>
-                          <div>
-                            <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Rate (Rs.)</label>
-                            <input type="number" value={item.rate} onChange={(e) => handleQuotationChargeRowChange(index, 'rate', e.target.value)} className="premium-input" style={{ fontSize: '0.85rem', height: '36px' }} />
-                          </div>
-                          <div>
-                            <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Amount (Rs.)</label>
-                            <input type="number" value={item.amount} onChange={(e) => handleQuotationChargeRowChange(index, 'amount', e.target.value)} className="premium-input" style={{ fontSize: '0.85rem', height: '36px' }} />
-                          </div>
-                        </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Quotation Date</label>
+                        <input type="text" name="quotationDate" placeholder="dd/mm/yyyy" value={quotationData.quotationDate} onChange={handleQuotationChange} className="premium-input" />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Revised Date (Optional)</label>
+                        <input type="text" name="revisedDate" placeholder="dd/mm/yyyy" value={quotationData.revisedDate} onChange={handleQuotationChange} className="premium-input" />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Financial Year / Year</label>
+                        <input type="text" name="financialYear" value={quotationData.financialYear} onChange={handleQuotationChange} className="premium-input" />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', gridColumn: '1 / -1' }}>
+                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Audit Reference</label>
+                        <input type="text" name="reference" value={quotationData.reference} onChange={handleQuotationChange} className="premium-input" />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', gridColumn: '1 / -1' }}>
+                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Subject Heading</label>
+                        <textarea name="subject" value={quotationData.subject} onChange={handleQuotationChange} className="premium-input" rows={2}></textarea>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Card 5: Terms and Conditions */}
-              <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
-                  <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Page 3 - Terms & Conditions</h3>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <div>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Terms text list</label>
-                    <textarea name="termsText" value={quotationData.termsText} onChange={handleQuotationChange} className="premium-input" rows={6} style={{ fontSize: '0.85rem' }}></textarea>
                   </div>
-                  <div>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Contact Person Details</label>
-                    <input type="text" name="contactPerson" value={quotationData.contactPerson} onChange={handleQuotationChange} className="premium-input" />
-                  </div>
-                </div>
-              </div>
 
-              {/* Card 6: Signatory details */}
-              <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
-                  <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Signatory & Stamp Configuration</h3>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Signatory Name</label>
-                      <input type="text" name="signatoryName" value={quotationData.signatoryName} onChange={handleQuotationChange} className="premium-input" />
+                  {/* Card 2: Letter Content */}
+                  <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
+                      <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Page 1 - Letter Content</h3>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Signatory Designation</label>
-                      <input type="text" name="signatoryDesignation" value={quotationData.signatoryDesignation} onChange={handleQuotationChange} className="premium-input" />
+                      <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Introductory & Accreditation Paragraphs</label>
+                      <textarea name="introText" value={quotationData.introText} onChange={handleQuotationChange} className="premium-input" rows={6} style={{ fontSize: '0.85rem' }}></textarea>
                     </div>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '0.5rem' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Authorized Digital Signature</label>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <input type="file" ref={signatureInputRef} onChange={(e) => handleQuotationFileUpload(e, 'signatorySignature')} accept="image/*" style={{ display: 'none' }} />
-                        <button type="button" onClick={() => signatureInputRef.current.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 1rem', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }}>
-                          <FaUpload /> Upload Signature
-                        </button>
-                        {quotationData.signatorySignature && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <img src={quotationData.signatorySignature} alt="Signature Preview" style={{ maxHeight: '36px', border: '1px solid #e2e8f0', borderRadius: '4px' }} />
-                            <button type="button" onClick={() => removeQuotationImage('signatorySignature')} style={{ color: '#ef4444', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '0.8rem' }}>Delete</button>
-                          </div>
-                        )}
-                      </div>
+                  {/* Card 3: Scope of Work */}
+                  <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
+                      <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Page 2 - Scope of Work</h3>
                     </div>
-
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Company Round Stamp</label>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <input type="file" ref={stampInputRef} onChange={(e) => handleQuotationFileUpload(e, 'stampImage')} accept="image/*" style={{ display: 'none' }} />
-                        <button type="button" onClick={() => stampInputRef.current.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 1rem', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }}>
-                          <FaUpload /> Upload Stamp
-                        </button>
-                        {quotationData.stampImage && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <img src={quotationData.stampImage} alt="Stamp Preview" style={{ maxHeight: '36px', border: '1px solid #e2e8f0', borderRadius: '4px' }} />
-                            <button type="button" onClick={() => removeQuotationImage('stampImage')} style={{ color: '#ef4444', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '0.8rem' }}>Delete</button>
+                      <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Scope Points Text</label>
+                      <textarea name="scopeText" value={quotationData.scopeText} onChange={handleQuotationChange} className="premium-input" rows={5} style={{ fontSize: '0.85rem' }}></textarea>
+                    </div>
+                  </div>
+
+                  {/* Card 4: Charges Table */}
+                  <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
+                        <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Page 2 - Detail of Charges</h3>
+                      </div>
+                      <button type="button" onClick={addQuotationChargeRow} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', backgroundColor: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.4rem 0.8rem', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }}>
+                        <FaPlus /> Add Row
+                      </button>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      {quotationData.charges?.map((item, index) => (
+                        <div key={index} style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '1rem', background: '#f8fafc' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                            <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#475569' }}>Row #{item.srNo}</span>
+                            <button type="button" onClick={() => removeQuotationChargeRow(index)} style={{ border: 'none', background: 'transparent', color: '#ef4444', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
+                              <FaTrash size={12} /> Remove
+                            </button>
                           </div>
-                        )}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            <div>
+                              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Description of Work</label>
+                              <input type="text" value={item.description} onChange={(e) => handleQuotationChargeRowChange(index, 'description', e.target.value)} className="premium-input" style={{ fontSize: '0.85rem', height: '36px' }} />
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem' }}>
+                              <div>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Qty</label>
+                                <input type="number" value={item.qty} onChange={(e) => handleQuotationChargeRowChange(index, 'qty', e.target.value)} className="premium-input" style={{ fontSize: '0.85rem', height: '36px' }} />
+                              </div>
+                              <div>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Unit</label>
+                                <input type="text" value={item.unit} onChange={(e) => handleQuotationChargeRowChange(index, 'unit', e.target.value)} className="premium-input" style={{ fontSize: '0.85rem', height: '36px' }} />
+                              </div>
+                              <div>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Rate (Rs.)</label>
+                                <input type="number" value={item.rate} onChange={(e) => handleQuotationChargeRowChange(index, 'rate', e.target.value)} className="premium-input" style={{ fontSize: '0.85rem', height: '36px' }} />
+                              </div>
+                              <div>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Amount (Rs.)</label>
+                                <input type="number" value={item.amount} onChange={(e) => handleQuotationChargeRowChange(index, 'amount', e.target.value)} className="premium-input" style={{ fontSize: '0.85rem', height: '36px' }} />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Card 5: Terms and Conditions */}
+                  <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
+                      <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Page 3 - Terms & Conditions</h3>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      <div>
+                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Terms text list</label>
+                        <textarea name="termsText" value={quotationData.termsText} onChange={handleQuotationChange} className="premium-input" rows={6} style={{ fontSize: '0.85rem' }}></textarea>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Contact Person Details</label>
+                        <input type="text" name="contactPerson" value={quotationData.contactPerson} onChange={handleQuotationChange} className="premium-input" />
                       </div>
                     </div>
                   </div>
-                </div>
-              </div>
 
-              {/* Card 7: Annexure Rates */}
-              <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', marginBottom: '2rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
-                  <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Annexure-B Rates Editor</h3>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '500px', overflowY: 'auto', paddingRight: '0.5rem' }}>
-                  {quotationData.annexure?.map((item, index) => (
-                    <div key={index} style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', marginBottom: '0.4rem' }}>
-                        <span>{item.category}</span>
+                  {/* Card 6: Signatory details */}
+                  <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
+                      <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Signatory & Stamp Configuration</h3>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Signatory Name</label>
+                          <input type="text" name="signatoryName" value={quotationData.signatoryName} onChange={handleQuotationChange} className="premium-input" />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Signatory Designation</label>
+                          <input type="text" name="signatoryDesignation" value={quotationData.signatoryDesignation} onChange={handleQuotationChange} className="premium-input" />
+                        </div>
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0.5rem' }}>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: '#475569' }}>Description</label>
-                          <input type="text" value={item.description} onChange={(e) => handleQuotationAnnexureRowChange(index, 'description', e.target.value)} className="premium-input" style={{ fontSize: '0.8rem', height: '32px' }} />
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '0.5rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Authorized Digital Signature</label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <input type="file" ref={signatureInputRef} onChange={(e) => handleQuotationFileUpload(e, 'signatorySignature')} accept="image/*" style={{ display: 'none' }} />
+                            <button type="button" onClick={() => signatureInputRef.current.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 1rem', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }}>
+                              <FaUpload /> Upload Signature
+                            </button>
+                            {quotationData.signatorySignature && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <img src={quotationData.signatorySignature} alt="Signature Preview" style={{ maxHeight: '36px', border: '1px solid #e2e8f0', borderRadius: '4px' }} />
+                                <button type="button" onClick={() => removeQuotationImage('signatorySignature')} style={{ color: '#ef4444', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '0.8rem' }}>Delete</button>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: '#475569' }}>Rate/Sample</label>
-                          <input type="number" value={item.ratePerSample} onChange={(e) => handleQuotationAnnexureRowChange(index, 'ratePerSample', e.target.value)} className="premium-input" style={{ fontSize: '0.8rem', height: '32px' }} />
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: '#475569' }}>Sample/Visit</label>
-                          <input type="number" value={item.samplePerVisit} onChange={(e) => handleQuotationAnnexureRowChange(index, 'samplePerVisit', e.target.value)} className="premium-input" style={{ fontSize: '0.8rem', height: '32px' }} />
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Company Round Stamp</label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <input type="file" ref={stampInputRef} onChange={(e) => handleQuotationFileUpload(e, 'stampImage')} accept="image/*" style={{ display: 'none' }} />
+                            <button type="button" onClick={() => stampInputRef.current.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 1rem', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }}>
+                              <FaUpload /> Upload Stamp
+                            </button>
+                            {quotationData.stampImage && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <img src={quotationData.stampImage} alt="Stamp Preview" style={{ maxHeight: '36px', border: '1px solid #e2e8f0', borderRadius: '4px' }} />
+                                <button type="button" onClick={() => removeQuotationImage('stampImage')} style={{ color: '#ef4444', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '0.8rem' }}>Delete</button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  ))}
+                  </div>
+
+                  {/* Card 7: Annexure Rates */}
+                  <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', marginBottom: '2rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
+                      <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Annexure-B Rates Editor</h3>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '500px', overflowY: 'auto', paddingRight: '0.5rem' }}>
+                      {quotationData.annexure?.map((item, index) => (
+                        <div key={index} style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', marginBottom: '0.4rem' }}>
+                            <span>{item.category}</span>
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0.5rem' }}>
+                            <div>
+                              <label style={{ fontSize: '0.75rem', color: '#475569' }}>Description</label>
+                              <input type="text" value={item.description} onChange={(e) => handleQuotationAnnexureRowChange(index, 'description', e.target.value)} className="premium-input" style={{ fontSize: '0.8rem', height: '32px' }} />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: '0.75rem', color: '#475569' }}>Rate/Sample</label>
+                              <input type="number" value={item.ratePerSample} onChange={(e) => handleQuotationAnnexureRowChange(index, 'ratePerSample', e.target.value)} className="premium-input" style={{ fontSize: '0.8rem', height: '32px' }} />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: '0.75rem', color: '#475569' }}>Sample/Visit</label>
+                              <input type="number" value={item.samplePerVisit} onChange={(e) => handleQuotationAnnexureRowChange(index, 'samplePerVisit', e.target.value)} className="premium-input" style={{ fontSize: '0.8rem', height: '32px' }} />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          )}
+              )}
             </>
           )}
 
@@ -2685,324 +2657,324 @@ const TestRequestForm = () => {
               // Original TRF Preview
               <>
                 <div style={{
-                background: '#ffffff',
-                border: '1px solid #000000',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
-                padding: '1.25rem',
-                fontSize: '10px',
-                fontFamily: '"Plus Jakarta Sans", "Inter", sans-serif',
-                color: '#000000',
-                lineHeight: '1.3'
-              }}>
-              {/* Header block */}
-              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', marginBottom: '8px' }}>
-                <tbody>
-                  <tr>
-                    <td style={{ width: '45%', border: '1px solid #000000', padding: '0px', verticalAlign: 'middle', textAlign: 'center' }}>
-                      <img src={getSelectedCompanyLogo()} alt="Logo" style={{ height: '75px', width: '100%', objectFit: 'cover', display: 'block', margin: '0 auto' }} />
-                    </td>
-                    <td style={{ width: '25%', border: '1px solid #000000', padding: '4px', textAlign: 'center', fontWeight: 'bold', fontSize: '10px' }}>
-                      FORMATS
-                    </td>
-                    <td style={{ width: '30%', border: '1px solid #000000', padding: '0' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '7px' }}>
-                        <tbody>
-                          <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Amendment No.</td><td style={{ padding: '2px 3px' }}>00</td></tr>
-                          <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Amendment Date</td><td style={{ padding: '2px 3px' }}>--</td></tr>
-                          <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Issue No.</td><td style={{ padding: '2px 3px' }}>01</td></tr>
-                          <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Issue Date</td><td style={{ padding: '2px 3px' }}>01/09/2018</td></tr>
-                          <tr><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Format No.</td><td style={{ padding: '2px 3px' }}>7.1 F-01</td></tr>
-                        </tbody>
-                      </table>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-
-              {/* Document Title */}
-              <div style={{ border: '1px solid #000000', borderTop: 'none', background: '#f8fafc', padding: '3px', textAlign: 'center', fontWeight: 'bold', fontSize: '8px', marginBottom: '8px' }}>
-                TEST REQUEST FORM FOR {formData.formTitle || 'WATER & WASTE WATER'}
-              </div>
-
-              {/* Form Fields Table */}
-              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '8px' }}>
-                <tbody>
-                  <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ width: '32%', padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Name of Company / Customer</td>
-                    <td style={{ padding: '3px 4px' }}>{selCompany.companyName || selCompany.company_name || '(Select Company)'} {selClient.clientName ? `- ${selClient.clientName}` : ''}</td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Address for Communication</td>
-                    <td style={{ padding: '3px 4px' }}>{formData.address || 'N/A'}</td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Email ID</td>
-                    <td style={{ padding: '3px 4px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span>{formData.email || 'N/A'}</span>
-                        <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Location of Sample</span>
-                        <span style={{ paddingLeft: '6px' }}>{formData.locationOfSample || 'N/A'}</span>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Contact Person</td>
-                    <td style={{ padding: '3px 4px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span>{formData.contactPerson || 'N/A'}</span>
-                        <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Contact No.</span>
-                        <span style={{ paddingLeft: '6px' }}>{formData.contactNumber || 'N/A'}</span>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Date of Collection</td>
-                    <td style={{ padding: '3px 4px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span>{formData.dateOfCollection || 'N/A'}</span>
-                        <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Date of Receipt</span>
-                        <span style={{ paddingLeft: '6px' }}>{formData.dateOfReceipt || 'N/A'}</span>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Sample Collected By</td>
-                    <td style={{ padding: '3px 4px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span>{formData.sampleCollectedBy || 'N/A'}</span>
-                        <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Sample Quantity</span>
-                        <span style={{ paddingLeft: '6px' }}>{formData.sampleQuantity || 'N/A'}</span>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Field Data Sheet</td>
-                    <td style={{ padding: '3px 4px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span>{formData.fieldDataSheet}</span>
-                        <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px' }}>Packing details</span>
-                        <span>{formData.packingDetails || 'N/A'}</span>
-                        <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Form Type</span>
-                        <span style={{ paddingLeft: '6px' }}>{formData.formType || 'Regular'}</span>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Sample ID No.</td>
-                    <td style={{ padding: '3px 4px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span>{formData.sampleIdNumber || 'N/A'}</span>
-                        <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Report No.</span>
-                        <span style={{ paddingLeft: '6px' }}>{formData.reportNumber || 'N/A'}</span>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Sample Particular</td>
-                    <td style={{ padding: '3px 4px', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{formData.sampleParticular || selCategory.name || 'N/A'}</td>
-                  </tr>
-
-                  {/* Feasibility table inner block */}
-                  <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '0', fontWeight: '600' }} colSpan={2}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '7.5px' }}>
-                        <tbody>
-                          <tr style={{ borderBottom: '1px solid #000000' }}>
-                            <td style={{ width: '25%', padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Availability of Equip.</td>
-                            <td style={{ width: '25%', padding: '2px 3px', borderRight: '1px solid #000000' }}>{formData.equipmentAvailability}</td>
-                            <td style={{ width: '25%', padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Availability of Ref Std.</td>
-                            <td style={{ width: '25%', padding: '2px 3px' }}>{formData.referenceStandardAvailability}</td>
-                          </tr>
-                          <tr style={{ borderBottom: '1px solid #000000' }}>
-                            <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Availability of Test Method</td>
-                            <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>{formData.testMethodAvailability}</td>
-                            <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Availability of Trained Person</td>
-                            <td style={{ padding: '2px 3px' }}>{formData.trainedPersonAvailability}</td>
-                          </tr>
-                          <tr>
-                            <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Adequacy of sample qty</td>
-                            <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>{formData.sampleAdequacy}</td>
-                            <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Tentative Report Days</td>
-                            <td style={{ padding: '2px 3px' }}>{formData.tentativeDays}</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </td>
-                  </tr>
-
-                  <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Facility reviewed by</td>
-                    <td style={{ padding: '3px 4px' }}>{formData.sampleTestingFacilityReviewedBy}</td>
-                  </tr>
-
-                  {/* Signatures space */}
-                  <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '0', fontWeight: '600' }} colSpan={2}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '7.5px' }}>
-                        <tbody>
-                          <tr style={{ borderBottom: '1px solid #000000', height: '20px' }}>
-                            <td style={{ width: '50%', padding: '2px 3px', borderRight: '1px solid #000000', verticalAlign: 'top', fontWeight: 'bold' }}>Signature of Customer Representative:</td>
-                            <td style={{ width: '50%', padding: '2px 3px', verticalAlign: 'top', fontWeight: 'bold' }}>Signature of Sample Received By:</td>
-                          </tr>
-                          <tr>
-                            <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>
-                              Name & Designation: <span style={{ fontWeight: 'normal' }}>{formData.customerRepresentativeName || 'N/A'}</span>
-                            </td>
-                            <td style={{ padding: '2px 3px', fontWeight: 'bold' }}>
-                              Name & Designation: <span style={{ fontWeight: 'normal' }}>{formData.sampleReceiverName || 'N/A'}</span>
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </td>
-                  </tr>
-
-                  <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000', verticalAlign: 'top' }}>Test Protocol adopted</td>
-                    <td style={{ padding: '3px 4px', whiteSpace: 'pre-wrap' }}>{formData.testProtocol}</td>
-                  </tr>
-
-                  <tr>
-                    <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000', verticalAlign: 'top' }}>Remarks / Notes</td>
-                    <td style={{ padding: '3px 4px', whiteSpace: 'pre-wrap' }}>
-                      <ol style={{ margin: 0, paddingLeft: '1rem', fontSize: '7px' }}>
-                        <li>Please mention specific tests to be applied</li>
-                        <li>All the test procedures are followed as per National & International Standards.</li>
-                        <li>In case of sampling conducted by JLT, sampling plan is followed as per National & International Standards.</li>
-                        <li>If due to any unavoidable condition, testing will be sub-contracted only to NABL-complying competent agencies.</li>
-                      </ol>
-                      {formData.remarks && <div style={{ marginTop: '3px', borderTop: '1px dashed #cbd5e1', paddingTop: '3px' }}><strong>Additional:</strong> {formData.remarks}</div>}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-
-              {/* Footer Page 1 */}
-              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '7px', marginTop: 'auto' }}>
-                <tbody>
-                  <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}>Doc No: JLT/ 7.1 F-01</td>
-                    <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}></td>
-                    <td style={{ width: '33.33%', padding: '2px 3px', textAlign: 'right' }}>Page 1 of 2</td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Format No. 7.1 F-01</td>
-                    <td colSpan={2} style={{ padding: '2px 3px' }}>Format: Test Request Form (Water & Waste Water)</td>
-                  </tr>
-                  <tr>
-                    <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Prepared By: TM</td>
-                    <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Approved By: QM</td>
-                    <td style={{ padding: '2px 3px' }}>Issue By/Reviewed By: TM</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            {/* PAGE BREAK / SPACER */}
-            <div style={{ margin: '2rem 0', borderTop: '2px dashed #cbd5e1', position: 'relative' }}>
-              <span style={{ position: 'absolute', top: '-10px', left: '50%', transform: 'translateX(-50%)', background: '#f8fafc', padding: '0 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Page 2 Preview</span>
-            </div>
-
-            {/* PAGE 2 */}
-            <div style={{
-              background: '#ffffff',
-              border: '1px solid #000000',
-              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
-              padding: '1.25rem',
-              fontSize: '10px',
-              fontFamily: '"Plus Jakarta Sans", "Inter", sans-serif',
-              color: '#000000',
-              lineHeight: '1.3',
-              display: 'flex',
-              flexDirection: 'column',
-              minHeight: '297mm',
-              boxSizing: 'border-box'
-            }}>
-              {/* Header block (repeated from Page 1) */}
-              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', marginBottom: '8px' }}>
-                <tbody>
-                  <tr>
-                    <td style={{ width: '45%', border: '1px solid #000000', padding: '0px', verticalAlign: 'middle', textAlign: 'center' }}>
-                      <img src={getSelectedCompanyLogo()} alt="Logo" style={{ height: '75px', width: '100%', objectFit: 'cover', display: 'block', margin: '0 auto' }} />
-                    </td>
-                    <td style={{ width: '25%', border: '1px solid #000000', padding: '4px', textAlign: 'center', fontWeight: 'bold', fontSize: '10px' }}>
-                      FORMATS
-                    </td>
-                    <td style={{ width: '30%', border: '1px solid #000000', padding: '0' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '7px' }}>
-                        <tbody>
-                          <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Amendment No.</td><td style={{ padding: '2px 3px' }}>00</td></tr>
-                          <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Amendment Date</td><td style={{ padding: '2px 3px' }}>--</td></tr>
-                          <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Issue No.</td><td style={{ padding: '2px 3px' }}>01</td></tr>
-                          <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Issue Date</td><td style={{ padding: '2px 3px' }}>01/09/2018</td></tr>
-                          <tr><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Format No.</td><td style={{ padding: '2px 3px' }}>7.1 F-01</td></tr>
-                        </tbody>
-                      </table>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-
-              <div style={{ fontWeight: 'bold', fontSize: '8px', marginBottom: '8px', border: '1px solid #000000', borderTop: 'none', background: '#f8fafc', padding: '3px', textAlign: 'center' }}>
-                Test Parameter to Be Analyzed: - {selCategory.name || 'WATER & WASTE WATER'}
-              </div>
-
-              {/* Parameters Grid */}
-              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '8px', marginBottom: '8px' }}>
-                <thead>
-                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid #000000' }}>
-                    <th style={{ width: '8%', padding: '3px', borderRight: '1px solid #000000', textAlign: 'center' }}>Sr. No.</th>
-                    <th style={{ width: '42%', padding: '3px', borderRight: '1px solid #000000', textAlign: 'left' }}>Test Parameters</th>
-                    <th style={{ width: '10%', padding: '3px', borderRight: '1px solid #000000', textAlign: 'center' }}>Tick √</th>
-                    <th style={{ width: '40%', padding: '3px', textAlign: 'center' }}>Test Method</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Array.from({ length: Math.max(20, parameters.length) }).map((_, i) => {
-                    const param = parameters[i];
-                    const isChecked = param ? !!checkedParameters[param.id] : false;
-                    return (
-                      <tr key={i} style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ padding: '2px', borderRight: '1px solid #000000', textAlign: 'center' }}>{i + 1}.</td>
-                        <td style={{ padding: '2px 4px', borderRight: '1px solid #000000', textAlign: 'left' }}>{param ? (param.parameterName || param.name) : ''}</td>
-                        <td style={{ padding: '2px', borderRight: '1px solid #000000', textAlign: 'center', fontWeight: 'bold', color: '#15803d' }}>{isChecked ? '√' : ''}</td>
-                        <td style={{ padding: '2px 4px', textAlign: 'left' }}>{param ? (param.testMethod || '') : ''}</td>
+                  background: '#ffffff',
+                  border: '1px solid #000000',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+                  padding: '1.25rem',
+                  fontSize: '10px',
+                  fontFamily: '"Plus Jakarta Sans", "Inter", sans-serif',
+                  color: '#000000',
+                  lineHeight: '1.3'
+                }}>
+                  {/* Header block */}
+                  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', marginBottom: '8px' }}>
+                    <tbody>
+                      <tr>
+                        <td style={{ width: '45%', border: '1px solid #000000', padding: '0px', verticalAlign: 'middle', textAlign: 'center' }}>
+                          <img src={getSelectedCompanyLogo()} alt="Logo" style={{ height: '75px', width: '100%', objectFit: 'cover', display: 'block', margin: '0 auto' }} />
+                        </td>
+                        <td style={{ width: '25%', border: '1px solid #000000', padding: '4px', textAlign: 'center', fontWeight: 'bold', fontSize: '10px' }}>
+                          FORMATS
+                        </td>
+                        <td style={{ width: '30%', border: '1px solid #000000', padding: '0' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '7px' }}>
+                            <tbody>
+                              <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Amendment No.</td><td style={{ padding: '2px 3px' }}>00</td></tr>
+                              <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Amendment Date</td><td style={{ padding: '2px 3px' }}>--</td></tr>
+                              <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Issue No.</td><td style={{ padding: '2px 3px' }}>01</td></tr>
+                              <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Issue Date</td><td style={{ padding: '2px 3px' }}>01/09/2018</td></tr>
+                              <tr><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Format No.</td><td style={{ padding: '2px 3px' }}>7.1 F-01</td></tr>
+                            </tbody>
+                          </table>
+                        </td>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                    </tbody>
+                  </table>
 
-              {/* Approved By Technical Manager */}
-              <div style={{ textAlign: 'right', marginTop: '1.5rem', fontWeight: 'bold', fontSize: '8px', paddingRight: '1.5rem' }}>
-                Approved By<br />
-                Technical Manager
-              </div>
+                  {/* Document Title */}
+                  <div style={{ border: '1px solid #000000', borderTop: 'none', background: '#f8fafc', padding: '3px', textAlign: 'center', fontWeight: 'bold', fontSize: '8px', marginBottom: '8px' }}>
+                    TEST REQUEST FORM FOR {formData.formTitle || 'WATER & WASTE WATER'}
+                  </div>
 
-              {/* Footer Page 2 */}
-              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '7px', marginTop: 'auto' }}>
-                <tbody>
-                  <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}>Doc No: JLT/ 7.1 F-01</td>
-                    <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}></td>
-                    <td style={{ width: '33.33%', padding: '2px 3px', textAlign: 'right' }}>Page 2 of 2</td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Format No. 7.1 F-01</td>
-                    <td colSpan={2} style={{ padding: '2px 3px' }}>Format: Test Request Form (Water & Waste Water)</td>
-                  </tr>
-                  <tr>
-                    <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Prepared By: TM</td>
-                    <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Approved By: QM</td>
-                    <td style={{ padding: '2px 3px' }}>Issue By/Reviewed By: TM</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </>
+                  {/* Form Fields Table */}
+                  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '8px' }}>
+                    <tbody>
+                      <tr style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ width: '32%', padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Name of Company / Customer</td>
+                        <td style={{ padding: '3px 4px' }}>{selCompany.companyName || selCompany.company_name || '(Select Company)'} {selClient.clientName ? `- ${selClient.clientName}` : ''}</td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Address for Communication</td>
+                        <td style={{ padding: '3px 4px' }}>{formData.address || 'N/A'}</td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Email ID</td>
+                        <td style={{ padding: '3px 4px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span>{formData.email || 'N/A'}</span>
+                            <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Location of Sample</span>
+                            <span style={{ paddingLeft: '6px' }}>{formData.locationOfSample || 'N/A'}</span>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Contact Person</td>
+                        <td style={{ padding: '3px 4px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span>{formData.contactPerson || 'N/A'}</span>
+                            <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Contact No.</span>
+                            <span style={{ paddingLeft: '6px' }}>{formData.contactNumber || 'N/A'}</span>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Date of Collection</td>
+                        <td style={{ padding: '3px 4px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span>{formData.dateOfCollection || 'N/A'}</span>
+                            <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Date of Receipt</span>
+                            <span style={{ paddingLeft: '6px' }}>{formData.dateOfReceipt || 'N/A'}</span>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Sample Collected By</td>
+                        <td style={{ padding: '3px 4px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span>{formData.sampleCollectedBy || 'N/A'}</span>
+                            <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Sample Quantity</span>
+                            <span style={{ paddingLeft: '6px' }}>{formData.sampleQuantity || 'N/A'}</span>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Field Data Sheet</td>
+                        <td style={{ padding: '3px 4px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>{formData.fieldDataSheet}</span>
+                            <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px' }}>Packing details</span>
+                            <span>{formData.packingDetails || 'N/A'}</span>
+                            <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Form Type</span>
+                            <span style={{ paddingLeft: '6px' }}>{formData.formType || 'Regular'}</span>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Sample ID No.</td>
+                        <td style={{ padding: '3px 4px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span>{formData.sampleIdNumber || 'N/A'}</span>
+                            <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Report No.</span>
+                            <span style={{ paddingLeft: '6px' }}>{formData.reportNumber || 'N/A'}</span>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Sample Particular</td>
+                        <td style={{ padding: '3px 4px', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{formData.sampleParticular || selCategory.name || 'N/A'}</td>
+                      </tr>
+
+                      {/* Feasibility table inner block */}
+                      <tr style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ padding: '0', fontWeight: '600' }} colSpan={2}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '7.5px' }}>
+                            <tbody>
+                              <tr style={{ borderBottom: '1px solid #000000' }}>
+                                <td style={{ width: '25%', padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Availability of Equip.</td>
+                                <td style={{ width: '25%', padding: '2px 3px', borderRight: '1px solid #000000' }}>{formData.equipmentAvailability}</td>
+                                <td style={{ width: '25%', padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Availability of Ref Std.</td>
+                                <td style={{ width: '25%', padding: '2px 3px' }}>{formData.referenceStandardAvailability}</td>
+                              </tr>
+                              <tr style={{ borderBottom: '1px solid #000000' }}>
+                                <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Availability of Test Method</td>
+                                <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>{formData.testMethodAvailability}</td>
+                                <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Availability of Trained Person</td>
+                                <td style={{ padding: '2px 3px' }}>{formData.trainedPersonAvailability}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Adequacy of sample qty</td>
+                                <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>{formData.sampleAdequacy}</td>
+                                <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Tentative Report Days</td>
+                                <td style={{ padding: '2px 3px' }}>{formData.tentativeDays}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </td>
+                      </tr>
+
+                      <tr style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Facility reviewed by</td>
+                        <td style={{ padding: '3px 4px' }}>{formData.sampleTestingFacilityReviewedBy}</td>
+                      </tr>
+
+                      {/* Signatures space */}
+                      <tr style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ padding: '0', fontWeight: '600' }} colSpan={2}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '7.5px' }}>
+                            <tbody>
+                              <tr style={{ borderBottom: '1px solid #000000', height: '20px' }}>
+                                <td style={{ width: '50%', padding: '2px 3px', borderRight: '1px solid #000000', verticalAlign: 'top', fontWeight: 'bold' }}>Signature of Customer Representative:</td>
+                                <td style={{ width: '50%', padding: '2px 3px', verticalAlign: 'top', fontWeight: 'bold' }}>Signature of Sample Received By:</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>
+                                  Name & Designation: <span style={{ fontWeight: 'normal' }}>{formData.customerRepresentativeName || 'N/A'}</span>
+                                </td>
+                                <td style={{ padding: '2px 3px', fontWeight: 'bold' }}>
+                                  Name & Designation: <span style={{ fontWeight: 'normal' }}>{formData.sampleReceiverName || 'N/A'}</span>
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </td>
+                      </tr>
+
+                      <tr style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000', verticalAlign: 'top' }}>Test Protocol adopted</td>
+                        <td style={{ padding: '3px 4px', whiteSpace: 'pre-wrap' }}>{formData.testProtocol}</td>
+                      </tr>
+
+                      <tr>
+                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000', verticalAlign: 'top' }}>Remarks / Notes</td>
+                        <td style={{ padding: '3px 4px', whiteSpace: 'pre-wrap' }}>
+                          <ol style={{ margin: 0, paddingLeft: '1rem', fontSize: '7px' }}>
+                            <li>Please mention specific tests to be applied</li>
+                            <li>All the test procedures are followed as per National & International Standards.</li>
+                            <li>In case of sampling conducted by JLT, sampling plan is followed as per National & International Standards.</li>
+                            <li>If due to any unavoidable condition, testing will be sub-contracted only to NABL-complying competent agencies.</li>
+                          </ol>
+                          {formData.remarks && <div style={{ marginTop: '3px', borderTop: '1px dashed #cbd5e1', paddingTop: '3px' }}><strong>Additional:</strong> {formData.remarks}</div>}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  {/* Footer Page 1 */}
+                  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '7px', marginTop: 'auto' }}>
+                    <tbody>
+                      <tr style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}>Doc No: JLT/ 7.1 F-01</td>
+                        <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}></td>
+                        <td style={{ width: '33.33%', padding: '2px 3px', textAlign: 'right' }}>Page 1 of 2</td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Format No. 7.1 F-01</td>
+                        <td colSpan={2} style={{ padding: '2px 3px' }}>Format: Test Request Form (Water & Waste Water)</td>
+                      </tr>
+                      <tr>
+                        <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Prepared By: TM</td>
+                        <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Approved By: QM</td>
+                        <td style={{ padding: '2px 3px' }}>Issue By/Reviewed By: TM</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* PAGE BREAK / SPACER */}
+                <div style={{ margin: '2rem 0', borderTop: '2px dashed #cbd5e1', position: 'relative' }}>
+                  <span style={{ position: 'absolute', top: '-10px', left: '50%', transform: 'translateX(-50%)', background: '#f8fafc', padding: '0 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Page 2 Preview</span>
+                </div>
+
+                {/* PAGE 2 */}
+                <div style={{
+                  background: '#ffffff',
+                  border: '1px solid #000000',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+                  padding: '1.25rem',
+                  fontSize: '10px',
+                  fontFamily: '"Plus Jakarta Sans", "Inter", sans-serif',
+                  color: '#000000',
+                  lineHeight: '1.3',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  minHeight: '297mm',
+                  boxSizing: 'border-box'
+                }}>
+                  {/* Header block (repeated from Page 1) */}
+                  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', marginBottom: '8px' }}>
+                    <tbody>
+                      <tr>
+                        <td style={{ width: '45%', border: '1px solid #000000', padding: '0px', verticalAlign: 'middle', textAlign: 'center' }}>
+                          <img src={getSelectedCompanyLogo()} alt="Logo" style={{ height: '75px', width: '100%', objectFit: 'cover', display: 'block', margin: '0 auto' }} />
+                        </td>
+                        <td style={{ width: '25%', border: '1px solid #000000', padding: '4px', textAlign: 'center', fontWeight: 'bold', fontSize: '10px' }}>
+                          FORMATS
+                        </td>
+                        <td style={{ width: '30%', border: '1px solid #000000', padding: '0' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '7px' }}>
+                            <tbody>
+                              <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Amendment No.</td><td style={{ padding: '2px 3px' }}>00</td></tr>
+                              <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Amendment Date</td><td style={{ padding: '2px 3px' }}>--</td></tr>
+                              <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Issue No.</td><td style={{ padding: '2px 3px' }}>01</td></tr>
+                              <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Issue Date</td><td style={{ padding: '2px 3px' }}>01/09/2018</td></tr>
+                              <tr><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Format No.</td><td style={{ padding: '2px 3px' }}>7.1 F-01</td></tr>
+                            </tbody>
+                          </table>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  <div style={{ fontWeight: 'bold', fontSize: '8px', marginBottom: '8px', border: '1px solid #000000', borderTop: 'none', background: '#f8fafc', padding: '3px', textAlign: 'center' }}>
+                    Test Parameter to Be Analyzed: - {selCategory.name || 'WATER & WASTE WATER'}
+                  </div>
+
+                  {/* Parameters Grid */}
+                  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '8px', marginBottom: '8px' }}>
+                    <thead>
+                      <tr style={{ background: '#f8fafc', borderBottom: '1px solid #000000' }}>
+                        <th style={{ width: '8%', padding: '3px', borderRight: '1px solid #000000', textAlign: 'center' }}>Sr. No.</th>
+                        <th style={{ width: '42%', padding: '3px', borderRight: '1px solid #000000', textAlign: 'left' }}>Test Parameters</th>
+                        <th style={{ width: '10%', padding: '3px', borderRight: '1px solid #000000', textAlign: 'center' }}>Tick √</th>
+                        <th style={{ width: '40%', padding: '3px', textAlign: 'center' }}>Test Method</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Array.from({ length: Math.max(20, parameters.length) }).map((_, i) => {
+                        const param = parameters[i];
+                        const isChecked = param ? !!checkedParameters[param.id] : false;
+                        return (
+                          <tr key={i} style={{ borderBottom: '1px solid #000000' }}>
+                            <td style={{ padding: '2px', borderRight: '1px solid #000000', textAlign: 'center' }}>{i + 1}.</td>
+                            <td style={{ padding: '2px 4px', borderRight: '1px solid #000000', textAlign: 'left' }}>{param ? (param.parameterName || param.name) : ''}</td>
+                            <td style={{ padding: '2px', borderRight: '1px solid #000000', textAlign: 'center', fontWeight: 'bold', color: '#15803d' }}>{isChecked ? '√' : ''}</td>
+                            <td style={{ padding: '2px 4px', textAlign: 'left' }}>{param ? (param.testMethod || '') : ''}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+
+                  {/* Approved By Technical Manager */}
+                  <div style={{ textAlign: 'right', marginTop: '1.5rem', fontWeight: 'bold', fontSize: '8px', paddingRight: '1.5rem' }}>
+                    Approved By<br />
+                    Technical Manager
+                  </div>
+
+                  {/* Footer Page 2 */}
+                  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '7px', marginTop: 'auto' }}>
+                    <tbody>
+                      <tr style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}>Doc No: JLT/ 7.1 F-01</td>
+                        <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}></td>
+                        <td style={{ width: '33.33%', padding: '2px 3px', textAlign: 'right' }}>Page 2 of 2</td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Format No. 7.1 F-01</td>
+                        <td colSpan={2} style={{ padding: '2px 3px' }}>Format: Test Request Form (Water & Waste Water)</td>
+                      </tr>
+                      <tr>
+                        <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Prepared By: TM</td>
+                        <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Approved By: QM</td>
+                        <td style={{ padding: '2px 3px' }}>Issue By/Reviewed By: TM</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </div>
         )}
-      </div>
-    )}
 
         {/* Inline Master Creation Modal */}
         <InlineMasterModal
