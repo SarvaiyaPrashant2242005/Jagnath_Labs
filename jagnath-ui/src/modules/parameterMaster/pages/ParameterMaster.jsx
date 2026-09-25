@@ -72,6 +72,7 @@ const ParameterMaster = () => {
   // Form inputs state
   const [formData, setFormData] = useState({
     parameterName: '',
+    referenceStandard: '',
     unit: '',
     isPermissibleLimitApplicable: false,
     permissibleLimit: '',
@@ -393,6 +394,7 @@ const ParameterMaster = () => {
       setFormData(prev => ({
         ...prev,
         parameterName: matched.parameterName || '',
+        referenceStandard: matched.referenceStandard || matched.reference_standard || '',
         testMethod: matched.testMethod || '',
         unit: matched.unit || '',
         isPermissibleLimitApplicable: matched.isPermissibleLimitApplicable === true || matched.is_permissible_limit_applicable === true,
@@ -654,6 +656,7 @@ const ParameterMaster = () => {
     setFormDepartmentId('');
     setFormData({
       parameterName: '',
+      referenceStandard: '',
       unit: '',
       isPermissibleLimitApplicable: false,
       permissibleLimit: '',
@@ -682,6 +685,7 @@ const ParameterMaster = () => {
     
     setFormData({
       parameterName: param.parameterName || '',
+      referenceStandard: param.referenceStandard || param.reference_standard || '',
       unit: param.unit || '',
       isPermissibleLimitApplicable: param.isPermissibleLimitApplicable === true || param.is_permissible_limit_applicable === true,
       permissibleLimit: param.permissibleLimit || param.permissible_limit || '',
@@ -721,10 +725,11 @@ const ParameterMaster = () => {
 
     const payload = {
       parameterName: formData.parameterName,
+      referenceStandard: formData.referenceStandard || '',
       unit: formData.unit,
       isPermissibleLimitApplicable: formData.isPermissibleLimitApplicable,
-      permissibleLimit: formData.isPermissibleLimitApplicable ? formData.permissibleLimit : '',
-      acceptableLimit: formData.acceptableLimit || '',
+      permissibleLimit: formData.isPermissibleLimitApplicable ? (formData.permissibleLimit || '') : '',
+      acceptableLimit: formData.isPermissibleLimitApplicable ? (formData.acceptableLimit || '') : '',
       isGpcb: formData.isGpcb === true,
       testMethod: formData.testMethod,
       price: formData.price !== '' && formData.price !== null ? parseFloat(formData.price) : 0,
@@ -807,14 +812,15 @@ const ParameterMaster = () => {
       p.departmentName || p.department_name || '',
       p.categoryName || p.category_name || '',
       p.subCategoryName || p.sub_category_name || '',
-      p.locationSampleName || p.location_sample_name || p.locationOfSample || '',
       p.parameterName || p.parameter_name || '',
+      p.referenceStandard || p.reference_standard || '',
       p.testMethod || p.test_method || '',
       p.unit || '',
-      p.acceptableLimit || p.acceptable_limit || '',
       isLimitApp ? 'Yes' : 'No',
-      isLimitApp ? (p.permissibleLimit || p.permissible_limit || '') : (p.permissibleLimit || p.permissible_limit || ''),
-      isGpcb ? 'GPCB' : 'Normal',
+      p.acceptableLimit || p.acceptable_limit || '',
+      p.permissibleLimit || p.permissible_limit || '',
+      isGpcb ? 'Yes' : 'No',
+      p.price !== undefined && p.price !== null ? p.price : 0,
       p.status || 'Active'
     ];
   };
@@ -823,14 +829,15 @@ const ParameterMaster = () => {
     'Department *',
     'Discipline Group *',
     'Sub Category',
-    'Location of Sample',
     'Parameter Name *',
+    'Reference Standard',
     'Test Method',
     'Unit',
-    'Acceptable / Requirement',
     'Permissible Limit Applicable?',
+    'Acceptable / Requirement',
     'Permissible Limit',
-    'Parameter Type',
+    'Is GPCB?',
+    'Price (₹)',
     'Status'
   ];
 
@@ -1204,6 +1211,19 @@ const ParameterMaster = () => {
                 )}
               </div>
 
+              {/* Reference Standard (String input) */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Reference Standard</label>
+                <input
+                  type="text"
+                  name="referenceStandard"
+                  value={formData.referenceStandard}
+                  onChange={handleInputChange}
+                  placeholder="e.g. IS 3025 (Part 16), IS, ASTM"
+                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', fontFamily: 'inherit' }}
+                />
+              </div>
+
               {/* Test Method */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Test Method</label>
@@ -1230,19 +1250,6 @@ const ParameterMaster = () => {
                 />
               </div>
 
-              {/* Acceptable / Requirement */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Acceptable / Requirement</label>
-                <input
-                  type="text"
-                  name="acceptableLimit"
-                  value={formData.acceptableLimit}
-                  onChange={handleInputChange}
-                  placeholder="e.g. Agreeable, 6.5 - 8.5, 500"
-                  style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', fontFamily: 'inherit' }}
-                />
-              </div>
-
               {/* Permissible Limit Applicable Switch / Radio */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Permissible Limit Applicable?</label>
@@ -1260,16 +1267,31 @@ const ParameterMaster = () => {
                       type="radio"
                       name="isPermissibleLimitApplicable"
                       checked={formData.isPermissibleLimitApplicable === false}
-                      onChange={() => setFormData(prev => ({ ...prev, isPermissibleLimitApplicable: false, permissibleLimit: '' }))}
+                      onChange={() => setFormData(prev => ({ ...prev, isPermissibleLimitApplicable: false, permissibleLimit: '', acceptableLimit: '' }))}
                     /> No
                   </label>
                 </div>
               </div>
 
-              {/* Permissible Limit Value (Shown if Applicable) */}
+              {/* Acceptable / Requirement (Shown if Permissible Limit Applicable is Yes) */}
               {formData.isPermissibleLimitApplicable && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Permissible Limit Value *</label>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Acceptable / Requirement</label>
+                  <input
+                    type="text"
+                    name="acceptableLimit"
+                    value={formData.acceptableLimit}
+                    onChange={handleInputChange}
+                    placeholder="e.g. Agreeable, 6.5 - 8.5, 500"
+                    style={{ padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', fontFamily: 'inherit' }}
+                  />
+                </div>
+              )}
+
+              {/* Permissible Limit Value (Shown if Permissible Limit Applicable is Yes) */}
+              {formData.isPermissibleLimitApplicable && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Permissible Limit Value</label>
                   <input
                     type="text"
                     name="permissibleLimit"
@@ -1281,25 +1303,19 @@ const ParameterMaster = () => {
                 </div>
               )}
 
-              {/* Parameter Type (GPCB vs Normal) Switch / Radio */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Parameter Type</label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', height: '42px' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600, color: '#64748b' }}>
+              {/* Is GPCB Parameter Checkbox */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', justifyContent: 'center' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>GPCB Parameter</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', height: '42px' }}>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600, color: formData.isGpcb ? '#15803d' : '#475569' }}>
                     <input
-                      type="radio"
-                      name="isGpcb"
-                      checked={formData.isGpcb === false}
-                      onChange={() => setFormData(prev => ({ ...prev, isGpcb: false }))}
-                    /> Normal
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600, color: '#15803d' }}>
-                    <input
-                      type="radio"
+                      type="checkbox"
                       name="isGpcb"
                       checked={formData.isGpcb === true}
-                      onChange={() => setFormData(prev => ({ ...prev, isGpcb: true }))}
-                    /> GPCB
+                      onChange={(e) => setFormData(prev => ({ ...prev, isGpcb: e.target.checked }))}
+                      style={{ width: '18px', height: '18px', accentColor: '#16a34a', cursor: 'pointer' }}
+                    />
+                    Is GPCB Parameter
                   </label>
                 </div>
               </div>
@@ -1505,6 +1521,7 @@ const ParameterMaster = () => {
                     {renderSortableHeader('DISCIPLINE GROUP', 'categoryId')}
                     {renderSortableHeader('SUB CATEGORY', 'subCategoryId')}
                     {renderSortableHeader('TYPE', 'isGpcb')}
+                    {renderSortableHeader('REFERENCE STANDARD', 'referenceStandard')}
                     {renderSortableHeader('TEST METHOD', 'testMethod')}
                     {renderSortableHeader('UNIT', 'unit')}
                     {renderSortableHeader('ACCEPTABLE / REQUIREMENT', 'acceptableLimit')}
@@ -1516,13 +1533,13 @@ const ParameterMaster = () => {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={13} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                      <td colSpan={14} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                         Loading parameters...
                       </td>
                     </tr>
                   ) : paginatedParameters.length === 0 ? (
                     <tr>
-                      <td colSpan={13} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                      <td colSpan={14} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                         No parameters found.
                       </td>
                     </tr>
@@ -1571,6 +1588,7 @@ const ParameterMaster = () => {
                               {isGpcb ? 'GPCB' : 'Normal'}
                             </span>
                           </td>
+                          <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.referenceStandard || param.reference_standard || '-'}</td>
                           <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{param.testMethod || 'N/A'}</td>
                           <td style={{ padding: '0.75rem 1rem', color: '#334155', fontWeight: 600 }}>{param.unit || '-'}</td>
                           <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>

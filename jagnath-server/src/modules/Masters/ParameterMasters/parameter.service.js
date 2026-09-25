@@ -193,6 +193,7 @@ const createParameter = async (parameterData, userId, reqInfo) => {
             await newParameter.update({
                 description: paramFields.description || newParameter.description,
                 testMethod: paramFields.testMethod || newParameter.testMethod,
+                referenceStandard: paramFields.referenceStandard !== undefined ? paramFields.referenceStandard : newParameter.referenceStandard,
                 unit: paramFields.unit !== undefined ? paramFields.unit : newParameter.unit,
                 isPermissibleLimitApplicable: paramFields.isPermissibleLimitApplicable !== undefined ? paramFields.isPermissibleLimitApplicable : newParameter.isPermissibleLimitApplicable,
                 permissibleLimit: paramFields.permissibleLimit !== undefined ? paramFields.permissibleLimit : newParameter.permissibleLimit,
@@ -725,15 +726,26 @@ module.exports = {
                     }
                 }
 
-                // Parse isGpcb
+                // Parse isGpcb (from isGpcb, is_gpcb, isgpcb, "Is GPCB?", "Parameter Type", etc.)
                 let isGpcb = false;
-                if (data.isGpcb !== undefined && data.isGpcb !== null) {
-                    isGpcb = data.isGpcb === true || String(data.isGpcb).toLowerCase() === 'true' || String(data.isGpcb).toLowerCase() === 'gpcb';
-                } else if (data.is_gpcb !== undefined && data.is_gpcb !== null) {
-                    isGpcb = data.is_gpcb === true || String(data.is_gpcb).toLowerCase() === 'true' || String(data.is_gpcb).toLowerCase() === 'gpcb';
-                } else if (data.parameterType || data.type) {
-                    const typeStr = String(data.parameterType || data.type).trim().toUpperCase();
-                    isGpcb = typeStr === 'GPCB';
+                const rawGpcb = data.isGpcb !== undefined ? data.isGpcb : (
+                    data.is_gpcb !== undefined ? data.is_gpcb : (
+                        data.isgpcb !== undefined ? data.isgpcb : (
+                            data['Is GPCB?'] !== undefined ? data['Is GPCB?'] : (
+                                data['Is GPCB'] !== undefined ? data['Is GPCB'] : (
+                                    data.parameterType || data.type || null
+                                )
+                            )
+                        )
+                    )
+                );
+                if (rawGpcb !== null && rawGpcb !== undefined) {
+                    if (typeof rawGpcb === 'boolean') {
+                        isGpcb = rawGpcb;
+                    } else {
+                        const gStr = String(rawGpcb).trim().toLowerCase();
+                        isGpcb = ['gpcb', 'true', 'yes', 'y', '1'].includes(gStr);
+                    }
                 }
 
                 const paramPayload = {
@@ -742,6 +754,7 @@ module.exports = {
                     subCategoryId: subCategoryId || data.subCategoryId || null,
                     description: data.description || null,
                     testMethod: data.testMethod || data.testing_method || data.referenceMethod || null,
+                    referenceStandard: data.referenceStandard || data.reference_standard || data.refStandard || data['Reference Standard'] || null,
                     unit: data.unit || null,
                     isPermissibleLimitApplicable,
                     permissibleLimit: data.permissibleLimit || data.permissible_limit || data.limit || null,

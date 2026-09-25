@@ -185,12 +185,13 @@ export const MASTER_SCHEMAS = {
       { key: 'categoryName', label: 'Discipline Group *', required: true, type: 'string', aliases: ['disciplinegroup', 'disciplinegroup*', 'disciplinegroupname', 'groupname', 'category', 'categoryname', 'Discipline Group *'] },
       { key: 'subCategoryName', label: 'Sub Category', required: false, type: 'string', aliases: ['subcategory', 'subcategoryname', 'subcategory_name', 'Sub Category'] },
       { key: 'parameterName', label: 'Parameter Name *', required: true, type: 'string', aliases: ['parametername', 'parametername*', 'name', 'parameter', 'Parameter Name *'] },
+      { key: 'referenceStandard', label: 'Reference Standard', required: false, type: 'string', aliases: ['referencestandard', 'reference_standard', 'refstandard', 'ref_standard', 'standard', 'Reference Standard'] },
       { key: 'testMethod', label: 'Test Method', required: false, type: 'string', aliases: ['testmethod', 'test_method', 'testingmethod', 'testing_method', 'referencemethod', 'reference_method', 'method', 'Test Method', 'Testing Method', 'Reference Method'] },
       { key: 'unit', label: 'Unit', required: false, type: 'string', aliases: ['unit', 'units', 'Unit'] },
-      { key: 'acceptableLimit', label: 'Acceptable / Requirement', required: false, type: 'string', aliases: ['acceptablelimit', 'acceptable_limit', 'acceptable / requirement', 'acceptable/requirement', 'acceptable', 'requirement', 'Acceptable / Requirement', 'Acceptable Limit'] },
       { key: 'isPermissibleLimitApplicable', label: 'Permissible Limit Applicable?', required: false, type: 'select', options: ['Yes', 'No'], aliases: ['permissiblelimitapplicable', 'permissiblelimitapplicable?', 'ispermissiblelimitapplicable', 'ispermissiblelimitapplicable?', 'Permissible Limit Applicable?'] },
+      { key: 'acceptableLimit', label: 'Acceptable / Requirement', required: false, type: 'string', aliases: ['acceptablelimit', 'acceptable_limit', 'acceptable / requirement', 'acceptable/requirement', 'acceptable', 'requirement', 'Acceptable / Requirement', 'Acceptable Limit'] },
       { key: 'permissibleLimit', label: 'Permissible Limit', required: false, type: 'string', aliases: ['permissiblelimit', 'limit', 'Permissible Limit'] },
-      { key: 'isGpcb', label: 'Parameter Type', required: false, type: 'select', options: ['GPCB', 'Normal'], aliases: ['parametertype', 'type', 'isgpcb', 'is_gpcb', 'gpcb', 'gpcbapproved', 'Parameter Type', 'Type', 'GPCB'] },
+      { key: 'isGpcb', label: 'Is GPCB?', required: false, type: 'select', options: ['Yes', 'No'], aliases: ['isgpcb', 'is_gpcb', 'is gpcb', 'is gpcb?', 'gpcb', 'parametertype', 'type', 'Parameter Type', 'Is GPCB?', 'Is GPCB', 'GPCB'] },
       { key: 'price', label: 'Price (₹)', required: false, type: 'number', aliases: ['price', 'price*', 'rate', 'testingrate', 'Price', 'Price (₹)', 'Price *'] },
       { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'], aliases: ['status', 'Status'] }
     ],
@@ -200,12 +201,13 @@ export const MASTER_SCHEMAS = {
         'Discipline Group *': 'WATER TESTING',
         'Sub Category': 'Physical Parameters',
         'Parameter Name *': 'pH Level',
+        'Reference Standard': 'IS 3025 (Part 11)',
         'Test Method': 'APHA, 23rd Edition 2017/4500-H-B',
         'Unit': 'pH',
-        'Acceptable / Requirement': '6.5 - 8.5',
         'Permissible Limit Applicable?': 'Yes',
+        'Acceptable / Requirement': '6.5 - 8.5',
         'Permissible Limit': '6.5 - 8.5',
-        'Parameter Type': 'GPCB',
+        'Is GPCB?': 'Yes',
         'Price (₹)': 250,
         'Status': 'Active'
       },
@@ -214,12 +216,13 @@ export const MASTER_SCHEMAS = {
         'Discipline Group *': 'WATER TESTING',
         'Sub Category': 'Physical Parameters',
         'Parameter Name *': 'Total Dissolved Solids (TDS)',
+        'Reference Standard': 'IS 3025 (Part 16)',
         'Test Method': 'IS 3025 (Part 16)',
         'Unit': 'mg/L',
-        'Acceptable / Requirement': '500',
         'Permissible Limit Applicable?': 'Yes',
+        'Acceptable / Requirement': '500',
         'Permissible Limit': '2000',
-        'Parameter Type': 'Normal',
+        'Is GPCB?': 'No',
         'Price (₹)': 350,
         'Status': 'Active'
       }
@@ -471,66 +474,18 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
       }
     });
 
-    // Auto-classification of GPCB for parameter master
+    // Classification of Is GPCB for parameter master directly from column isgpcb / isGpcb / Is GPCB?
     if (masterType === 'parameter') {
-      let isGpcbAssigned = null;
-
-      // 1. Check if row came from a sheet explicitly named 'GPCB'
-      if (row._sheetName && normalizeString(row._sheetName).includes('gpcb')) {
-        isGpcbAssigned = 'GPCB';
-      }
-
-      // 2. Check if the row explicitly specified a Parameter Type / isGpcb column in file
-      if (!isGpcbAssigned && normalizedData['isGpcb']) {
+      let isGpcbAssigned = 'No';
+      if (normalizedData['isGpcb'] !== undefined && normalizedData['isGpcb'] !== null) {
         const typeVal = String(normalizedData['isGpcb']).trim().toLowerCase();
-        if (typeVal === 'gpcb' || typeVal === 'true' || typeVal === 'yes' || typeVal === '1') {
-          isGpcbAssigned = 'GPCB';
-        } else if (typeVal === 'normal' || typeVal === 'false' || typeVal === 'no' || typeVal === '0') {
-          isGpcbAssigned = 'Normal';
+        if (['yes', 'y', 'true', '1', 'gpcb'].includes(typeVal)) {
+          isGpcbAssigned = 'Yes';
+        } else {
+          isGpcbAssigned = 'No';
         }
       }
-
-      // 3. Automated matching against existing GPCB reference dataset in database
-      if (!isGpcbAssigned && existingDbRecords && existingDbRecords.length > 0) {
-        const nDept = normalizeString(normalizedData.departmentName);
-        const nCat = normalizeString(normalizedData.categoryName);
-        const nSub = normalizeString(normalizedData.subCategoryName);
-        const nParam = normalizeString(normalizedData.parameterName);
-        const nMethod = normalizeString(normalizedData.testMethod);
-
-        // Find match in GPCB subset (isGpcb === true in existing records)
-        const gpcbMatch = existingDbRecords.find(p => {
-          if (!p.isGpcb && !p.is_gpcb) return false;
-
-          const pParam = normalizeString(p.parameterName || p.name);
-          if (pParam !== nParam) return false;
-
-          // If discipline group / category is present, match
-          const pCat = normalizeString(p.categoryName || (p.category ? p.category.name : ''));
-          if (nCat && pCat && pCat !== nCat) return false;
-
-          // If sub category is present, match
-          const pSub = normalizeString(p.subCategoryName || (p.subCategory ? p.subCategory.name : ''));
-          if (nSub && pSub && pSub !== nSub) return false;
-
-          // If department is present, match
-          const pDept = normalizeString(p.departmentName || (p.category?.department ? p.category.department.name : ''));
-          if (nDept && pDept && pDept !== nDept) return false;
-
-          // If test method is present on both, compare
-          const pMethod = normalizeString(p.testMethod);
-          if (nMethod && pMethod && pMethod !== nMethod) return false;
-
-          return true;
-        });
-
-        if (gpcbMatch) {
-          isGpcbAssigned = 'GPCB';
-        }
-      }
-
-      // Default to Normal if not classified as GPCB
-      normalizedData['isGpcb'] = isGpcbAssigned === 'GPCB' ? 'GPCB' : 'Normal';
+      normalizedData['isGpcb'] = isGpcbAssigned;
     }
 
     // Check for internal file duplicates

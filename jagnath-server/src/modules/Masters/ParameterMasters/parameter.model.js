@@ -49,6 +49,11 @@ const Parameter = sequelize.define("Parameter", {
         type: DataTypes.STRING,
         allowNull: true,
     },
+    referenceStandard: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        field: "reference_standard"
+    },
     unit: {
         type: DataTypes.STRING,
         allowNull: true,
