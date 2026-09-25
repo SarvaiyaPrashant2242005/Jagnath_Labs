@@ -8,13 +8,12 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   FaFileInvoiceDollar, FaPlus, FaSearch, FaFilter, FaEdit,
-  FaCopy, FaPrint, FaEye, FaTrash, FaHistory, FaCalendarAlt,
+  FaPrint, FaTrash, FaHistory, FaCalendarAlt,
   FaBuilding, FaCheckCircle, FaExclamationCircle, FaFilePdf
 } from 'react-icons/fa';
 import {
   getSavedQuotations,
   deleteQuotation,
-  duplicateQuotation,
   fetchMasterData
 } from '../services/provisionalQuotationStorage.service';
 import QuotationRevisionModal from '../components/QuotationRevisionModal';
@@ -60,14 +59,6 @@ const ProvisionalQuotationList = () => {
     if (window.confirm(`Are you sure you want to delete quotation "${quoteNo}"?`)) {
       deleteQuotation(id);
       loadData();
-    }
-  };
-
-  const handleDuplicate = (id) => {
-    const duplicated = duplicateQuotation(id);
-    if (duplicated) {
-      loadData();
-      alert(`Quotation duplicated as ${duplicated.quotationNumber}`);
     }
   };
 
@@ -243,13 +234,6 @@ const ProvisionalQuotationList = () => {
                         <FaEdit />
                       </Link>
                       <Link
-                        to={`/quotations/provisional/preview/${q.id}`}
-                        className="btn btn-icon btn-xs btn-outline-secondary"
-                        title="Live A4 Preview"
-                      >
-                        <FaEye />
-                      </Link>
-                      <Link
                         to={`/quotations/provisional/print/${q.id}`}
                         className="btn btn-icon btn-xs btn-outline-info"
                         title="Print / Save PDF"
@@ -263,14 +247,6 @@ const ProvisionalQuotationList = () => {
                         onClick={() => setRevisionModal({ isOpen: true, quotation: q })}
                       >
                         <FaHistory />
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-icon btn-xs btn-outline-dark"
-                        title="Duplicate Quotation"
-                        onClick={() => handleDuplicate(q.id)}
-                      >
-                        <FaCopy />
                       </button>
                       <button
                         type="button"

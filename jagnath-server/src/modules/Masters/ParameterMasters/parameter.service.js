@@ -590,11 +590,16 @@ const getParametersByCompany = async (companyId, options = {}) => {
         }
 
         if (options.categoryId) {
+            const catIds = Array.isArray(options.categoryId)
+                ? options.categoryId
+                : (typeof options.categoryId === 'string' && options.categoryId.includes(',')
+                    ? options.categoryId.split(',').map(s => s.trim()).filter(Boolean)
+                    : [options.categoryId]);
             queryOptions.where[Op.and] = queryOptions.where[Op.and] || [];
             queryOptions.where[Op.and].push({
                 [Op.or]: [
-                    { '$categoryParameters.categoryId$': options.categoryId },
-                    { '$subCategory.category.id$': options.categoryId }
+                    { '$categoryParameters.categoryId$': { [Op.in]: catIds } },
+                    { '$subCategory.category.id$': { [Op.in]: catIds } }
                 ]
             });
             queryOptions.subQuery = false;

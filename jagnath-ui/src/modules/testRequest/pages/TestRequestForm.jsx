@@ -131,6 +131,7 @@ const TestRequestForm = () => {
   const [clients, setClients] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState([]);
   const [subCategories, setSubCategories] = useState([]);
   const [selectedSubCategory, setSelectedSubCategory] = useState('');
   const [cautions, setCautions] = useState([]);
@@ -706,16 +707,20 @@ const TestRequestForm = () => {
           industryPrice: tr.industryPrice || tr.industry_price || ''
         });
 
+        const initialCatIds = savedCategoryId ? [savedCategoryId] : [];
+        setSelectedCategoryIds(initialCatIds);
+
         if (savedSubCatId) {
           setSelectedSubCategory(savedSubCatId);
         }
 
         if (savedDepartmentId) {
           fetchCategoriesForDepartment(savedDepartmentId);
-        } else if (savedCategoryId) {
-          fetchSubCategoriesForCategory(savedCategoryId);
         }
-        fetchParameters(savedSubCatId, savedCategoryId, loadedSeq);
+        if (initialCatIds.length > 0) {
+          fetchSubCategoriesForCategories(initialCatIds);
+        }
+        fetchParameters(savedSubCatId, initialCatIds, loadedSeq);
       } else {
         // Pre-select company if we resolved one and auto-generate next Report No (e.g. JLT010826RR00320)
         const nowForFallback = new Date();
@@ -786,14 +791,18 @@ const TestRequestForm = () => {
     }
   };
 
-  const fetchSubCategoriesForCategory = async (categoryId, gpcbOnlyFlag = isGpcbOnly) => {
-    if (!categoryId) {
+  const fetchSubCategoriesForCategories = async (categoryIds, gpcbOnlyFlag = isGpcbOnly) => {
+    const idsArray = Array.isArray(categoryIds)
+      ? categoryIds.filter(Boolean)
+      : (categoryIds ? [categoryIds] : []);
+
+    if (idsArray.length === 0) {
       setSubCategories([]);
       return;
     }
     setSubCategoriesLoading(true);
     try {
-      let url = `${SUB_CATEGORY_ENDPOINTS.GET_ALL}?categoryId=${categoryId}&status=Active&all=true`;
+      let url = `${SUB_CATEGORY_ENDPOINTS.GET_ALL}?categoryId=${idsArray.join(',')}&status=Active&all=true`;
       if (gpcbOnlyFlag) {
         url += '&gpcbOnly=true';
       }
@@ -801,16 +810,6 @@ const TestRequestForm = () => {
       const raw = res?.data;
       let list = Array.isArray(raw) ? raw : (raw?.rows || raw?.subCategories || raw?.data || []);
       if (!Array.isArray(list)) list = [];
-
-      if (categoryId) {
-        const matched = list.filter(s => {
-          const sCatId = s.categoryId || s.category_id || (s.category ? s.category.id : '');
-          return String(sCatId) === String(categoryId);
-        });
-        if (matched.length > 0 || list.length > 0) {
-          list = matched.length > 0 ? matched : list;
-        }
-      }
 
       setSubCategories(list.filter(s => s.status === 'Active' || s.status === true || !s.status));
     } catch (e) {
@@ -821,8 +820,16 @@ const TestRequestForm = () => {
     }
   };
 
-  const fetchParameters = async (subCategoryId, categoryId, extraIncludeIds = [], gpcbOnlyFlag = isGpcbOnly) => {
-    if (!subCategoryId && !categoryId && (!extraIncludeIds || extraIncludeIds.length === 0)) {
+  const fetchParameters = async (subCategoryId, categoryIds, extraIncludeIds = [], gpcbOnlyFlag = isGpcbOnly) => {
+    const idsArray = Array.isArray(categoryIds)
+      ? categoryIds.filter(Boolean)
+      : (typeof categoryIds === 'string' && categoryIds ? categoryIds.split(',').map(s => s.trim()).filter(Boolean) : []);
+
+    const checkedIds = (extraIncludeIds && extraIncludeIds.length > 0)
+      ? extraIncludeIds
+      : Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]);
+
+    if (!subCategoryId && idsArray.length === 0 && checkedIds.length === 0) {
       setParameters([]);
       setParametersLoading(false);
       return;
@@ -832,8 +839,9 @@ const TestRequestForm = () => {
       let url = `${PARAMETER_ENDPOINTS.GET_ALL}?status=Active&all=true`;
       if (subCategoryId) {
         url += `&subCategoryId=${subCategoryId}`;
-      } else if (categoryId) {
-        url += `&categoryId=${categoryId}`;
+      }
+      if (idsArray.length > 0) {
+        url += `&categoryId=${idsArray.join(',')}`;
       }
       if (gpcbOnlyFlag) {
         url += '&gpcbOnly=true';
@@ -850,18 +858,32 @@ const TestRequestForm = () => {
 
       let activeList = list.filter(p => p.status === 'Active' || p.status === true || !p.status);
 
-      // If there are extra parameter IDs (e.g., from existing TR parameters) missing from activeList, fetch and merge them
-      if (extraIncludeIds && extraIncludeIds.length > 0) {
-        const missingIds = extraIncludeIds.filter(id => !activeList.some(p => p.id === id));
+      // If there are extra parameter IDs already checked (from previously selected discipline groups or saved request), merge them
+      if (checkedIds.length > 0) {
+        const missingIds = checkedIds.filter(id => !activeList.some(p => p.id === id));
         if (missingIds.length > 0) {
-          const allRes = await apiService.get(`${PARAMETER_ENDPOINTS.GET_ALL}?status=Active&all=true`);
-          const allList = Array.isArray(allRes?.data) ? allRes.data : (allRes?.data?.rows || []);
-          const extraParams = allList.filter(p => missingIds.includes(p.id));
-          activeList = [...activeList, ...extraParams];
+          try {
+            const allRes = await apiService.get(`${PARAMETER_ENDPOINTS.GET_ALL}?status=Active&all=true`);
+            const allList = Array.isArray(allRes?.data) ? allRes.data : (allRes?.data?.rows || []);
+            const extraParams = allList.filter(p => missingIds.includes(p.id));
+            activeList = [...activeList, ...extraParams];
+          } catch (err) {
+            console.error("Error loading checked extra parameters", err);
+          }
         }
       }
 
-      setParameters(activeList);
+      // Deduplicate activeList by parameter id
+      const seenMap = new Map();
+      const uniqueParams = [];
+      for (const p of activeList) {
+        if (!seenMap.has(p.id)) {
+          seenMap.set(p.id, true);
+          uniqueParams.push(p);
+        }
+      }
+
+      setParameters(uniqueParams);
       setParamPage(1);
     } catch (e) {
       console.error("Error fetching parameters", e);
@@ -877,6 +899,7 @@ const TestRequestForm = () => {
 
     // Clear dependent selection to prevent mismatched stale states
     setSelectedSubCategory('');
+    setSelectedCategoryIds([]);
     setFormData(prev => ({
       ...prev,
       departmentId: '',
@@ -885,14 +908,45 @@ const TestRequestForm = () => {
     }));
     setCategories([]);
     setSubCategories([]);
-    setParameters([]);
-    setCheckedParameters({});
-    setSelectedParamSequence([]);
     setParamPage(1);
     setParamSearch('');
 
+    const currentCheckedIds = Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]);
+    if (currentCheckedIds.length > 0) {
+      fetchParameters('', [], currentCheckedIds, nextGpcb);
+    } else {
+      setParameters([]);
+    }
+
     // Fetch fresh departments list with new GPCB state
     await fetchDepartmentsList(nextGpcb);
+  };
+
+  const handleCategorySelectionChange = (selectedVals) => {
+    const catIdsArray = Array.isArray(selectedVals)
+      ? selectedVals.filter(Boolean)
+      : (selectedVals ? [selectedVals] : []);
+    
+    setSelectedCategoryIds(catIdsArray);
+    setFormData(prev => ({
+      ...prev,
+      categoryId: catIdsArray[0] || ''
+    }));
+    setParamPage(1);
+
+    const currentCheckedIds = Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]);
+
+    if (catIdsArray.length > 0) {
+      fetchSubCategoriesForCategories(catIdsArray, isGpcbOnly);
+      fetchParameters(selectedSubCategory, catIdsArray, currentCheckedIds, isGpcbOnly);
+    } else {
+      setSubCategories([]);
+      if (currentCheckedIds.length > 0) {
+        fetchParameters('', [], currentCheckedIds, isGpcbOnly);
+      } else {
+        setParameters([]);
+      }
+    }
   };
 
   const handleSubCategoryChange = (e) => {
@@ -900,18 +954,18 @@ const TestRequestForm = () => {
     setSelectedSubCategory(subId);
     setFormData(prev => ({ ...prev, subCategoryId: subId }));
     setParamPage(1);
-    setCheckedParameters({});
-    if (subId) {
-      fetchParameters(subId, formData.categoryId, [], isGpcbOnly);
-    } else if (formData.categoryId) {
-      fetchParameters('', formData.categoryId, [], isGpcbOnly);
-    } else {
-      setParameters([]);
-    }
+    
+    const currentCheckedIds = Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]);
+    fetchParameters(subId, selectedCategoryIds, currentCheckedIds, isGpcbOnly);
   };
 
   const handleToggleSelectAllParameters = () => {
-    const displayedParams = parameters.filter(param => !selectedSubCategory || param.subCategoryId === selectedSubCategory || param.subCategory?.id === selectedSubCategory);
+    const displayedParams = parameters.filter(param => {
+      if (selectedSubCategory) {
+        return param.subCategoryId === selectedSubCategory || param.subCategory?.id === selectedSubCategory || checkedParameters[param.id];
+      }
+      return true;
+    });
     if (displayedParams.length === 0) return;
 
     const allChecked = displayedParams.every(p => !!checkedParameters[p.id]);
@@ -951,10 +1005,8 @@ const TestRequestForm = () => {
 
     if (name === 'departmentId') {
       setSelectedSubCategory('');
+      setSelectedCategoryIds([]);
       setFormData(prev => ({ ...prev, departmentId: value, categoryId: '', subCategoryId: '' }));
-      setParameters([]);
-      setCheckedParameters({});
-      setSelectedParamSequence([]);
       setSubCategories([]);
       setParamPage(1);
       setParamSearch('');
@@ -963,20 +1015,11 @@ const TestRequestForm = () => {
       } else {
         setCategories([]);
       }
-    }
-
-    if (name === 'categoryId') {
-      setSelectedSubCategory('');
-      setFormData(prev => ({ ...prev, categoryId: value, subCategoryId: '' }));
-      setParameters([]);
-      setCheckedParameters({});
-      setParamPage(1);
-      setParamSearch('');
-      if (value) {
-        fetchSubCategoriesForCategory(value, isGpcbOnly);
-        fetchParameters('', value, [], isGpcbOnly);
+      const currentCheckedIds = Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]);
+      if (currentCheckedIds.length > 0) {
+        fetchParameters('', [], currentCheckedIds, isGpcbOnly);
       } else {
-        setSubCategories([]);
+        setParameters([]);
       }
     }
 
@@ -1083,16 +1126,11 @@ const TestRequestForm = () => {
       triggerToast('Please select a Department.', 'error');
       return false;
     }
-    const activeCatId = formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : '');
+    const activeCatId = selectedCategoryIds[0] || formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : '');
     if (!activeCatId) {
-      triggerToast('Please select a Discipline Group.', 'error');
+      triggerToast('Please select at least one Discipline Group.', 'error');
       return false;
     }
-    // HIDE MULTIPLE QUOTATIONS FUNCTIONALITY (DISABLED)
-    // if (formData.quotationRequired === 'Yes' && !formData.quotationType) {
-    //   triggerToast('Please select a Quotation Type.', 'error');
-    //   return false;
-    // }
     return true;
   };
 
@@ -1104,7 +1142,7 @@ const TestRequestForm = () => {
 
     try {
       // 1. Save Test Request
-      const activeCatId = formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : null);
+      const activeCatId = selectedCategoryIds[0] || formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : null);
       const textSampleParticular = (formData.sampleParticular && formData.sampleParticular.length === 36) ? '' : formData.sampleParticular;
 
       const payload = {
@@ -1120,6 +1158,7 @@ const TestRequestForm = () => {
       };
       delete payload.tentativeDays;
       delete payload.sampleTestingFacilityReviewedBy;
+      delete payload.categoryIds;
 
       const targetId = savedRequestId || id;
       let savedTrId = targetId;
@@ -1719,7 +1758,7 @@ const TestRequestForm = () => {
                 />
               </div>
 
-              {/* Discipline Group Dropdown */}
+              {/* Discipline Group Dropdown (Multi-Select) */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Discipline Group <span style={{ color: '#ef4444' }}>*</span></label>
@@ -1727,13 +1766,12 @@ const TestRequestForm = () => {
                 </div>
                 <SearchableSelect
                   options={[...categories].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
-                  value={formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : '')}
-                  onChange={(selectedVal) => {
-                    handleChange({ target: { name: 'categoryId', value: selectedVal } });
-                  }}
-                  placeholder="Select Discipline Group"
+                  value={selectedCategoryIds.length > 0 ? selectedCategoryIds : (formData.categoryId ? [formData.categoryId] : [])}
+                  onChange={handleCategorySelectionChange}
+                  placeholder="Select Discipline Group(s)"
                   searchPlaceholder="Search discipline group..."
                   disabled={!formData.departmentId}
+                  isMulti={true}
                 />
               </div>
 
@@ -1745,7 +1783,7 @@ const TestRequestForm = () => {
                   <AddMasterButton
                     label="Add New Sub Category"
                     onClick={() => {
-                      const activeCatId = formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : '');
+                      const activeCatId = selectedCategoryIds[0] || formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : '');
                       if (!activeCatId) {
                         triggerToast('Please select a Discipline Group first.', 'error');
                         return;
@@ -1760,19 +1798,19 @@ const TestRequestForm = () => {
                   onChange={(selectedVal) => {
                     handleSubCategoryChange({ target: { value: selectedVal } });
                   }}
-                  placeholder="Select Sub Category"
+                  placeholder="Select Sub Category (Optional)"
                   searchPlaceholder="Search sub category..."
-                  disabled={(!formData.categoryId && (!formData.sampleParticular || formData.sampleParticular.length !== 36)) || subCategoriesLoading}
+                  disabled={(selectedCategoryIds.length === 0 && !formData.categoryId && (!formData.sampleParticular || formData.sampleParticular.length !== 36)) || subCategoriesLoading}
                 />
-                {(formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36)) && !subCategoriesLoading && subCategories.length === 0 && (
+                {(selectedCategoryIds.length > 0 || formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36)) && !subCategoriesLoading && subCategories.length === 0 && (
                   <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic' }}>
-                    No subcategories available for this discipline group
+                    No subcategories available for selected discipline groups
                   </span>
                 )}
               </div>
             </div>
 
-            {!formData.categoryId && (!formData.sampleParticular || formData.sampleParticular.length !== 36) ? (
+            {(selectedCategoryIds.length === 0 && !formData.categoryId && (!formData.sampleParticular || formData.sampleParticular.length !== 36)) ? (
               <div style={{ padding: '2.5rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1', fontWeight: 500 }}>
                 Please select a Discipline Group to begin.
               </div>
@@ -1797,7 +1835,8 @@ const TestRequestForm = () => {
                   if (!paramSearch.trim()) return true;
                   const q = paramSearch.toLowerCase();
                   return (param.parameterName || '').toLowerCase().includes(q) ||
-                    (param.testMethod || '').toLowerCase().includes(q);
+                    (param.testMethod || '').toLowerCase().includes(q) ||
+                    (param.categoryName || '').toLowerCase().includes(q);
                 })
                 .sort((a, b) => (a.parameterName || '').localeCompare(b.parameterName || ''));
 
@@ -1811,6 +1850,13 @@ const TestRequestForm = () => {
                 (safeParamPage - 1) * paramPageSize,
                 safeParamPage * paramPageSize
               );
+
+              const checkedParamIdsList = Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]);
+              const totalCheckedPrice = checkedParamIdsList.reduce((sum, pId) => {
+                const paramObj = parameters.find(p => p.id === pId);
+                const price = priceMasterMap[pId] !== undefined ? priceMasterMap[pId] : (paramObj?.price || 0);
+                return sum + parseFloat(price || 0);
+              }, 0);
 
               return categoryFilteredParams.length > 0 && (
                 <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
@@ -1873,11 +1919,11 @@ const TestRequestForm = () => {
                       </button>
 
                       <span style={{ fontSize: '0.85rem', background: '#dcfce7', color: '#166534', padding: '0.3rem 0.75rem', borderRadius: '999px', fontWeight: 700 }}>
-                        Total: ₹{parameters.reduce((sum, param) => sum + (checkedParameters[param.id] ? (priceMasterMap[param.id] || 0) : 0), 0).toFixed(2)}
+                        Total: ₹{totalCheckedPrice.toFixed(2)}
                       </span>
 
                       <span style={{ fontSize: '0.8rem', background: '#e0e7ff', color: '#4338ca', padding: '0.25rem 0.65rem', borderRadius: '999px', fontWeight: 600 }}>
-                        {Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]).length} Selected
+                        {checkedParamIdsList.length} Selected
                       </span>
                     </div>
                   </div>
@@ -1911,9 +1957,12 @@ const TestRequestForm = () => {
                         ) : (
                           paginatedParams.map(param => {
                             const isChecked = !!checkedParameters[param.id];
-                            const paramPrice = priceMasterMap[param.id] || 0;
+                            const paramPrice = priceMasterMap[param.id] !== undefined ? priceMasterMap[param.id] : (parseFloat(param.price) || 0);
                             const seqIndex = selectedParamSequence.indexOf(param.id);
                             const seqNumber = seqIndex >= 0 ? seqIndex + 1 : null;
+                            const catLabel = param.categoryName || param.category?.name || '';
+                            const subCatLabel = param.subCategoryName || param.subCategory?.name || '';
+
                             return (
                               <tr
                                 key={param.id}
@@ -1928,7 +1977,7 @@ const TestRequestForm = () => {
                                 onMouseLeave={(e) => { if (!isChecked) e.currentTarget.style.backgroundColor = '#ffffff' }}
                               >
                                 <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
-                                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.4rem' }}>
+                                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.4rem' }}>
                                     <div style={{ width: '22px', height: '22px', borderRadius: '6px', border: isChecked ? 'none' : '2px solid #cbd5e1', background: isChecked ? '#22c55e' : 'transparent', display: 'flex', justifyContent: 'center', alignItems: 'center', transition: 'all 0.15s ease' }}>
                                       {isChecked && <span style={{ color: 'white', fontSize: '13px', fontWeight: 'bold' }}>✓</span>}
                                     </div>
@@ -1951,8 +2000,24 @@ const TestRequestForm = () => {
                                     )}
                                   </div>
                                 </td>
-                                <td style={{ padding: '0.75rem 1rem', color: isChecked ? '#166534' : '#1e293b', fontWeight: isChecked ? 600 : 500 }}>
-                                  {param.parameterName}
+                                <td style={{ padding: '0.75rem 1rem' }}>
+                                  <div style={{ color: isChecked ? '#166534' : '#1e293b', fontWeight: isChecked ? 600 : 500 }}>
+                                    {param.parameterName}
+                                  </div>
+                                  {(catLabel || subCatLabel) && (
+                                    <div style={{ fontSize: '0.75rem', color: '#64748b', display: 'flex', gap: '0.4rem', marginTop: '3px', flexWrap: 'wrap' }}>
+                                      {catLabel && (
+                                        <span style={{ background: '#f1f5f9', color: '#475569', padding: '1px 7px', borderRadius: '4px', fontWeight: 500, border: '1px solid #e2e8f0' }}>
+                                          {catLabel}
+                                        </span>
+                                      )}
+                                      {subCatLabel && (
+                                        <span style={{ background: '#f8fafc', color: '#64748b', padding: '1px 7px', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
+                                          {subCatLabel}
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
                                 </td>
                                 <td style={{ padding: '0.75rem 1rem', color: isChecked ? '#15803d' : '#64748b' }}>
                                   {param.testMethod || 'N/A'}

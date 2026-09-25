@@ -107,21 +107,21 @@ const getLogoUrl = (comp = {}) => {
 };
 
 const renderStandardPageFooter = (pageNum) => (
-  <div className="doc-page-footer" style={{ marginTop: 'auto', paddingTop: '14px' }}>
+  <div className="doc-page-footer" style={{ marginTop: 'auto', paddingTop: '6px', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
     {/* Centered Slogan Above Divider Line */}
-    <div style={{ textAlign: 'center', marginBottom: '3px' }}>
-      <span style={{ fontSize: '12px', fontWeight: 800, color: '#059669', letterSpacing: '0.04em' }}>
+    <div style={{ textAlign: 'center', marginBottom: '2px' }}>
+      <span style={{ fontSize: '11px', fontWeight: 800, color: '#059669', letterSpacing: '0.04em' }}>
         "NURTURING THE NATURE FOR HUMAN RACE"
       </span>
     </div>
 
     {/* Divider Line & Footer Details Below */}
-    <div style={{ borderTop: '1.5px solid #0284c7', paddingTop: '4px' }}>
+    <div style={{ borderTop: '1.2px solid #0284c7', paddingTop: '3px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <span style={{ fontSize: '11.5px', fontWeight: 800, color: '#0f172a', whiteSpace: 'nowrap', width: '50px' }}>
+        <span style={{ fontSize: '10.5px', fontWeight: 800, color: '#0f172a', whiteSpace: 'nowrap', width: '45px' }}>
           Page {pageNum}
         </span>
-        <div style={{ flexGrow: 1, textAlign: 'center', fontSize: '9.5px', color: '#1e293b', lineHeight: 1.4, marginRight: '50px' }}>
+        <div style={{ flexGrow: 1, textAlign: 'center', fontSize: '9px', color: '#1e293b', lineHeight: 1.3, marginRight: '45px' }}>
           <div>5-6/B, Nayanjyot chamber, First Floor, Opp. Vachhera Vada, Gondal – 360 311, Dist. – Rajkot (Guj.) +91 8140-555515</div>
           <div>
             Email: jagnathtechnologies@yahoo.com // <span style={{ color: '#0284c7', textDecoration: 'underline' }}>www.jagnath.com</span> // purvin@jagnath.com
@@ -954,177 +954,90 @@ const ProvisionalQuotationPreview = () => {
         {(() => {
           const allGroups = quotation.annexureB || [];
           if (!allGroups.length) return null;
-          const page5Groups = allGroups.length > 3 ? allGroups.slice(0, 3) : allGroups;
-          const page6Groups = allGroups.length > 3 ? allGroups.slice(3) : [];
 
           return (
-            <>
-              <div className="a4-sheet" style={{ width: '100%', minHeight: 'auto', padding: '12mm 15mm 10mm 15mm', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: '11px', background: '#ffffff', borderRadius: '4px', position: 'relative', display: 'flex', flexDirection: 'column' }}>
-                {/* TOP HEADER: LOGO */}
-                <div style={{ textAlign: 'center', marginBottom: '8px' }}>
-                  <img
-                    src={getLogoUrl(company)}
-                    alt="Company Logo"
-                    style={{ maxHeight: '85px', maxWidth: '280px', objectFit: 'contain', margin: '0 auto', display: 'block' }}
-                    onError={(e) => { e.target.src = '/Images/Navbar_Logo.png'; }}
-                  />
-                </div>
-                <div style={{ borderBottom: '1.5px solid #0f172a', marginBottom: '14px' }}></div>
+            <div className="a4-sheet" style={{ width: '100%', minHeight: 'auto', padding: '8mm 12mm 4mm 12mm', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: '10.5px', background: '#ffffff', borderRadius: '4px', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+              {/* TOP HEADER: LOGO */}
+              <div style={{ textAlign: 'center', marginBottom: '4px' }}>
+                <img
+                  src={getLogoUrl(company)}
+                  alt="Company Logo"
+                  style={{ maxHeight: '60px', maxWidth: '240px', objectFit: 'contain', margin: '0 auto', display: 'block' }}
+                  onError={(e) => { e.target.src = '/Images/Navbar_Logo.png'; }}
+                />
+              </div>
+              <div style={{ borderBottom: '1.2px solid #0f172a', marginBottom: '8px' }}></div>
 
-                {/* TITLE: Annexure -B */}
-                <div style={{ textAlign: 'center', marginBottom: '14px' }}>
-                  <h2 style={{ fontSize: '15px', fontWeight: 800, margin: 0, textDecoration: 'underline', fontStyle: 'italic', letterSpacing: '0.04em', color: '#0f172a' }}>
-                    Annexure -B
-                  </h2>
-                </div>
-
-                {/* ANNEXURE - B TABLE */}
-                <table style={{ width: '100%', borderCollapse: 'collapse', border: '1.5px solid #0f172a', fontSize: '10.5px', color: '#0f172a', marginBottom: '14px' }}>
-                  <thead>
-                    <tr style={{ background: '#ffffff', borderBottom: '1.5px solid #0f172a' }}>
-                      <th style={{ width: '8%', border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', fontWeight: 800, fontSize: '10.5px' }}>
-                        Sr. No.
-                      </th>
-                      <th style={{ width: '74%', border: '1px solid #0f172a', padding: '6px 8px', textAlign: 'center', fontWeight: 800, fontSize: '10.5px' }}>
-                        DESCRIPTIONS
-                      </th>
-                      <th style={{ width: '18%', border: '1px solid #0f172a', padding: '6px 8px', textAlign: 'center', fontWeight: 800, fontSize: '10.5px' }}>
-                        RATE
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {page5Groups.map((group, gIdx) => {
-                      const groupTotal = calculateGroupTotal(group);
-                      return (
-                        <React.Fragment key={group.id || gIdx}>
-                          {/* Group Header Row */}
-                          <tr style={{ background: '#f8fafc', fontWeight: 800 }}>
-                            <td style={{ border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
-                              {group.srNo}
-                            </td>
-                            <td style={{ border: '1px solid #0f172a', padding: '5px 8px', fontWeight: 800, color: '#0f172a' }}>
-                              {group.category}
-                            </td>
-                            <td style={{ border: '1px solid #0f172a', padding: '5px 8px', textAlign: 'right', fontWeight: 800 }}>
-                            </td>
-                          </tr>
-
-                          {/* Parameter Rows */}
-                          {(group.parameters || []).map((param, pIdx) => (
-                            <tr key={param.id || pIdx}>
-                              <td style={{ border: '1px solid #0f172a', padding: '3.5px 4px', textAlign: 'center' }}></td>
-                              <td style={{ border: '1px solid #0f172a', padding: '3.5px 8px 3.5px 16px', color: '#1e293b' }}>
-                                {param.description}
-                              </td>
-                              <td style={{ border: '1px solid #0f172a', padding: '3.5px 8px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
-                                {Number(param.rate || 0).toLocaleString('en-IN')}
-                              </td>
-                            </tr>
-                          ))}
-
-                          {/* Subtotal Row */}
-                          <tr style={{ background: '#f1f5f9', fontWeight: 800 }}>
-                            <td style={{ border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center' }}></td>
-                            <td style={{ border: '1px solid #0f172a', padding: '5px 8px', textAlign: 'right', fontWeight: 800, color: '#0f172a' }}>
-                              Total ({group.category}):
-                            </td>
-                            <td style={{ border: '1px solid #0f172a', padding: '5px 8px', textAlign: 'right', fontWeight: 800, color: '#0f172a' }}>
-                              {Number(groupTotal).toLocaleString('en-IN')}/-
-                            </td>
-                          </tr>
-                        </React.Fragment>
-                      );
-                    })}
-                  </tbody>
-                </table>
-
-                {renderStandardPageFooter(5)}
+              {/* TITLE: Annexure -B */}
+              <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+                <h2 style={{ fontSize: '14px', fontWeight: 800, margin: 0, textDecoration: 'underline', fontStyle: 'italic', letterSpacing: '0.04em', color: '#0f172a' }}>
+                  Annexure -B
+                </h2>
               </div>
 
-              {/* PAGE 6 (IF NEEDED FOR OVERFLOW GROUPS) */}
-              {page6Groups.length > 0 && (
-                <div className="a4-sheet" style={{ width: '100%', minHeight: 'auto', padding: '12mm 15mm 10mm 15mm', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: '11px', background: '#ffffff', borderRadius: '4px', position: 'relative', display: 'flex', flexDirection: 'column' }}>
-                  {/* TOP HEADER: LOGO */}
-                  <div style={{ textAlign: 'center', marginBottom: '8px' }}>
-                    <img
-                      src={getLogoUrl(company)}
-                      alt="Company Logo"
-                      style={{ maxHeight: '85px', maxWidth: '280px', objectFit: 'contain', margin: '0 auto', display: 'block' }}
-                      onError={(e) => { e.target.src = '/Images/Navbar_Logo.png'; }}
-                    />
-                  </div>
-                  <div style={{ borderBottom: '1.5px solid #0f172a', marginBottom: '14px' }}></div>
+              {/* ANNEXURE - B TABLE */}
+              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1.5px solid #0f172a', fontSize: '10px', color: '#0f172a', marginBottom: '8px' }}>
+                <thead>
+                  <tr style={{ background: '#ffffff', borderBottom: '1.5px solid #0f172a' }}>
+                    <th style={{ width: '8%', border: '1px solid #0f172a', padding: '4px 4px', textAlign: 'center', fontWeight: 800, fontSize: '10px' }}>
+                      Sr. No.
+                    </th>
+                    <th style={{ width: '74%', border: '1px solid #0f172a', padding: '4px 6px', textAlign: 'center', fontWeight: 800, fontSize: '10px' }}>
+                      DESCRIPTIONS
+                    </th>
+                    <th style={{ width: '18%', border: '1px solid #0f172a', padding: '4px 6px', textAlign: 'center', fontWeight: 800, fontSize: '10px' }}>
+                      RATE
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allGroups.map((group, gIdx) => {
+                    const groupTotal = calculateGroupTotal(group);
+                    return (
+                      <React.Fragment key={group.id || gIdx}>
+                        {/* Group Header Row */}
+                        <tr style={{ background: '#f8fafc', fontWeight: 800 }}>
+                          <td style={{ border: '1px solid #0f172a', padding: '4px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
+                            {group.srNo}
+                          </td>
+                          <td style={{ border: '1px solid #0f172a', padding: '4px 6px', fontWeight: 800, color: '#0f172a' }}>
+                            {group.category}
+                          </td>
+                          <td style={{ border: '1px solid #0f172a', padding: '4px 6px', textAlign: 'right', fontWeight: 800 }}>
+                          </td>
+                        </tr>
 
-                  {/* TITLE: Annexure -B (Contd.) */}
-                  <div style={{ textAlign: 'center', marginBottom: '14px' }}>
-                    <h2 style={{ fontSize: '15px', fontWeight: 800, margin: 0, textDecoration: 'underline', fontStyle: 'italic', letterSpacing: '0.04em', color: '#0f172a' }}>
-                      Annexure -B (Contd.)
-                    </h2>
-                  </div>
+                        {/* Parameter Rows */}
+                        {(group.parameters || []).map((param, pIdx) => (
+                          <tr key={param.id || pIdx}>
+                            <td style={{ border: '1px solid #0f172a', padding: '2.5px 4px', textAlign: 'center' }}></td>
+                            <td style={{ border: '1px solid #0f172a', padding: '2.5px 6px 2.5px 14px', color: '#1e293b' }}>
+                              {param.description}
+                            </td>
+                            <td style={{ border: '1px solid #0f172a', padding: '2.5px 6px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
+                              {Number(param.rate || 0).toLocaleString('en-IN')}
+                            </td>
+                          </tr>
+                        ))}
 
-                  {/* TABLE */}
-                  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1.5px solid #0f172a', fontSize: '10.5px', color: '#0f172a', marginBottom: '14px' }}>
-                    <thead>
-                      <tr style={{ background: '#ffffff', borderBottom: '1.5px solid #0f172a' }}>
-                        <th style={{ width: '8%', border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', fontWeight: 800, fontSize: '10.5px' }}>
-                          Sr. No.
-                        </th>
-                        <th style={{ width: '74%', border: '1px solid #0f172a', padding: '6px 8px', textAlign: 'center', fontWeight: 800, fontSize: '10.5px' }}>
-                          DESCRIPTIONS
-                        </th>
-                        <th style={{ width: '18%', border: '1px solid #0f172a', padding: '6px 8px', textAlign: 'center', fontWeight: 800, fontSize: '10.5px' }}>
-                          RATE
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {page6Groups.map((group, gIdx) => {
-                        const groupTotal = calculateGroupTotal(group);
-                        return (
-                          <React.Fragment key={group.id || gIdx}>
-                            <tr style={{ background: '#f8fafc', fontWeight: 800 }}>
-                              <td style={{ border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
-                                {group.srNo}
-                              </td>
-                              <td style={{ border: '1px solid #0f172a', padding: '5px 8px', fontWeight: 800, color: '#0f172a' }}>
-                                {group.category}
-                              </td>
-                              <td style={{ border: '1px solid #0f172a', padding: '5px 8px', textAlign: 'right', fontWeight: 800 }}>
-                              </td>
-                            </tr>
+                        {/* Subtotal Row */}
+                        <tr style={{ background: '#f1f5f9', fontWeight: 800 }}>
+                          <td style={{ border: '1px solid #0f172a', padding: '4px 4px', textAlign: 'center' }}></td>
+                          <td style={{ border: '1px solid #0f172a', padding: '4px 6px', textAlign: 'right', fontWeight: 800, color: '#0f172a' }}>
+                            Total ({group.category}):
+                          </td>
+                          <td style={{ border: '1px solid #0f172a', padding: '4px 6px', textAlign: 'right', fontWeight: 800, color: '#0f172a' }}>
+                            {Number(groupTotal).toLocaleString('en-IN')}/-
+                          </td>
+                        </tr>
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
 
-                            {(group.parameters || []).map((param, pIdx) => (
-                              <tr key={param.id || pIdx}>
-                                <td style={{ border: '1px solid #0f172a', padding: '3.5px 4px', textAlign: 'center' }}></td>
-                                <td style={{ border: '1px solid #0f172a', padding: '3.5px 8px 3.5px 16px', color: '#1e293b' }}>
-                                  {param.description}
-                                </td>
-                                <td style={{ border: '1px solid #0f172a', padding: '3.5px 8px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
-                                  {Number(param.rate || 0).toLocaleString('en-IN')}
-                                </td>
-                              </tr>
-                            ))}
-
-                            <tr style={{ background: '#f1f5f9', fontWeight: 800 }}>
-                              <td style={{ border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center' }}></td>
-                              <td style={{ border: '1px solid #0f172a', padding: '5px 8px', textAlign: 'right', fontWeight: 800, color: '#0f172a' }}>
-                                Total ({group.category}):
-                              </td>
-                              <td style={{ border: '1px solid #0f172a', padding: '5px 8px', textAlign: 'right', fontWeight: 800, color: '#0f172a' }}>
-                                {Number(groupTotal).toLocaleString('en-IN')}/-
-                              </td>
-                            </tr>
-                          </React.Fragment>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-
-                  {renderStandardPageFooter(6)}
-                </div>
-              )}
-            </>
+              {renderStandardPageFooter(5)}
+            </div>
           );
         })()}
 

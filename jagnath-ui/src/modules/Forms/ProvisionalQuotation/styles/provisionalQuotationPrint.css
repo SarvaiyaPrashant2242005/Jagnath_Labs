@@ -240,10 +240,12 @@
     box-shadow: none !important;
     border: none !important;
     width: 100% !important;
-    min-height: 100vh !important;
-    padding: 15mm 15mm 12mm 15mm !important;
+    min-height: auto !important;
+    height: auto !important;
+    padding: 8mm 12mm 4mm 12mm !important;
     page-break-after: always !important;
     break-after: page !important;
+    box-sizing: border-box !important;
   }
 
   .a4-sheet:last-child,
@@ -252,8 +254,28 @@
     break-after: avoid !important;
   }
 
+  .doc-page-footer {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    margin-top: auto !important;
+    padding-top: 4px !important;
+  }
+
+  table {
+    page-break-inside: auto;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
   @page {
     size: A4 portrait;
-    margin: 0;
+    margin: 5mm;
   }
 }
