@@ -557,7 +557,7 @@ const TestRequestForm = () => {
         apiService.get(COMPANY_ENDPOINTS.GET_MY),
         apiService.get(CAUTION_ENDPOINTS.GET_ALL),
         apiService.get(PRICE_MASTER_ENDPOINTS.GET_ALL),
-        apiService.get(`${DEPARTMENT_ENDPOINTS.GET_ALL}?companyId=${targetCompanyId}&status=Active&limit=500`),
+        apiService.get(`${DEPARTMENT_ENDPOINTS.GET_ALL}?companyId=${targetCompanyId}&status=Active&limit=500&gpcbOnly=false&isGpcb=false`),
         apiService.get(CATEGORY_ENDPOINTS.GET_ALL)
       ]);
  
@@ -754,10 +754,7 @@ const TestRequestForm = () => {
   const fetchDepartmentsList = async (gpcbOnlyFlag = isGpcbOnly) => {
     try {
       const activeCompId = formData.companyId || localStorage.getItem('selectedCompanyId') || '';
-      let url = `${DEPARTMENT_ENDPOINTS.GET_ALL}?companyId=${activeCompId}&status=Active&limit=500`;
-      if (gpcbOnlyFlag) {
-        url += '&gpcbOnly=true';
-      }
+      let url = `${DEPARTMENT_ENDPOINTS.GET_ALL}?companyId=${activeCompId}&status=Active&limit=500&gpcbOnly=${gpcbOnlyFlag ? 'true' : 'false'}&isGpcb=${gpcbOnlyFlag ? 'true' : 'false'}`;
       const res = await apiService.get(url);
       if (res?.data) {
         setDepartments(res.data.rows || res.data || []);
@@ -775,10 +772,7 @@ const TestRequestForm = () => {
     setCategoriesLoading(true);
     try {
       const activeCompId = formData.companyId || localStorage.getItem('selectedCompanyId') || '';
-      let url = `${CATEGORY_ENDPOINTS.GET_ALL}?departmentId=${departmentId}&companyId=${activeCompId}&status=Active&limit=1000&all=true`;
-      if (gpcbOnlyFlag) {
-        url += '&gpcbOnly=true';
-      }
+      let url = `${CATEGORY_ENDPOINTS.GET_ALL}?departmentId=${departmentId}&companyId=${activeCompId}&status=Active&limit=1000&all=true&gpcbOnly=${gpcbOnlyFlag ? 'true' : 'false'}&isGpcb=${gpcbOnlyFlag ? 'true' : 'false'}`;
       const res = await apiService.get(url);
       const raw = res?.data;
       let list = Array.isArray(raw) ? raw : (raw?.rows || raw?.categories || raw?.data || []);
@@ -802,10 +796,7 @@ const TestRequestForm = () => {
     }
     setSubCategoriesLoading(true);
     try {
-      let url = `${SUB_CATEGORY_ENDPOINTS.GET_ALL}?categoryId=${idsArray.join(',')}&status=Active&all=true`;
-      if (gpcbOnlyFlag) {
-        url += '&gpcbOnly=true';
-      }
+      let url = `${SUB_CATEGORY_ENDPOINTS.GET_ALL}?categoryId=${idsArray.join(',')}&status=Active&all=true&gpcbOnly=${gpcbOnlyFlag ? 'true' : 'false'}&isGpcb=${gpcbOnlyFlag ? 'true' : 'false'}`;
       const res = await apiService.get(url);
       const raw = res?.data;
       let list = Array.isArray(raw) ? raw : (raw?.rows || raw?.subCategories || raw?.data || []);
@@ -836,15 +827,12 @@ const TestRequestForm = () => {
     }
     setParametersLoading(true);
     try {
-      let url = `${PARAMETER_ENDPOINTS.GET_ALL}?status=Active&all=true`;
+      let url = `${PARAMETER_ENDPOINTS.GET_ALL}?status=Active&all=true&gpcbOnly=${gpcbOnlyFlag ? 'true' : 'false'}&isGpcb=${gpcbOnlyFlag ? 'true' : 'false'}`;
       if (subCategoryId) {
         url += `&subCategoryId=${subCategoryId}`;
       }
       if (idsArray.length > 0) {
         url += `&categoryId=${idsArray.join(',')}`;
-      }
-      if (gpcbOnlyFlag) {
-        url += '&gpcbOnly=true';
       }
       const res = await apiService.get(url);
       let list = [];
@@ -856,16 +844,25 @@ const TestRequestForm = () => {
         list = [res.data];
       }
 
-      let activeList = list.filter(p => p.status === 'Active' || p.status === true || !p.status);
+      let activeList = list.filter(p => {
+        const isActive = p.status === 'Active' || p.status === true || !p.status;
+        const isGpcb = p.isGpcb === true || p.is_gpcb === true || p.type === 'GPCB' || p.type === 'gpcb';
+        const matchesGpcb = gpcbOnlyFlag ? isGpcb : !isGpcb;
+        return isActive && matchesGpcb;
+      });
 
       // If there are extra parameter IDs already checked (from previously selected discipline groups or saved request), merge them
       if (checkedIds.length > 0) {
         const missingIds = checkedIds.filter(id => !activeList.some(p => p.id === id));
         if (missingIds.length > 0) {
           try {
-            const allRes = await apiService.get(`${PARAMETER_ENDPOINTS.GET_ALL}?status=Active&all=true`);
+            const allRes = await apiService.get(`${PARAMETER_ENDPOINTS.GET_ALL}?status=Active&all=true&gpcbOnly=${gpcbOnlyFlag ? 'true' : 'false'}&isGpcb=${gpcbOnlyFlag ? 'true' : 'false'}`);
             const allList = Array.isArray(allRes?.data) ? allRes.data : (allRes?.data?.rows || []);
-            const extraParams = allList.filter(p => missingIds.includes(p.id));
+            const extraParams = allList.filter(p => {
+              const isGpcb = p.isGpcb === true || p.is_gpcb === true || p.type === 'GPCB' || p.type === 'gpcb';
+              const matchesGpcb = gpcbOnlyFlag ? isGpcb : !isGpcb;
+              return missingIds.includes(p.id) && matchesGpcb;
+            });
             activeList = [...activeList, ...extraParams];
           } catch (err) {
             console.error("Error loading checked extra parameters", err);

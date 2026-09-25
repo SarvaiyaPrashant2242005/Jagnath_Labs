@@ -616,11 +616,9 @@ const getParametersByCompany = async (companyId, options = {}) => {
             queryOptions.subQuery = false;
         }
 
-        if (options.gpcbOnly === true || options.gpcbOnly === 'true') {
+        if (options.gpcbOnly === true || options.gpcbOnly === 'true' || options.isGpcb === 'true' || options.isGpcb === true || options.type === 'GPCB') {
             queryOptions.where.isGpcb = true;
-        } else if (options.type === 'GPCB' || options.isGpcb === 'true' || options.isGpcb === true) {
-            queryOptions.where.isGpcb = true;
-        } else if (options.type === 'Normal' || options.type === 'NORMAL' || options.isGpcb === 'false' || options.isGpcb === false) {
+        } else if (options.gpcbOnly === false || options.gpcbOnly === 'false' || options.isGpcb === 'false' || options.isGpcb === false || options.type === 'Normal' || options.type === 'NORMAL') {
             queryOptions.where.isGpcb = false;
         }
 

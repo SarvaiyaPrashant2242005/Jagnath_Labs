@@ -152,6 +152,18 @@ const getAllSubCategories = async (query, companyId) => {
         });
         const validSubCatIds = Array.from(new Set(gpcbParams.map(p => p.subCategoryId).filter(Boolean)));
         whereClause.id = { [Op.in]: validSubCatIds };
+    } else if (query.gpcbOnly === false || query.gpcbOnly === 'false' || query.gpcb_only === 'false' || query.isGpcb === 'false' || query.is_gpcb === 'false') {
+        const normalParams = await db.Parameter.findAll({
+            where: {
+                ...(targetCompanyId ? { companyId: targetCompanyId } : {}),
+                isGpcb: false,
+                deleted_at: null,
+                subCategoryId: { [Op.ne]: null }
+            },
+            attributes: ["subCategoryId"]
+        });
+        const validSubCatIds = Array.from(new Set(normalParams.map(p => p.subCategoryId).filter(Boolean)));
+        whereClause.id = { [Op.in]: validSubCatIds };
     }
 
     const queryOptions = {
