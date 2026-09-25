@@ -18,6 +18,7 @@ import {
 } from '../services/provisionalQuotationStorage.service';
 import QuotationRevisionModal from '../components/QuotationRevisionModal';
 import { createQuotationRevision } from '../services/provisionalQuotationStorage.service';
+import Pagination from '../../../../shared/components/Pagination';
 import '../styles/provisionalQuotation.css';
 
 const ProvisionalQuotationList = () => {
@@ -33,6 +34,10 @@ const ProvisionalQuotationList = () => {
   const [selectedClientFilter, setSelectedClientFilter] = useState('');
   const [fromDateFilter, setFromDateFilter] = useState('');
   const [toDateFilter, setToDateFilter] = useState('');
+
+  // Pagination States
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Revision Modal State
   const [revisionModal, setRevisionModal] = useState({ isOpen: false, quotation: null });
@@ -88,7 +93,7 @@ const ProvisionalQuotationList = () => {
     const matchType = !selectedTypeFilter || qCategory === selectedTypeFilter;
 
     const matchClient = !selectedClientFilter || q.clientId === selectedClientFilter || q.clientName === selectedClientFilter;
-    
+
     const qDate = q.quotationDate ? q.quotationDate.split('T')[0] : '';
     const matchFromDate = !fromDateFilter || (qDate && qDate >= fromDateFilter);
     const matchToDate = !toDateFilter || (qDate && qDate <= toDateFilter);
@@ -96,6 +101,14 @@ const ProvisionalQuotationList = () => {
 
     return matchSearch && matchType && matchClient && matchDate;
   });
+
+  // Pagination Slices
+  const totalItems = filteredQuotations.length;
+  const totalPages = Math.ceil(totalItems / pageSize) || 1;
+  const paginatedQuotations = filteredQuotations.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
 
   const getStatusBadgeClass = (status) => {
     switch (status) {
@@ -107,16 +120,36 @@ const ProvisionalQuotationList = () => {
     }
   };
 
+  const formatDateDDMMYYYY = (dateStr) => {
+    if (!dateStr) return '-';
+    const cleanStr = String(dateStr).split('T')[0];
+    if (cleanStr.includes('-')) {
+      const parts = cleanStr.split('-');
+      if (parts.length === 3) {
+        if (parts[0].length === 4) {
+          return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+        return `${parts[0]}/${parts[1]}/${parts[2]}`;
+      }
+    }
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
   return (
     <div className="module-page-container">
       {/* Top Header */}
       <div className="module-header d-flex justify-between align-center mb-4">
         <div>
           <h2 className="module-title d-flex align-center gap-2">
-            <FaFileInvoiceDollar className="text-primary" /> Quotations Manager (Provisional &amp; Regular)
+            <FaFileInvoiceDollar className="text-primary" /> Quotations Manager (Audit &amp; Regular)
           </h2>
           <p className="module-subtitle">
-            Create, customize, calculate, and print Provisional Audit Proposals and Regular Sample Analysis Quotations.
+            Create, customize, calculate, and print Audit Proposals and Regular Sample Analysis Quotations.
           </p>
         </div>
         <Link to="/quotations/provisional/add" className="btn btn-primary font-semibold">
@@ -135,7 +168,10 @@ const ProvisionalQuotationList = () => {
                 type="text"
                 placeholder="Search by quote no, client, plant..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="form-control"
               />
             </div>
@@ -145,12 +181,15 @@ const ProvisionalQuotationList = () => {
           <div className="form-group mb-0">
             <select
               value={selectedTypeFilter}
-              onChange={(e) => setSelectedTypeFilter(e.target.value)}
+              onChange={(e) => {
+                setSelectedTypeFilter(e.target.value);
+                setCurrentPage(1);
+              }}
               className="form-control font-semibold"
               style={{ borderColor: selectedTypeFilter === 'regular' ? '#38bdf8' : (selectedTypeFilter === 'provisional' ? '#86efac' : '#cbd5e1') }}
             >
               <option value="">-- Filter by Type (All) --</option>
-              <option value="provisional">📋 Provisional Quotations</option>
+              <option value="provisional">📋 Audit Quotations</option>
               <option value="regular">📄 Regular Quotations</option>
             </select>
           </div>
@@ -159,7 +198,10 @@ const ProvisionalQuotationList = () => {
           <div className="form-group mb-0">
             <select
               value={selectedClientFilter}
-              onChange={(e) => setSelectedClientFilter(e.target.value)}
+              onChange={(e) => {
+                setSelectedClientFilter(e.target.value);
+                setCurrentPage(1);
+              }}
               className="form-control"
             >
               <option value="">-- Filter by Client (All) --</option>
@@ -176,7 +218,10 @@ const ProvisionalQuotationList = () => {
               <input
                 type="date"
                 value={fromDateFilter}
-                onChange={(e) => setFromDateFilter(e.target.value)}
+                onChange={(e) => {
+                  setFromDateFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="form-control"
                 style={{ paddingLeft: '32px', height: '38px', fontSize: '0.82rem' }}
                 title="From Date"
@@ -184,7 +229,10 @@ const ProvisionalQuotationList = () => {
               {fromDateFilter && (
                 <button
                   type="button"
-                  onClick={() => setFromDateFilter('')}
+                  onClick={() => {
+                    setFromDateFilter('');
+                    setCurrentPage(1);
+                  }}
                   style={{
                     position: 'absolute',
                     right: '6px',
@@ -211,7 +259,10 @@ const ProvisionalQuotationList = () => {
                 type="date"
                 value={toDateFilter}
                 min={fromDateFilter || ''}
-                onChange={(e) => setToDateFilter(e.target.value)}
+                onChange={(e) => {
+                  setToDateFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="form-control"
                 style={{ paddingLeft: '32px', height: '38px', fontSize: '0.82rem' }}
                 title="To Date"
@@ -219,7 +270,10 @@ const ProvisionalQuotationList = () => {
               {toDateFilter && (
                 <button
                   type="button"
-                  onClick={() => setToDateFilter('')}
+                  onClick={() => {
+                    setToDateFilter('');
+                    setCurrentPage(1);
+                  }}
                   style={{
                     position: 'absolute',
                     right: '6px',
@@ -249,7 +303,7 @@ const ProvisionalQuotationList = () => {
                 <th style={{ width: '190px' }}>Quotation No. &amp; Type</th>
                 <th>Client / Organization</th>
                 <th>Plant / Unit</th>
-                <th style={{ width: '110px' }}>Date</th>
+                <th style={{ width: '105px', whiteSpace: 'nowrap' }}>Date</th>
                 <th style={{ width: '80px' }}>Version</th>
                 <th style={{ width: '90px' }}>Status</th>
                 <th style={{ width: '130px' }} className="text-right">Grand Total</th>
@@ -257,7 +311,7 @@ const ProvisionalQuotationList = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredQuotations.map((q) => {
+              {paginatedQuotations.map((q) => {
                 const isRegular = (q.quotationCategoryType === 'regular' || q.categoryType === 'regular' || q.quotationType === 'Regular Quotation');
                 const editUrl = isRegular
                   ? `/quotations/provisional/edit/${q.id}?type=regular`
@@ -279,7 +333,7 @@ const ProvisionalQuotationList = () => {
                           </span>
                         ) : (
                           <span className="badge" style={{ backgroundColor: '#f0fdf4', color: '#166534', border: '1px solid #86efac', fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                            <FaFileInvoiceDollar size={9} /> Provisional Quote
+                            <FaFileInvoiceDollar size={9} /> Audit Quote
                           </span>
                         )}
                         {q.referenceNo && (
@@ -302,9 +356,9 @@ const ProvisionalQuotationList = () => {
                         {q.plantName || q.plantAddress || '-'}
                       </span>
                     </td>
-                    <td>
-                      <span className="text-sm text-slate-600">
-                        {q.quotationDate || '-'}
+                    <td style={{ whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: '0.78rem', color: '#334155', fontWeight: 600, display: 'inline-block', whiteSpace: 'nowrap' }}>
+                        {formatDateDDMMYYYY(q.quotationDate)}
                       </span>
                     </td>
                     <td className="text-center">
@@ -396,6 +450,19 @@ const ProvisionalQuotationList = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setCurrentPage(1);
+          }}
+        />
       </div>
 
       {/* Revision Modal */}
