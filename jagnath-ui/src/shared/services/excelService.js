@@ -530,11 +530,12 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
       const nName = normalizeString(normalizedData.parameterName);
       const nSub = normalizeString(normalizedData.subCategoryName);
       const nMethod = normalizeString(normalizedData.testMethod);
+      const nRefStd = normalizeString(normalizedData.referenceStandard);
       const nCatName = normalizeString(normalizedData.categoryName);
-      const paramSignature = `${nName}___${nSub}___${nMethod}___${nCatName}`;
+      const paramSignature = `${nName}___${nSub}___${nMethod}___${nRefStd}___${nCatName}`;
       if (nName && seenNamesInFile.has(paramSignature)) {
         isDuplicateInFile = true;
-        fileDuplicateMessage = `Duplicate parameter name under same sub category, test method, and discipline group in uploaded file (first found at row ${seenNamesInFile.get(paramSignature)}). This row will update the record.`;
+        fileDuplicateMessage = `Duplicate parameter name under same sub category, test method, reference standard, and discipline group in uploaded file (first found at row ${seenNamesInFile.get(paramSignature)}). This row will update the record.`;
       } else if (nName) {
         seenNamesInFile.set(paramSignature, validRowNum);
       }
@@ -599,11 +600,13 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
         const nParamName = normalizeString(normalizedData.parameterName);
         const nSub = normalizeString(normalizedData.subCategoryName);
         const nMethod = normalizeString(normalizedData.testMethod);
+        const nRefStd = normalizeString(normalizedData.referenceStandard);
         const nCatName = normalizeString(normalizedData.categoryName);
         const dbParam = existingDbRecords.find(p => 
           normalizeString(p.parameterName || p.name) === nParamName &&
           normalizeString(p.subCategoryName) === nSub &&
           normalizeString(p.testMethod) === nMethod &&
+          normalizeString(p.referenceStandard || p.reference_standard) === nRefStd &&
           normalizeString(p.categoryName) === nCatName
         );
         if (dbParam) {

@@ -13,7 +13,9 @@ const runMigration = async () => {
 
     // Drop the old index
     await sequelize.query(`
+      DROP INDEX IF EXISTS idx_parameters_company_subcat_lower_name;
       DROP INDEX IF EXISTS idx_parameters_company_subcat_loc_lower_name;
+      DROP INDEX IF EXISTS idx_parameters_company_subcat_loc_method_lower_name;
     `, { transaction });
 
     // Create the new index that includes testMethod coalesced

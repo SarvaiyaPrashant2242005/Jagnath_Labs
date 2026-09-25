@@ -185,8 +185,16 @@ const BulkImportModal = ({
     const errStr = Object.values(r._errors || {}).join(' ').toLowerCase();
     return errStr.includes('duplicate') || errStr.includes('exists');
   }).length;
-  const gpcbCount = rows.filter(r => r.data?.isGpcb === 'GPCB' || r.data?.isGpcb === true).length;
-  const normalCount = rows.filter(r => r.data?.isGpcb === 'Normal' || r.data?.isGpcb === false || (!r.data?.isGpcb && r.data?.isGpcb !== 'GPCB')).length;
+  const isRowGpcb = (r) => {
+    const val = r.data?.isGpcb;
+    if (typeof val === 'boolean') return val;
+    if (!val) return false;
+    const s = String(val).trim().toLowerCase();
+    return ['yes', 'y', 'true', '1', 'gpcb'].includes(s);
+  };
+
+  const gpcbCount = rows.filter(r => isRowGpcb(r)).length;
+  const normalCount = rows.filter(r => !isRowGpcb(r)).length;
 
   // Filtered rows for preview table
   const displayedRows = rows.filter(r => {
