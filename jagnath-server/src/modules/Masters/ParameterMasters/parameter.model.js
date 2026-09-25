@@ -49,6 +49,11 @@ const Parameter = sequelize.define("Parameter", {
         type: DataTypes.STRING,
         allowNull: true,
     },
+    referenceStandard: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        field: "reference_standard"
+    },
     unit: {
         type: DataTypes.STRING,
         allowNull: true,
@@ -63,6 +68,17 @@ const Parameter = sequelize.define("Parameter", {
         type: DataTypes.STRING,
         allowNull: true,
         field: "permissible_limit"
+    },
+    acceptableLimit: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        field: "acceptable_limit"
+    },
+    isGpcb: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+        allowNull: false,
+        field: "is_gpcb"
     },
     price: {
         type: DataTypes.DECIMAL(10, 2),

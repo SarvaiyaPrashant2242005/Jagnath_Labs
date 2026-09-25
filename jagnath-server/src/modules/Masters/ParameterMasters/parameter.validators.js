@@ -11,9 +11,12 @@ const createParameterSchema = Joi.object({
     }),
     description: Joi.string().optional().allow("", null),
     testMethod: Joi.string().optional().allow("", null),
+    referenceStandard: Joi.string().optional().allow("", null),
     unit: Joi.string().optional().allow("", null),
     isPermissibleLimitApplicable: Joi.boolean().optional(),
     permissibleLimit: Joi.string().optional().allow("", null),
+    acceptableLimit: Joi.string().optional().allow("", null),
+    isGpcb: Joi.boolean().optional(),
     status: Joi.string().valid("Active", "Inactive").required().messages({
         "any.only": "Status must be Active or Inactive.",
         "any.required": "Status is required."
@@ -32,9 +35,12 @@ const updateParameterSchema = Joi.object({
     }),
     description: Joi.string().optional().allow("", null),
     testMethod: Joi.string().optional().allow("", null),
+    referenceStandard: Joi.string().optional().allow("", null),
     unit: Joi.string().optional().allow("", null),
     isPermissibleLimitApplicable: Joi.boolean().optional(),
     permissibleLimit: Joi.string().optional().allow("", null),
+    acceptableLimit: Joi.string().optional().allow("", null),
+    isGpcb: Joi.boolean().optional(),
     price: Joi.number().min(0).optional().allow(null),
     status: Joi.string().valid("Active", "Inactive").optional().messages({
         "any.only": "Status must be Active or Inactive."

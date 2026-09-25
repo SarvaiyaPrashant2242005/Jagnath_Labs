@@ -42,7 +42,7 @@ const QuotationPrint = () => {
       setLoading(true);
       setError(false);
 
-      const trRes = await apiService.get(`${TEST_REQUEST_ENDPOINTS.GET_BY_ID(id)}?forQuotation=true`);
+      const trRes = await apiService.get(TEST_REQUEST_ENDPOINTS.GET_BY_ID(id));
       if (!trRes?.data) {
         setError("Failed to load quotation data.");
         setLoading(false);
@@ -50,11 +50,6 @@ const QuotationPrint = () => {
       }
 
       const tr = trRes.data;
-      if (tr.quotationRequired === 'No') {
-        setError("Quotation was not requested for this Test Request.");
-        setLoading(false);
-        return;
-      }
       setFormData(tr);
 
       if (tr.company) setSelCompany(tr.company);

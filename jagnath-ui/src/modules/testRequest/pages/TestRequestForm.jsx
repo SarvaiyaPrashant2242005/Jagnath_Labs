@@ -131,6 +131,7 @@ const TestRequestForm = () => {
   const [clients, setClients] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState([]);
   const [subCategories, setSubCategories] = useState([]);
   const [selectedSubCategory, setSelectedSubCategory] = useState('');
   const [cautions, setCautions] = useState([]);
@@ -139,6 +140,7 @@ const TestRequestForm = () => {
   const [priceMasterMap, setPriceMasterMap] = useState({});
 
   // State for dynamic parameter checklist & pagination
+  const [isGpcbOnly, setIsGpcbOnly] = useState(false);
   const [parameters, setParameters] = useState([]);
   const [checkedParameters, setCheckedParameters] = useState({});
   const [selectedParamSequence, setSelectedParamSequence] = useState([]);
@@ -147,6 +149,19 @@ const TestRequestForm = () => {
   const [paramPage, setParamPage] = useState(1);
   const [paramSearch, setParamSearch] = useState('');
   const [paramPageSize, setParamPageSize] = useState(10);
+  const [clientEmails, setClientEmails] = useState([]);
+  const [showEmailDropdown, setShowEmailDropdown] = useState(false);
+  const emailDropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (emailDropdownRef.current && !emailDropdownRef.current.contains(event.target)) {
+        setShowEmailDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -542,7 +557,7 @@ const TestRequestForm = () => {
         apiService.get(COMPANY_ENDPOINTS.GET_MY),
         apiService.get(CAUTION_ENDPOINTS.GET_ALL),
         apiService.get(PRICE_MASTER_ENDPOINTS.GET_ALL),
-        apiService.get(`${DEPARTMENT_ENDPOINTS.GET_ALL}?companyId=${targetCompanyId}&status=Active&limit=500`),
+        apiService.get(`${DEPARTMENT_ENDPOINTS.GET_ALL}?companyId=${targetCompanyId}&status=Active&limit=500&gpcbOnly=false&isGpcb=false`),
         apiService.get(CATEGORY_ENDPOINTS.GET_ALL)
       ]);
 
@@ -594,6 +609,10 @@ const TestRequestForm = () => {
       if (isEditing && tr) {
         const matchingComp = cList.find(c => c.id === tr.companyId || (c.companyName || c.company_name) === tr.companyName) || {};
         const matchingClient = clList.find(c => c.id === tr.clientId || c.clientName === tr.clientName) || {};
+        const emailsList = (matchingClient.emails && matchingClient.emails.length > 0)
+          ? matchingClient.emails
+          : (matchingClient.email ? matchingClient.email.split(',').map(e => e.trim()).filter(Boolean) : []);
+        setClientEmails(emailsList);
 
         let savedSubCatId = tr.subCategoryId || tr.sub_category_id || '';
         let savedCategoryId = tr.categoryId || tr.category_id || (tr.sampleParticular && tr.sampleParticular.length === 36 ? tr.sampleParticular : '');
@@ -688,16 +707,20 @@ const TestRequestForm = () => {
           industryPrice: tr.industryPrice || tr.industry_price || ''
         });
 
+        const initialCatIds = savedCategoryId ? [savedCategoryId] : [];
+        setSelectedCategoryIds(initialCatIds);
+
         if (savedSubCatId) {
           setSelectedSubCategory(savedSubCatId);
         }
 
         if (savedDepartmentId) {
           fetchCategoriesForDepartment(savedDepartmentId);
-        } else if (savedCategoryId) {
-          fetchSubCategoriesForCategory(savedCategoryId);
         }
-        fetchParameters(savedSubCatId, savedCategoryId, loadedSeq);
+        if (initialCatIds.length > 0) {
+          fetchSubCategoriesForCategories(initialCatIds);
+        }
+        fetchParameters(savedSubCatId, initialCatIds, loadedSeq);
       } else {
         // Pre-select company if we resolved one and auto-generate next Report No (e.g. JLT010826RR00320)
         const nowForFallback = new Date();
@@ -728,7 +751,20 @@ const TestRequestForm = () => {
 
   const [categoriesLoading, setCategoriesLoading] = useState(false);
 
-  const fetchCategoriesForDepartment = async (departmentId) => {
+  const fetchDepartmentsList = async (gpcbOnlyFlag = isGpcbOnly) => {
+    try {
+      const activeCompId = formData.companyId || localStorage.getItem('selectedCompanyId') || '';
+      let url = `${DEPARTMENT_ENDPOINTS.GET_ALL}?companyId=${activeCompId}&status=Active&limit=500&gpcbOnly=${gpcbOnlyFlag ? 'true' : 'false'}&isGpcb=${gpcbOnlyFlag ? 'true' : 'false'}`;
+      const res = await apiService.get(url);
+      if (res?.data) {
+        setDepartments(res.data.rows || res.data || []);
+      }
+    } catch (e) {
+      console.error("Error fetching departments", e);
+    }
+  };
+
+  const fetchCategoriesForDepartment = async (departmentId, gpcbOnlyFlag = isGpcbOnly) => {
     if (!departmentId) {
       setCategories([]);
       return;
@@ -736,7 +772,8 @@ const TestRequestForm = () => {
     setCategoriesLoading(true);
     try {
       const activeCompId = formData.companyId || localStorage.getItem('selectedCompanyId') || '';
-      const res = await apiService.get(`${CATEGORY_ENDPOINTS.GET_ALL}?departmentId=${departmentId}&companyId=${activeCompId}&status=Active&limit=1000&all=true`);
+      let url = `${CATEGORY_ENDPOINTS.GET_ALL}?departmentId=${departmentId}&companyId=${activeCompId}&status=Active&limit=1000&all=true&gpcbOnly=${gpcbOnlyFlag ? 'true' : 'false'}&isGpcb=${gpcbOnlyFlag ? 'true' : 'false'}`;
+      const res = await apiService.get(url);
       const raw = res?.data;
       let list = Array.isArray(raw) ? raw : (raw?.rows || raw?.categories || raw?.data || []);
       setCategories(list.filter(c => c.status === 'Active' || c.status === true || !c.status));
@@ -748,27 +785,22 @@ const TestRequestForm = () => {
     }
   };
 
-  const fetchSubCategoriesForCategory = async (categoryId) => {
-    if (!categoryId) {
+  const fetchSubCategoriesForCategories = async (categoryIds, gpcbOnlyFlag = isGpcbOnly) => {
+    const idsArray = Array.isArray(categoryIds)
+      ? categoryIds.filter(Boolean)
+      : (categoryIds ? [categoryIds] : []);
+
+    if (idsArray.length === 0) {
       setSubCategories([]);
       return;
     }
     setSubCategoriesLoading(true);
     try {
-      const res = await apiService.get(`${SUB_CATEGORY_ENDPOINTS.GET_ALL}?categoryId=${categoryId}&status=Active&all=true`);
+      let url = `${SUB_CATEGORY_ENDPOINTS.GET_ALL}?categoryId=${idsArray.join(',')}&status=Active&all=true&gpcbOnly=${gpcbOnlyFlag ? 'true' : 'false'}&isGpcb=${gpcbOnlyFlag ? 'true' : 'false'}`;
+      const res = await apiService.get(url);
       const raw = res?.data;
       let list = Array.isArray(raw) ? raw : (raw?.rows || raw?.subCategories || raw?.data || []);
       if (!Array.isArray(list)) list = [];
-
-      if (categoryId) {
-        const matched = list.filter(s => {
-          const sCatId = s.categoryId || s.category_id || (s.category ? s.category.id : '');
-          return String(sCatId) === String(categoryId);
-        });
-        if (matched.length > 0 || list.length > 0) {
-          list = matched.length > 0 ? matched : list;
-        }
-      }
 
       setSubCategories(list.filter(s => s.status === 'Active' || s.status === true || !s.status));
     } catch (e) {
@@ -779,19 +811,28 @@ const TestRequestForm = () => {
     }
   };
 
-  const fetchParameters = async (subCategoryId, categoryId, extraIncludeIds = []) => {
-    if (!subCategoryId && !categoryId && (!extraIncludeIds || extraIncludeIds.length === 0)) {
+  const fetchParameters = async (subCategoryId, categoryIds, extraIncludeIds = [], gpcbOnlyFlag = isGpcbOnly) => {
+    const idsArray = Array.isArray(categoryIds)
+      ? categoryIds.filter(Boolean)
+      : (typeof categoryIds === 'string' && categoryIds ? categoryIds.split(',').map(s => s.trim()).filter(Boolean) : []);
+
+    const checkedIds = (extraIncludeIds && extraIncludeIds.length > 0)
+      ? extraIncludeIds
+      : Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]);
+
+    if (!subCategoryId && idsArray.length === 0 && checkedIds.length === 0) {
       setParameters([]);
       setParametersLoading(false);
       return;
     }
     setParametersLoading(true);
     try {
-      let url = `${PARAMETER_ENDPOINTS.GET_ALL}?status=Active&all=true`;
+      let url = `${PARAMETER_ENDPOINTS.GET_ALL}?status=Active&all=true&gpcbOnly=${gpcbOnlyFlag ? 'true' : 'false'}&isGpcb=${gpcbOnlyFlag ? 'true' : 'false'}`;
       if (subCategoryId) {
         url += `&subCategoryId=${subCategoryId}`;
-      } else if (categoryId) {
-        url += `&categoryId=${categoryId}`;
+      }
+      if (idsArray.length > 0) {
+        url += `&categoryId=${idsArray.join(',')}`;
       }
       const res = await apiService.get(url);
       let list = [];
@@ -803,20 +844,43 @@ const TestRequestForm = () => {
         list = [res.data];
       }
 
-      let activeList = list.filter(p => p.status === 'Active' || p.status === true || !p.status);
+      let activeList = list.filter(p => {
+        const isActive = p.status === 'Active' || p.status === true || !p.status;
+        const isGpcb = p.isGpcb === true || p.is_gpcb === true || p.type === 'GPCB' || p.type === 'gpcb';
+        const matchesGpcb = gpcbOnlyFlag ? isGpcb : !isGpcb;
+        return isActive && matchesGpcb;
+      });
 
-      // If there are extra parameter IDs (e.g., from existing TR parameters) missing from activeList, fetch and merge them
-      if (extraIncludeIds && extraIncludeIds.length > 0) {
-        const missingIds = extraIncludeIds.filter(id => !activeList.some(p => p.id === id));
+      // If there are extra parameter IDs already checked (from previously selected discipline groups or saved request), merge them
+      if (checkedIds.length > 0) {
+        const missingIds = checkedIds.filter(id => !activeList.some(p => p.id === id));
         if (missingIds.length > 0) {
-          const allRes = await apiService.get(`${PARAMETER_ENDPOINTS.GET_ALL}?status=Active&all=true`);
-          const allList = Array.isArray(allRes?.data) ? allRes.data : (allRes?.data?.rows || []);
-          const extraParams = allList.filter(p => missingIds.includes(p.id));
-          activeList = [...activeList, ...extraParams];
+          try {
+            const allRes = await apiService.get(`${PARAMETER_ENDPOINTS.GET_ALL}?status=Active&all=true&gpcbOnly=${gpcbOnlyFlag ? 'true' : 'false'}&isGpcb=${gpcbOnlyFlag ? 'true' : 'false'}`);
+            const allList = Array.isArray(allRes?.data) ? allRes.data : (allRes?.data?.rows || []);
+            const extraParams = allList.filter(p => {
+              const isGpcb = p.isGpcb === true || p.is_gpcb === true || p.type === 'GPCB' || p.type === 'gpcb';
+              const matchesGpcb = gpcbOnlyFlag ? isGpcb : !isGpcb;
+              return missingIds.includes(p.id) && matchesGpcb;
+            });
+            activeList = [...activeList, ...extraParams];
+          } catch (err) {
+            console.error("Error loading checked extra parameters", err);
+          }
         }
       }
 
-      setParameters(activeList);
+      // Deduplicate activeList by parameter id
+      const seenMap = new Map();
+      const uniqueParams = [];
+      for (const p of activeList) {
+        if (!seenMap.has(p.id)) {
+          seenMap.set(p.id, true);
+          uniqueParams.push(p);
+        }
+      }
+
+      setParameters(uniqueParams);
       setParamPage(1);
     } catch (e) {
       console.error("Error fetching parameters", e);
@@ -826,23 +890,79 @@ const TestRequestForm = () => {
     }
   };
 
+  const handleToggleGpcb = async (e) => {
+    const nextGpcb = e.target.checked;
+    setIsGpcbOnly(nextGpcb);
+
+    // Clear dependent selection to prevent mismatched stale states
+    setSelectedSubCategory('');
+    setSelectedCategoryIds([]);
+    setFormData(prev => ({
+      ...prev,
+      departmentId: '',
+      categoryId: '',
+      subCategoryId: ''
+    }));
+    setCategories([]);
+    setSubCategories([]);
+    setParamPage(1);
+    setParamSearch('');
+
+    const currentCheckedIds = Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]);
+    if (currentCheckedIds.length > 0) {
+      fetchParameters('', [], currentCheckedIds, nextGpcb);
+    } else {
+      setParameters([]);
+    }
+
+    // Fetch fresh departments list with new GPCB state
+    await fetchDepartmentsList(nextGpcb);
+  };
+
+  const handleCategorySelectionChange = (selectedVals) => {
+    const catIdsArray = Array.isArray(selectedVals)
+      ? selectedVals.filter(Boolean)
+      : (selectedVals ? [selectedVals] : []);
+
+    setSelectedCategoryIds(catIdsArray);
+    setFormData(prev => ({
+      ...prev,
+      categoryId: catIdsArray[0] || ''
+    }));
+    setParamPage(1);
+
+    const currentCheckedIds = Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]);
+
+    if (catIdsArray.length > 0) {
+      fetchSubCategoriesForCategories(catIdsArray, isGpcbOnly);
+      fetchParameters(selectedSubCategory, catIdsArray, currentCheckedIds, isGpcbOnly);
+    } else {
+      setSubCategories([]);
+      if (currentCheckedIds.length > 0) {
+        fetchParameters('', [], currentCheckedIds, isGpcbOnly);
+      } else {
+        setParameters([]);
+      }
+    }
+  };
+
   const handleSubCategoryChange = (e) => {
     const subId = e.target.value;
     setSelectedSubCategory(subId);
     setFormData(prev => ({ ...prev, subCategoryId: subId }));
     setParamPage(1);
-    setCheckedParameters({});
-    if (subId) {
-      fetchParameters(subId, formData.categoryId);
-    } else if (formData.categoryId) {
-      fetchParameters('', formData.categoryId);
-    } else {
-      setParameters([]);
-    }
+
+    const currentCheckedIds = Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]);
+    fetchParameters(subId, selectedCategoryIds, currentCheckedIds, isGpcbOnly);
   };
 
   const handleToggleSelectAllParameters = () => {
-    const displayedParams = parameters.filter(param => !selectedSubCategory || param.subCategoryId === selectedSubCategory || param.subCategory?.id === selectedSubCategory);
+    const displayedParams = parameters.filter(param => {
+      if (selectedSubCategory) {
+        return param.subCategoryId === selectedSubCategory || param.subCategory?.id === selectedSubCategory || checkedParameters[param.id];
+      }
+      return true;
+    });
     if (displayedParams.length === 0) return;
 
     const allChecked = displayedParams.every(p => !!checkedParameters[p.id]);
@@ -882,47 +1002,94 @@ const TestRequestForm = () => {
 
     if (name === 'departmentId') {
       setSelectedSubCategory('');
+      setSelectedCategoryIds([]);
       setFormData(prev => ({ ...prev, departmentId: value, categoryId: '', subCategoryId: '' }));
-      setParameters([]);
-      setCheckedParameters({});
-      setSelectedParamSequence([]);
       setSubCategories([]);
       setParamPage(1);
       setParamSearch('');
       if (value) {
-        fetchCategoriesForDepartment(value);
+        fetchCategoriesForDepartment(value, isGpcbOnly);
       } else {
         setCategories([]);
       }
-    }
-
-    if (name === 'categoryId') {
-      setSelectedSubCategory('');
-      setFormData(prev => ({ ...prev, categoryId: value, subCategoryId: '' }));
-      setParameters([]);
-      setCheckedParameters({});
-      setParamPage(1);
-      setParamSearch('');
-      if (value) {
-        fetchSubCategoriesForCategory(value);
-        fetchParameters('', value);
+      const currentCheckedIds = Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]);
+      if (currentCheckedIds.length > 0) {
+        fetchParameters('', [], currentCheckedIds, isGpcbOnly);
       } else {
-        setSubCategories([]);
+        setParameters([]);
       }
     }
 
-    if (name === 'clientId' && value) {
-      // Auto-fill client details including Plant/Industry Address
-      const selectedClient = clients.find(c => c.id === value);
-      if (selectedClient) {
-        const clientPlantAddress = selectedClient.plantAddress || selectedClient.plant_address || selectedClient.officeAddress || selectedClient.office_address || selectedClient.address || '';
+    if (name === 'clientId') {
+      if (!value) {
+        setClientEmails([]);
         setFormData(prev => ({
           ...prev,
-          address: clientPlantAddress,
-          email: selectedClient.email || '',
-          contactNumber: selectedClient.contactNumber || prev.contactNumber
+          clientId: '',
+          address: '',
+          email: '',
+          contactNumber: ''
         }));
+      } else {
+        // Fetch latest client details from backend to resolve emails
+        apiService.get(CLIENT_ENDPOINTS.GET_BY_ID(value))
+          .then(res => {
+            const selectedClient = res.data;
+            if (selectedClient) {
+              const clientPlantAddress = selectedClient.plantAddress || selectedClient.plant_address || selectedClient.officeAddress || selectedClient.office_address || selectedClient.address || '';
+              const emailsList = (selectedClient.emails && selectedClient.emails.length > 0)
+                ? selectedClient.emails
+                : (selectedClient.email ? selectedClient.email.split(',').map(e => e.trim()).filter(Boolean) : []);
+              setClientEmails(emailsList);
+              const primaryEmail = emailsList.length > 0 ? emailsList[0] : '';
+              setFormData(prev => ({
+                ...prev,
+                address: clientPlantAddress,
+                email: primaryEmail,
+                contactNumber: selectedClient.contactNumber || prev.contactNumber
+              }));
+            }
+          })
+          .catch(err => {
+            console.error("Error fetching latest client details:", err);
+            const selectedClient = clients.find(c => c.id === value);
+            if (selectedClient) {
+              const clientPlantAddress = selectedClient.plantAddress || selectedClient.plant_address || selectedClient.officeAddress || selectedClient.office_address || selectedClient.address || '';
+              const emailsList = (selectedClient.emails && selectedClient.emails.length > 0)
+                ? selectedClient.emails
+                : (selectedClient.email ? selectedClient.email.split(',').map(e => e.trim()).filter(Boolean) : []);
+              setClientEmails(emailsList);
+              const primaryEmail = emailsList.length > 0 ? emailsList[0] : '';
+              setFormData(prev => ({
+                ...prev,
+                address: clientPlantAddress,
+                email: primaryEmail,
+                contactNumber: selectedClient.contactNumber || prev.contactNumber
+              }));
+            }
+          });
       }
+    }
+  };
+
+  const handleToggleEmail = (email) => {
+    const currentEmails = formData.email ? formData.email.split(',').map(e => e.trim()).filter(Boolean) : [];
+    let updated;
+    if (currentEmails.includes(email)) {
+      updated = currentEmails.filter(e => e !== email);
+    } else {
+      updated = [...currentEmails, email];
+    }
+    setFormData(prev => ({ ...prev, email: updated.join(', ') }));
+  };
+
+  const handleSelectAllEmails = () => {
+    const currentEmails = formData.email ? formData.email.split(',').map(e => e.trim()).filter(Boolean) : [];
+    const allSelected = clientEmails.every(e => currentEmails.includes(e));
+    if (allSelected) {
+      setFormData(prev => ({ ...prev, email: '' }));
+    } else {
+      setFormData(prev => ({ ...prev, email: clientEmails.join(', ') }));
     }
   };
 
@@ -956,16 +1123,11 @@ const TestRequestForm = () => {
       triggerToast('Please select a Department.', 'error');
       return false;
     }
-    const activeCatId = formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : '');
+    const activeCatId = selectedCategoryIds[0] || formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : '');
     if (!activeCatId) {
-      triggerToast('Please select a Discipline Group.', 'error');
+      triggerToast('Please select at least one Discipline Group.', 'error');
       return false;
     }
-    // HIDE MULTIPLE QUOTATIONS FUNCTIONALITY (DISABLED)
-    // if (formData.quotationRequired === 'Yes' && !formData.quotationType) {
-    //   triggerToast('Please select a Quotation Type.', 'error');
-    //   return false;
-    // }
     return true;
   };
 
@@ -977,7 +1139,7 @@ const TestRequestForm = () => {
 
     try {
       // 1. Save Test Request
-      const activeCatId = formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : null);
+      const activeCatId = selectedCategoryIds[0] || formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : null);
       const textSampleParticular = (formData.sampleParticular && formData.sampleParticular.length === 36) ? '' : formData.sampleParticular;
 
       const payload = {
@@ -989,10 +1151,13 @@ const TestRequestForm = () => {
         includeCaution: Boolean(formData.includeCaution),
         cautionId: formData.includeCaution && formData.cautionId ? formData.cautionId : null,
         reportIssueDays: formData.tentativeDays,
-        reviewedBy: formData.sampleTestingFacilityReviewedBy
+        reviewedBy: formData.sampleTestingFacilityReviewedBy,
+        quotationRequired: 'No',
+        quotationType: null
       };
       delete payload.tentativeDays;
       delete payload.sampleTestingFacilityReviewedBy;
+      delete payload.categoryIds;
 
       const targetId = savedRequestId || id;
       let savedTrId = targetId;
@@ -1113,7 +1278,11 @@ const TestRequestForm = () => {
   const handleSaveAndQuotation = async () => {
     const savedId = await handleSave();
     if (savedId) {
-      window.open(`#/test-requests/quotation/${savedId}`, '_blank');
+      if (formData.quotationType === 'Provisional') {
+        window.open(`#/quotations/provisional/add?trfId=${savedId}&type=provisional`, '_blank');
+      } else {
+        window.open(`#/test-requests/quotation/${savedId}`, '_blank');
+      }
       setTimeout(() => {
         navigate('/test-requests');
       }, 500);
@@ -1273,9 +1442,90 @@ const TestRequestForm = () => {
                 <textarea name="address" value={formData.address} onChange={handleChange} className="premium-input" rows={2} placeholder="Enter full address..."></textarea>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', position: 'relative' }} ref={emailDropdownRef}>
                 <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Email ID</label>
-                <input type="text" name="email" value={formData.email} onChange={handleChange} className="premium-input" placeholder="e.g. contact@client.com, contact2@client.com" />
+                {clientEmails.length > 1 ? (
+                  <>
+                    <div
+                      onClick={() => setShowEmailDropdown(!showEmailDropdown)}
+                      className="premium-input"
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        cursor: 'pointer',
+                        background: '#ffffff',
+                        minHeight: '42px',
+                        padding: '0.5rem 0.75rem',
+                        boxSizing: 'border-box'
+                      }}
+                    >
+                      <span style={{ fontSize: '0.9rem', color: formData.email ? '#0f172a' : '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {formData.email || 'Select Emails'}
+                      </span>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>▼</span>
+                    </div>
+
+                    {showEmailDropdown && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: '100%',
+                          left: 0,
+                          right: 0,
+                          marginTop: '0.25rem',
+                          background: '#ffffff',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '8px',
+                          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                          zIndex: 50,
+                          padding: '0.5rem',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '0.5rem',
+                          maxHeight: '200px',
+                          overflowY: 'auto'
+                        }}
+                      >
+                        {/* Select All Option */}
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.25rem 0.5rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, borderBottom: '1px solid #f1f5f9', paddingBottom: '0.5rem' }}>
+                          <input
+                            type="checkbox"
+                            checked={clientEmails.every(e => (formData.email ? formData.email.split(',').map(x => x.trim()) : []).includes(e))}
+                            onChange={handleSelectAllEmails}
+                            style={{ accentColor: '#22c55e', cursor: 'pointer' }}
+                          />
+                          Select All ({clientEmails.length})
+                        </label>
+
+                        {/* Individual Email Options */}
+                        {clientEmails.map((email, idx) => {
+                          const isChecked = (formData.email ? formData.email.split(',').map(x => x.trim()) : []).includes(email);
+                          return (
+                            <label key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.25rem 0.5rem', cursor: 'pointer', fontSize: '0.875rem', color: '#334155' }}>
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => handleToggleEmail(email)}
+                                style={{ accentColor: '#22c55e', cursor: 'pointer' }}
+                              />
+                              {email}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <input
+                    type="text"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    className="premium-input"
+                    placeholder="e.g. contact@client.com, contact2@client.com"
+                  />
+                )}
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
@@ -1435,9 +1685,64 @@ const TestRequestForm = () => {
 
           {/* Testing Parameters Card */}
           <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc' }}>
-              <div style={{ width: '12px', height: '24px', background: 'linear-gradient(to bottom, #8b5cf6, #a78bfa)', borderRadius: '6px' }}></div>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Testing Parameters</h3>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ width: '12px', height: '24px', background: 'linear-gradient(to bottom, #8b5cf6, #a78bfa)', borderRadius: '6px' }}></div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Testing Parameters</h3>
+              </div>
+
+              {/* GPCB Parameters Toggle */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.6rem',
+                  cursor: 'pointer',
+                  padding: '0.45rem 0.9rem',
+                  borderRadius: '10px',
+                  backgroundColor: isGpcbOnly ? '#f0fdf4' : '#f8fafc',
+                  border: isGpcbOnly ? '1.5px solid #86efac' : '1.5px solid #e2e8f0',
+                  transition: 'all 0.2s ease',
+                  userSelect: 'none'
+                }}>
+                  <input
+                    type="checkbox"
+                    id="gpcb-toggle"
+                    checked={isGpcbOnly}
+                    onChange={handleToggleGpcb}
+                    style={{
+                      width: '1.2rem',
+                      height: '1.2rem',
+                      accentColor: '#16a34a',
+                      cursor: 'pointer'
+                    }}
+                  />
+                  <span style={{
+                    fontSize: '0.9rem',
+                    fontWeight: isGpcbOnly ? 700 : 600,
+                    color: isGpcbOnly ? '#15803d' : '#475569'
+                  }}>
+                    GPCB Parameters Only
+                  </span>
+                </label>
+                {isGpcbOnly && (
+                  <span style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    backgroundColor: '#dcfce7',
+                    color: '#15803d',
+                    padding: '0.3rem 0.65rem',
+                    borderRadius: '20px',
+                    border: '1px solid #bbf7d0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem'
+                  }}>
+                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#16a34a', display: 'inline-block' }}></span>
+                    GPCB Mode Active
+                  </span>
+                )}
+              </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
@@ -1456,7 +1761,7 @@ const TestRequestForm = () => {
                 />
               </div>
 
-              {/* Discipline Group Dropdown */}
+              {/* Discipline Group Dropdown (Multi-Select) */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Discipline Group <span style={{ color: '#ef4444' }}>*</span></label>
@@ -1464,13 +1769,12 @@ const TestRequestForm = () => {
                 </div>
                 <SearchableSelect
                   options={[...categories].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
-                  value={formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : '')}
-                  onChange={(selectedVal) => {
-                    handleChange({ target: { name: 'categoryId', value: selectedVal } });
-                  }}
-                  placeholder="Select Discipline Group"
+                  value={selectedCategoryIds.length > 0 ? selectedCategoryIds : (formData.categoryId ? [formData.categoryId] : [])}
+                  onChange={handleCategorySelectionChange}
+                  placeholder="Select Discipline Group(s)"
                   searchPlaceholder="Search discipline group..."
                   disabled={!formData.departmentId}
+                  isMulti={true}
                 />
               </div>
 
@@ -1482,7 +1786,7 @@ const TestRequestForm = () => {
                   <AddMasterButton
                     label="Add New Sub Category"
                     onClick={() => {
-                      const activeCatId = formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : '');
+                      const activeCatId = selectedCategoryIds[0] || formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : '');
                       if (!activeCatId) {
                         triggerToast('Please select a Discipline Group first.', 'error');
                         return;
@@ -1497,19 +1801,19 @@ const TestRequestForm = () => {
                   onChange={(selectedVal) => {
                     handleSubCategoryChange({ target: { value: selectedVal } });
                   }}
-                  placeholder="Select Sub Category"
+                  placeholder="Select Sub Category (Optional)"
                   searchPlaceholder="Search sub category..."
-                  disabled={(!formData.categoryId && (!formData.sampleParticular || formData.sampleParticular.length !== 36)) || subCategoriesLoading}
+                  disabled={(selectedCategoryIds.length === 0 && !formData.categoryId && (!formData.sampleParticular || formData.sampleParticular.length !== 36)) || subCategoriesLoading}
                 />
-                {(formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36)) && !subCategoriesLoading && subCategories.length === 0 && (
+                {(selectedCategoryIds.length > 0 || formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36)) && !subCategoriesLoading && subCategories.length === 0 && (
                   <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic' }}>
-                    No subcategories available for this discipline group
+                    No subcategories available for selected discipline groups
                   </span>
                 )}
               </div>
             </div>
 
-            {!formData.categoryId && (!formData.sampleParticular || formData.sampleParticular.length !== 36) ? (
+            {(selectedCategoryIds.length === 0 && !formData.categoryId && (!formData.sampleParticular || formData.sampleParticular.length !== 36)) ? (
               <div style={{ padding: '2.5rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1', fontWeight: 500 }}>
                 Please select a Discipline Group to begin.
               </div>
@@ -1534,7 +1838,8 @@ const TestRequestForm = () => {
                   if (!paramSearch.trim()) return true;
                   const q = paramSearch.toLowerCase();
                   return (param.parameterName || '').toLowerCase().includes(q) ||
-                    (param.testMethod || '').toLowerCase().includes(q);
+                    (param.testMethod || '').toLowerCase().includes(q) ||
+                    (param.categoryName || '').toLowerCase().includes(q);
                 })
                 .sort((a, b) => (a.parameterName || '').localeCompare(b.parameterName || ''));
 
@@ -1548,6 +1853,13 @@ const TestRequestForm = () => {
                 (safeParamPage - 1) * paramPageSize,
                 safeParamPage * paramPageSize
               );
+
+              const checkedParamIdsList = Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]);
+              const totalCheckedPrice = checkedParamIdsList.reduce((sum, pId) => {
+                const paramObj = parameters.find(p => p.id === pId);
+                const price = priceMasterMap[pId] !== undefined ? priceMasterMap[pId] : (paramObj?.price || 0);
+                return sum + parseFloat(price || 0);
+              }, 0);
 
               return categoryFilteredParams.length > 0 && (
                 <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
@@ -1610,11 +1922,11 @@ const TestRequestForm = () => {
                       </button>
 
                       <span style={{ fontSize: '0.85rem', background: '#dcfce7', color: '#166534', padding: '0.3rem 0.75rem', borderRadius: '999px', fontWeight: 700 }}>
-                        Total: ₹{parameters.reduce((sum, param) => sum + (checkedParameters[param.id] ? (priceMasterMap[param.id] || 0) : 0), 0).toFixed(2)}
+                        Total: ₹{totalCheckedPrice.toFixed(2)}
                       </span>
 
                       <span style={{ fontSize: '0.8rem', background: '#e0e7ff', color: '#4338ca', padding: '0.25rem 0.65rem', borderRadius: '999px', fontWeight: 600 }}>
-                        {Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]).length} Selected
+                        {checkedParamIdsList.length} Selected
                       </span>
                     </div>
                   </div>
@@ -1648,9 +1960,12 @@ const TestRequestForm = () => {
                         ) : (
                           paginatedParams.map(param => {
                             const isChecked = !!checkedParameters[param.id];
-                            const paramPrice = priceMasterMap[param.id] || 0;
+                            const paramPrice = priceMasterMap[param.id] !== undefined ? priceMasterMap[param.id] : (parseFloat(param.price) || 0);
                             const seqIndex = selectedParamSequence.indexOf(param.id);
                             const seqNumber = seqIndex >= 0 ? seqIndex + 1 : null;
+                            const catLabel = param.categoryName || param.category?.name || '';
+                            const subCatLabel = param.subCategoryName || param.subCategory?.name || '';
+
                             return (
                               <tr
                                 key={param.id}
@@ -1688,8 +2003,24 @@ const TestRequestForm = () => {
                                     )}
                                   </div>
                                 </td>
-                                <td style={{ padding: '0.75rem 1rem', color: isChecked ? '#166534' : '#1e293b', fontWeight: isChecked ? 600 : 500 }}>
-                                  {param.parameterName}
+                                <td style={{ padding: '0.75rem 1rem' }}>
+                                  <div style={{ color: isChecked ? '#166534' : '#1e293b', fontWeight: isChecked ? 600 : 500 }}>
+                                    {param.parameterName}
+                                  </div>
+                                  {(catLabel || subCatLabel) && (
+                                    <div style={{ fontSize: '0.75rem', color: '#64748b', display: 'flex', gap: '0.4rem', marginTop: '3px', flexWrap: 'wrap' }}>
+                                      {catLabel && (
+                                        <span style={{ background: '#f1f5f9', color: '#475569', padding: '1px 7px', borderRadius: '4px', fontWeight: 500, border: '1px solid #e2e8f0' }}>
+                                          {catLabel}
+                                        </span>
+                                      )}
+                                      {subCatLabel && (
+                                        <span style={{ background: '#f8fafc', color: '#64748b', padding: '1px 7px', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
+                                          {subCatLabel}
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
                                 </td>
                                 <td style={{ padding: '0.75rem 1rem', color: isChecked ? '#15803d' : '#64748b' }}>
                                   {param.testMethod || 'N/A'}
@@ -1961,67 +2292,7 @@ const TestRequestForm = () => {
             </div>
           </div>
 
-          {/* Quotation Requirement Card */}
-          <div className="test-request-form-card" style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginTop: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc' }}>
-              <div style={{ width: '12px', height: '24px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '6px' }}></div>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Quotation Requirement</h3>
-            </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.75rem' }}>
-              {/* Quotation Requirement */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Do you want to add/generate a Quotation? <span style={{ color: '#ef4444' }}>*</span></label>
-                <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', background: '#f8fafc', padding: '0.75rem 1rem', border: '1px solid #e2e8f0', borderRadius: '8px', height: '42px', boxSizing: 'border-box' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500, color: '#1e293b' }}>
-                    <input
-                      type="radio"
-                      name="quotationRequired"
-                      value="No"
-                      checked={formData.quotationRequired === 'No'}
-                      onChange={() => setFormData(prev => ({ ...prev, quotationRequired: 'No', quotationType: '' }))}
-                      style={{ width: '1.1rem', height: '1.1rem', accentColor: '#3b82f6' }}
-                    />
-                    No
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500, color: '#1e293b' }}>
-                    <input
-                      type="radio"
-                      name="quotationRequired"
-                      value="Yes"
-                      checked={formData.quotationRequired === 'Yes'}
-                      onChange={() => setFormData(prev => ({ ...prev, quotationRequired: 'Yes' }))}
-                      style={{ width: '1.1rem', height: '1.1rem', accentColor: '#3b82f6' }}
-                    />
-                    Yes
-                  </label>
-                </div>
-              </div>
-
-              {/* HIDE MULTIPLE QUOTATIONS FUNCTIONALITY (DISABLED)
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', opacity: formData.quotationRequired === 'Yes' ? 1 : 0.5 }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>
-                  Quotation Type {formData.quotationRequired === 'Yes' && <span style={{ color: '#ef4444' }}>*</span>}
-                </label>
-                <select
-                  name="quotationType"
-                  value={formData.quotationType || ''}
-                  disabled={formData.quotationRequired !== 'Yes'}
-                  onChange={handleChange}
-                  className="premium-input"
-                  style={{ height: '42px' }}
-                >
-                  <option value="">Select Quotation Type</option>
-                  <option value="Quotation">Quotation</option>
-                  <option value="Consulting">Consulting</option>
-                  <option value="Audit">Audit</option>
-                  <option value="General Testing / Consulting">General Testing / Consulting</option>
-                  <option value="Monthly Consulting">Monthly Consulting</option>
-                </select>
-              </div>
-              */}
-            </div>
-          </div>
 
           {/* HIDE MULTIPLE QUOTATIONS FUNCTIONALITY (DISABLED) */}
           {false && (
@@ -2279,20 +2550,8 @@ const TestRequestForm = () => {
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.6rem 1.25rem', fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer' }}
             >
               <FaPrint />
-              <span>Save & TRF PDF</span>
+              <span>Save &amp; TRF PDF</span>
             </button>
-            {/* HIDE MULTIPLE QUOTATIONS FUNCTIONALITY (DISABLED)
-            formData.quotationRequired === 'Yes' && (
-              <button
-                type="button"
-                onClick={handleSaveAndQuotation}
-                disabled={submitting}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.6rem 1.25rem', fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer' }}
-              >
-                <FaFilePdf />
-                <span>Generate Quotation</span>
-              </button>
-            )*/}
           </div>
         </div>
 

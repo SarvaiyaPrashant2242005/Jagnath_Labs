@@ -174,15 +174,24 @@ const createParameter = async (parameterData, userId, reqInfo) => {
         const { categoryId, ...paramFields } = parameterData;
 
         const paramSubCatId = paramFields.subCategoryId || null;
-        delete paramFields.locationSampleId;
-        const findWhere = {
-            companyId: paramFields.companyId,
-            parameterName: { [Op.iLike]: paramFields.parameterName.trim() },
-            subCategoryId: paramSubCatId
-        };
+        const testMethodNorm = (paramFields.testMethod || '').trim();
+        const refStdNorm = (paramFields.referenceStandard || '').trim();
+        const whereConditions = [
+            { companyId: paramFields.companyId },
+            sequelize.where(sequelize.fn('LOWER', sequelize.fn('TRIM', sequelize.col('parameterName'))), paramFields.parameterName.trim().toLowerCase()),
+            paramSubCatId 
+                ? { subCategoryId: paramSubCatId } 
+                : { subCategoryId: null },
+            testMethodNorm
+                ? sequelize.where(sequelize.fn('LOWER', sequelize.fn('TRIM', sequelize.fn('COALESCE', sequelize.col('testMethod'), ''))), testMethodNorm.toLowerCase())
+                : sequelize.where(sequelize.fn('COALESCE', sequelize.fn('TRIM', sequelize.col('testMethod')), ''), ''),
+            refStdNorm
+                ? sequelize.where(sequelize.fn('LOWER', sequelize.fn('TRIM', sequelize.fn('COALESCE', sequelize.col('reference_standard'), ''))), refStdNorm.toLowerCase())
+                : sequelize.where(sequelize.fn('COALESCE', sequelize.fn('TRIM', sequelize.col('reference_standard')), ''), '')
+        ];
 
         let newParameter = await Parameter.findOne({
-            where: findWhere,
+            where: { [Op.and]: whereConditions },
             transaction
         });
 
@@ -193,9 +202,12 @@ const createParameter = async (parameterData, userId, reqInfo) => {
             await newParameter.update({
                 description: paramFields.description || newParameter.description,
                 testMethod: paramFields.testMethod || newParameter.testMethod,
+                referenceStandard: paramFields.referenceStandard !== undefined ? paramFields.referenceStandard : newParameter.referenceStandard,
                 unit: paramFields.unit !== undefined ? paramFields.unit : newParameter.unit,
                 isPermissibleLimitApplicable: paramFields.isPermissibleLimitApplicable !== undefined ? paramFields.isPermissibleLimitApplicable : newParameter.isPermissibleLimitApplicable,
                 permissibleLimit: paramFields.permissibleLimit !== undefined ? paramFields.permissibleLimit : newParameter.permissibleLimit,
+                acceptableLimit: paramFields.acceptableLimit !== undefined ? paramFields.acceptableLimit : newParameter.acceptableLimit,
+                isGpcb: paramFields.isGpcb !== undefined ? paramFields.isGpcb : newParameter.isGpcb,
                 price: paramFields.price !== undefined ? paramFields.price : newParameter.price,
                 status: paramFields.status || newParameter.status
             }, { transaction });
@@ -578,11 +590,16 @@ const getParametersByCompany = async (companyId, options = {}) => {
         }
 
         if (options.categoryId) {
+            const catIds = Array.isArray(options.categoryId)
+                ? options.categoryId
+                : (typeof options.categoryId === 'string' && options.categoryId.includes(',')
+                    ? options.categoryId.split(',').map(s => s.trim()).filter(Boolean)
+                    : [options.categoryId]);
             queryOptions.where[Op.and] = queryOptions.where[Op.and] || [];
             queryOptions.where[Op.and].push({
                 [Op.or]: [
-                    { '$categoryParameters.categoryId$': options.categoryId },
-                    { '$subCategory.category.id$': options.categoryId }
+                    { '$categoryParameters.categoryId$': { [Op.in]: catIds } },
+                    { '$subCategory.category.id$': { [Op.in]: catIds } }
                 ]
             });
             queryOptions.subQuery = false;
@@ -597,6 +614,12 @@ const getParametersByCompany = async (companyId, options = {}) => {
                 ]
             });
             queryOptions.subQuery = false;
+        }
+
+        if (options.gpcbOnly === true || options.gpcbOnly === 'true' || options.isGpcb === 'true' || options.isGpcb === true || options.type === 'GPCB') {
+            queryOptions.where.isGpcb = true;
+        } else if (options.gpcbOnly === false || options.gpcbOnly === 'false' || options.isGpcb === 'false' || options.isGpcb === false || options.type === 'Normal' || options.type === 'NORMAL') {
+            queryOptions.where.isGpcb = false;
         }
 
         if (options.limit && options.page && options.all !== 'true' && options.all !== true) {
@@ -715,15 +738,40 @@ module.exports = {
                     }
                 }
 
+                // Parse isGpcb (from isGpcb, is_gpcb, isgpcb, "Is GPCB?", "Parameter Type", etc.)
+                let isGpcb = false;
+                const rawGpcb = data.isGpcb !== undefined ? data.isGpcb : (
+                    data.is_gpcb !== undefined ? data.is_gpcb : (
+                        data.isgpcb !== undefined ? data.isgpcb : (
+                            data['Is GPCB?'] !== undefined ? data['Is GPCB?'] : (
+                                data['Is GPCB'] !== undefined ? data['Is GPCB'] : (
+                                    data.parameterType || data.type || null
+                                )
+                            )
+                        )
+                    )
+                );
+                if (rawGpcb !== null && rawGpcb !== undefined) {
+                    if (typeof rawGpcb === 'boolean') {
+                        isGpcb = rawGpcb;
+                    } else {
+                        const gStr = String(rawGpcb).trim().toLowerCase();
+                        isGpcb = ['gpcb', 'true', 'yes', 'y', '1'].includes(gStr);
+                    }
+                }
+
                 const paramPayload = {
                     companyId,
                     parameterName: paramName,
                     subCategoryId: subCategoryId || data.subCategoryId || null,
                     description: data.description || null,
                     testMethod: data.testMethod || data.testing_method || data.referenceMethod || null,
+                    referenceStandard: data.referenceStandard || data.reference_standard || data.refStandard || data['Reference Standard'] || null,
                     unit: data.unit || null,
                     isPermissibleLimitApplicable,
                     permissibleLimit: data.permissibleLimit || data.permissible_limit || data.limit || null,
+                    acceptableLimit: data.acceptableLimit || data.acceptable_limit || data.acceptable || data['Acceptable / Requirement'] || data['Acceptable/Requirement'] || data['Acceptable Limit'] || null,
+                    isGpcb,
                     price,
                     status: (data.status && ['Active', 'Inactive'].includes(String(data.status).trim())) ? String(data.status).trim() : 'Active'
                 };
@@ -732,13 +780,22 @@ module.exports = {
                 if (item._dbId) {
                     existing = await Parameter.findOne({ where: { id: item._dbId, companyId }, transaction });
                 } else {
-                    const findWhere = {
-                        companyId,
-                        parameterName: { [Op.iLike]: paramName.trim() },
-                        subCategoryId: paramPayload.subCategoryId || null,
-                        testMethod: paramPayload.testMethod ? { [Op.iLike]: paramPayload.testMethod.trim() } : null
-                    };
-                    existing = await Parameter.findOne({ where: findWhere, transaction });
+                    const testMethodNorm = (paramPayload.testMethod || '').trim();
+                    const refStdNorm = (paramPayload.referenceStandard || '').trim();
+                    const whereConditions = [
+                        { companyId },
+                        sequelize.where(sequelize.fn('LOWER', sequelize.fn('TRIM', sequelize.col('parameterName'))), paramName.trim().toLowerCase()),
+                        paramPayload.subCategoryId 
+                            ? { subCategoryId: paramPayload.subCategoryId } 
+                            : { subCategoryId: null },
+                        testMethodNorm
+                            ? sequelize.where(sequelize.fn('LOWER', sequelize.fn('TRIM', sequelize.fn('COALESCE', sequelize.col('testMethod'), ''))), testMethodNorm.toLowerCase())
+                            : sequelize.where(sequelize.fn('COALESCE', sequelize.fn('TRIM', sequelize.col('testMethod')), ''), ''),
+                        refStdNorm
+                            ? sequelize.where(sequelize.fn('LOWER', sequelize.fn('TRIM', sequelize.fn('COALESCE', sequelize.col('reference_standard'), ''))), refStdNorm.toLowerCase())
+                            : sequelize.where(sequelize.fn('COALESCE', sequelize.fn('TRIM', sequelize.col('reference_standard')), ''), '')
+                    ];
+                    existing = await Parameter.findOne({ where: { [Op.and]: whereConditions }, transaction });
                 }
 
                 if (existing) {
@@ -778,7 +835,19 @@ module.exports = {
             }
 
             await transaction.commit();
-            return { createdCount, updatedCount, totalProcessed: records.length };
+            
+            let gpcbCount = 0;
+            let normalCount = 0;
+            for (const item of records) {
+                const data = item.data || {};
+                const isGpcb = data.isGpcb === true || String(data.isGpcb).toLowerCase() === 'true' || String(data.isGpcb).toLowerCase() === 'gpcb' ||
+                               data.is_gpcb === true || String(data.is_gpcb).toLowerCase() === 'true' || String(data.is_gpcb).toLowerCase() === 'gpcb' ||
+                               String(data.parameterType || data.type || '').trim().toUpperCase() === 'GPCB';
+                if (isGpcb) gpcbCount++;
+                else normalCount++;
+            }
+
+            return { createdCount, updatedCount, totalProcessed: records.length, gpcbCount, normalCount };
         } catch (error) {
             await transaction.rollback();
             throw error;

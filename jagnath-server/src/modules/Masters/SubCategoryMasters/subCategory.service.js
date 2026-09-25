@@ -96,19 +96,26 @@ const getAllSubCategories = async (query, companyId) => {
     }
 
     if (query.categoryId) {
-        const cat = await db.Category.findOne({ where: { id: query.categoryId } });
-        if (cat) {
-            const sameNameCatsWhere = { name: { [Op.iLike]: cat.name.trim() } };
+        const rawCatIds = Array.isArray(query.categoryId)
+            ? query.categoryId
+            : (typeof query.categoryId === 'string' && query.categoryId.includes(',')
+                ? query.categoryId.split(',').map(s => s.trim()).filter(Boolean)
+                : [query.categoryId]);
+        
+        const cats = await db.Category.findAll({ where: { id: { [Op.in]: rawCatIds } } });
+        if (cats.length > 0) {
+            const catNames = cats.map(c => c.name.trim());
+            const sameNameCatsWhere = {
+                [Op.or]: catNames.map(n => ({ name: { [Op.iLike]: n } }))
+            };
             if (targetCompanyId) {
                 sameNameCatsWhere.companyId = targetCompanyId;
             }
-            const sameNameCats = await db.Category.findAll({
-                where: sameNameCatsWhere
-            });
+            const sameNameCats = await db.Category.findAll({ where: sameNameCatsWhere });
             const catIds = sameNameCats.map(c => c.id);
             whereClause.categoryId = { [Op.in]: catIds };
         } else {
-            whereClause.categoryId = query.categoryId;
+            whereClause.categoryId = { [Op.in]: rawCatIds };
         }
     }
 
@@ -131,6 +138,32 @@ const getAllSubCategories = async (query, companyId) => {
 
     if (query.departmentId) {
         whereClause['$category.departmentId$'] = query.departmentId;
+    }
+
+    if (query.gpcbOnly === true || query.gpcbOnly === 'true' || query.gpcb_only === 'true' || query.isGpcb === 'true' || query.is_gpcb === 'true') {
+        const gpcbParams = await db.Parameter.findAll({
+            where: {
+                ...(targetCompanyId ? { companyId: targetCompanyId } : {}),
+                isGpcb: true,
+                deleted_at: null,
+                subCategoryId: { [Op.ne]: null }
+            },
+            attributes: ["subCategoryId"]
+        });
+        const validSubCatIds = Array.from(new Set(gpcbParams.map(p => p.subCategoryId).filter(Boolean)));
+        whereClause.id = { [Op.in]: validSubCatIds };
+    } else if (query.gpcbOnly === false || query.gpcbOnly === 'false' || query.gpcb_only === 'false' || query.isGpcb === 'false' || query.is_gpcb === 'false') {
+        const normalParams = await db.Parameter.findAll({
+            where: {
+                ...(targetCompanyId ? { companyId: targetCompanyId } : {}),
+                isGpcb: false,
+                deleted_at: null,
+                subCategoryId: { [Op.ne]: null }
+            },
+            attributes: ["subCategoryId"]
+        });
+        const validSubCatIds = Array.from(new Set(normalParams.map(p => p.subCategoryId).filter(Boolean)));
+        whereClause.id = { [Op.in]: validSubCatIds };
     }
 
     const queryOptions = {

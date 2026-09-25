@@ -185,10 +185,13 @@ export const MASTER_SCHEMAS = {
       { key: 'categoryName', label: 'Discipline Group *', required: true, type: 'string', aliases: ['disciplinegroup', 'disciplinegroup*', 'disciplinegroupname', 'groupname', 'category', 'categoryname', 'Discipline Group *'] },
       { key: 'subCategoryName', label: 'Sub Category', required: false, type: 'string', aliases: ['subcategory', 'subcategoryname', 'subcategory_name', 'Sub Category'] },
       { key: 'parameterName', label: 'Parameter Name *', required: true, type: 'string', aliases: ['parametername', 'parametername*', 'name', 'parameter', 'Parameter Name *'] },
+      { key: 'referenceStandard', label: 'Reference Standard', required: false, type: 'string', aliases: ['referencestandard', 'reference_standard', 'refstandard', 'ref_standard', 'standard', 'Reference Standard'] },
       { key: 'testMethod', label: 'Test Method', required: false, type: 'string', aliases: ['testmethod', 'test_method', 'testingmethod', 'testing_method', 'referencemethod', 'reference_method', 'method', 'Test Method', 'Testing Method', 'Reference Method'] },
       { key: 'unit', label: 'Unit', required: false, type: 'string', aliases: ['unit', 'units', 'Unit'] },
       { key: 'isPermissibleLimitApplicable', label: 'Permissible Limit Applicable?', required: false, type: 'select', options: ['Yes', 'No'], aliases: ['permissiblelimitapplicable', 'permissiblelimitapplicable?', 'ispermissiblelimitapplicable', 'ispermissiblelimitapplicable?', 'Permissible Limit Applicable?'] },
+      { key: 'acceptableLimit', label: 'Acceptable / Requirement', required: false, type: 'string', aliases: ['acceptablelimit', 'acceptable_limit', 'acceptable / requirement', 'acceptable/requirement', 'acceptable', 'requirement', 'Acceptable / Requirement', 'Acceptable Limit'] },
       { key: 'permissibleLimit', label: 'Permissible Limit', required: false, type: 'string', aliases: ['permissiblelimit', 'limit', 'Permissible Limit'] },
+      { key: 'isGpcb', label: 'Is GPCB?', required: false, type: 'select', options: ['Yes', 'No'], aliases: ['isgpcb', 'is_gpcb', 'is gpcb', 'is gpcb?', 'gpcb', 'parametertype', 'type', 'Parameter Type', 'Is GPCB?', 'Is GPCB', 'GPCB'] },
       { key: 'price', label: 'Price (₹)', required: false, type: 'number', aliases: ['price', 'price*', 'rate', 'testingrate', 'Price', 'Price (₹)', 'Price *'] },
       { key: 'status', label: 'Status', required: false, type: 'select', options: ['Active', 'Inactive'], aliases: ['status', 'Status'] }
     ],
@@ -198,10 +201,13 @@ export const MASTER_SCHEMAS = {
         'Discipline Group *': 'WATER TESTING',
         'Sub Category': 'Physical Parameters',
         'Parameter Name *': 'pH Level',
+        'Reference Standard': 'IS 3025 (Part 11)',
         'Test Method': 'APHA, 23rd Edition 2017/4500-H-B',
         'Unit': 'pH',
         'Permissible Limit Applicable?': 'Yes',
+        'Acceptable / Requirement': '6.5 - 8.5',
         'Permissible Limit': '6.5 - 8.5',
+        'Is GPCB?': 'Yes',
         'Price (₹)': 250,
         'Status': 'Active'
       },
@@ -210,10 +216,13 @@ export const MASTER_SCHEMAS = {
         'Discipline Group *': 'WATER TESTING',
         'Sub Category': 'Physical Parameters',
         'Parameter Name *': 'Total Dissolved Solids (TDS)',
+        'Reference Standard': 'IS 3025 (Part 16)',
         'Test Method': 'IS 3025 (Part 16)',
         'Unit': 'mg/L',
         'Permissible Limit Applicable?': 'Yes',
-        'Permissible Limit': '500',
+        'Acceptable / Requirement': '500',
+        'Permissible Limit': '2000',
+        'Is GPCB?': 'No',
         'Price (₹)': 350,
         'Status': 'Active'
       }
@@ -306,10 +315,19 @@ export const parseExcelFile = (file) => {
       try {
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
-        const firstSheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[firstSheetName];
-        const rawJson = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
-        resolve(rawJson);
+        let allRows = [];
+        
+        // If workbook contains multiple sheets, read each sheet and attach _sheetName
+        workbook.SheetNames.forEach(sheetName => {
+          const worksheet = workbook.Sheets[sheetName];
+          const rawJson = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+          rawJson.forEach(row => {
+            row._sheetName = sheetName;
+          });
+          allRows = allRows.concat(rawJson);
+        });
+
+        resolve(allRows);
       } catch (err) {
         reject(new Error('Failed to parse Excel file. Please ensure it is a valid .xlsx or .xls file.'));
       }
@@ -456,6 +474,20 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
       }
     });
 
+    // Classification of Is GPCB for parameter master directly from column isgpcb / isGpcb / Is GPCB?
+    if (masterType === 'parameter') {
+      let isGpcbAssigned = 'No';
+      if (normalizedData['isGpcb'] !== undefined && normalizedData['isGpcb'] !== null) {
+        const typeVal = String(normalizedData['isGpcb']).trim().toLowerCase();
+        if (['yes', 'y', 'true', '1', 'gpcb'].includes(typeVal)) {
+          isGpcbAssigned = 'Yes';
+        } else {
+          isGpcbAssigned = 'No';
+        }
+      }
+      normalizedData['isGpcb'] = isGpcbAssigned;
+    }
+
     // Check for internal file duplicates
     let isDuplicateInFile = false;
     let fileDuplicateMessage = '';
@@ -498,11 +530,12 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
       const nName = normalizeString(normalizedData.parameterName);
       const nSub = normalizeString(normalizedData.subCategoryName);
       const nMethod = normalizeString(normalizedData.testMethod);
+      const nRefStd = normalizeString(normalizedData.referenceStandard);
       const nCatName = normalizeString(normalizedData.categoryName);
-      const paramSignature = `${nName}___${nSub}___${nMethod}___${nCatName}`;
+      const paramSignature = `${nName}___${nSub}___${nMethod}___${nRefStd}___${nCatName}`;
       if (nName && seenNamesInFile.has(paramSignature)) {
         isDuplicateInFile = true;
-        fileDuplicateMessage = `Duplicate parameter name under same sub category, test method, and discipline group in uploaded file (first found at row ${seenNamesInFile.get(paramSignature)}). This row will update the record.`;
+        fileDuplicateMessage = `Duplicate parameter name under same sub category, test method, reference standard, and discipline group in uploaded file (first found at row ${seenNamesInFile.get(paramSignature)}). This row will update the record.`;
       } else if (nName) {
         seenNamesInFile.set(paramSignature, validRowNum);
       }
@@ -567,11 +600,13 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
         const nParamName = normalizeString(normalizedData.parameterName);
         const nSub = normalizeString(normalizedData.subCategoryName);
         const nMethod = normalizeString(normalizedData.testMethod);
+        const nRefStd = normalizeString(normalizedData.referenceStandard);
         const nCatName = normalizeString(normalizedData.categoryName);
         const dbParam = existingDbRecords.find(p => 
           normalizeString(p.parameterName || p.name) === nParamName &&
           normalizeString(p.subCategoryName) === nSub &&
           normalizeString(p.testMethod) === nMethod &&
+          normalizeString(p.referenceStandard || p.reference_standard) === nRefStd &&
           normalizeString(p.categoryName) === nCatName
         );
         if (dbParam) {
