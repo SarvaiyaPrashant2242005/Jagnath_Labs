@@ -176,24 +176,26 @@ const createParameter = async (parameterData, userId, reqInfo) => {
         const paramSubCatId = paramFields.subCategoryId || null;
         const testMethodNorm = (paramFields.testMethod || '').trim();
         const refStdNorm = (paramFields.referenceStandard || '').trim();
-        const whereConditions = [
-            { companyId: paramFields.companyId },
-            sequelize.where(sequelize.fn('LOWER', sequelize.fn('TRIM', sequelize.col('parameterName'))), paramFields.parameterName.trim().toLowerCase()),
-            paramSubCatId 
-                ? { subCategoryId: paramSubCatId } 
-                : { subCategoryId: null },
-            testMethodNorm
-                ? sequelize.where(sequelize.fn('LOWER', sequelize.fn('TRIM', sequelize.fn('COALESCE', sequelize.col('testMethod'), ''))), testMethodNorm.toLowerCase())
-                : sequelize.where(sequelize.fn('COALESCE', sequelize.fn('TRIM', sequelize.col('testMethod')), ''), ''),
-            refStdNorm
-                ? sequelize.where(sequelize.fn('LOWER', sequelize.fn('TRIM', sequelize.fn('COALESCE', sequelize.col('reference_standard'), ''))), refStdNorm.toLowerCase())
-                : sequelize.where(sequelize.fn('COALESCE', sequelize.fn('TRIM', sequelize.col('reference_standard')), ''), '')
-        ];
 
-        let newParameter = await Parameter.findOne({
-            where: { [Op.and]: whereConditions },
-            transaction
-        });
+        let newParameter = null;
+        // Only look for existing parameter if BOTH testMethod and referenceStandard are provided
+        if (testMethodNorm && refStdNorm) {
+            const whereConditions = [
+                { companyId: paramFields.companyId },
+                sequelize.where(sequelize.fn('LOWER', sequelize.fn('TRIM', sequelize.col('parameterName'))), paramFields.parameterName.trim().toLowerCase()),
+                paramSubCatId 
+                    ? { subCategoryId: paramSubCatId } 
+                    : { subCategoryId: null },
+                sequelize.where(sequelize.fn('LOWER', sequelize.fn('TRIM', sequelize.fn('COALESCE', sequelize.col('testMethod'), ''))), testMethodNorm.toLowerCase()),
+                sequelize.where(sequelize.fn('LOWER', sequelize.fn('TRIM', sequelize.fn('COALESCE', sequelize.col('reference_standard'), ''))), refStdNorm.toLowerCase()),
+                { isGpcb: !!paramFields.isGpcb }
+            ];
+
+            newParameter = await Parameter.findOne({
+                where: { [Op.and]: whereConditions },
+                transaction
+            });
+        }
 
         if (!newParameter) {
             newParameter = await Parameter.create(paramFields, { transaction });
@@ -782,20 +784,21 @@ module.exports = {
                 } else {
                     const testMethodNorm = (paramPayload.testMethod || '').trim();
                     const refStdNorm = (paramPayload.referenceStandard || '').trim();
-                    const whereConditions = [
-                        { companyId },
-                        sequelize.where(sequelize.fn('LOWER', sequelize.fn('TRIM', sequelize.col('parameterName'))), paramName.trim().toLowerCase()),
-                        paramPayload.subCategoryId 
-                            ? { subCategoryId: paramPayload.subCategoryId } 
-                            : { subCategoryId: null },
-                        testMethodNorm
-                            ? sequelize.where(sequelize.fn('LOWER', sequelize.fn('TRIM', sequelize.fn('COALESCE', sequelize.col('testMethod'), ''))), testMethodNorm.toLowerCase())
-                            : sequelize.where(sequelize.fn('COALESCE', sequelize.fn('TRIM', sequelize.col('testMethod')), ''), ''),
-                        refStdNorm
-                            ? sequelize.where(sequelize.fn('LOWER', sequelize.fn('TRIM', sequelize.fn('COALESCE', sequelize.col('reference_standard'), ''))), refStdNorm.toLowerCase())
-                            : sequelize.where(sequelize.fn('COALESCE', sequelize.fn('TRIM', sequelize.col('reference_standard')), ''), '')
-                    ];
-                    existing = await Parameter.findOne({ where: { [Op.and]: whereConditions }, transaction });
+
+                    // Only look for existing duplicate if BOTH testMethod and referenceStandard are provided
+                    if (testMethodNorm && refStdNorm) {
+                        const whereConditions = [
+                            { companyId },
+                            sequelize.where(sequelize.fn('LOWER', sequelize.fn('TRIM', sequelize.col('parameterName'))), paramName.trim().toLowerCase()),
+                            paramPayload.subCategoryId 
+                                ? { subCategoryId: paramPayload.subCategoryId } 
+                                : { subCategoryId: null },
+                            sequelize.where(sequelize.fn('LOWER', sequelize.fn('TRIM', sequelize.fn('COALESCE', sequelize.col('testMethod'), ''))), testMethodNorm.toLowerCase()),
+                            sequelize.where(sequelize.fn('LOWER', sequelize.fn('TRIM', sequelize.fn('COALESCE', sequelize.col('reference_standard'), ''))), refStdNorm.toLowerCase()),
+                            { isGpcb: paramPayload.isGpcb }
+                        ];
+                        existing = await Parameter.findOne({ where: { [Op.and]: whereConditions }, transaction });
+                    }
                 }
 
                 if (existing) {
