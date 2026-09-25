@@ -225,14 +225,7 @@ const getById = async (req, res) => {
             return res.status(404).json(errorResponse("NOT_FOUND", "Test Request not found.", "Test Request not found."));
         }
 
-        // Validate if this request is allowed to generate a quotation
-        if (req.query.forQuotation === 'true' && tr.quotationRequired === 'No') {
-            return res.status(400).json(errorResponse(
-                "BAD_REQUEST",
-                "Quotation was not requested for this Test Request.",
-                "Quotation was not requested for this Test Request."
-            ));
-        }
+        // Allow quotation generation for any valid Test Request
 
         // Verify company ownership if not SuperAdmin
         if (!isSuperAdmin) {

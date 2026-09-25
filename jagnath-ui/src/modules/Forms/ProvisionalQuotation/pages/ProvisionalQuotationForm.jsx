@@ -5,12 +5,13 @@
  */
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import {
   FaArrowLeft, FaSave, FaPrint, FaClipboardList, FaBuilding,
   FaFileInvoiceDollar, FaCar, FaUserTie, FaHotel, FaFlask,
   FaTable, FaGavel, FaSignature, FaStamp, FaUpload, FaTrash,
-  FaPlus, FaCheckCircle, FaPercent, FaEye, FaCalculator, FaUndo
+  FaPlus, FaCheckCircle, FaPercent, FaEye, FaCalculator, FaUndo,
+  FaFileAlt
 } from 'react-icons/fa';
 
 import { apiService } from '../../../../shared/services/apiService';
@@ -175,6 +176,7 @@ const renderStandardPageFooter = (pageNum) => (
 
 const ProvisionalQuotationForm = () => {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const isEditing = !!id;
 
@@ -182,6 +184,7 @@ const ProvisionalQuotationForm = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const [quotationCategoryType, setQuotationCategoryType] = useState(searchParams.get('type') === 'regular' ? 'regular' : 'provisional'); // 'provisional' | 'regular'
 
   // Master Data
   const [masters, setMasters] = useState({
@@ -245,6 +248,14 @@ const ProvisionalQuotationForm = () => {
             financialYear: 'YEAR 2025-26',
             subject: buildSubject('ENVIRONMENTAL', '', 'YEAR 2025-26'),
           });
+
+          // Auto-select TRF from URL param if passed
+          const urlTrfId = searchParams.get('trfId');
+          if (urlTrfId) {
+            setTimeout(() => {
+              handleSelectTRF(urlTrfId);
+            }, 100);
+          }
         }
       } catch (err) {
         console.error('Error initializing quotation form:', err);
@@ -933,10 +944,14 @@ const ProvisionalQuotationForm = () => {
           </Link>
           <div>
             <h2 className="module-title" style={{ fontSize: '1.35rem' }}>
-              {isEditing ? `Edit Quotation: ${formData.quotationNumber}` : 'New Provisional Estimated Quotation'}
+              {quotationCategoryType === 'regular' 
+                ? 'Regular Quotation Generator (TRF Analysis)' 
+                : (isEditing ? `Edit Quotation: ${formData.quotationNumber}` : 'New Provisional Estimated Quotation')}
             </h2>
             <span className="text-xs text-muted">
-              Schedule-II Environmental Audit & Sampling Proposal Builder
+              {quotationCategoryType === 'regular'
+                ? 'Standard 1-Page Water & Wastewater Sample Analysis Quotation with GPCB Rates & 18% GST'
+                : 'Schedule-II Environmental Audit & Sampling Proposal Builder'}
             </span>
           </div>
         </div>
@@ -946,20 +961,45 @@ const ProvisionalQuotationForm = () => {
             type="button"
             className="btn btn-outline-primary btn-sm"
             onClick={() => {
-              handleSave();
-              window.open(`#/quotations/provisional/print/${formData.id}`, '_blank');
+              if (quotationCategoryType === 'regular') {
+                if (!formData.testRequestId) {
+                  triggerToast('Please select a TRF first.', 'error');
+                  return;
+                }
+                window.open(`#/test-requests/quotation/${formData.testRequestId}`, '_blank');
+              } else {
+                handleSave();
+                window.open(`#/quotations/provisional/print/${formData.id}`, '_blank');
+              }
             }}
           >
             <FaPrint /> Print / Save PDF
           </button>
-          <button
-            type="button"
-            className="btn btn-primary btn-sm font-semibold"
-            onClick={handleSave}
-            disabled={saving}
-          >
-            <FaSave /> {saving ? 'Saving...' : 'Save Quotation'}
-          </button>
+          {quotationCategoryType === 'regular' ? (
+            <button
+              type="button"
+              className="btn btn-primary btn-sm font-semibold"
+              style={{ background: '#0284c7', borderColor: '#0284c7' }}
+              onClick={() => {
+                if (!formData.testRequestId) {
+                  triggerToast('Please select a TRF first.', 'error');
+                  return;
+                }
+                window.open(`#/test-requests/quotation/${formData.testRequestId}`, '_blank');
+              }}
+            >
+              <FaFileAlt /> Open Regular Quotation
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-primary btn-sm font-semibold"
+              onClick={handleSave}
+              disabled={saving}
+            >
+              <FaSave /> {saving ? 'Saving...' : 'Save Quotation'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -968,6 +1008,111 @@ const ProvisionalQuotationForm = () => {
 
         {/* ================= LEFT COLUMN: CLEAN STREAMLINED FORM (VERTICAL FLOW) ================= */}
         <div className="builder-form-area" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
+          {/* Quotation Type Selector Banner */}
+          <div style={{
+            background: '#ffffff',
+            border: '1.5px solid #cbd5e1',
+            borderRadius: '12px',
+            padding: '0.85rem 1.15rem',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.5rem'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <label style={{ fontSize: '0.88rem', fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <span>📑</span> Choose Quotation Type to Generate:
+              </label>
+              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: quotationCategoryType === 'provisional' ? '#16a34a' : '#0284c7', background: quotationCategoryType === 'provisional' ? '#f0fdf4' : '#f0f9ff', padding: '2px 8px', borderRadius: '12px', border: `1px solid ${quotationCategoryType === 'provisional' ? '#86efac' : '#bae6fd'}` }}>
+                {quotationCategoryType === 'provisional' ? '5-Page Audit Proposal Active' : '1-Page Regular Quotation Active'}
+              </span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: '0.25rem' }}>
+              <button
+                type="button"
+                onClick={() => setQuotationCategoryType('provisional')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.6rem',
+                  padding: '0.75rem 1rem',
+                  borderRadius: '10px',
+                  border: quotationCategoryType === 'provisional' ? '2px solid #22c55e' : '1.5px solid #e2e8f0',
+                  background: quotationCategoryType === 'provisional' ? '#f0fdf4' : '#ffffff',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'all 0.2s ease',
+                  boxShadow: quotationCategoryType === 'provisional' ? '0 3px 10px rgba(34, 197, 94, 0.15)' : 'none'
+                }}
+              >
+                <div style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '50%',
+                  background: quotationCategoryType === 'provisional' ? '#22c55e' : '#f1f5f9',
+                  color: quotationCategoryType === 'provisional' ? '#ffffff' : '#64748b',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '0.85rem',
+                  flexShrink: 0
+                }}>
+                  <FaClipboardList />
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 800, color: quotationCategoryType === 'provisional' ? '#166534' : '#1e293b' }}>
+                    Provisional Quotation
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '1px' }}>
+                    Schedule-II Audit, Annexure-A & B
+                  </div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setQuotationCategoryType('regular')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.6rem',
+                  padding: '0.75rem 1rem',
+                  borderRadius: '10px',
+                  border: quotationCategoryType === 'regular' ? '2px solid #0284c7' : '1.5px solid #e2e8f0',
+                  background: quotationCategoryType === 'regular' ? '#f0f9ff' : '#ffffff',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'all 0.2s ease',
+                  boxShadow: quotationCategoryType === 'regular' ? '0 3px 10px rgba(2, 132, 199, 0.15)' : 'none'
+                }}
+              >
+                <div style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '50%',
+                  background: quotationCategoryType === 'regular' ? '#0284c7' : '#f1f5f9',
+                  color: quotationCategoryType === 'regular' ? '#ffffff' : '#64748b',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '0.85rem',
+                  flexShrink: 0
+                }}>
+                  <FaFileInvoiceDollar />
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 800, color: quotationCategoryType === 'regular' ? '#0369a1' : '#1e293b' }}>
+                    Regular Quotation
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '1px' }}>
+                    Standard 1-Page TRF Sample Analysis
+                  </div>
+                </div>
+              </button>
+            </div>
+          </div>
 
           {/* 1. PRIMARY TRF SELECTION HERO DROPDOWN */}
           <div
@@ -995,7 +1140,6 @@ const ProvisionalQuotationForm = () => {
               Selecting a TRF automatically fetches the Client, Office Address, Plant Site, Parameters, and Sample Matrix.
             </small>
 
-            {/* Client / Organization Name (Read-Only) */}
             {/* Client / Organization Name (Fully Editable) */}
             <div className="form-group mb-2 mt-3">
               <label className="form-label font-semibold" style={{ color: '#0f172a', fontSize: '0.82rem' }}>
@@ -1028,29 +1172,62 @@ const ProvisionalQuotationForm = () => {
               />
             </div>
 
-            {/* Industry Type / Scale Selector (Auto-sets ₹15K, ₹20K, ₹25K) */}
-            <div className="form-group mb-0">
-              <label className="form-label font-bold" style={{ color: '#0f172a', fontSize: '0.82rem' }}>
-                Industry Type (Audit Fee Scale)
-              </label>
-              <select
-                name="industryType"
-                value={formData.industryType || formData.annexureI?.industryType || 'large'}
-                onChange={(e) => handleIndustryTypeChange(e.target.value)}
-                className="form-control font-bold"
-                style={{ height: '38px', borderColor: '#22c55e', backgroundColor: '#ffffff', color: '#0f172a' }}
-              >
-                <option value="small">Small (₹15,000/-)</option>
-                <option value="medium">Medium (₹20,000/-)</option>
-                <option value="large">Large (₹25,000/-)</option>
-              </select>
-              <small className="text-muted d-block mt-1">
-                Changing Industry Type automatically sets Environment Audit Report Fee to ₹15K, ₹20K, or ₹25K.
-              </small>
-            </div>
+            {/* Industry Type / Scale Selector (Only relevant for Provisional Quotation) */}
+            {quotationCategoryType === 'provisional' && (
+              <div className="form-group mb-0">
+                <label className="form-label font-bold" style={{ color: '#0f172a', fontSize: '0.82rem' }}>
+                  Industry Type (Audit Fee Scale)
+                </label>
+                <select
+                  name="industryType"
+                  value={formData.industryType || formData.annexureI?.industryType || 'large'}
+                  onChange={(e) => handleIndustryTypeChange(e.target.value)}
+                  className="form-control font-bold"
+                  style={{ height: '38px', borderColor: '#22c55e', backgroundColor: '#ffffff', color: '#0f172a' }}
+                >
+                  <option value="small">Small (₹15,000/-)</option>
+                  <option value="medium">Medium (₹20,000/-)</option>
+                  <option value="large">Large (₹25,000/-)</option>
+                </select>
+                <small className="text-muted d-block mt-1">
+                  Changing Industry Type automatically sets Environment Audit Report Fee to ₹15K, ₹20K, or ₹25K.
+                </small>
+              </div>
+            )}
           </div>
 
-          {/* 2. COVERING LETTER & SIGNATORY (PAGE 1 OFFER LETTER) */}
+          {/* Regular Quotation Ready Card (Shown when Regular is selected) */}
+          {quotationCategoryType === 'regular' && (
+            <div style={{ background: '#f0f9ff', border: '1.5px solid #bae6fd', borderRadius: '10px', padding: '1.25rem', boxShadow: '0 2px 6px rgba(2, 132, 199, 0.08)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                <FaCheckCircle style={{ color: '#0284c7', fontSize: '1.1rem' }} />
+                <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: '#0369a1' }}>
+                  Regular Quotation Ready
+                </h4>
+              </div>
+              <p style={{ fontSize: '0.82rem', color: '#334155', lineHeight: 1.45, marginBottom: '1rem' }}>
+                Regular Quotation for this TRF includes the official company letterhead, client address, all selected test parameters, GPCB rates, and 18% GST calculation.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!formData.testRequestId) {
+                    triggerToast('Please select a TRF from above first.', 'error');
+                    return;
+                  }
+                  window.open(`#/test-requests/quotation/${formData.testRequestId}`, '_blank');
+                }}
+                className="btn btn-primary"
+                style={{ width: '100%', background: '#0284c7', borderColor: '#0284c7', fontWeight: 700, padding: '0.65rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+              >
+                <FaPrint /> View &amp; Print Regular Quotation PDF
+              </button>
+            </div>
+          )}
+
+          {/* SECTIONS 2 to 8 (Rendered when Provisional Quotation is selected) */}
+          {quotationCategoryType === 'provisional' && (
+            <>
           <div
             onFocusCapture={() => scrollToPreview('preview-page-1')}
             onClick={() => scrollToPreview('preview-page-1')}
@@ -1990,8 +2167,8 @@ const ProvisionalQuotationForm = () => {
               </div>
             </div>
           </div>
-
-
+          </>
+          )}
 
         </div>
 
@@ -2004,7 +2181,11 @@ const ProvisionalQuotationForm = () => {
               <FaEye className="text-emerald-400" /> Live A4 Print Preview
             </span>
             <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 600, background: '#1e293b', padding: '0.2rem 0.55rem', borderRadius: '4px' }}>
-              {!formData.testRequestId ? 'Select TRF to Preview' : `Full Quotation (${(formData.annexureB || []).length === 0 ? '4 Pages' : ((formData.annexureB || []).length > 3 ? '6 Pages' : '5 Pages')})`}
+              {!formData.testRequestId 
+                ? 'Select TRF to Preview' 
+                : (quotationCategoryType === 'regular' 
+                    ? 'Regular Quotation (1 Page)' 
+                    : `Full Quotation (${(formData.annexureB || []).length === 0 ? '4 Pages' : ((formData.annexureB || []).length > 3 ? '6 Pages' : '5 Pages')})`)}
             </span>
           </div>
 
@@ -2061,6 +2242,28 @@ const ProvisionalQuotationForm = () => {
                 }}>
                   👈 Select TRF from the dropdown in Section 1
                 </div>
+              </div>
+            ) : quotationCategoryType === 'regular' ? (
+              <div style={{
+                background: '#ffffff',
+                borderRadius: '8px',
+                overflow: 'hidden',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                minHeight: '850px',
+                display: 'flex',
+                flexDirection: 'column',
+                position: 'relative'
+              }}>
+                <iframe
+                  src={`#/test-requests/quotation/${formData.testRequestId}`}
+                  title="Regular Quotation Print Preview"
+                  style={{
+                    width: '100%',
+                    height: '920px',
+                    border: 'none',
+                    background: '#ffffff'
+                  }}
+                />
               </div>
             ) : (
               <>

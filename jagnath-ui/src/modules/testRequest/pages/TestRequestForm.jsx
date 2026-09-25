@@ -1151,7 +1151,9 @@ const TestRequestForm = () => {
         includeCaution: Boolean(formData.includeCaution),
         cautionId: formData.includeCaution && formData.cautionId ? formData.cautionId : null,
         reportIssueDays: formData.tentativeDays,
-        reviewedBy: formData.sampleTestingFacilityReviewedBy
+        reviewedBy: formData.sampleTestingFacilityReviewedBy,
+        quotationRequired: 'No',
+        quotationType: null
       };
       delete payload.tentativeDays;
       delete payload.sampleTestingFacilityReviewedBy;
@@ -1276,7 +1278,11 @@ const TestRequestForm = () => {
   const handleSaveAndQuotation = async () => {
     const savedId = await handleSave();
     if (savedId) {
-      window.open(`#/test-requests/quotation/${savedId}`, '_blank');
+      if (formData.quotationType === 'Provisional') {
+        window.open(`#/quotations/provisional/add?trfId=${savedId}&type=provisional`, '_blank');
+      } else {
+        window.open(`#/test-requests/quotation/${savedId}`, '_blank');
+      }
       setTimeout(() => {
         navigate('/test-requests');
       }, 500);
@@ -2286,67 +2292,7 @@ const TestRequestForm = () => {
             </div>
           </div>
 
-              {/* Quotation Requirement Card */}
-          <div className="test-request-form-card" style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginTop: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc' }}>
-              <div style={{ width: '12px', height: '24px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '6px' }}></div>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Quotation Requirement</h3>
-            </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.75rem' }}>
-              {/* Quotation Requirement */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Do you want to add/generate a Quotation? <span style={{ color: '#ef4444' }}>*</span></label>
-                <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', background: '#f8fafc', padding: '0.75rem 1rem', border: '1px solid #e2e8f0', borderRadius: '8px', height: '42px', boxSizing: 'border-box' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500, color: '#1e293b' }}>
-                    <input
-                      type="radio"
-                      name="quotationRequired"
-                      value="No"
-                      checked={formData.quotationRequired === 'No'}
-                      onChange={() => setFormData(prev => ({ ...prev, quotationRequired: 'No', quotationType: '' }))}
-                      style={{ width: '1.1rem', height: '1.1rem', accentColor: '#3b82f6' }}
-                    />
-                    No
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500, color: '#1e293b' }}>
-                    <input
-                      type="radio"
-                      name="quotationRequired"
-                      value="Yes"
-                      checked={formData.quotationRequired === 'Yes'}
-                      onChange={() => setFormData(prev => ({ ...prev, quotationRequired: 'Yes' }))}
-                      style={{ width: '1.1rem', height: '1.1rem', accentColor: '#3b82f6' }}
-                    />
-                    Yes
-                  </label>
-                </div>
-              </div>
-
-              {/* HIDE MULTIPLE QUOTATIONS FUNCTIONALITY (DISABLED)
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', opacity: formData.quotationRequired === 'Yes' ? 1 : 0.5 }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>
-                  Quotation Type {formData.quotationRequired === 'Yes' && <span style={{ color: '#ef4444' }}>*</span>}
-                </label>
-                <select
-                  name="quotationType"
-                  value={formData.quotationType || ''}
-                  disabled={formData.quotationRequired !== 'Yes'}
-                  onChange={handleChange}
-                  className="premium-input"
-                  style={{ height: '42px' }}
-                >
-                  <option value="">Select Quotation Type</option>
-                  <option value="Quotation">Quotation</option>
-                  <option value="Consulting">Consulting</option>
-                  <option value="Audit">Audit</option>
-                  <option value="General Testing / Consulting">General Testing / Consulting</option>
-                  <option value="Monthly Consulting">Monthly Consulting</option>
-                </select>
-              </div>
-              */}
-            </div>
-          </div>
 
           {/* HIDE MULTIPLE QUOTATIONS FUNCTIONALITY (DISABLED) */}
           {false && (
@@ -2604,19 +2550,8 @@ const TestRequestForm = () => {
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.6rem 1.25rem', fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer' }}
             >
               <FaPrint />
-              <span>Save & TRF PDF</span>
+              <span>Save &amp; TRF PDF</span>
             </button>
-            {formData.quotationRequired === 'Yes' && (
-              <button
-                type="button"
-                onClick={handleSaveAndQuotation}
-                disabled={submitting}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.6rem 1.25rem', fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer' }}
-              >
-                <FaFilePdf />
-                <span>Generate Quotation</span>
-              </button>
-            )}
           </div>
         </div>
 
