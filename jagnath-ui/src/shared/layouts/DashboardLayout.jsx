@@ -25,6 +25,7 @@ const DashboardLayout = ({ children }) => {
     if (path === 'company') return 'companies';
     if (path.startsWith('test-requests')) return 'requests';
     if (path.startsWith('test-reports')) return 'test-reports';
+    if (path.startsWith('quotations')) return 'provisional-quotations';
     return path;
   };
 
