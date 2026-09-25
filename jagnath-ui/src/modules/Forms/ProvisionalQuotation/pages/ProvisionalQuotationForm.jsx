@@ -222,6 +222,9 @@ const ProvisionalQuotationForm = () => {
         if (isEditing) {
           const existing = getQuotationById(id);
           if (existing) {
+            if (existing.quotationCategoryType === 'regular' || existing.categoryType === 'regular' || existing.quotationType === 'Regular Quotation' || searchParams.get('type') === 'regular') {
+              setQuotationCategoryType('regular');
+            }
             setFormData({
               ...existing,
               auditDepartment: existing.auditDepartment || 'ENVIRONMENTAL',
@@ -865,12 +868,49 @@ const ProvisionalQuotationForm = () => {
     if (!formData) return;
     setSaving(true);
     try {
-      const finalized = syncTotals(formData);
-      const saved = saveQuotationSnapshot(finalized);
-      setFormData(saved);
-      triggerToast('Provisional Quotation saved successfully!', 'success');
-      if (!isEditing && saved.id) {
-        navigate(`/quotations/provisional/edit/${saved.id}`, { replace: true });
+      if (quotationCategoryType === 'regular') {
+        if (!formData.testRequestId) {
+          triggerToast('Please select a TRF first.', 'error');
+          setSaving(false);
+          return;
+        }
+
+        const selectedTR = (masters.testRequests || []).find(r => r.id === formData.testRequestId) || {};
+        const regQuoNo = formData.quotationNumber && !formData.quotationNumber.startsWith('Q-P.I')
+          ? formData.quotationNumber
+          : `JLT/EM/${selectedTR.reportNumber || selectedTR.sampleIdNumber || formData.referenceNo || '06-25/449'}`;
+
+        const regGrandTotal = formData.regularGrandTotal || formData.grandTotal || (formData.subtotal ? Math.round(formData.subtotal * 1.18) : 0);
+
+        const regularRecord = {
+          ...formData,
+          id: formData.id || ('rq_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6)),
+          quotationCategoryType: 'regular',
+          quotationType: 'Regular Quotation',
+          categoryType: 'regular',
+          quotationNumber: regQuoNo,
+          grandTotal: regGrandTotal,
+          status: formData.status || 'Draft',
+          updatedAt: new Date().toISOString()
+        };
+
+        const saved = saveQuotationSnapshot(regularRecord);
+        setFormData(saved);
+        triggerToast('Regular Quotation saved successfully!', 'success');
+        if (!isEditing && saved.id) {
+          navigate(`/quotations/provisional/edit/${saved.id}?type=regular`, { replace: true });
+        }
+      } else {
+        const finalized = syncTotals(formData);
+        finalized.quotationCategoryType = 'provisional';
+        finalized.quotationType = finalized.quotationType || 'Provisional Estimated Quotation';
+        finalized.categoryType = 'provisional';
+        const saved = saveQuotationSnapshot(finalized);
+        setFormData(saved);
+        triggerToast('Provisional Quotation saved successfully!', 'success');
+        if (!isEditing && saved.id) {
+          navigate(`/quotations/provisional/edit/${saved.id}`, { replace: true });
+        }
       }
     } catch (err) {
       console.error(err);
