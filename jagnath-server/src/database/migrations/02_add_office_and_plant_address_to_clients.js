@@ -9,8 +9,6 @@ const sequelize = require("../../config/database");
 const runMigration = async () => {
   const transaction = await sequelize.transaction();
   try {
-    console.log("🛠️ Checking and adding office_address & plant_address columns to clients table...");
-
     // 1. Add office_address column if not exists
     await sequelize.query(`
       ALTER TABLE clients ADD COLUMN IF NOT EXISTS office_address TEXT;
@@ -36,7 +34,6 @@ const runMigration = async () => {
     `, { transaction });
 
     await transaction.commit();
-    console.log("✅ Client dual-address migration completed successfully!");
     return { success: true };
   } catch (error) {
     await transaction.rollback();

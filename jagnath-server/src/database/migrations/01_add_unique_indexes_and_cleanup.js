@@ -9,8 +9,6 @@ const sequelize = require("../../config/database");
 const runMigration = async () => {
   const transaction = await sequelize.transaction();
   try {
-    console.log("🔍 Checking for existing duplicates in Database...");
-
     // 1. Check duplicate Client emails within the same company
     const [clientEmailDuplicates] = await sequelize.query(`
       SELECT "companyId", LOWER(TRIM(email)) as norm_email, COUNT(*) as count, ARRAY_AGG(id) as ids
@@ -21,7 +19,6 @@ const runMigration = async () => {
     `, { transaction });
 
     if (clientEmailDuplicates.length > 0) {
-      console.warn("⚠️ [Migration Alert] Duplicate Client Emails found. Cleaning up duplicates...");
       for (const dup of clientEmailDuplicates) {
         const ids = dup.ids;
         const keeperId = ids[0];
@@ -39,7 +36,6 @@ const runMigration = async () => {
           WHERE id IN (:removeIds)
         `, { replacements: { removeIds }, transaction });
       }
-      console.log("✅ Duplicate Client Emails soft-deleted and references remapped.");
     }
 
     // 2. Check duplicate Client contact numbers within the same company
@@ -52,7 +48,6 @@ const runMigration = async () => {
     `, { transaction });
 
     if (clientPhoneDuplicates.length > 0) {
-      console.warn("⚠️ [Migration Alert] Duplicate Client Contact Numbers found. Cleaning up duplicates...");
       for (const dup of clientPhoneDuplicates) {
         const ids = dup.ids;
         const keeperId = ids[0];
@@ -70,7 +65,6 @@ const runMigration = async () => {
           WHERE id IN (:removeIds)
         `, { replacements: { removeIds }, transaction });
       }
-      console.log("✅ Duplicate Client Contact Numbers soft-deleted and references remapped.");
     }
 
     // 3. Check duplicate Categories within the same company
@@ -83,7 +77,6 @@ const runMigration = async () => {
     `, { transaction });
 
     if (categoryDuplicates.length > 0) {
-      console.warn("⚠️ [Migration Alert] Duplicate Categories found. Cleaning up duplicates...");
       for (const dup of categoryDuplicates) {
         const ids = dup.ids;
         const keeperId = ids[0];
@@ -113,7 +106,6 @@ const runMigration = async () => {
           WHERE id IN (:removeIds)
         `, { replacements: { removeIds }, transaction });
       }
-      console.log("✅ Duplicate Categories soft-deleted and references remapped.");
     }
 
     // 4. Check duplicate Parameters within the same company
@@ -126,7 +118,6 @@ const runMigration = async () => {
     `, { transaction });
 
     if (parameterDuplicates.length > 0) {
-      console.warn("⚠️ [Migration Alert] Duplicate Parameters found. Cleaning up duplicates...");
       for (const dup of parameterDuplicates) {
         const ids = dup.ids;
         const keeperId = ids[0];
@@ -234,7 +225,6 @@ const runMigration = async () => {
           WHERE id IN (:removeIds)
         `, { replacements: { removeIds }, transaction });
       }
-      console.log("✅ Duplicate Parameters soft-deleted and references remapped.");
     }
 
     // Clean up duplicate entries in join tables created after parameter/category ID remapping
@@ -263,8 +253,6 @@ const runMigration = async () => {
     `, { transaction });
 
     // Create unique indexes if no duplicate conflicts or IF NOT EXISTS
-    console.log("🛠️ Creating Unique PostgreSQL Indexes...");
-
     await sequelize.query(`
       CREATE UNIQUE INDEX IF NOT EXISTS idx_clients_company_lower_email
       ON clients ("companyId", LOWER(TRIM(email)))
@@ -307,7 +295,6 @@ const runMigration = async () => {
     `, { transaction });
 
     await transaction.commit();
-    console.log("✅ Migration completed successfully!");
 
     return {
       success: true,

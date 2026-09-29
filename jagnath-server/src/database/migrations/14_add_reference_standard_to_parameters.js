@@ -8,8 +8,6 @@ const sequelize = require("../../config/database");
 const runMigration = async () => {
   const transaction = await sequelize.transaction();
   try {
-    console.log("🛠️ Checking and adding reference_standard column to parameters table...");
-
     await sequelize.query(`
       ALTER TABLE parameters ADD COLUMN IF NOT EXISTS reference_standard VARCHAR(255);
     `, { transaction });
@@ -34,7 +32,6 @@ const runMigration = async () => {
     `, { transaction });
 
     if (parameterDuplicates && parameterDuplicates.length > 0) {
-      console.warn(`⚠️ [Migration 14] Found ${parameterDuplicates.length} parameter duplicate groups. Cleaning up...`);
       for (const dup of parameterDuplicates) {
         const ids = dup.ids;
         const keeperId = ids[0];
@@ -90,7 +87,6 @@ const runMigration = async () => {
     `, { transaction });
 
     await transaction.commit();
-    console.log("✅ Reference Standard column and Unique Index migration completed successfully!");
     return { success: true };
   } catch (error) {
     await transaction.rollback();

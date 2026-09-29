@@ -10,8 +10,6 @@ const sequelize = require("../../config/database");
 const runMigration = async () => {
   const transaction = await sequelize.transaction();
   try {
-    console.log("🔍 Checking for existing parameter duplicates considering Location of Sample...");
-
     await sequelize.query(`
       ALTER TABLE parameters ADD COLUMN IF NOT EXISTS location_sample_id UUID;
     `, { transaction });
@@ -33,7 +31,6 @@ const runMigration = async () => {
     `, { transaction });
 
     if (parameterDuplicates.length > 0) {
-      console.warn("⚠️ [Migration Alert] Duplicate Parameters found. Cleaning up duplicates...");
       for (const dup of parameterDuplicates) {
         const ids = dup.ids;
         const keeperId = ids[0];
@@ -63,10 +60,7 @@ const runMigration = async () => {
           WHERE id IN (:removeIds)
         `, { replacements: { removeIds }, transaction });
       }
-      console.log("✅ Duplicate Parameters soft-deleted and references remapped.");
     }
-
-    console.log("🛠️ Updating Parameter Unique PostgreSQL Index...");
 
     await sequelize.query(`
       DROP INDEX IF EXISTS idx_parameters_company_lower_name;
@@ -81,7 +75,6 @@ const runMigration = async () => {
     `, { transaction });
 
     await transaction.commit();
-    console.log("✅ Migration 05 completed successfully!");
     return { success: true };
   } catch (error) {
     await transaction.rollback();

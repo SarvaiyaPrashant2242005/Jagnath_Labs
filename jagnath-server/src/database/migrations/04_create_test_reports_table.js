@@ -8,8 +8,6 @@ const sequelize = require("../../config/database");
 const runMigration = async () => {
   const transaction = await sequelize.transaction();
   try {
-    console.log("🛠️ Creating test_reports table if not exists...");
-
     await sequelize.query(`
       CREATE TABLE IF NOT EXISTS test_reports (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -40,7 +38,6 @@ const runMigration = async () => {
     `, { transaction });
 
     await transaction.commit();
-    console.log("✅ test_reports table migration completed successfully!");
     return { success: true };
   } catch (error) {
     await transaction.rollback();

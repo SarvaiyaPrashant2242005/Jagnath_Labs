@@ -8,8 +8,6 @@ const sequelize = require("../../config/database");
 const runMigration = async () => {
   const transaction = await sequelize.transaction();
   try {
-    console.log("🛠️ Checking and adding unit, is_permissible_limit_applicable & permissible_limit columns to parameters table...");
-
     // 1. Add unit column if not exists
     await sequelize.query(`
       ALTER TABLE parameters ADD COLUMN IF NOT EXISTS unit VARCHAR(255);
@@ -31,7 +29,6 @@ const runMigration = async () => {
     `, { transaction });
 
     await transaction.commit();
-    console.log("✅ Parameter unit & permissible limit migration completed successfully!");
     return { success: true };
   } catch (error) {
     await transaction.rollback();

@@ -9,8 +9,6 @@ const sequelize = require("../../config/database");
 const runMigration = async () => {
   const transaction = await sequelize.transaction();
   try {
-    console.log("🛠️ Updating Parameter Unique index to include testMethod...");
-
     // Drop the old index
     await sequelize.query(`
       DROP INDEX IF EXISTS idx_parameters_company_subcat_lower_name;
@@ -32,7 +30,6 @@ const runMigration = async () => {
     `, { transaction });
 
     await transaction.commit();
-    console.log("✅ Parameter unique index migration completed successfully!");
     return { success: true };
   } catch (error) {
     await transaction.rollback();

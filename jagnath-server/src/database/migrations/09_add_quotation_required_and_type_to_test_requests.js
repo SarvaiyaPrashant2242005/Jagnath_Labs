@@ -8,8 +8,6 @@ const sequelize = require("../../config/database");
 const runMigration = async () => {
   const transaction = await sequelize.transaction();
   try {
-    console.log("🛠️ Checking and adding quotation_required and quotation_type columns to test_requests table...");
-
     await sequelize.query(`
       ALTER TABLE test_requests ADD COLUMN IF NOT EXISTS quotation_required VARCHAR(50) DEFAULT 'No';
     `, { transaction });
@@ -19,7 +17,6 @@ const runMigration = async () => {
     `, { transaction });
 
     await transaction.commit();
-    console.log("✅ Quotation columns migration completed successfully!");
     return { success: true };
   } catch (error) {
     await transaction.rollback();

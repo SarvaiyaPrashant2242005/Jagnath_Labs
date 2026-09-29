@@ -8,8 +8,6 @@ const sequelize = require("../../config/database");
 const runMigration = async () => {
   const transaction = await sequelize.transaction();
   try {
-    console.log("🛠️ Checking and adding industry_type and industry_price columns to test_requests table...");
-
     await sequelize.query(`
       ALTER TABLE test_requests ADD COLUMN IF NOT EXISTS industry_type VARCHAR(50);
     `, { transaction });
@@ -19,7 +17,6 @@ const runMigration = async () => {
     `, { transaction });
 
     await transaction.commit();
-    console.log("✅ Industry type & price columns migration completed successfully!");
     return { success: true };
   } catch (error) {
     await transaction.rollback();

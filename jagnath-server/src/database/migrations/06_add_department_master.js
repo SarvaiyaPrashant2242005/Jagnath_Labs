@@ -8,8 +8,6 @@ const sequelize = require("../../config/database");
 const runMigration = async () => {
   const transaction = await sequelize.transaction();
   try {
-    console.log("🛠️ Creating departments table if not exists...");
-
     // Drop departments table if status column is character varying (varchar) from previous attempt
     await sequelize.query(`
       DO $$
@@ -46,24 +44,20 @@ const runMigration = async () => {
       );
     `, { transaction });
 
-    console.log("🛠️ Creating Unique PostgreSQL Indexes for departments...");
     await sequelize.query(`
       CREATE UNIQUE INDEX IF NOT EXISTS idx_departments_company_lower_name
       ON departments ("companyId", LOWER(TRIM(name)))
       WHERE deleted_at IS NULL;
     `, { transaction });
 
-    console.log("🛠️ Adding departmentId column to categories...");
     await sequelize.query(`
       ALTER TABLE categories ADD COLUMN IF NOT EXISTS "departmentId" UUID REFERENCES departments(id) ON DELETE SET NULL;
     `, { transaction });
 
-    console.log("🛠️ Adding departmentId column to test_requests...");
     await sequelize.query(`
       ALTER TABLE test_requests ADD COLUMN IF NOT EXISTS "departmentId" UUID REFERENCES departments(id) ON DELETE SET NULL;
     `, { transaction });
 
-    console.log("🛠️ Adding subCategoryId & description columns to location_of_samples...");
     await sequelize.query(`
       ALTER TABLE location_of_samples ADD COLUMN IF NOT EXISTS "subCategoryId" UUID REFERENCES sub_categories(id) ON DELETE SET NULL;
     `, { transaction });
@@ -72,7 +66,6 @@ const runMigration = async () => {
       ALTER TABLE location_of_samples ADD COLUMN IF NOT EXISTS description TEXT;
     `, { transaction });
 
-    console.log("🌱 Seeding initial departments for each active company...");
     const [companies] = await sequelize.query(`
       SELECT id FROM companies WHERE deleted_at IS NULL;
     `, { transaction });
@@ -108,7 +101,6 @@ const runMigration = async () => {
       }
     }
 
-    console.log("🛠️ Re-creating Category Unique PostgreSQL Index to include departmentId...");
     await sequelize.query(`
       DROP INDEX IF EXISTS idx_categories_company_lower_name;
     `, { transaction });
@@ -120,7 +112,6 @@ const runMigration = async () => {
     `, { transaction });
 
     await transaction.commit();
-    console.log("✅ Department Master migration 06 completed successfully!");
     return { success: true };
   } catch (error) {
     await transaction.rollback();

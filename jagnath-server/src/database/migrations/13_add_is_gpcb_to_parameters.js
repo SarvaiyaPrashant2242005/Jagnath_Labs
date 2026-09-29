@@ -11,8 +11,6 @@ const fs = require("fs");
 const runMigration = async () => {
   const transaction = await sequelize.transaction();
   try {
-    console.log("🛠️ Checking and adding is_gpcb column to parameters table...");
-
     // 1. Add is_gpcb column to parameters table if it doesn't exist
     await sequelize.query(`
       ALTER TABLE parameters ADD COLUMN IF NOT EXISTS is_gpcb BOOLEAN NOT NULL DEFAULT FALSE;
@@ -22,8 +20,6 @@ const runMigration = async () => {
     await sequelize.query(`
       CREATE INDEX IF NOT EXISTS idx_parameters_is_gpcb ON parameters ("companyId", is_gpcb) WHERE deleted_at IS NULL;
     `, { transaction });
-
-    console.log("🌱 Importing / Backfilling GPCB parameters from Excel sheet...");
 
     // Find Excel file
     const possiblePaths = [
@@ -41,7 +37,6 @@ const runMigration = async () => {
     }
 
     if (!excelPath) {
-      console.warn("⚠️ LIMS PARAMETERS SHEET.xlsx not found on disk. Skipping GPCB parameter import (column is_gpcb added).");
       await transaction.commit();
       return { success: true };
     }
@@ -63,13 +58,11 @@ const runMigration = async () => {
     const workbook = xlsx.readFile(excelPath);
     const gpcbSheet = workbook.Sheets["GPCB"];
     if (!gpcbSheet) {
-      console.warn("⚠️ GPCB sheet not found in workbook. Skipping import.");
       await transaction.commit();
       return { success: true };
     }
 
     const gpcbRows = xlsx.utils.sheet_to_json(gpcbSheet);
-    console.log(`📊 Found ${gpcbRows.length} rows in GPCB sheet.`);
 
     // Get active companies
     const [companies] = await sequelize.query(`
@@ -265,7 +258,6 @@ const runMigration = async () => {
     }
 
     await transaction.commit();
-    console.log("✅ GPCB parameters flag & dataset import migration completed successfully!");
     return { success: true };
   } catch (error) {
     await transaction.rollback();

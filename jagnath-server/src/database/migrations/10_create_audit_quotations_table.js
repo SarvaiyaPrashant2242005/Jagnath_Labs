@@ -8,8 +8,6 @@ const sequelize = require("../../config/database");
 const runMigration = async () => {
   const transaction = await sequelize.transaction();
   try {
-    console.log("🛠️ Creating audit_quotations table...");
-
     await sequelize.query(`
       CREATE TABLE IF NOT EXISTS audit_quotations (
         id UUID PRIMARY KEY,
@@ -39,7 +37,6 @@ const runMigration = async () => {
     `, { transaction });
 
     await transaction.commit();
-    console.log("✅ Audit Quotations table migration completed successfully!");
     return { success: true };
   } catch (error) {
     await transaction.rollback();
