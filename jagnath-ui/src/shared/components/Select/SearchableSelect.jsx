@@ -244,7 +244,7 @@ const SearchableSelect = ({
                 No options found matching "{searchQuery}"
               </div>
             ) : (
-              filteredOptions.map(opt => {
+              filteredOptions.map((opt, optIdx) => {
                 const optId = getOptionId(opt);
                 const isSelected = isMulti
                   ? (Array.isArray(value) ? value.map(String).includes(String(optId)) : false)
@@ -253,7 +253,7 @@ const SearchableSelect = ({
 
                 return (
                   <div
-                    key={optId}
+                    key={`${optId || 'opt'}_${optIdx}`}
                     onClick={() => handleSelect(optId)}
                     title={name}
                     style={{

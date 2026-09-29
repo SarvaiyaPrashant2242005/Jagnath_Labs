@@ -311,6 +311,8 @@ const ProvisionalQuotationForm = () => {
   ); // 'provisional' | 'regular' | 'general_testing'
   const [isMasterTermsOpen, setIsMasterTermsOpen] = useState(false);
   const [gtActivePageTab, setGtActivePageTab] = useState('all'); // 'all' | '1' | '2' | '3'
+  const [paramSearchTerms, setParamSearchTerms] = useState({});
+  const [expandedAnnexureBInAct, setExpandedAnnexureBInAct] = useState({ 0: true, 1: true });
 
   // Master Data
   const [masters, setMasters] = useState({
@@ -936,6 +938,7 @@ const ProvisionalQuotationForm = () => {
   };
 
   const handleAddActivity = (presetGroup = null) => {
+    const newIdx = formData.activities?.length || 0;
     setFormData(prev => {
       const activities = [...(prev.activities || [])];
       const annexureB = [...(prev.annexureB || [])];
@@ -944,9 +947,12 @@ const ProvisionalQuotationForm = () => {
       const grpId = 'grp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
       const actId = 'act_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
 
-      let categoryName = presetGroup?.category || 'New Sampling / Monitoring Activity';
+      let categoryName = presetGroup?.category || `Sampling / Monitoring Discipline ${newSr}`;
       let parameters = presetGroup?.parameters ? JSON.parse(JSON.stringify(presetGroup.parameters)) : [
-        { id: 'p_' + Date.now() + '_1', description: 'Sample Analysis Parameter', rate: 1000 }
+        { id: 'p_' + Date.now() + '_1', description: 'pH', rate: 110 },
+        { id: 'p_' + Date.now() + '_2', description: 'Total Suspended Solids', rate: 180 },
+        { id: 'p_' + Date.now() + '_3', description: 'COD', rate: 620 },
+        { id: 'p_' + Date.now() + '_4', description: 'BOD, 3-day at 27°C', rate: 1050 }
       ];
       let ratePerSample = parameters.reduce((sum, p) => sum + (parseFloat(p.rate) || 0), 0);
 
@@ -977,6 +983,8 @@ const ProvisionalQuotationForm = () => {
 
       return { ...prev, activities, annexureB };
     });
+    setExpandedAnnexureBInAct(prev => ({ ...prev, [newIdx]: true }));
+    triggerToast('Added new Activity & Annexure-B parameters group!', 'success');
   };
 
   const handleDeleteActivity = (index) => {
@@ -987,8 +995,18 @@ const ProvisionalQuotationForm = () => {
       if (annexureB[index]) {
         annexureB.splice(index, 1);
       }
-      return { ...prev, activities, annexureB };
+      const updatedActivities = activities.map((act, i) => ({
+        ...act,
+        srNo: String(i + 1),
+        parametersMonitored: `As per annexure- B, Sr. No. ${i + 1}`
+      }));
+      const updatedAnnexureB = annexureB.map((grp, i) => ({
+        ...grp,
+        srNo: String(i + 1)
+      }));
+      return { ...prev, activities: updatedActivities, annexureB: updatedAnnexureB };
     });
+    triggerToast('Removed activity and Annexure-B group', 'info');
   };
 
   const handleSyncAnnexureAFromB = () => {
@@ -997,6 +1015,27 @@ const ProvisionalQuotationForm = () => {
       triggerToast('Annexure-A synced from Annexure-B Discipline Groups!', 'success');
       return { ...prev, activities: synced };
     });
+  };
+
+  const handleSyncActivityRateWithBGroup = (index) => {
+    setFormData(prev => {
+      const activities = [...(prev.activities || [])];
+      const annexureB = [...(prev.annexureB || [])];
+      const act = activities[index];
+      const grp = annexureB[index];
+      if (act && grp) {
+        const groupSum = (grp.parameters || []).reduce((sum, p) => sum + (parseFloat(p.rate) || 0), 0);
+        const qty = parseFloat(act.sampleQty !== undefined ? act.sampleQty : 1) || 1;
+        activities[index] = {
+          ...act,
+          ratePerSample: groupSum,
+          isRateOverridden: false,
+          chargePerVisit: act.isChargeOverridden ? act.chargePerVisit : Math.round(groupSum * qty)
+        };
+      }
+      return { ...prev, activities, annexureB };
+    });
+    triggerToast('Synced Rate / Sample with Annexure-B parameter sum!', 'success');
   };
 
   // Annexure-B Rate Override Handlers
@@ -1020,9 +1059,12 @@ const ProvisionalQuotationForm = () => {
       const grpId = 'grp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
       const actId = 'act_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
 
-      let categoryName = presetGroup?.category || 'New Discipline Group';
+      let categoryName = presetGroup?.category || `Discipline Group ${newSr}`;
       let parameters = presetGroup?.parameters ? JSON.parse(JSON.stringify(presetGroup.parameters)) : [
-        { id: 'p_' + Date.now() + '_1', description: 'Sample Parameter', rate: 1000 }
+        { id: 'p_' + Date.now() + '_1', description: 'pH', rate: 110 },
+        { id: 'p_' + Date.now() + '_2', description: 'Total Suspended Solids', rate: 180 },
+        { id: 'p_' + Date.now() + '_3', description: 'COD', rate: 620 },
+        { id: 'p_' + Date.now() + '_4', description: 'BOD, 3-day at 27°C', rate: 1050 }
       ];
       let groupRate = parameters.reduce((sum, p) => sum + (parseFloat(p.rate) || 0), 0);
 
@@ -1083,37 +1125,93 @@ const ProvisionalQuotationForm = () => {
       if (activities[groupIdx]) {
         activities.splice(groupIdx, 1);
       }
+      const updatedActivities = activities.map((act, i) => ({
+        ...act,
+        srNo: String(i + 1),
+        parametersMonitored: `As per annexure- B, Sr. No. ${i + 1}`
+      }));
+      const updatedAnnexureB = groups.map((grp, i) => ({
+        ...grp,
+        srNo: String(i + 1)
+      }));
+      return { ...prev, annexureB: updatedAnnexureB, activities: updatedActivities };
+    });
+    triggerToast('Removed Discipline Group', 'info');
+  };
+
+  const handleApplyPresetToGroup = (groupIdx, preset) => {
+    if (!preset) return;
+    setFormData(prev => {
+      const groups = [...(prev.annexureB || [])];
+      const activities = [...(prev.activities || [])];
+      if (!groups[groupIdx]) {
+        const act = activities[groupIdx];
+        groups[groupIdx] = {
+          id: act?.groupId || ('grp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4)),
+          srNo: act?.srNo || String(groupIdx + 1),
+          category: preset.category || act?.description || `Discipline Group ${groupIdx + 1}`,
+          parameters: []
+        };
+      }
+
+      const clonedParams = JSON.parse(JSON.stringify(preset.parameters || []));
+      groups[groupIdx] = {
+        ...groups[groupIdx],
+        category: preset.category || groups[groupIdx].category,
+        parameters: clonedParams
+      };
+      const groupSum = clonedParams.reduce((sum, p) => sum + (parseFloat(p.rate) || 0), 0);
+      if (activities[groupIdx]) {
+        const qty = parseFloat(activities[groupIdx].sampleQty !== undefined ? activities[groupIdx].sampleQty : 1) || 1;
+        activities[groupIdx] = {
+          ...activities[groupIdx],
+          description: preset.category || activities[groupIdx].description,
+          ratePerSample: groupSum,
+          isRateOverridden: false,
+          chargePerVisit: Math.round(groupSum * qty),
+          isChargeOverridden: false,
+        };
+      }
       return { ...prev, annexureB: groups, activities };
     });
+    triggerToast(`Applied "${preset.category}" preset with ${preset.parameters?.length || 0} parameters!`, 'success');
   };
 
   const handleAddAnnexureBParam = (groupIdx, paramData = null) => {
     setFormData(prev => {
       const groups = [...(prev.annexureB || [])];
       const activities = [...(prev.activities || [])];
-      if (groups[groupIdx]) {
-        const params = [...(groups[groupIdx].parameters || [])];
-        const newRate = paramData?.rate !== undefined
-          ? parseFloat(paramData.rate)
-          : (paramData?.price !== undefined ? parseFloat(paramData.price) : 500);
-        
-        params.push({
-          id: 'p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
-          description: paramData?.parameterName || paramData?.name || paramData?.description || 'New Parameter',
-          rate: isNaN(newRate) ? 0 : newRate
-        });
-        groups[groupIdx] = { ...groups[groupIdx], parameters: params };
+      if (!groups[groupIdx]) {
+        const act = activities[groupIdx];
+        groups[groupIdx] = {
+          id: act?.groupId || ('grp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4)),
+          srNo: act?.srNo || String(groupIdx + 1),
+          category: act?.description || `Discipline Group ${groupIdx + 1}`,
+          parameters: []
+        };
+      }
 
-        // Recalculate group sum and auto-update activity rate if not overridden
-        const newSum = params.reduce((sum, p) => sum + (parseFloat(p.rate) || 0), 0);
-        if (activities[groupIdx] && !activities[groupIdx].isRateOverridden) {
-          const qty = parseFloat(activities[groupIdx].sampleQty !== undefined ? activities[groupIdx].sampleQty : 1) || 1;
-          activities[groupIdx] = {
-            ...activities[groupIdx],
-            ratePerSample: newSum,
-            chargePerVisit: activities[groupIdx].isChargeOverridden ? activities[groupIdx].chargePerVisit : Math.round(newSum * qty)
-          };
-        }
+      const params = [...(groups[groupIdx].parameters || [])];
+      const newRate = paramData?.rate !== undefined
+        ? parseFloat(paramData.rate)
+        : (paramData?.price !== undefined ? parseFloat(paramData.price) : 500);
+      
+      params.push({
+        id: 'p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+        description: paramData?.parameterName || paramData?.name || paramData?.description || 'New Parameter',
+        rate: isNaN(newRate) ? 0 : newRate
+      });
+      groups[groupIdx] = { ...groups[groupIdx], parameters: params };
+
+      // Recalculate group sum and auto-update activity rate if not overridden
+      const newSum = params.reduce((sum, p) => sum + (parseFloat(p.rate) || 0), 0);
+      if (activities[groupIdx] && !activities[groupIdx].isRateOverridden) {
+        const qty = parseFloat(activities[groupIdx].sampleQty !== undefined ? activities[groupIdx].sampleQty : 1) || 1;
+        activities[groupIdx] = {
+          ...activities[groupIdx],
+          ratePerSample: newSum,
+          chargePerVisit: activities[groupIdx].isChargeOverridden ? activities[groupIdx].chargePerVisit : Math.round(newSum * qty)
+        };
       }
       return { ...prev, annexureB: groups, activities };
     });
@@ -3462,16 +3560,22 @@ const ProvisionalQuotationForm = () => {
                     const matchingBGroup = (formData.annexureB || [])[aIdx] || (formData.annexureB || []).find(g => g.id === act.groupId || g.srNo === act.srNo);
                     const paramCount = (matchingBGroup?.parameters || []).length;
                     const bGroupTotal = calculateGroupTotal(matchingBGroup || {});
+                    const searchTerm = (paramSearchTerms[aIdx] || '').trim().toLowerCase();
+                    const filteredParams = searchTerm
+                      ? (masters.parameters || []).filter(p => (p.name || p.parameterName || '').toLowerCase().includes(searchTerm)).slice(0, 10)
+                      : [];
+                    const isExpanded = expandedAnnexureBInAct[aIdx] !== false;
 
                     return (
                       <div
                         key={act.id || aIdx}
+                        id={`annexure-a-activity-${aIdx}`}
                         style={{
                           background: '#ffffff',
-                          border: '1px solid #cbd5e1',
+                          border: '1.5px solid #cbd5e1',
                           borderRadius: '8px',
                           padding: '10px 12px',
-                          marginBottom: '10px',
+                          marginBottom: '12px',
                           boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
                         }}
                       >
@@ -3512,7 +3616,7 @@ const ProvisionalQuotationForm = () => {
                           </button>
                         </div>
 
-                        {/* Row 2: Parameters Monitored Reference Text & Link to Annexure B */}
+                        {/* Row 2: Parameters Monitored Reference Text & Link */}
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', marginBottom: '8px' }}>
                           <div style={{ flexGrow: 1 }}>
                             <label style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748b', display: 'block', marginBottom: '2px' }}>
@@ -3527,34 +3631,43 @@ const ProvisionalQuotationForm = () => {
                               style={{ height: '28px', fontSize: '0.76rem' }}
                             />
                           </div>
-                          <a
-                            href={`#annexure-b-group-${aIdx}`}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              const el = document.getElementById(`annexure-b-group-${aIdx}`);
-                              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            }}
+                          <button
+                            type="button"
+                            onClick={() => setExpandedAnnexureBInAct(prev => ({ ...prev, [aIdx]: !prev[aIdx] }))}
                             className="btn btn-outline-primary btn-xs font-semibold"
                             style={{ fontSize: '0.7rem', height: '28px', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}
-                            title="Jump to edit detailed parameters in Annexure-B"
+                            title="Toggle detailed parameters for this activity"
                           >
-                            <span>📋 Annexure-B ({paramCount} params • ₹{Number(bGroupTotal).toLocaleString('en-IN')})</span>
-                          </a>
+                            <span>📋 {isExpanded ? 'Hide Parameters ▲' : `Annexure-B (${paramCount} params • ₹${Number(bGroupTotal).toLocaleString('en-IN')}) ▼`}</span>
+                          </button>
                         </div>
 
                         {/* Row 3: The 3 User-Editable Columns */}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.1fr 1.2fr 1.1fr', gap: '8px', alignItems: 'flex-end', background: '#f8fafc', padding: '8px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
                           {/* Rate Per Sample */}
                           <div>
-                            <label style={{ fontSize: '0.68rem', fontWeight: 700, color: '#0f172a', display: 'block', marginBottom: '2px' }}>
-                              Rate / Sample (₹)
-                            </label>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                              <label style={{ fontSize: '0.68rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+                                Rate / Sample (₹)
+                              </label>
+                              {act.isRateOverridden && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleSyncActivityRateWithBGroup(aIdx)}
+                                  className="btn btn-link p-0 text-xs text-primary font-bold"
+                                  style={{ fontSize: '0.62rem', textDecoration: 'underline' }}
+                                  title="Sync rate with Annexure-B parameter sum"
+                                >
+                                  Sync
+                                </button>
+                              )}
+                            </div>
                             <input
                               type="number"
                               value={act.ratePerSample !== undefined ? act.ratePerSample : ''}
                               onChange={(e) => handleUpdateActivity(aIdx, 'ratePerSample', e.target.value)}
                               className="form-control font-bold"
-                              style={{ height: '30px', fontSize: '0.78rem' }}
+                              style={{ height: '30px', fontSize: '0.78rem', borderColor: act.isRateOverridden ? '#f59e0b' : '#3b82f6' }}
                             />
                           </div>
 
@@ -3607,6 +3720,221 @@ const ProvisionalQuotationForm = () => {
                               ₹{Number(rowCalc.totalCharge).toLocaleString('en-IN')}/-
                             </div>
                           </div>
+                        </div>
+
+                        {/* Inline Annexure-B Parameters Section for this Activity */}
+                        <div style={{ marginTop: '10px', background: '#f8fafc', border: '1.5px solid #bfdbfe', borderRadius: '6px', overflow: 'hidden' }}>
+                          {/* Collapsible Header Bar */}
+                          <div
+                            onClick={() => setExpandedAnnexureBInAct(prev => ({ ...prev, [aIdx]: !prev[aIdx] }))}
+                            style={{
+                              background: isExpanded ? '#eff6ff' : '#f8fafc',
+                              padding: '6px 10px',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              cursor: 'pointer',
+                              userSelect: 'none',
+                              borderBottom: isExpanded ? '1px solid #bfdbfe' : 'none',
+                              transition: 'background 0.15s ease'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                              <span style={{ fontSize: '0.76rem', fontWeight: 800, color: '#1e3a8a', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                📋 Annexure-B Parameters ({paramCount} items)
+                              </span>
+                              <span style={{
+                                background: '#ecfdf5',
+                                color: '#047857',
+                                fontSize: '0.68rem',
+                                fontWeight: 800,
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                                border: '1px solid #6ee7b7'
+                              }}>
+                                Sum: ₹{Number(bGroupTotal).toLocaleString('en-IN')}/-
+                              </span>
+                              {act.isRateOverridden && (
+                                <span style={{
+                                  background: '#fffbeb',
+                                  color: '#b45309',
+                                  fontSize: '0.64rem',
+                                  fontWeight: 600,
+                                  padding: '1px 5px',
+                                  borderRadius: '4px',
+                                  border: '1px solid #fde68a'
+                                }}>
+                                  Manual Rate: ₹{Number(act.ratePerSample).toLocaleString('en-IN')}
+                                </span>
+                              )}
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ fontSize: '0.72rem', color: '#2563eb', fontWeight: 700 }}>
+                                {isExpanded ? 'Hide Parameters ▲' : 'Edit Parameters ▼'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Expanded Parameter Management Body */}
+                          {isExpanded && (
+                            <div style={{ padding: '8px 10px', background: '#ffffff' }}>
+                              {/* Quick Search + Preset Selector + Add Custom Button */}
+                              <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap' }}>
+                                <div style={{ position: 'relative', flexGrow: 1, minWidth: '180px' }}>
+                                  <input
+                                    type="text"
+                                    placeholder="🔍 Search & quick-add master parameter (pH, BOD, COD, SO2, Noise)..."
+                                    value={paramSearchTerms[aIdx] || ''}
+                                    onChange={(e) => setParamSearchTerms(prev => ({ ...prev, [aIdx]: e.target.value }))}
+                                    className="form-control form-control-sm"
+                                    style={{ fontSize: '0.74rem', height: '28px', paddingLeft: '8px' }}
+                                  />
+                                  {searchTerm && filteredParams.length > 0 && (
+                                    <div style={{
+                                      position: 'absolute',
+                                      top: '30px',
+                                      left: 0,
+                                      right: 0,
+                                      background: '#ffffff',
+                                      border: '1.5px solid #3b82f6',
+                                      borderRadius: '6px',
+                                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                      zIndex: 50,
+                                      maxHeight: '180px',
+                                      overflowY: 'auto'
+                                    }}>
+                                      {filteredParams.map(param => {
+                                        const paramPrice = getMasterParamPrice(param, masters);
+                                        return (
+                                          <div
+                                            key={param.id}
+                                            onClick={() => {
+                                              handleAddAnnexureBParam(aIdx, {
+                                                parameterName: param.name || param.parameterName,
+                                                rate: paramPrice
+                                              });
+                                              setParamSearchTerms(prev => ({ ...prev, [aIdx]: '' }));
+                                            }}
+                                            style={{
+                                              padding: '5px 10px',
+                                              fontSize: '0.74rem',
+                                              cursor: 'pointer',
+                                              display: 'flex',
+                                              justifyContent: 'space-between',
+                                              alignItems: 'center',
+                                              borderBottom: '1px solid #f1f5f9'
+                                            }}
+                                            className="hover:bg-blue-50"
+                                          >
+                                            <span style={{ fontWeight: 600, color: '#0f172a' }}>{param.name || param.parameterName}</span>
+                                            <span style={{ fontWeight: 700, color: '#059669' }}>₹{paramPrice}/-</span>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Preset Dropdown */}
+                                <select
+                                  className="form-select form-select-sm"
+                                  style={{ fontSize: '0.72rem', height: '28px', width: 'auto', borderColor: '#3b82f6', color: '#1e40af', fontWeight: 700, background: '#eff6ff' }}
+                                  onChange={(e) => {
+                                    const pIdx = parseInt(e.target.value, 10);
+                                    if (!isNaN(pIdx) && ANNEXURE_B_PRESETS[pIdx]) {
+                                      handleApplyPresetToGroup(aIdx, ANNEXURE_B_PRESETS[pIdx]);
+                                      e.target.value = '';
+                                    }
+                                  }}
+                                  defaultValue=""
+                                >
+                                  <option value="" disabled>⚡ Apply Preset...</option>
+                                  {ANNEXURE_B_PRESETS.map((p, pIdx) => (
+                                    <option key={pIdx} value={pIdx}>{p.category}</option>
+                                  ))}
+                                </select>
+
+                                {/* Custom Param Button */}
+                                <button
+                                  type="button"
+                                  className="btn btn-outline-success btn-xs font-semibold"
+                                  onClick={() => handleAddAnnexureBParam(aIdx)}
+                                  style={{ fontSize: '0.7rem', height: '28px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                >
+                                  <FaPlus /> Custom Param
+                                </button>
+                              </div>
+
+                              {/* Parameter Table */}
+                              {(!matchingBGroup?.parameters || matchingBGroup.parameters.length === 0) ? (
+                                <div style={{ textAlign: 'center', padding: '10px', color: '#64748b', fontSize: '0.74rem', background: '#f8fafc', borderRadius: '6px', border: '1px dashed #cbd5e1' }}>
+                                  No parameters added yet. Search above, click "+ Custom Param", or select "⚡ Apply Preset".
+                                </div>
+                              ) : (
+                                <div style={{ border: '1px solid #e2e8f0', borderRadius: '6px', overflow: 'hidden' }}>
+                                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.74rem' }}>
+                                    <thead>
+                                      <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#475569', fontWeight: 700 }}>
+                                        <th style={{ width: '30px', padding: '4px 6px', textAlign: 'center' }}>#</th>
+                                        <th style={{ padding: '4px 8px', textAlign: 'left' }}>Parameter Description</th>
+                                        <th style={{ width: '90px', padding: '4px 8px', textAlign: 'right' }}>Rate (₹)</th>
+                                        <th style={{ width: '30px', padding: '4px 6px', textAlign: 'center' }}></th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {(matchingBGroup.parameters || []).map((param, pIdx) => (
+                                        <tr key={param.id || pIdx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                          <td style={{ padding: '3px 6px', textAlign: 'center', color: '#64748b', fontWeight: 600 }}>
+                                            {pIdx + 1}
+                                          </td>
+                                          <td style={{ padding: '3px 8px' }}>
+                                            <input
+                                              type="text"
+                                              value={param.description || ''}
+                                              onChange={(e) => handleUpdateAnnexureBParam(aIdx, pIdx, 'description', e.target.value)}
+                                              className="form-control form-control-sm"
+                                              style={{ fontSize: '0.74rem', height: '24px', padding: '2px 6px' }}
+                                            />
+                                          </td>
+                                          <td style={{ padding: '3px 8px' }}>
+                                            <input
+                                              type="number"
+                                              value={param.rate !== undefined ? param.rate : ''}
+                                              onChange={(e) => handleUpdateAnnexureBParam(aIdx, pIdx, 'rate', e.target.value)}
+                                              className="form-control form-control-sm text-end font-bold"
+                                              style={{ fontSize: '0.74rem', height: '24px', padding: '2px 6px', color: '#059669' }}
+                                            />
+                                          </td>
+                                          <td style={{ padding: '3px 6px', textAlign: 'center' }}>
+                                            <button
+                                              type="button"
+                                              onClick={() => handleDeleteAnnexureBParam(aIdx, pIdx)}
+                                              className="btn btn-link p-0 text-danger"
+                                              title="Remove parameter"
+                                            >
+                                              <FaTrash size={11} />
+                                            </button>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                    <tfoot>
+                                      <tr style={{ background: '#f8fafc', borderTop: '1px solid #e2e8f0', fontWeight: 700 }}>
+                                        <td colSpan={2} style={{ padding: '4px 8px', textAlign: 'right', color: '#334155' }}>
+                                          Total Annexure-B Parameters Rate:
+                                        </td>
+                                        <td style={{ padding: '4px 8px', textAlign: 'right', color: '#059669', fontWeight: 800 }}>
+                                          ₹{Number(bGroupTotal).toLocaleString('en-IN')}/-
+                                        </td>
+                                        <td></td>
+                                      </tr>
+                                    </tfoot>
+                                  </table>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -3813,6 +4141,25 @@ const ProvisionalQuotationForm = () => {
                                 </div>
                               )}
                             </div>
+                            {/* Preset Dropdown */}
+                            <select
+                              className="form-select form-select-sm"
+                              style={{ fontSize: '0.72rem', height: '28px', width: 'auto', borderColor: '#3b82f6', color: '#1e40af', fontWeight: 700, background: '#eff6ff' }}
+                              onChange={(e) => {
+                                const pIdx = parseInt(e.target.value, 10);
+                                if (!isNaN(pIdx) && ANNEXURE_B_PRESETS[pIdx]) {
+                                  handleApplyPresetToGroup(gIdx, ANNEXURE_B_PRESETS[pIdx]);
+                                  e.target.value = '';
+                                }
+                              }}
+                              defaultValue=""
+                            >
+                              <option value="" disabled>⚡ Apply Preset...</option>
+                              {ANNEXURE_B_PRESETS.map((p, pIdx) => (
+                                <option key={pIdx} value={pIdx}>{p.category}</option>
+                              ))}
+                            </select>
+
                             <button
                               type="button"
                               className="btn btn-outline-success btn-xs font-semibold"

@@ -2314,10 +2314,10 @@ const TestRequestForm = () => {
                   <SearchableSelect
                     options={[
                       { id: '', name: 'Select Location of Sample' },
-                      ...[...locationSamples].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(loc => ({ id: loc.name, name: loc.name })),
-                      ...(currentGroup.locationOfSample && !locationSamples.some(l => l.name === currentGroup.locationOfSample)
-                        ? [{ id: currentGroup.locationOfSample, name: currentGroup.locationOfSample }]
-                        : [])
+                      ...Array.from(new Set(
+                        [...locationSamples.map(l => (l?.name || '').trim()), (currentGroup.locationOfSample || '').trim()]
+                          .filter(Boolean)
+                      )).sort((a, b) => a.localeCompare(b)).map(name => ({ id: name, name }))
                     ]}
                     value={currentGroup.locationOfSample || ''}
                     onChange={handleGroupLocationChange}
