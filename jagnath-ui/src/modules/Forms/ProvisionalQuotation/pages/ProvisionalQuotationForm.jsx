@@ -534,6 +534,12 @@ const ProvisionalQuotationForm = () => {
       const updatedAnnexureI = { ...(prev.annexureI || {}) };
       let newAnnexureAVisits = prev.annexureAVisits;
 
+      if (field === 'auditFee') {
+        const feeVal = parseFloat(rawVal) || 0;
+        updatedAnnexureI.auditFee = feeVal;
+        updatedP2.auditFee = feeVal;
+      }
+
       if (field === 'visits' || field === 'daysPerVisit') {
         const v = parseInt(field === 'visits' ? rawVal : (updatedP2.visits ?? updatedAnnexureI.visits ?? 3), 10) || 3;
         const d = parseInt(field === 'daysPerVisit' ? rawVal : (updatedP2.daysPerVisit ?? updatedAnnexureI.daysPerVisit ?? 4), 10) || 4;
@@ -542,6 +548,12 @@ const ProvisionalQuotationForm = () => {
 
         updatedP2.daDaysPerYear = tot;
         updatedP2.transportDaysText = word ? `${word} days` : `${tot} days`;
+
+        if (field === 'visits') {
+          updatedP2.transportQty = v;
+          updatedP2.daQty = v;
+          updatedP2.accomQty = v;
+        }
 
         // Auto update transport rate & total if dynamic calculation
         const jltRate = Number(updatedP2.jltVehicleRatePerDay ?? updatedAnnexureI.jltVehicleRatePerDay ?? 5000);
@@ -563,7 +575,7 @@ const ProvisionalQuotationForm = () => {
       if (field === 'jltVehicleRatePerDay') {
         updatedAnnexureI.jltVehicleRatePerDay = rawVal;
         const d = parseInt(updatedP2.daysPerVisit ?? updatedAnnexureI.daysPerVisit ?? 4, 10) || 4;
-        const v = parseInt(updatedP2.visits ?? updatedAnnexureI.visits ?? 3, 10) || 3;
+        const v = parseInt(updatedP2.transportQty ?? updatedP2.visits ?? updatedAnnexureI.visits ?? 3, 10) || 3;
         const autoPerVisit = (parseFloat(rawVal) || 0) * d;
         const autoTotal = autoPerVisit * v;
         updatedP2.transportRatePerVisit = autoPerVisit;
@@ -572,25 +584,40 @@ const ProvisionalQuotationForm = () => {
         updatedAnnexureI.transportTotalAmount = autoTotal;
       }
 
-      if (field === 'daRatePerPerson' || field === 'daPersons' || field === 'daDaysPerYear') {
+      if (field === 'transportRatePerVisit') {
+        const v = parseInt(updatedP2.transportQty ?? updatedP2.visits ?? updatedAnnexureI.visits ?? 3, 10) || 3;
+        const autoTotal = (parseFloat(rawVal) || 0) * v;
+        updatedP2.transportTotalAmount = autoTotal;
+        updatedAnnexureI.transportRatePerVisit = parseFloat(rawVal) || 0;
+        updatedAnnexureI.transportTotalAmount = autoTotal;
+      }
+
+      if (field === 'transportQty') {
+        const q = parseFloat(rawVal) || 0;
+        const r = parseFloat(updatedP2.transportRatePerVisit ?? updatedAnnexureI.transportRatePerVisit ?? 20000) || 0;
+        updatedP2.transportTotalAmount = r * q;
+        updatedAnnexureI.transportTotalAmount = r * q;
+      }
+
+      if (field === 'daRatePerPerson' || field === 'daPersons' || field === 'daDaysPerYear' || field === 'daQty') {
         const rate = parseFloat(field === 'daRatePerPerson' ? rawVal : (updatedP2.daRatePerPerson ?? 520)) || 0;
         const persons = parseFloat(field === 'daPersons' ? rawVal : (updatedP2.daPersons ?? 4)) || 0;
         const days = parseFloat(field === 'daDaysPerYear' ? rawVal : (updatedP2.daDaysPerYear ?? 12)) || 0;
-        const v = parseInt(updatedP2.visits ?? updatedAnnexureI.visits ?? 3, 10) || 3;
+        const q = parseFloat(field === 'daQty' ? rawVal : (updatedP2.daQty ?? updatedP2.visits ?? 3)) || 3;
         const amount = Math.round(rate * persons * days);
-        const ratePerVisit = v > 0 ? Math.round(amount / v) : amount;
+        const ratePerVisit = q > 0 ? Math.round(amount / q) : amount;
         updatedP2.daTotalAmount = amount;
         updatedP2.daRatePerVisit = ratePerVisit;
       }
 
-      if (field === 'hotelRoomRate' || field === 'hotelRoomsCount' || field === 'hotelNightsPerVisit') {
+      if (field === 'hotelRoomRate' || field === 'hotelRoomsCount' || field === 'hotelNightsPerVisit' || field === 'accomQty') {
         const rRate = parseFloat(field === 'hotelRoomRate' ? rawVal : (updatedP2.hotelRoomRate ?? 3000)) || 0;
         const rCount = parseFloat(field === 'hotelRoomsCount' ? rawVal : (updatedP2.hotelRoomsCount ?? 2)) || 0;
         const nights = parseFloat(field === 'hotelNightsPerVisit' ? rawVal : (updatedP2.hotelNightsPerVisit ?? 2)) || 0;
-        const v = parseInt(updatedP2.visits ?? updatedAnnexureI.visits ?? 3, 10) || 3;
+        const q = parseFloat(field === 'accomQty' ? rawVal : (updatedP2.accomQty ?? updatedP2.visits ?? 3)) || 3;
         const dailyCost = rRate * rCount;
         const ratePerVisit = dailyCost * nights;
-        const accomTotal = ratePerVisit * v;
+        const accomTotal = ratePerVisit * q;
         updatedP2.accomRatePerVisit = ratePerVisit;
         updatedP2.accomTotalAmount = accomTotal;
       }
@@ -1541,7 +1568,347 @@ const ProvisionalQuotationForm = () => {
                 </div>
               </div>
 
-              {/* 5. TERMS & CONDITIONS (PAGE 3) */}
+              {/* 5. DEDICATED DETAIL OF CHARGES TABLE SETTINGS (PAGE 2 TABLE) */}
+              <div
+                id="form-page-2-charges"
+                onFocusCapture={() => scrollToPreview('preview-page-2-charges')}
+                onClick={() => scrollToPreview('preview-page-2-charges')}
+                style={{ background: '#f8fafc', border: '1.5px solid #cbd5e1', borderRadius: '10px', padding: '1.1rem', boxShadow: '0 2px 6px rgba(0,0,0,0.03)', cursor: 'default' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.4rem' }}>
+                  <h4 style={{ fontSize: '0.92rem', fontWeight: 800, margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                    <span>📊</span> 5. Detail of Charges Table Settings (Page 2 Table)
+                  </h4>
+                  <span style={{ fontSize: '0.72rem', background: '#e0f2fe', color: '#0369a1', padding: '0.15rem 0.5rem', borderRadius: '4px', fontWeight: 700 }}>
+                    Separate Row Controls
+                  </span>
+                </div>
+
+                {/* ROW 1: AUDIT REPORT CHARGES */}
+                <div style={{ background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.75rem 0.85rem', marginBottom: '0.75rem' }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.45rem' }}>
+                    1. Environment Audit Report Charges (Row 1)
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '0.7fr 0.8fr 1.1fr 1.1fr', gap: '0.5rem' }}>
+                    <div className="form-group mb-0">
+                      <label className="form-label font-bold mb-1" style={{ color: '#475569', fontSize: '0.72rem' }}>Qty</label>
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={formData.page2Charges?.row1Qty !== undefined ? formData.page2Charges.row1Qty : 1}
+                        onChange={(e) => handleP2FieldChange('row1Qty', e.target.value)}
+                        className="form-control font-bold"
+                        style={{ height: '34px', fontSize: '0.82rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label font-bold mb-1" style={{ color: '#475569', fontSize: '0.72rem' }}>Unit</label>
+                      <input
+                        type="text"
+                        value={formData.page2Charges?.row1Unit !== undefined ? formData.page2Charges.row1Unit : 'No.'}
+                        onChange={(e) => handleP2FieldChange('row1Unit', e.target.value)}
+                        className="form-control font-semibold"
+                        style={{ height: '34px', fontSize: '0.82rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label font-bold mb-1" style={{ color: '#475569', fontSize: '0.72rem' }}>Rate (₹ / Fee)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={formData.page2Charges?.auditFee !== undefined ? formData.page2Charges.auditFee : (formData.annexureI?.auditFee !== undefined ? formData.annexureI.auditFee : 25000)}
+                        onChange={(e) => handleP2FieldChange('auditFee', e.target.value)}
+                        className="form-control font-bold text-primary"
+                        style={{ height: '34px', fontSize: '0.82rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label font-bold mb-1" style={{ color: '#475569', fontSize: '0.72rem' }}>Total Amount (₹)</label>
+                      <input
+                        type="number"
+                        readOnly
+                        value={Math.round((parseFloat(formData.page2Charges?.row1Qty !== undefined ? formData.page2Charges.row1Qty : 1) || 1) * (parseFloat(formData.page2Charges?.auditFee !== undefined ? formData.page2Charges.auditFee : (formData.annexureI?.auditFee ?? 25000)) || 0))}
+                        className="form-control font-bold"
+                        style={{ height: '34px', fontSize: '0.82rem', backgroundColor: '#f1f5f9', color: '#0f172a' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* ROW 2.1: TRANSPORTATION CHARGES */}
+                <div style={{ background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.75rem 0.85rem', marginBottom: '0.75rem' }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.45rem' }}>
+                    2.1 Transportation Charges (Instruments &amp; Material)
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '0.7fr 0.8fr 1.1fr 1.1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <div className="form-group mb-0">
+                      <label className="form-label font-bold mb-1" style={{ color: '#475569', fontSize: '0.72rem' }}>Qty</label>
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={formData.page2Charges?.transportQty !== undefined ? formData.page2Charges.transportQty : (formData.page2Charges?.visits ?? formData.annexureI?.visits ?? 3)}
+                        onChange={(e) => handleP2FieldChange('transportQty', e.target.value)}
+                        className="form-control font-bold"
+                        style={{ height: '34px', fontSize: '0.82rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label font-bold mb-1" style={{ color: '#475569', fontSize: '0.72rem' }}>Unit</label>
+                      <input
+                        type="text"
+                        value={formData.page2Charges?.transportUnit !== undefined ? formData.page2Charges.transportUnit : 'Visit'}
+                        onChange={(e) => handleP2FieldChange('transportUnit', e.target.value)}
+                        className="form-control font-semibold"
+                        style={{ height: '34px', fontSize: '0.82rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label font-bold mb-1" style={{ color: '#475569', fontSize: '0.72rem' }}>Rate / Visit (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={formData.page2Charges?.transportRatePerVisit !== undefined ? formData.page2Charges.transportRatePerVisit : ((formData.page2Charges?.jltVehicleRatePerDay ?? 5000) * (formData.page2Charges?.daysPerVisit ?? 4))}
+                        onChange={(e) => handleP2FieldChange('transportRatePerVisit', e.target.value)}
+                        className="form-control font-bold"
+                        style={{ height: '34px', fontSize: '0.82rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label font-bold mb-1" style={{ color: '#475569', fontSize: '0.72rem' }}>Total Amount (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={formData.page2Charges?.transportTotalAmount !== undefined ? formData.page2Charges.transportTotalAmount : (((formData.page2Charges?.jltVehicleRatePerDay ?? 5000) * (formData.page2Charges?.daysPerVisit ?? 4)) * (formData.page2Charges?.transportQty ?? 3))}
+                        onChange={(e) => handleP2FieldChange('transportTotalAmount', e.target.value)}
+                        className="form-control font-bold text-primary"
+                        style={{ height: '34px', fontSize: '0.82rem' }}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', background: '#f8fafc', padding: '6px 8px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                    <div className="form-group mb-0">
+                      <label className="form-label mb-0" style={{ color: '#64748b', fontSize: '0.68rem', fontWeight: 600 }}>Days / Visit</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={formData.page2Charges?.daysPerVisit !== undefined ? formData.page2Charges.daysPerVisit : (formData.annexureI?.daysPerVisit ?? 4)}
+                        onChange={(e) => handleP2FieldChange('daysPerVisit', e.target.value)}
+                        className="form-control"
+                        style={{ height: '28px', fontSize: '0.76rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label mb-0" style={{ color: '#64748b', fontSize: '0.68rem', fontWeight: 600 }}>Vehicle Rate / Day (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.page2Charges?.jltVehicleRatePerDay !== undefined ? formData.page2Charges.jltVehicleRatePerDay : (formData.annexureI?.jltVehicleRatePerDay ?? 5000)}
+                        onChange={(e) => handleP2FieldChange('jltVehicleRatePerDay', e.target.value)}
+                        className="form-control"
+                        style={{ height: '28px', fontSize: '0.76rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label mb-0" style={{ color: '#64748b', fontSize: '0.68rem', fontWeight: 600 }}>Days Text in Description</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. twelve days"
+                        value={formData.page2Charges?.transportDaysText !== undefined ? formData.page2Charges.transportDaysText : ''}
+                        onChange={(e) => handleP2FieldChange('transportDaysText', e.target.value)}
+                        className="form-control"
+                        style={{ height: '28px', fontSize: '0.76rem' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* ROW 2.2: DEARNESS ALLOWANCE (DA) */}
+                <div style={{ background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.75rem 0.85rem', marginBottom: '0.75rem' }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.45rem' }}>
+                    2.2 Dearness Allowance (DA)
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '0.7fr 0.8fr 1.1fr 1.1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <div className="form-group mb-0">
+                      <label className="form-label font-bold mb-1" style={{ color: '#475569', fontSize: '0.72rem' }}>Qty</label>
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={formData.page2Charges?.daQty !== undefined ? formData.page2Charges.daQty : (formData.page2Charges?.visits ?? formData.annexureI?.visits ?? 3)}
+                        onChange={(e) => handleP2FieldChange('daQty', e.target.value)}
+                        className="form-control font-bold"
+                        style={{ height: '34px', fontSize: '0.82rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label font-bold mb-1" style={{ color: '#475569', fontSize: '0.72rem' }}>Unit</label>
+                      <input
+                        type="text"
+                        value={formData.page2Charges?.daUnit !== undefined ? formData.page2Charges.daUnit : 'Visit'}
+                        onChange={(e) => handleP2FieldChange('daUnit', e.target.value)}
+                        className="form-control font-semibold"
+                        style={{ height: '34px', fontSize: '0.82rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label font-bold mb-1" style={{ color: '#475569', fontSize: '0.72rem' }}>Rate / Visit (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={formData.page2Charges?.daRatePerVisit !== undefined ? formData.page2Charges.daRatePerVisit : 8320}
+                        onChange={(e) => handleP2FieldChange('daRatePerVisit', e.target.value)}
+                        className="form-control font-bold"
+                        style={{ height: '34px', fontSize: '0.82rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label font-bold mb-1" style={{ color: '#475569', fontSize: '0.72rem' }}>Total Amount (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={formData.page2Charges?.daTotalAmount !== undefined ? formData.page2Charges.daTotalAmount : 24960}
+                        onChange={(e) => handleP2FieldChange('daTotalAmount', e.target.value)}
+                        className="form-control font-bold text-primary"
+                        style={{ height: '34px', fontSize: '0.82rem' }}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', background: '#f8fafc', padding: '6px 8px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                    <div className="form-group mb-0">
+                      <label className="form-label mb-0" style={{ color: '#64748b', fontSize: '0.68rem', fontWeight: 600 }}>Rate / Person / Day (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.page2Charges?.daRatePerPerson !== undefined ? formData.page2Charges.daRatePerPerson : 520}
+                        onChange={(e) => handleP2FieldChange('daRatePerPerson', e.target.value)}
+                        className="form-control"
+                        style={{ height: '28px', fontSize: '0.76rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label mb-0" style={{ color: '#64748b', fontSize: '0.68rem', fontWeight: 600 }}>Persons / Day</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={formData.page2Charges?.daPersons !== undefined ? formData.page2Charges.daPersons : 4}
+                        onChange={(e) => handleP2FieldChange('daPersons', e.target.value)}
+                        className="form-control"
+                        style={{ height: '28px', fontSize: '0.76rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label mb-0" style={{ color: '#64748b', fontSize: '0.68rem', fontWeight: 600 }}>Total Days / Year</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={formData.page2Charges?.daDaysPerYear !== undefined ? formData.page2Charges.daDaysPerYear : 12}
+                        onChange={(e) => handleP2FieldChange('daDaysPerYear', e.target.value)}
+                        className="form-control"
+                        style={{ height: '28px', fontSize: '0.76rem' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* ROW 2.3: ACCOMMODATION FOR AUDITORS */}
+                <div style={{ background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.75rem 0.85rem', marginBottom: '0.4rem' }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.45rem' }}>
+                    2.3 Accommodation For Auditors
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '0.7fr 0.8fr 1.1fr 1.1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <div className="form-group mb-0">
+                      <label className="form-label font-bold mb-1" style={{ color: '#475569', fontSize: '0.72rem' }}>Qty</label>
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={formData.page2Charges?.accomQty !== undefined ? formData.page2Charges.accomQty : (formData.page2Charges?.visits ?? formData.annexureI?.visits ?? 3)}
+                        onChange={(e) => handleP2FieldChange('accomQty', e.target.value)}
+                        className="form-control font-bold"
+                        style={{ height: '34px', fontSize: '0.82rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label font-bold mb-1" style={{ color: '#475569', fontSize: '0.72rem' }}>Unit</label>
+                      <input
+                        type="text"
+                        value={formData.page2Charges?.accomUnit !== undefined ? formData.page2Charges.accomUnit : 'Visit'}
+                        onChange={(e) => handleP2FieldChange('accomUnit', e.target.value)}
+                        className="form-control font-semibold"
+                        style={{ height: '34px', fontSize: '0.82rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label font-bold mb-1" style={{ color: '#475569', fontSize: '0.72rem' }}>Rate / Visit (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={formData.page2Charges?.accomRatePerVisit !== undefined ? formData.page2Charges.accomRatePerVisit : 12000}
+                        onChange={(e) => handleP2FieldChange('accomRatePerVisit', e.target.value)}
+                        className="form-control font-bold"
+                        style={{ height: '34px', fontSize: '0.82rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label font-bold mb-1" style={{ color: '#475569', fontSize: '0.72rem' }}>Total Amount (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={formData.page2Charges?.accomTotalAmount !== undefined ? formData.page2Charges.accomTotalAmount : 36000}
+                        onChange={(e) => handleP2FieldChange('accomTotalAmount', e.target.value)}
+                        className="form-control font-bold text-primary"
+                        style={{ height: '34px', fontSize: '0.82rem' }}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', background: '#f8fafc', padding: '6px 8px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                    <div className="form-group mb-0">
+                      <label className="form-label mb-0" style={{ color: '#64748b', fontSize: '0.68rem', fontWeight: 600 }}>Hotel Room Rate (₹ / Day)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.page2Charges?.hotelRoomRate !== undefined ? formData.page2Charges.hotelRoomRate : 3000}
+                        onChange={(e) => handleP2FieldChange('hotelRoomRate', e.target.value)}
+                        className="form-control"
+                        style={{ height: '28px', fontSize: '0.76rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label mb-0" style={{ color: '#64748b', fontSize: '0.68rem', fontWeight: 600 }}>Rooms Count</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={formData.page2Charges?.hotelRoomsCount !== undefined ? formData.page2Charges.hotelRoomsCount : 2}
+                        onChange={(e) => handleP2FieldChange('hotelRoomsCount', e.target.value)}
+                        className="form-control"
+                        style={{ height: '28px', fontSize: '0.76rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label mb-0" style={{ color: '#64748b', fontSize: '0.68rem', fontWeight: 600 }}>Nights / Visit</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={formData.page2Charges?.hotelNightsPerVisit !== undefined ? formData.page2Charges.hotelNightsPerVisit : 2}
+                        onChange={(e) => handleP2FieldChange('hotelNightsPerVisit', e.target.value)}
+                        className="form-control"
+                        style={{ height: '28px', fontSize: '0.76rem' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 6. TERMS & CONDITIONS (PAGE 3) */}
               <div
                 onFocusCapture={() => scrollToPreview('preview-page-3')}
                 onClick={() => scrollToPreview('preview-page-3')}
@@ -1549,7 +1916,7 @@ const ProvisionalQuotationForm = () => {
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.4rem' }}>
                   <h4 style={{ fontSize: '0.92rem', fontWeight: 800, margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                    <span>📜</span> 5. Terms &amp; Conditions (Page 3)
+                    <span>📜</span> 6. Terms &amp; Conditions (Page 3)
                   </h4>
                 </div>
 
@@ -1591,7 +1958,7 @@ const ProvisionalQuotationForm = () => {
                 </div>
               </div>
 
-              {/* 6. ANNEXURE - I LOGISTICS & RATES (PAGE 4 - TOP) */}
+              {/* 7. ANNEXURE - I LOGISTICS & RATES (PAGE 4 - TOP) */}
               <div
                 onFocusCapture={() => scrollToPreview('preview-annexure-1')}
                 onClick={() => scrollToPreview('preview-annexure-1')}
@@ -1599,7 +1966,7 @@ const ProvisionalQuotationForm = () => {
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.4rem' }}>
                   <h4 style={{ fontSize: '0.92rem', fontWeight: 800, margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                    <span>💰</span> 6. Annexure - I Rates &amp; Logistics (Page 4 - Top)
+                    <span>💰</span> 7. Annexure - I Rates &amp; Logistics (Page 4 - Top)
                   </h4>
                 </div>
 
@@ -1939,7 +2306,7 @@ const ProvisionalQuotationForm = () => {
                 </div>
               </div>
 
-              {/* 7. ANNEXURE - A SAMPLING & MONITORING ACTIVITIES (PAGE 4 - BOTTOM) */}
+              {/* 8. ANNEXURE - A SAMPLING & MONITORING ACTIVITIES (PAGE 4 - BOTTOM) */}
               <div
                 onFocusCapture={() => scrollToPreview('preview-annexure-a')}
                 onClick={() => scrollToPreview('preview-annexure-a')}
@@ -1947,7 +2314,7 @@ const ProvisionalQuotationForm = () => {
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.4rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                   <h4 style={{ fontSize: '0.92rem', fontWeight: 800, margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                    <span>📊</span> 7. Annexure - A: Sampling Activities Matrix (Page 4 - Bottom)
+                    <span>📊</span> 8. Annexure - A: Sampling Activities Matrix (Page 4 - Bottom)
                   </h4>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <button
@@ -2503,7 +2870,7 @@ const ProvisionalQuotationForm = () => {
                   {(() => {
                     const p2Calc = calculatePage2Charges(formData, annexureATotals.totalAnnualCharge);
                     return (
-                      <div style={{ marginTop: '8px', marginBottom: '8px' }}>
+                      <div id="preview-page-2-charges" style={{ marginTop: '8px', marginBottom: '8px' }}>
                         {/* Title */}
                         <div style={{ textAlign: 'center', marginBottom: '6px' }}>
                           <h3 style={{ fontSize: '11.5px', fontWeight: 800, margin: 0, textDecoration: 'underline', letterSpacing: '0.02em', color: '#0f172a' }}>
