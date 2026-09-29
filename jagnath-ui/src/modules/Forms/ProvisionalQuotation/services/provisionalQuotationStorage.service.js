@@ -605,3 +605,221 @@ export const createInitialQuotation = (company = {}) => {
     grandTotal: 0,
   };
 };
+
+/* =========================================================================
+ * GENERAL TESTING / CONSULTING QUOTATION DEFAULTS & MASTER TERMS
+ * ========================================================================= */
+
+export const GENERAL_TESTING_MASTER_TERMS_KEY = 'jagnath_general_testing_master_terms';
+
+export const DEFAULT_GENERAL_TESTING_TERMS = {
+  validityDays: 30,
+  overdueInterestPercent: 24,
+  tatText: '6–8 Working Days for Chemical & Micro analysis.',
+  sampleRequirementsText: `NOTE- GIVEN ARE FOR PER SAMPLE CHARGES.
+TRQUIRED 2-5 LTRS OF SAMPLE FOR WATER ANALYSIS
+TRQUIRED 500G- 1KG OF SAMPLE FOR WATER ANALYSIS / SOLID SLUDGE ANALYSIS`,
+  gstNote: '18% GST will be charged as applicable (extra).',
+  gstPercent: 18,
+  signatureRequired: false,
+  signatureDisclaimer: 'As the enquiry is system generated, signature is not required.',
+  
+  // Page 1 Terms
+  p1_validity: `Collection and testing of samples will commence only after receipt of a clear purchase order.
+This quotation is valid for {validityDays} days from the date of issue.`,
+  
+  p1_payment: `Overdue payments will attract {overdueInterestPercent}% annual interest.
+Priority services may incur fast-track charges.
+Online payments must be confirmed via email.
+GST will be charged extra, as applicable, at the time of billing.
+TDS Certificates, where applicable, must be provided within 30 days from the end of each quarter.
+Statutory deductions (e.g., ESIC, PF) do not apply to our representatives, who visit customer premises solely for sampling.`,
+
+  // Page 2 Terms
+  p2_samplingConditions: `If the sampling team is unable to proceed due to lack of infrastructure or customer cooperation, sampling fees will be charged again.
+Customers must ensure adequate arrangements (platforms, ports, power supply, etc.), safety/security, and cooperation for sampling.`,
+
+  p2_sampleHandling: `Leftover samples requiring special or legal disposal will be billed extra or must be collected back by the customer.
+Cancelled or unaccepted project samples will be returned at the customer's expense.
+Perishable samples are disposed within 7 days of reporting.
+Non-perishable samples are disposed within 15 days, unless otherwise requested.
+Storage beyond the laboratory's retention period may be chargeable.`,
+
+  p2_suspensionOfWork: `Customers may request suspension of work by written notice.
+Charges apply for all work completed up to the suspension date.
+Unfinished analysis will be billed on a prorated basis.`,
+
+  p2_invoicingReports: `If no payment advice is received, invoices will be adjusted on a FIFO basis within 2 working days.
+Customers are liable to pay for all services rendered, irrespective of disputes regarding results.
+One original test report is provided free of charge; additional copies are available on request at extra cost.
+As our endeavor towards caring for environment, all test reports will be issued as soft copies.`,
+
+  // Page 2 Compliance Requirements
+  p2_compliance_confidentiality: `Both the laboratory and customer must treat shared information as confidential.
+Disclosure will only occur where legally required, with prior intimation (unless prohibited by law).
+Both parties must notify each other of any potential conflicts affecting confidentiality or impartiality.
+Test reports, once issued, enter the public domain.`,
+
+  p2_compliance_testMethods: `Accredited parameters are tested as per the laboratory's NABL scope (available on request).
+For non-accredited parameters, or where methods are outdated/inappropriate, the laboratory will select suitable methods and inform the customer.`,
+
+  p2_compliance_externalProviders: `If internal resources are unavailable, the laboratory may—upon customer approval—engage a competent external service provider.`,
+
+  p2_compliance_conformity: `Any decision rule applied to specifications/standards will be agreed upon with the customer in advance.
+The applied decision rule will be explicitly mentioned in the report.
+Opinions/interpretations will only be provided with documented evidence.`,
+
+  p2_compliance_customerCooperation: `Customers may witness tests or request performance monitoring, subject to compliance with requirements.
+Such arrangements should be made through the Customer Support Team.`,
+
+  p2_compliance_deliveryAcceptance: `Samples are accepted only if:
+• Quantity is sufficient,
+• They do not pose health, safety, environmental, or legal risks,
+• Holding times have not compromised integrity, and
+• They do not affect laboratory operations.`,
+
+  // Page 3 Terms
+  p3_continuationClause: `Non-conforming samples may still be tested at customer's insistence but under disclaimer, clearly noted in the report.
+All samples must be marked: "Samples for testing purposes – No commercial value."
+Customers bear the risk of damage/loss until samples are accepted by the laboratory (unless sampling is done by the laboratory).`,
+
+  p3_sampleDisposal: `Perishable: within 7 days of reporting.
+Non-perishable: within 15 days, unless otherwise instructed.`,
+
+  p3_decisionRule: `If measurement uncertainty impacts results, the sample will be reported as Fail.
+The ILAC G8 model will be applied where relevant.
+If the decision rule is defined by customer, regulation, or normative documents, no further risk assessment will be undertaken.`
+};
+
+export const getGeneralTestingMasterTerms = () => {
+  try {
+    const raw = localStorage.getItem(GENERAL_TESTING_MASTER_TERMS_KEY);
+    if (!raw) return { ...DEFAULT_GENERAL_TESTING_TERMS };
+    return { ...DEFAULT_GENERAL_TESTING_TERMS, ...JSON.parse(raw) };
+  } catch (e) {
+    console.error('Error reading master general testing terms:', e);
+    return { ...DEFAULT_GENERAL_TESTING_TERMS };
+  }
+};
+
+export const saveGeneralTestingMasterTerms = (terms) => {
+  try {
+    localStorage.setItem(GENERAL_TESTING_MASTER_TERMS_KEY, JSON.stringify(terms));
+    return true;
+  } catch (e) {
+    console.error('Error saving master general testing terms:', e);
+    return false;
+  }
+};
+
+export const createInitialGeneralTestingQuotation = (company = {}) => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const nextYearShort = String(year + 1).slice(-2);
+  const finYear = `${year}-${nextYearShort}`;
+  const existingList = getSavedQuotations();
+  const seq = String(existingList.length + 1).padStart(8, '0');
+  const masterTerms = getGeneralTestingMasterTerms();
+
+  return {
+    id: 'gtq_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+    quotationType: 'General Testing / Consulting',
+    quotationCategoryType: 'general_testing',
+    categoryType: 'general_testing',
+    categoryLabel: 'General Testing/Consulting',
+    quotationNo: `JLT/Q/${seq}/${finYear}`,
+    quotationNumber: `JLT/Q/${seq}/${finYear}`,
+    revNo: '00',
+    quotationDate: now.toISOString().split('T')[0],
+    validTillMonths: 1,
+    validTillText: '1 Month from quotation date',
+    status: 'Draft',
+    version: 1,
+
+    // Client ("Direct To")
+    clientId: '',
+    testRequestId: '',
+    client: {
+      companyName: '',
+      contactPerson: '',
+      contactNo: '',
+      email: '',
+      address: '',
+      serviceName: '',
+    },
+
+    // Lab Profile ("Direct Enquiries To")
+    labProfile: {
+      companyName: company.companyName || company.name || 'JAGNATH LAB TECHNOLOGIES PVT. LTD.',
+      labAddress: company.address || company.labAddress || '4TH FLOOR, PARAMOUNT PLAZA, KISHANPARA CHOWK, RAJKOT-360001 (GUJARAT) INDIA.',
+      email: company.email || 'info.jagnathlabs@gmail.com',
+      contactPerson: company.contactPerson || company.signatory || 'Mr. HITARTH',
+      contactPhone: company.phone || company.contactPhone || '+91 8140-555515',
+      serviceTaxNo: company.serviceTaxNo || company.gstNo || company.gstin || '24AAZCA8021D1ZO',
+      panNo: company.panNo || company.pan || 'AAZCA8021D',
+      bankDetails: {
+        bankName: company.bankName || 'KOTAK MAHINDRA BANK LTD',
+        accountName: company.accountName || 'M/S. JAGNATH LAB TECHNOLOGIES PVT LTD',
+        accountType: company.accountType || 'Current Account',
+        accountNo: company.accountNo || company.bankAccountNo || '1112336699',
+        ifsc: company.ifsc || 'KKBK0002789',
+        bankAddress: company.bankAddress || 'KOTAK MAHINDRA BANK Ltd The Imperial Heights, Rajkot- 360005',
+      }
+    },
+
+    // Pricing / Sample Table (Dynamic multi-line rows)
+    lineItems: [
+      {
+        id: 'li_1',
+        srNo: 1,
+        sampleName: 'pH, COD, BOD, SUSPENDED SOLID, TOTAL NITROGEN, KJELDAL NITROGEN, AMMONICAL NITROGEN, OIL & GREASE, FECAL COLIFORM',
+        noOfSamples: 1,
+        chargesPerSample: 5500,
+        discountedChargesPerSample: 3500,
+      },
+      {
+        id: 'li_2',
+        srNo: 2,
+        sampleName: 'STP SLUDGE',
+        noOfSamples: 1,
+        chargesPerSample: 3000,
+        discountedChargesPerSample: 2000,
+      }
+    ],
+
+    // Notes
+    notes: {
+      sampleRequirement: masterTerms.sampleRequirementsText,
+      tat: masterTerms.tatText,
+      gstNote: masterTerms.gstNote,
+      gstPercent: masterTerms.gstPercent || 18,
+      showSubtotal: true,
+    },
+
+    // Terms
+    termsAndConditions: {
+      validityDays: masterTerms.validityDays || 30,
+      overdueInterestPercent: masterTerms.overdueInterestPercent || 24,
+      p1_validity: masterTerms.p1_validity,
+      p1_payment: masterTerms.p1_payment,
+      p2_samplingConditions: masterTerms.p2_samplingConditions,
+      p2_sampleHandling: masterTerms.p2_sampleHandling,
+      p2_suspensionOfWork: masterTerms.p2_suspensionOfWork,
+      p2_invoicingReports: masterTerms.p2_invoicingReports,
+      p2_compliance_confidentiality: masterTerms.p2_compliance_confidentiality,
+      p2_compliance_testMethods: masterTerms.p2_compliance_testMethods,
+      p2_compliance_externalProviders: masterTerms.p2_compliance_externalProviders,
+      p2_compliance_conformity: masterTerms.p2_compliance_conformity,
+      p2_compliance_customerCooperation: masterTerms.p2_compliance_customerCooperation,
+      p2_compliance_deliveryAcceptance: masterTerms.p2_compliance_deliveryAcceptance,
+      p3_continuationClause: masterTerms.p3_continuationClause,
+      p3_sampleDisposal: masterTerms.p3_sampleDisposal,
+      p3_decisionRule: masterTerms.p3_decisionRule,
+    },
+
+    signatureRequired: masterTerms.signatureRequired || false,
+    signatureDisclaimer: masterTerms.signatureDisclaimer,
+    watermarkEnabled: true,
+    grandTotal: 5500,
+  };
+};

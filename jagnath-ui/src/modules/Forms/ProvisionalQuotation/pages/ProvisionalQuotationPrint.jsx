@@ -7,6 +7,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { getQuotationById, fetchMasterData, DEFAULT_TERMS_TEXT, DEFAULT_ANNEXURE_B_GROUPS } from '../services/provisionalQuotationStorage.service';
+import GeneralTestingDocument from '../components/GeneralTestingDocument';
 import {
   calculateMainCharges,
   calculateAnnexureI,
@@ -172,6 +173,19 @@ const ProvisionalQuotationPrint = () => {
     return (
       <div style={{ textAlign: 'center', padding: '50px', fontFamily: 'sans-serif' }}>
         <h2>Preparing Official Quotation Document for Print...</h2>
+      </div>
+    );
+  }
+
+  // Branch for General Testing / Consulting Quotation
+  if (quotation.quotationCategoryType === 'general_testing' || quotation.categoryType === 'general_testing' || quotation.quotationType === 'General Testing / Consulting') {
+    return (
+      <div className="print-standalone-container">
+        <GeneralTestingDocument
+          data={quotation}
+          logoUrl={getLogoUrl(company)}
+          isPrintMode={true}
+        />
       </div>
     );
   }

@@ -191,6 +191,7 @@ const ProvisionalQuotationList = () => {
               <option value="">-- Filter by Type (All) --</option>
               <option value="provisional">📋 Audit Quotations</option>
               <option value="regular">📄 Regular Quotations</option>
+              <option value="general_testing">📑 General Testing / Consulting</option>
             </select>
           </div>
 
@@ -313,9 +314,10 @@ const ProvisionalQuotationList = () => {
             <tbody>
               {paginatedQuotations.map((q) => {
                 const isRegular = (q.quotationCategoryType === 'regular' || q.categoryType === 'regular' || q.quotationType === 'Regular Quotation');
-                const editUrl = isRegular
-                  ? `/quotations/provisional/edit/${q.id}?type=regular`
-                  : `/quotations/provisional/edit/${q.id}`;
+                const isGeneralTesting = (q.quotationCategoryType === 'general_testing' || q.categoryType === 'general_testing' || q.quotationType === 'General Testing / Consulting');
+                const editUrl = isGeneralTesting
+                  ? `/quotations/provisional/edit/${q.id}?type=general_testing`
+                  : (isRegular ? `/quotations/provisional/edit/${q.id}?type=regular` : `/quotations/provisional/edit/${q.id}`);
 
                 return (
                   <tr key={q.id}>
@@ -324,10 +326,14 @@ const ProvisionalQuotationList = () => {
                         to={editUrl}
                         className="font-bold text-primary hover:underline d-block"
                       >
-                        {q.quotationNumber || 'UNNAMED-QUOTE'}
+                        {q.quotationNumber || q.quotationNo || 'UNNAMED-QUOTE'}
                       </Link>
                       <div className="d-flex align-center gap-1 mt-1">
-                        {isRegular ? (
+                        {isGeneralTesting ? (
+                          <span className="badge" style={{ backgroundColor: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                            <FaFileAlt size={9} /> General Testing
+                          </span>
+                        ) : isRegular ? (
                           <span className="badge" style={{ backgroundColor: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd', fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                             <FaFilePdf size={9} /> Regular Quote
                           </span>
@@ -336,24 +342,24 @@ const ProvisionalQuotationList = () => {
                             <FaFileInvoiceDollar size={9} /> Audit Quote
                           </span>
                         )}
-                        {q.referenceNo && (
+                        {(q.referenceNo || q.revNo) && (
                           <small className="text-muted font-mono text-xs" style={{ fontSize: '0.68rem' }}>
-                            Ref: {q.referenceNo}
+                            {q.referenceNo ? `Ref: ${q.referenceNo}` : `Rev: ${q.revNo}`}
                           </small>
                         )}
                       </div>
                     </td>
                     <td>
                       <span className="font-semibold text-slate-800 d-block">
-                        {q.clientName || 'No Client Selected'}
+                        {q.clientName || q.client?.companyName || 'No Client Selected'}
                       </span>
                       <small className="text-muted d-block text-xs">
-                        {q.clientCity ? `${q.clientCity}, ${q.clientState || ''}` : ''}
+                        {q.clientCity ? `${q.clientCity}, ${q.clientState || ''}` : (q.client?.address || '')}
                       </small>
                     </td>
                     <td>
                       <span className="text-slate-700 font-medium">
-                        {q.plantName || q.plantAddress || '-'}
+                        {q.plantName || q.plantAddress || q.client?.serviceName || '-'}
                       </span>
                     </td>
                     <td style={{ whiteSpace: 'nowrap' }}>
@@ -394,7 +400,7 @@ const ProvisionalQuotationList = () => {
                           <Link
                             to={`/quotations/provisional/print/${q.id}`}
                             className="btn btn-icon btn-xs btn-outline-info"
-                            title="Print Provisional PDF"
+                            title="Print PDF"
                           >
                             <FaPrint />
                           </Link>
