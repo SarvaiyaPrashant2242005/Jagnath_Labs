@@ -12,6 +12,7 @@ import {
 } from 'react-icons/fa';
 
 import { getQuotationById, fetchMasterData, DEFAULT_TERMS_TEXT, DEFAULT_ANNEXURE_B_GROUPS } from '../services/provisionalQuotationStorage.service';
+import GeneralTestingDocument from '../components/GeneralTestingDocument';
 import {
   calculateMainCharges,
   calculateAnnexureI,
@@ -192,6 +193,8 @@ const ProvisionalQuotationPreview = () => {
   const da = quotation.annexureI?.da || {};
   const acc = quotation.annexureI?.accommodation || {};
 
+  const isGt = quotation.quotationCategoryType === 'general_testing' || quotation.categoryType === 'general_testing' || quotation.quotationType === 'General Testing / Consulting';
+
   return (
     <div className="preview-page-container">
       {/* Action Toolbar */}
@@ -201,9 +204,10 @@ const ProvisionalQuotationPreview = () => {
             <FaArrowLeft /> Edit Quotation
           </Link>
           <span className="font-bold text-slate-800">
-            Previewing: {quotation.quotationNumber} (v{quotation.version || 1})
+            Previewing: {quotation.quotationNumber || quotation.quotationNo} (v{quotation.version || 1})
           </span>
           <span className="badge badge-info text-xs">{quotation.status || 'Draft'}</span>
+          {isGt && <span className="badge badge-success text-xs">General Testing (3 Pages)</span>}
         </div>
 
         <div className="d-flex align-center gap-2">
@@ -217,10 +221,19 @@ const ProvisionalQuotationPreview = () => {
         </div>
       </div>
 
-      {/* A4 Paper Document Container */}
-      <div className="a4-preview-scroll-wrapper">
-        {/* ================= PAGE 1: COVERING LETTER ================= */}
-        <div className="a4-sheet">
+      {isGt ? (
+        <div className="a4-preview-scroll-wrapper">
+          <GeneralTestingDocument
+            data={quotation}
+            logoUrl={getLogoUrl(company)}
+            isPrintMode={false}
+          />
+        </div>
+      ) : (
+        /* A4 Paper Document Container */
+        <div className="a4-preview-scroll-wrapper">
+          {/* ================= PAGE 1: COVERING LETTER ================= */}
+          <div className="a4-sheet">
           {/* CENTERED COMPANY LOGO FROM MASTERS & HORIZONTAL DIVIDER */}
           <div style={{ textAlign: 'center', marginBottom: '12px' }}>
             <img
@@ -1040,10 +1053,10 @@ const ProvisionalQuotationPreview = () => {
             </div>
           );
         })()}
-
       </div>
-    </div>
-  );
+    )}
+  </div>
+);
 };
 
 export default ProvisionalQuotationPreview;

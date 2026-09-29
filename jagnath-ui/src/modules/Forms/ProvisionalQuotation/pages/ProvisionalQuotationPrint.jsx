@@ -6,7 +6,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { getQuotationById, fetchMasterData, DEFAULT_TERMS_TEXT, DEFAULT_ANNEXURE_B_GROUPS } from '../services/provisionalQuotationStorage.service';
+import { getQuotationById, fetchMasterData, createInitialGeneralTestingQuotation, DEFAULT_TERMS_TEXT, DEFAULT_ANNEXURE_B_GROUPS } from '../services/provisionalQuotationStorage.service';
 import GeneralTestingDocument from '../components/GeneralTestingDocument';
 import {
   calculateMainCharges,
@@ -128,26 +128,28 @@ const renderStandardPageFooter = (pageNum) => (
 );
 
 const ProvisionalQuotationPrint = () => {
-  const { id } = useParams();
-  const [quotation, setQuotation] = useState(null);
+  const { id: rawId } = useParams();
+  const id = (rawId || '').split('?')[0];
+  const [quotation, setQuotation] = useState(() => {
+    return getQuotationById(id) || createInitialGeneralTestingQuotation();
+  });
   const [company, setCompany] = useState({});
   const [allParams, setAllParams] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const load = async () => {
-      setLoading(true);
       try {
-        const quoteData = getQuotationById(id);
-        setQuotation(quoteData);
-
         const masters = await fetchMasterData();
         setCompany(masters.company || {});
         setAllParams(masters.parameters || []);
+
+        const quoteData = getQuotationById(id);
+        if (quoteData) {
+          setQuotation(quoteData);
+        }
       } catch (err) {
         console.error('Error loading print data:', err);
-      } finally {
-        setLoading(false);
       }
     };
 
@@ -156,11 +158,30 @@ const ProvisionalQuotationPrint = () => {
 
   useEffect(() => {
     if (!loading && quotation) {
-      // Short timeout to ensure all images and fonts render before opening print dialog
-      const timer = setTimeout(() => {
-        window.print();
-      }, 600);
-      return () => clearTimeout(timer);
+      const searchStr = window.location.search || (window.location.hash.includes('?') ? window.location.hash.split('?')[1] : '');
+      const searchParams = new URLSearchParams(searchStr);
+      const isPuppeteer = searchParams.get('pdf') === '1' || searchParams.get('autoprint') === '0';
+
+      let isMounted = true;
+      const preparePrint = async () => {
+        if (document.fonts && document.fonts.ready) {
+          try {
+            await document.fonts.ready;
+          } catch (e) {
+            console.warn('Font loading check:', e);
+          }
+        }
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        if (!isMounted) return;
+
+        window.__PRINT_READY__ = true;
+        if (!isPuppeteer) {
+          window.print();
+        }
+      };
+
+      preparePrint();
+      return () => { isMounted = false; };
     }
   }, [loading, quotation]);
 

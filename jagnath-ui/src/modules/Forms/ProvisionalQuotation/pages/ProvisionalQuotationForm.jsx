@@ -11,7 +11,7 @@ import {
   FaFileInvoiceDollar, FaCar, FaUserTie, FaHotel, FaFlask,
   FaTable, FaGavel, FaSignature, FaStamp, FaUpload, FaTrash,
   FaPlus, FaCheckCircle, FaPercent, FaEye, FaCalculator, FaUndo,
-  FaFileAlt
+  FaFileAlt, FaArrowUp, FaArrowDown, FaCopy, FaTimes, FaImage
 } from 'react-icons/fa';
 
 import { apiService } from '../../../../shared/services/apiService';
@@ -29,6 +29,8 @@ import {
   DEFAULT_TERMS_ITEMS,
   DEFAULT_ANNEXURE_A_ACTIVITIES,
   DEFAULT_ANNEXURE_B_GROUPS,
+  PRESET_SECTION_TEMPLATES,
+  ensureQuotationSections,
 } from '../services/provisionalQuotationStorage.service';
 import GeneralTestingDocument from '../components/GeneralTestingDocument';
 import MasterTermsModal from '../components/MasterTermsModal';
@@ -57,8 +59,11 @@ import {
   getDepartmentCode,
   calculatePage2Charges,
   getNumberInWords,
+  formatIndianCurrency,
+  calculatePricingRow,
+  calculateGeneralTestingTotals,
+  sanitizeHtml,
 } from '../utils/quotationCalculation.utils';
-
 
 import '../styles/provisionalQuotation.css';
 import '../styles/provisionalQuotationPrint.css';
@@ -194,6 +199,7 @@ const ProvisionalQuotationForm = () => {
       : (searchParams.get('type') === 'regular' ? 'regular' : 'provisional')
   ); // 'provisional' | 'regular' | 'general_testing'
   const [isMasterTermsOpen, setIsMasterTermsOpen] = useState(false);
+  const [gtActivePageTab, setGtActivePageTab] = useState('all'); // 'all' | '1' | '2' | '3'
 
   // Master Data
   const [masters, setMasters] = useState({
@@ -231,18 +237,48 @@ const ProvisionalQuotationForm = () => {
         if (isEditing) {
           const existing = getQuotationById(id);
           if (existing) {
-            if (existing.quotationCategoryType === 'general_testing' || existing.categoryType === 'general_testing' || existing.quotationType === 'General Testing / Consulting' || searchParams.get('type') === 'general_testing') {
+            const isGt = existing.quotationCategoryType === 'general_testing' || existing.categoryType === 'general_testing' || existing.quotationType === 'General Testing / Consulting' || searchParams.get('type') === 'general_testing';
+            if (isGt) {
               setQuotationCategoryType('general_testing');
+              const sections = ensureQuotationSections(existing);
+              const lineItems = (existing.lineItems || []).map(calculatePricingRow);
+              setFormData({
+                ...existing,
+                sections,
+                lineItems: lineItems.length > 0 ? lineItems : [
+                  { id: 'li_1', srNo: 1, sampleName: '', noOfSamples: 1, chargesPerSample: 0, discountPercent: 0, total: 0 }
+                ],
+                signature: existing.signature || {
+                  required: existing.signatureRequired || false,
+                  signatureImage: existing.signatorySignature || '',
+                  name: existing.labProfile?.contactPerson || 'Authorized Signatory',
+                  designation: 'Authorized Signatory'
+                },
+                notes: {
+                  ...(existing.notes || {}),
+                  gstEnabled: existing.notes?.gstEnabled ?? true,
+                  gstPercent: existing.notes?.gstPercent || 18,
+                  showSubtotal: existing.notes?.showSubtotal ?? true,
+                }
+              });
             } else if (existing.quotationCategoryType === 'regular' || existing.categoryType === 'regular' || existing.quotationType === 'Regular Quotation' || searchParams.get('type') === 'regular') {
               setQuotationCategoryType('regular');
+              setFormData({
+                ...existing,
+                auditDepartment: existing.auditDepartment || 'ENVIRONMENTAL',
+                pcbId: existing.pcbId || '',
+                financialYear: existing.financialYear || 'YEAR 2025-26',
+                subject: existing.subject || buildSubject(existing.auditDepartment || 'ENVIRONMENTAL', existing.pcbId || '', existing.financialYear || 'YEAR 2025-26'),
+              });
+            } else {
+              setFormData({
+                ...existing,
+                auditDepartment: existing.auditDepartment || 'ENVIRONMENTAL',
+                pcbId: existing.pcbId || '',
+                financialYear: existing.financialYear || 'YEAR 2025-26',
+                subject: existing.subject || buildSubject(existing.auditDepartment || 'ENVIRONMENTAL', existing.pcbId || '', existing.financialYear || 'YEAR 2025-26'),
+              });
             }
-            setFormData({
-              ...existing,
-              auditDepartment: existing.auditDepartment || 'ENVIRONMENTAL',
-              pcbId: existing.pcbId || '',
-              financialYear: existing.financialYear || 'YEAR 2025-26',
-              subject: existing.subject || buildSubject(existing.auditDepartment || 'ENVIRONMENTAL', existing.pcbId || '', existing.financialYear || 'YEAR 2025-26'),
-            });
           } else {
             const initial = createInitialQuotation(loadedMasters.company);
             setFormData({
@@ -929,6 +965,168 @@ const ProvisionalQuotationForm = () => {
     }
   };
 
+  // General Testing Pricing Handlers
+  const handlePricingRowChange = (index, field, value) => {
+    setFormData(prev => {
+      const lineItems = [...(prev.lineItems || [])];
+      const updated = { ...lineItems[index], [field]: value };
+      lineItems[index] = calculatePricingRow(updated);
+      return { ...prev, lineItems };
+    });
+  };
+
+  const handleAddPricingRow = () => {
+    setFormData(prev => {
+      const current = prev.lineItems || [];
+      const newRow = calculatePricingRow({
+        id: 'gt_li_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+        srNo: current.length + 1,
+        sampleName: '',
+        noOfSamples: 1,
+        chargesPerSample: 0,
+        discountPercent: 0,
+      });
+      return { ...prev, lineItems: [...current, newRow] };
+    });
+  };
+
+  const handleDuplicatePricingRow = (index) => {
+    setFormData(prev => {
+      const current = [...(prev.lineItems || [])];
+      const target = current[index];
+      if (!target) return prev;
+      const copy = calculatePricingRow({
+        ...target,
+        id: 'gt_li_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+      });
+      current.splice(index + 1, 0, copy);
+      const renumbered = current.map((r, i) => ({ ...r, srNo: i + 1 }));
+      return { ...prev, lineItems: renumbered };
+    });
+  };
+
+  const handleDeletePricingRow = (index) => {
+    setFormData(prev => {
+      const current = [...(prev.lineItems || [])];
+      current.splice(index, 1);
+      const renumbered = current.map((r, i) => ({ ...r, srNo: i + 1 }));
+      return { ...prev, lineItems: renumbered };
+    });
+  };
+
+  // General Testing Page Scroll & Tab Handler
+  const handleScrollToGtPage = (pageNum) => {
+    setGtActivePageTab(String(pageNum));
+    if (pageNum !== 'all') {
+      const el = document.getElementById(`gt-preview-page-${pageNum}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  };
+
+  // General Testing Sections Handlers (Add, Remove, Reorder, Duplicate)
+  const handleAddSection = (presetKey = 'custom') => {
+    setFormData(prev => {
+      const currentSections = ensureQuotationSections(prev);
+      const preset = PRESET_SECTION_TEMPLATES.find(p => p.presetKey === presetKey) || {
+        title: 'New Custom Section',
+        content: '<p>Enter section details...</p>',
+        pageNumber: gtActivePageTab !== 'all' ? parseInt(gtActivePageTab, 10) : 2,
+      };
+      const newSection = {
+        id: 'sec_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+        presetKey: preset.presetKey || 'custom',
+        pageNumber: preset.pageNumber || (gtActivePageTab !== 'all' ? parseInt(gtActivePageTab, 10) : 2),
+        title: preset.title || 'New Section',
+        content: preset.content || '<p></p>',
+      };
+      return {
+        ...prev,
+        sections: [...currentSections, newSection]
+      };
+    });
+    triggerToast('Added section successfully!', 'success');
+  };
+
+  const handleUpdateSection = (index, field, value) => {
+    setFormData(prev => {
+      const currentSections = [...ensureQuotationSections(prev)];
+      if (currentSections[index]) {
+        currentSections[index] = { ...currentSections[index], [field]: value };
+      }
+      return { ...prev, sections: currentSections };
+    });
+  };
+
+  const handleMoveSection = (index, direction) => {
+    setFormData(prev => {
+      const currentSections = [...ensureQuotationSections(prev)];
+      const targetIdx = direction === 'up' ? index - 1 : index + 1;
+      if (targetIdx < 0 || targetIdx >= currentSections.length) return prev;
+      const temp = currentSections[index];
+      currentSections[index] = currentSections[targetIdx];
+      currentSections[targetIdx] = temp;
+      return { ...prev, sections: currentSections };
+    });
+  };
+
+  const handleDuplicateSection = (index) => {
+    setFormData(prev => {
+      const currentSections = [...ensureQuotationSections(prev)];
+      const target = currentSections[index];
+      if (!target) return prev;
+      const duplicate = {
+        ...target,
+        id: 'sec_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+        title: `${target.title} (Copy)`,
+      };
+      currentSections.splice(index + 1, 0, duplicate);
+      return { ...prev, sections: currentSections };
+    });
+    triggerToast('Duplicated section!', 'info');
+  };
+
+  const handleDeleteSection = (index) => {
+    setFormData(prev => {
+      const currentSections = [...ensureQuotationSections(prev)];
+      currentSections.splice(index, 1);
+      return { ...prev, sections: currentSections };
+    });
+    triggerToast('Deleted section', 'info');
+  };
+
+  const handleGtSignatureUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({
+          ...prev,
+          signature: {
+            ...(prev.signature || {}),
+            required: true,
+            signatureImage: reader.result,
+          },
+          signatureRequired: true,
+          signatorySignature: reader.result,
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveGtSignature = () => {
+    setFormData(prev => ({
+      ...prev,
+      signature: {
+        ...(prev.signature || {}),
+        signatureImage: '',
+      },
+      signatorySignature: '',
+    }));
+  };
+
   const globalVisits = parseInt(formData.annexureAVisits !== undefined ? formData.annexureAVisits : (formData.annexureI?.visits || 3), 10) || 3;
   const annexureATotals = useMemo(() => {
     return calculateAnnexureATotals(formData?.activities || [], globalVisits);
@@ -963,11 +1161,12 @@ const ProvisionalQuotationForm = () => {
     setSaving(true);
     try {
       if (quotationCategoryType === 'general_testing') {
-        const lineItems = formData.lineItems || [];
-        const totalDiscounted = lineItems.reduce((sum, item) => sum + (Number(item.discountedChargesPerSample) || 0), 0);
-        const gtGstPct = Number(formData.notes?.gstPercent || 18);
-        const gtGst = Math.round(totalDiscounted * (gtGstPct / 100));
-        const gtGrandTotal = Math.round(totalDiscounted + gtGst);
+        const gstConfig = {
+          enabled: formData.notes?.gstEnabled ?? true,
+          percent: formData.notes?.gstPercent ?? 18,
+        };
+        const totals = calculateGeneralTestingTotals(formData.lineItems || [], gstConfig);
+        const sections = ensureQuotationSections(formData);
 
         const gtRecord = {
           ...formData,
@@ -977,7 +1176,11 @@ const ProvisionalQuotationForm = () => {
           categoryType: 'general_testing',
           quotationNumber: formData.quotationNo || formData.quotationNumber || 'JLT/Q/00000001/2026-27',
           quotationNo: formData.quotationNo || formData.quotationNumber || 'JLT/Q/00000001/2026-27',
-          grandTotal: gtGrandTotal,
+          lineItems: totals.rows,
+          sections,
+          subtotal: totals.subtotal,
+          gstAmount: totals.gstAmount,
+          grandTotal: totals.grandTotal,
           clientName: formData.client?.companyName || formData.clientName || '',
           plantName: formData.client?.serviceName || formData.plantName || '',
           plantAddress: formData.client?.address || formData.plantAddress || '',
@@ -1331,6 +1534,60 @@ const ProvisionalQuotationForm = () => {
           {/* General Testing / Consulting Form UI Editor */}
           {quotationCategoryType === 'general_testing' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              {/* 3-Page Workflow Navigator Bar */}
+              <div style={{
+                background: '#ffffff',
+                border: '1.5px solid #0284c7',
+                borderRadius: '10px',
+                padding: '0.65rem 0.85rem',
+                boxShadow: '0 2px 6px rgba(2,132,199,0.08)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '0.5rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#0369a1' }}>📑 3-Page Structure:</span>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Design &amp; preview identically across 3 pages</span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => handleScrollToGtPage('all')}
+                    className={`btn btn-xs font-bold ${gtActivePageTab === 'all' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                    style={gtActivePageTab === 'all' ? { background: '#0284c7', borderColor: '#0284c7' } : {}}
+                  >
+                    📄 All Pages
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleScrollToGtPage(1)}
+                    className={`btn btn-xs font-bold ${gtActivePageTab === '1' ? 'btn-primary' : 'btn-outline-primary'}`}
+                    style={gtActivePageTab === '1' ? { background: '#0284c7', borderColor: '#0284c7' } : {}}
+                  >
+                    1️⃣ Page 1: Quote &amp; Pricing
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleScrollToGtPage(2)}
+                    className={`btn btn-xs font-bold ${gtActivePageTab === '2' ? 'btn-primary' : 'btn-outline-primary'}`}
+                    style={gtActivePageTab === '2' ? { background: '#0284c7', borderColor: '#0284c7' } : {}}
+                  >
+                    2️⃣ Page 2: Terms &amp; Compliance
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleScrollToGtPage(3)}
+                    className={`btn btn-xs font-bold ${gtActivePageTab === '3' ? 'btn-primary' : 'btn-outline-primary'}`}
+                    style={gtActivePageTab === '3' ? { background: '#0284c7', borderColor: '#0284c7' } : {}}
+                  >
+                    3️⃣ Page 3: Bank &amp; Signature
+                  </button>
+                </div>
+              </div>
+
               {/* Card 1: Quotation Meta & Identification */}
               <div style={{ background: '#f8fafc', border: '1.5px solid #cbd5e1', borderRadius: '10px', padding: '1.1rem', boxShadow: '0 2px 6px rgba(0,0,0,0.03)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.4rem' }}>
@@ -1534,27 +1791,20 @@ const ProvisionalQuotationForm = () => {
                 </div>
               </div>
 
-              {/* Card 3: Dynamic Pricing Table / Sample Parameter Rows */}
+              {/* Card 3: Simplified Sample Parameter Pricing Table */}
               <div style={{ background: '#f8fafc', border: '1.5px solid #cbd5e1', borderRadius: '10px', padding: '1.1rem', boxShadow: '0 2px 6px rgba(0,0,0,0.03)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.4rem' }}>
-                  <h4 style={{ fontSize: '0.92rem', fontWeight: 800, margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                    <span>📊</span> Sample Parameter Pricing Table (Page 1)
-                  </h4>
+                  <div>
+                    <h4 style={{ fontSize: '0.92rem', fontWeight: 800, margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                      <span>📊</span> Sample Parameter Pricing Table (Page 1)
+                    </h4>
+                    <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                      Formula: Total = Samples × Charges/Sample × (1 − Discount% / 100). Total is auto-calculated and read-only.
+                    </span>
+                  </div>
                   <button
                     type="button"
-                    onClick={() => {
-                      const current = formData.lineItems || [];
-                      const nextSr = current.length + 1;
-                      const newLineItem = {
-                        id: 'gt_li_' + Date.now(),
-                        srNo: nextSr,
-                        sampleName: '',
-                        noOfSamples: 1,
-                        chargesPerSample: 0,
-                        discountedChargesPerSample: 0,
-                      };
-                      setFormData(prev => ({ ...prev, lineItems: [...current, newLineItem] }));
-                    }}
+                    onClick={handleAddPricingRow}
                     className="btn btn-primary btn-xs font-bold"
                     style={{ background: '#0284c7', borderColor: '#0284c7', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
                   >
@@ -1563,448 +1813,493 @@ const ProvisionalQuotationForm = () => {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  {(formData.lineItems || []).map((item, idx) => (
-                    <div
-                      key={item.id || idx}
-                      style={{
-                        background: '#ffffff',
-                        border: '1px solid #cbd5e1',
-                        borderRadius: '8px',
-                        padding: '0.75rem',
-                        display: 'grid',
-                        gridTemplateColumns: '40px 1fr 110px 130px 140px 40px',
-                        gap: '0.65rem',
-                        alignItems: 'center'
-                      }}
-                    >
-                      <div style={{ fontWeight: 800, textAlign: 'center', color: '#64748b' }}>
-                        #{idx + 1}
+                  {(formData.lineItems || []).map((item, idx) => {
+                    const rowData = calculatePricingRow(item);
+                    return (
+                      <div
+                        key={item.id || idx}
+                        style={{
+                          background: '#ffffff',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '8px',
+                          padding: '0.75rem',
+                          display: 'grid',
+                          gridTemplateColumns: '36px 1fr 90px 125px 95px 125px 70px',
+                          gap: '0.55rem',
+                          alignItems: 'center'
+                        }}
+                      >
+                        <div style={{ fontWeight: 800, textAlign: 'center', color: '#64748b', fontSize: '0.82rem' }}>
+                          #{idx + 1}
+                        </div>
+                        <div>
+                          <label className="text-muted text-xs d-block mb-1 font-semibold">Parameter / Description</label>
+                          <textarea
+                            rows={2}
+                            value={item.sampleName || ''}
+                            onChange={(e) => handlePricingRowChange(idx, 'sampleName', e.target.value)}
+                            className="form-control text-xs font-medium"
+                            placeholder="Sample Name / Test / Parameters..."
+                            style={{ resize: 'vertical', minHeight: '42px' }}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-muted text-xs d-block mb-1 font-semibold">Samples</label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={item.noOfSamples || 1}
+                            onChange={(e) => handlePricingRowChange(idx, 'noOfSamples', e.target.value)}
+                            className="form-control text-xs font-bold text-center"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-muted text-xs d-block mb-1 font-semibold">Charges/Sample (₹)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={item.chargesPerSample ?? 0}
+                            onChange={(e) => handlePricingRowChange(idx, 'chargesPerSample', e.target.value)}
+                            className="form-control text-xs font-bold text-right"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-muted text-xs d-block mb-1 font-semibold">Discount %</label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.1"
+                            value={item.discountPercent ?? 0}
+                            onChange={(e) => handlePricingRowChange(idx, 'discountPercent', e.target.value)}
+                            className="form-control text-xs font-bold text-center text-primary"
+                            placeholder="0%"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-muted text-xs d-block mb-1 font-semibold">Total (₹) [Read-Only]</label>
+                          <div
+                            style={{
+                              background: '#f8fafc',
+                              border: '1px solid #e2e8f0',
+                              borderRadius: '6px',
+                              padding: '6px 8px',
+                              fontWeight: 800,
+                              fontSize: '0.82rem',
+                              textAlign: 'right',
+                              color: '#0f172a',
+                            }}
+                          >
+                            {formatIndianCurrency(rowData.total)}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleDuplicatePricingRow(idx)}
+                            className="btn btn-outline-secondary btn-xs"
+                            title="Duplicate Row"
+                            style={{ padding: '4px 6px' }}
+                          >
+                            <FaCopy size={10} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePricingRow(idx)}
+                            className="btn btn-outline-danger btn-xs"
+                            title="Delete Row"
+                            style={{ padding: '4px 6px' }}
+                          >
+                            <FaTrash size={10} />
+                          </button>
+                        </div>
                       </div>
-                      <div>
-                        <textarea
-                          rows={2}
-                          value={item.sampleName || ''}
-                          onChange={(e) => {
-                            const newItems = [...(formData.lineItems || [])];
-                            newItems[idx] = { ...newItems[idx], sampleName: e.target.value };
-                            setFormData(prev => ({ ...prev, lineItems: newItems }));
-                          }}
-                          className="form-control text-xs font-medium"
-                          placeholder="Sample Name / Test / Bundled Parameters..."
-                        />
-                      </div>
-                      <div>
-                        <label className="text-muted text-xs d-block mb-1">No. of Sample</label>
-                        <input
-                          type="number"
-                          value={item.noOfSamples || 1}
-                          onChange={(e) => {
-                            const newItems = [...(formData.lineItems || [])];
-                            newItems[idx] = { ...newItems[idx], noOfSamples: parseInt(e.target.value, 10) || 1 };
-                            setFormData(prev => ({ ...prev, lineItems: newItems }));
-                          }}
-                          className="form-control text-xs font-bold text-center"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-muted text-xs d-block mb-1">Charges / Sample (₹)</label>
-                        <input
-                          type="number"
-                          value={item.chargesPerSample || 0}
-                          onChange={(e) => {
-                            const val = parseFloat(e.target.value) || 0;
-                            const newItems = [...(formData.lineItems || [])];
-                            newItems[idx] = {
-                              ...newItems[idx],
-                              chargesPerSample: val,
-                              discountedChargesPerSample: newItems[idx].discountedChargesPerSample || val
-                            };
-                            setFormData(prev => ({ ...prev, lineItems: newItems }));
-                          }}
-                          className="form-control text-xs font-bold text-right"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-muted text-xs d-block mb-1">Discounted Total (₹)</label>
-                        <input
-                          type="number"
-                          value={item.discountedChargesPerSample || 0}
-                          onChange={(e) => {
-                            const val = parseFloat(e.target.value) || 0;
-                            const newItems = [...(formData.lineItems || [])];
-                            newItems[idx] = { ...newItems[idx], discountedChargesPerSample: val };
-                            setFormData(prev => ({ ...prev, lineItems: newItems }));
-                          }}
-                          className="form-control text-xs font-bold text-right text-primary"
-                        />
-                      </div>
-                      <div className="text-center">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const newItems = (formData.lineItems || []).filter((_, i) => i !== idx);
-                            setFormData(prev => ({ ...prev, lineItems: newItems }));
-                          }}
-                          className="btn btn-outline-danger btn-xs"
-                          title="Remove Row"
-                          style={{ padding: '4px 6px' }}
-                        >
-                          <FaTrash size={11} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
 
-                  {/* Optional Totals Row Toggle */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f1f5f9', padding: '0.6rem 0.85rem', borderRadius: '6px', fontSize: '0.82rem' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, margin: 0, cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        checked={formData.notes?.showSubtotal ?? true}
-                        onChange={(e) => setFormData(prev => ({ ...prev, notes: { ...(prev.notes || {}), showSubtotal: e.target.checked } }))}
-                      />
-                      Show Subtotal Row in Pricing Table
-                    </label>
-                    <div style={{ fontWeight: 800, color: '#0369a1' }}>
-                      Discounted Total: ₹{(formData.lineItems || []).reduce((sum, item) => sum + (Number(item.discountedChargesPerSample) || 0), 0).toLocaleString('en-IN')}/-
-                    </div>
-                  </div>
+                  {/* Pricing Table Settings & GST Summary */}
+                  {(() => {
+                    const gstConfig = {
+                      enabled: formData.notes?.gstEnabled ?? true,
+                      percent: formData.notes?.gstPercent ?? 18,
+                    };
+                    const gtTotals = calculateGeneralTestingTotals(formData.lineItems || [], gstConfig);
+
+                    return (
+                      <div style={{ background: '#f1f5f9', padding: '0.85rem', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: 700, margin: 0, fontSize: '0.82rem', cursor: 'pointer' }}>
+                              <input
+                                type="checkbox"
+                                checked={formData.notes?.showSubtotal ?? true}
+                                onChange={(e) => setFormData(prev => ({ ...prev, notes: { ...(prev.notes || {}), showSubtotal: e.target.checked } }))}
+                              />
+                              Show Subtotal Row in Pricing Table
+                            </label>
+
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: 700, margin: 0, fontSize: '0.82rem', cursor: 'pointer' }}>
+                              <input
+                                type="checkbox"
+                                checked={formData.notes?.gstEnabled ?? true}
+                                onChange={(e) => setFormData(prev => ({ ...prev, notes: { ...(prev.notes || {}), gstEnabled: e.target.checked } }))}
+                              />
+                              Enable GST Calculation
+                            </label>
+
+                            {formData.notes?.gstEnabled !== false && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>GST %:</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  value={formData.notes?.gstPercent ?? 18}
+                                  onChange={(e) => {
+                                    const pct = parseFloat(e.target.value) || 0;
+                                    setFormData(prev => ({
+                                      ...prev,
+                                      notes: {
+                                        ...(prev.notes || {}),
+                                        gstPercent: pct,
+                                        gstNote: `${pct}% GST will be charged as applicable (extra).`
+                                      }
+                                    }));
+                                  }}
+                                  className="form-control form-control-sm font-bold"
+                                  style={{ width: '65px', height: '28px', padding: '2px 6px' }}
+                                />
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Quick Totals Badges */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <div style={{ fontSize: '0.85rem' }}>
+                              <span style={{ color: '#64748b' }}>Subtotal:</span>{' '}
+                              <strong>{formatIndianCurrency(gtTotals.subtotal)}</strong>
+                            </div>
+                            {gtTotals.gstEnabled && (
+                              <div style={{ fontSize: '0.85rem' }}>
+                                <span style={{ color: '#64748b' }}>GST ({gtTotals.gstPercent}%):</span>{' '}
+                                <strong>{formatIndianCurrency(gtTotals.gstAmount)}</strong>
+                              </div>
+                            )}
+                            <div style={{ fontSize: '0.9rem', color: '#0369a1', fontWeight: 800 }}>
+                              <span>Grand Total:</span> {formatIndianCurrency(gtTotals.grandTotal)}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="form-label text-xs font-semibold mb-1">GST Display Note (Page 1)</label>
+                          <input
+                            type="text"
+                            value={formData.notes?.gstNote || '18% GST will be charged as applicable (extra).'}
+                            onChange={(e) => setFormData(prev => ({ ...prev, notes: { ...(prev.notes || {}), gstNote: e.target.value } }))}
+                            className="form-control form-control-sm"
+                            placeholder="e.g. 18% GST will be charged as applicable (extra)."
+                          />
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 
-              {/* Card 4: Notes, TAT, GST & Requirements */}
+              {/* Card 4: Fully Flexible Sections (Add / Remove / Reorder / Rich-Text) */}
+              <div style={{ background: '#f8fafc', border: '1.5px solid #cbd5e1', borderRadius: '10px', padding: '1.1rem', boxShadow: '0 2px 6px rgba(0,0,0,0.03)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.4rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <div>
+                    <h4 style={{ fontSize: '0.92rem', fontWeight: 800, margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                      <span>📜</span> Quotation Sections &amp; Clauses (Fully Flexible &amp; Rich-Text)
+                    </h4>
+                    <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                      Add, delete, duplicate, and reorder any section. Full rich-text formatting (bold, italic, lists, headings, colors) supported.
+                    </span>
+                  </div>
+
+                  {/* Add Section Preset Dropdown */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <select
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          handleAddSection(e.target.value);
+                          e.target.value = '';
+                        }
+                      }}
+                      defaultValue=""
+                      className="form-select form-select-sm font-bold"
+                      style={{ height: '30px', fontSize: '0.78rem', borderColor: '#0284c7', color: '#0369a1', cursor: 'pointer' }}
+                    >
+                      <option value="" disabled>➕ Add Section from Preset...</option>
+                      <option value="custom">📄 Blank / Custom Section</option>
+                      <option value="sample_requirements">📝 Sample Requirements &amp; TAT Notes</option>
+                      <option value="validity">1. Validity of Quotation</option>
+                      <option value="payment_terms">2. Payment Terms</option>
+                      <option value="sampling_conditions">3. Sampling Conditions</option>
+                      <option value="sample_handling">4. Sample Handling &amp; Disposal</option>
+                      <option value="suspension_of_work">5. Suspension of Work</option>
+                      <option value="invoicing_reports">6. Invoicing &amp; Reports</option>
+                      <option value="compliance_requirements">Management System Compliance Requirements</option>
+                      <option value="decision_rule_disposal">Decision Rule &amp; Disposal</option>
+                    </select>
+
+                    <button
+                      type="button"
+                      onClick={() => handleAddSection('custom')}
+                      className="btn btn-primary btn-xs font-bold"
+                      style={{ background: '#0284c7', borderColor: '#0284c7', display: 'flex', alignItems: 'center', gap: '0.35rem', height: '30px' }}
+                    >
+                      <FaPlus size={10} /> Blank Section
+                    </button>
+                  </div>
+                </div>
+
+                {/* Sections List */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                  {ensureQuotationSections(formData).map((sec, sIdx, allSecs) => (
+                    <div
+                      key={sec.id || sIdx}
+                      style={{
+                        background: '#ffffff',
+                        border: '1.5px solid #cbd5e1',
+                        borderRadius: '8px',
+                        padding: '0.85rem',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
+                      }}
+                    >
+                      {/* Section Card Header */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexGrow: 1 }}>
+                          <span style={{ background: '#0284c7', color: '#ffffff', fontSize: '0.72rem', fontWeight: 800, padding: '2px 7px', borderRadius: '4px' }}>
+                            #{sIdx + 1}
+                          </span>
+                          <input
+                            type="text"
+                            value={sec.title || ''}
+                            onChange={(e) => handleUpdateSection(sIdx, 'title', e.target.value)}
+                            className="form-control form-control-sm font-bold"
+                            style={{ maxWidth: '420px', height: '30px', fontSize: '0.85rem', color: '#0f172a' }}
+                            placeholder="Section Heading Title..."
+                          />
+                        </div>
+
+                        {/* Section Action Toolbar */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#475569' }}>Page:</span>
+                            <select
+                              value={sec.pageNumber || (sIdx <= 2 ? 1 : (sIdx >= 8 ? 3 : 2))}
+                              onChange={(e) => handleUpdateSection(sIdx, 'pageNumber', parseInt(e.target.value, 10))}
+                              className="form-select form-select-sm font-bold"
+                              style={{ height: '26px', fontSize: '0.74rem', padding: '1px 5px', borderColor: '#0284c7', color: '#0369a1', cursor: 'pointer' }}
+                            >
+                              <option value={1}>Page 1</option>
+                              <option value={2}>Page 2</option>
+                              <option value={3}>Page 3</option>
+                            </select>
+                          </div>
+
+                          <button
+                            type="button"
+                            disabled={sIdx === 0}
+                            onClick={() => handleMoveSection(sIdx, 'up')}
+                            className="btn btn-outline-secondary btn-xs"
+                            title="Move Section Up"
+                            style={{ padding: '3px 6px', opacity: sIdx === 0 ? 0.4 : 1 }}
+                          >
+                            <FaArrowUp size={10} /> Up
+                          </button>
+                          <button
+                            type="button"
+                            disabled={sIdx === allSecs.length - 1}
+                            onClick={() => handleMoveSection(sIdx, 'down')}
+                            className="btn btn-outline-secondary btn-xs"
+                            title="Move Section Down"
+                            style={{ padding: '3px 6px', opacity: sIdx === allSecs.length - 1 ? 0.4 : 1 }}
+                          >
+                            <FaArrowDown size={10} /> Down
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDuplicateSection(sIdx)}
+                            className="btn btn-outline-primary btn-xs"
+                            title="Duplicate Section"
+                            style={{ padding: '3px 6px' }}
+                          >
+                            <FaCopy size={10} /> Duplicate
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSection(sIdx)}
+                            className="btn btn-outline-danger btn-xs"
+                            title="Delete Section"
+                            style={{ padding: '3px 6px' }}
+                          >
+                            <FaTrash size={10} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Section Rich-Text Editor Body */}
+                      <RichTextEditor
+                        value={sec.content || ''}
+                        onChange={(e) => handleUpdateSection(sIdx, 'content', e.target.value)}
+                        placeholder="Type section terms, bullet points, formatting..."
+                        minHeight="110px"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Card 5: Bank Details & Tax Information */}
               <div style={{ background: '#f8fafc', border: '1.5px solid #cbd5e1', borderRadius: '10px', padding: '1.1rem', boxShadow: '0 2px 6px rgba(0,0,0,0.03)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.4rem' }}>
                   <h4 style={{ fontSize: '0.92rem', fontWeight: 800, margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                    <span>📝</span> Sample Requirements, TAT &amp; GST Configuration
+                    <span>🏦</span> Quotation Prepared By &amp; Bank Details
+                  </h4>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.65rem', marginBottom: '0.75rem' }}>
+                  <div>
+                    <label className="form-label text-xs font-semibold">Service Tax / GSTIN No.</label>
+                    <input
+                      type="text"
+                      value={formData.labProfile?.serviceTaxNo || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        labProfile: { ...(prev.labProfile || {}), serviceTaxNo: e.target.value }
+                      }))}
+                      className="form-control font-bold text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label text-xs font-semibold">PAN No.</label>
+                    <input
+                      type="text"
+                      value={formData.labProfile?.panNo || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        labProfile: { ...(prev.labProfile || {}), panNo: e.target.value }
+                      }))}
+                      className="form-control font-bold text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.65rem' }}>
+                  <div>
+                    <label className="form-label text-xs font-semibold">Bank Name</label>
+                    <input
+                      type="text"
+                      value={formData.labProfile?.bankDetails?.bankName || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        labProfile: {
+                          ...(prev.labProfile || {}),
+                          bankDetails: { ...(prev.labProfile?.bankDetails || {}), bankName: e.target.value }
+                        }
+                      }))}
+                      className="form-control font-medium text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label text-xs font-semibold">Account Name</label>
+                    <input
+                      type="text"
+                      value={formData.labProfile?.bankDetails?.accountName || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        labProfile: {
+                          ...(prev.labProfile || {}),
+                          bankDetails: { ...(prev.labProfile?.bankDetails || {}), accountName: e.target.value }
+                        }
+                      }))}
+                      className="form-control font-medium text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label text-xs font-semibold">Account No.</label>
+                    <input
+                      type="text"
+                      value={formData.labProfile?.bankDetails?.accountNo || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        labProfile: {
+                          ...(prev.labProfile || {}),
+                          bankDetails: { ...(prev.labProfile?.bankDetails || {}), accountNo: e.target.value }
+                        }
+                      }))}
+                      className="form-control font-mono font-bold text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label text-xs font-semibold">IFSC Code</label>
+                    <input
+                      type="text"
+                      value={formData.labProfile?.bankDetails?.ifsc || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        labProfile: {
+                          ...(prev.labProfile || {}),
+                          bankDetails: { ...(prev.labProfile?.bankDetails || {}), ifsc: e.target.value }
+                        }
+                      }))}
+                      className="form-control font-mono font-bold text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div style={{ marginTop: '0.65rem' }}>
+                  <label className="form-label text-xs font-semibold">Bank Branch Address</label>
+                  <input
+                    type="text"
+                    value={formData.labProfile?.bankDetails?.bankAddress || ''}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      labProfile: {
+                        ...(prev.labProfile || {}),
+                        bankDetails: { ...(prev.labProfile?.bankDetails || {}), bankAddress: e.target.value }
+                      }
+                    }))}
+                    className="form-control font-medium text-xs"
+                    placeholder="Bank branch address..."
+                  />
+                </div>
+              </div>
+
+              {/* Card 6: Manual Signature & Watermark Configuration */}
+              <div style={{ background: '#f8fafc', border: '1.5px solid #cbd5e1', borderRadius: '10px', padding: '1.1rem', boxShadow: '0 2px 6px rgba(0,0,0,0.03)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.4rem' }}>
+                  <h4 style={{ fontSize: '0.92rem', fontWeight: 800, margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                    <span>✍️</span> Signature &amp; Watermark Settings
                   </h4>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                  <div>
-                    <label className="form-label font-bold text-xs">Sample Requirement Notes (Page 1)</label>
-                    <textarea
-                      rows={3}
-                      value={formData.notes?.sampleRequirement || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, notes: { ...(prev.notes || {}), sampleRequirement: e.target.value } }))}
-                      className="form-control font-medium text-xs"
-                      placeholder="e.g. NOTE- GIVEN ARE FOR PER SAMPLE CHARGES..."
-                    />
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
-                    <div>
-                      <label className="form-label font-bold text-xs">TAT (Turnaround Time)</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.85rem', fontWeight: 700, margin: 0, cursor: 'pointer' }}>
                       <input
-                        type="text"
-                        value={formData.notes?.tat || ''}
-                        onChange={(e) => setFormData(prev => ({ ...prev, notes: { ...(prev.notes || {}), tat: e.target.value } }))}
-                        className="form-control font-medium"
-                        placeholder="e.g. 6-8 Working Days for Chemical & Micro analysis."
-                      />
-                    </div>
-                    <div>
-                      <label className="form-label font-bold text-xs">GST %</label>
-                      <input
-                        type="number"
-                        value={formData.notes?.gstPercent || 18}
+                        type="checkbox"
+                        checked={formData.signature?.required || formData.signatureRequired || false}
                         onChange={(e) => {
-                          const pct = parseFloat(e.target.value) || 18;
+                          const checked = e.target.checked;
                           setFormData(prev => ({
                             ...prev,
-                            notes: {
-                              ...(prev.notes || {}),
-                              gstPercent: pct,
-                              gstNote: `${pct}% GST will be charged as applicable (extra).`
+                            signatureRequired: checked,
+                            signature: {
+                              ...(prev.signature || {}),
+                              required: checked,
                             }
                           }));
                         }}
-                        className="form-control font-bold"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="form-label font-bold text-xs">GST Text Note</label>
-                    <input
-                      type="text"
-                      value={formData.notes?.gstNote || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, notes: { ...(prev.notes || {}), gstNote: e.target.value } }))}
-                      className="form-control font-medium"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Card 5: Terms & Conditions Editing (Page 1, 2, 3) */}
-              <div style={{ background: '#f8fafc', border: '1.5px solid #cbd5e1', borderRadius: '10px', padding: '1.1rem', boxShadow: '0 2px 6px rgba(0,0,0,0.03)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.4rem' }}>
-                  <h4 style={{ fontSize: '0.92rem', fontWeight: 800, margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                    <span>📜</span> Quotation Terms &amp; Compliance Clauses (Per Quotation Override)
-                  </h4>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const master = getGeneralTestingMasterTerms();
-                      setFormData(prev => ({
-                        ...prev,
-                        termsAndConditions: {
-                          validityDays: master.validityDays || 30,
-                          overdueInterestPercent: master.overdueInterestPercent || 24,
-                          p1_validity: master.p1_validity,
-                          p1_payment: master.p1_payment,
-                          p2_samplingConditions: master.p2_samplingConditions,
-                          p2_sampleHandling: master.p2_sampleHandling,
-                          p2_suspensionOfWork: master.p2_suspensionOfWork,
-                          p2_invoicingReports: master.p2_invoicingReports,
-                          p2_compliance_confidentiality: master.p2_compliance_confidentiality,
-                          p2_compliance_testMethods: master.p2_compliance_testMethods,
-                          p2_compliance_externalProviders: master.p2_compliance_externalProviders,
-                          p2_compliance_conformity: master.p2_compliance_conformity,
-                          p2_compliance_customerCooperation: master.p2_compliance_customerCooperation,
-                          p2_compliance_deliveryAcceptance: master.p2_compliance_deliveryAcceptance,
-                          p3_continuationClause: master.p3_continuationClause,
-                          p3_sampleDisposal: master.p3_sampleDisposal,
-                          p3_decisionRule: master.p3_decisionRule,
-                        }
-                      }));
-                      triggerToast('Reset to master default terms!', 'info');
-                    }}
-                    className="btn btn-outline-secondary btn-xs font-semibold"
-                    style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-                  >
-                    <FaUndo size={10} /> Reset to Default Terms
-                  </button>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem', marginBottom: '0.85rem' }}>
-                  <div>
-                    <label className="form-label font-bold text-xs">Quotation Validity (Days)</label>
-                    <input
-                      type="number"
-                      value={formData.termsAndConditions?.validityDays || 30}
-                      onChange={(e) => setFormData(prev => ({
-                        ...prev,
-                        termsAndConditions: {
-                          ...(prev.termsAndConditions || {}),
-                          validityDays: parseInt(e.target.value, 10) || 30
-                        }
-                      }))}
-                      className="form-control font-bold"
-                    />
-                  </div>
-                  <div>
-                    <label className="form-label font-bold text-xs">Overdue Annual Interest (%)</label>
-                    <input
-                      type="number"
-                      value={formData.termsAndConditions?.overdueInterestPercent || 24}
-                      onChange={(e) => setFormData(prev => ({
-                        ...prev,
-                        termsAndConditions: {
-                          ...(prev.termsAndConditions || {}),
-                          overdueInterestPercent: parseFloat(e.target.value) || 24
-                        }
-                      }))}
-                      className="form-control font-bold"
-                    />
-                  </div>
-                </div>
-
-                {/* Page 1 Clauses Accordion / Box */}
-                <div style={{ background: '#ffffff', padding: '0.85rem', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '0.75rem' }}>
-                  <div style={{ fontWeight: 800, fontSize: '0.82rem', color: '#0f172a', marginBottom: '0.4rem' }}>
-                    Page 1 — 1. Validity &amp; 2. Payment Terms
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <div>
-                      <label className="form-label text-xs font-semibold">1. Validity Clauses</label>
-                      <textarea
-                        rows={2}
-                        value={formData.termsAndConditions?.p1_validity || ''}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          termsAndConditions: { ...(prev.termsAndConditions || {}), p1_validity: e.target.value }
-                        }))}
-                        className="form-control text-xs"
-                      />
-                    </div>
-                    <div>
-                      <label className="form-label text-xs font-semibold">2. Payment Clauses</label>
-                      <textarea
-                        rows={4}
-                        value={formData.termsAndConditions?.p1_payment || ''}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          termsAndConditions: { ...(prev.termsAndConditions || {}), p1_payment: e.target.value }
-                        }))}
-                        className="form-control text-xs"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Page 2 Sampling & Compliance */}
-                <div style={{ background: '#ffffff', padding: '0.85rem', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '0.75rem' }}>
-                  <div style={{ fontWeight: 800, fontSize: '0.82rem', color: '#0f172a', marginBottom: '0.4rem' }}>
-                    Page 2 — Sampling, Handling &amp; Compliance Clauses
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                    <div>
-                      <label className="form-label text-xs font-semibold">3. Sampling Conditions</label>
-                      <textarea
-                        rows={2}
-                        value={formData.termsAndConditions?.p2_samplingConditions || ''}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          termsAndConditions: { ...(prev.termsAndConditions || {}), p2_samplingConditions: e.target.value }
-                        }))}
-                        className="form-control text-xs"
-                      />
-                    </div>
-                    <div>
-                      <label className="form-label text-xs font-semibold">4. Sample Handling &amp; Disposal</label>
-                      <textarea
-                        rows={2}
-                        value={formData.termsAndConditions?.p2_sampleHandling || ''}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          termsAndConditions: { ...(prev.termsAndConditions || {}), p2_sampleHandling: e.target.value }
-                        }))}
-                        className="form-control text-xs"
-                      />
-                    </div>
-                    <div>
-                      <label className="form-label text-xs font-semibold">5. Suspension of Work</label>
-                      <textarea
-                        rows={2}
-                        value={formData.termsAndConditions?.p2_suspensionOfWork || ''}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          termsAndConditions: { ...(prev.termsAndConditions || {}), p2_suspensionOfWork: e.target.value }
-                        }))}
-                        className="form-control text-xs"
-                      />
-                    </div>
-                    <div>
-                      <label className="form-label text-xs font-semibold">6. Invoicing &amp; Reports</label>
-                      <textarea
-                        rows={2}
-                        value={formData.termsAndConditions?.p2_invoicingReports || ''}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          termsAndConditions: { ...(prev.termsAndConditions || {}), p2_invoicingReports: e.target.value }
-                        }))}
-                        className="form-control text-xs"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Page 3 Bank Details & Signature Options */}
-                <div style={{ background: '#ffffff', padding: '0.85rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                  <div style={{ fontWeight: 800, fontSize: '0.82rem', color: '#0f172a', marginBottom: '0.4rem' }}>
-                    Page 3 — Bank Details &amp; Signatory Block
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.65rem' }}>
-                    <div>
-                      <label className="form-label text-xs font-semibold">Service Tax / GSTIN No.</label>
-                      <input
-                        type="text"
-                        value={formData.labProfile?.serviceTaxNo || ''}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          labProfile: { ...(prev.labProfile || {}), serviceTaxNo: e.target.value }
-                        }))}
-                        className="form-control font-bold text-xs"
-                      />
-                    </div>
-                    <div>
-                      <label className="form-label text-xs font-semibold">PAN No.</label>
-                      <input
-                        type="text"
-                        value={formData.labProfile?.panNo || ''}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          labProfile: { ...(prev.labProfile || {}), panNo: e.target.value }
-                        }))}
-                        className="form-control font-bold text-xs"
-                      />
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.65rem' }}>
-                    <div>
-                      <label className="form-label text-xs font-semibold">Bank Name</label>
-                      <input
-                        type="text"
-                        value={formData.labProfile?.bankDetails?.bankName || ''}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          labProfile: {
-                            ...(prev.labProfile || {}),
-                            bankDetails: { ...(prev.labProfile?.bankDetails || {}), bankName: e.target.value }
-                          }
-                        }))}
-                        className="form-control font-medium text-xs"
-                      />
-                    </div>
-                    <div>
-                      <label className="form-label text-xs font-semibold">Account Name</label>
-                      <input
-                        type="text"
-                        value={formData.labProfile?.bankDetails?.accountName || ''}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          labProfile: {
-                            ...(prev.labProfile || {}),
-                            bankDetails: { ...(prev.labProfile?.bankDetails || {}), accountName: e.target.value }
-                          }
-                        }))}
-                        className="form-control font-medium text-xs"
-                      />
-                    </div>
-                    <div>
-                      <label className="form-label text-xs font-semibold">Account No.</label>
-                      <input
-                        type="text"
-                        value={formData.labProfile?.bankDetails?.accountNo || ''}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          labProfile: {
-                            ...(prev.labProfile || {}),
-                            bankDetails: { ...(prev.labProfile?.bankDetails || {}), accountNo: e.target.value }
-                          }
-                        }))}
-                        className="form-control font-mono font-bold text-xs"
-                      />
-                    </div>
-                    <div>
-                      <label className="form-label text-xs font-semibold">IFSC Code</label>
-                      <input
-                        type="text"
-                        value={formData.labProfile?.bankDetails?.ifsc || ''}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          labProfile: {
-                            ...(prev.labProfile || {}),
-                            bankDetails: { ...(prev.labProfile?.bankDetails || {}), ifsc: e.target.value }
-                          }
-                        }))}
-                        className="form-control font-mono font-bold text-xs"
-                      />
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '0.4rem', borderTop: '1px solid #e2e8f0' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.8rem', fontWeight: 700, margin: 0, cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        checked={formData.signatureRequired || false}
-                        onChange={(e) => setFormData(prev => ({ ...prev, signatureRequired: e.target.checked }))}
                       />
                       Manual Signature Box Required
                     </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.8rem', fontWeight: 700, margin: 0, cursor: 'pointer' }}>
+
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.85rem', fontWeight: 700, margin: 0, cursor: 'pointer' }}>
                       <input
                         type="checkbox"
                         checked={formData.watermarkEnabled ?? true}
@@ -2013,6 +2308,79 @@ const ProvisionalQuotationForm = () => {
                       Show Background Logo Watermark
                     </label>
                   </div>
+
+                  {/* Signature Options Panel */}
+                  {(formData.signature?.required || formData.signatureRequired) && (
+                    <div style={{ background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+                        <div>
+                          <label className="form-label text-xs font-semibold">Signatory Name</label>
+                          <input
+                            type="text"
+                            value={formData.signature?.name || formData.labProfile?.contactPerson || 'Mr. HITARTH'}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              signature: { ...(prev.signature || {}), name: e.target.value }
+                            }))}
+                            className="form-control text-xs font-bold"
+                            placeholder="e.g. Mr. HITARTH"
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label text-xs font-semibold">Signatory Designation</label>
+                          <input
+                            type="text"
+                            value={formData.signature?.designation || 'Authorized Signatory'}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              signature: { ...(prev.signature || {}), designation: e.target.value }
+                            }))}
+                            className="form-control text-xs font-medium"
+                            placeholder="e.g. Authorized Signatory / Technical Director"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Signature Image Upload */}
+                      <div>
+                        <label className="form-label text-xs font-semibold">Signatory Signature Image (PNG / JPG)</label>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                          <label className="btn btn-outline-primary btn-xs font-bold" style={{ cursor: 'pointer', margin: 0, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                            <FaUpload size={10} />
+                            {formData.signature?.signatureImage || formData.signatorySignature ? 'Replace Signature Image' : 'Upload Signature Image'}
+                            <input
+                              type="file"
+                              accept="image/png, image/jpeg, image/jpg"
+                              onChange={handleGtSignatureUpload}
+                              style={{ display: 'none' }}
+                            />
+                          </label>
+
+                          {(formData.signature?.signatureImage || formData.signatorySignature) && (
+                            <button
+                              type="button"
+                              onClick={handleRemoveGtSignature}
+                              className="btn btn-outline-danger btn-xs"
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                            >
+                              <FaTrash size={10} /> Remove Signature Image
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Image Preview */}
+                        {(formData.signature?.signatureImage || formData.signatorySignature) && (
+                          <div style={{ marginTop: '0.5rem', display: 'inline-block', border: '1px dashed #cbd5e1', borderRadius: '6px', padding: '6px 12px', background: '#f8fafc' }}>
+                            <img
+                              src={formData.signature?.signatureImage || formData.signatorySignature}
+                              alt="Signature Preview"
+                              style={{ maxHeight: '48px', maxWidth: '160px', objectFit: 'contain' }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

@@ -691,6 +691,142 @@ The ILAC G8 model will be applied where relevant.
 If the decision rule is defined by customer, regulation, or normative documents, no further risk assessment will be undertaken.`
 };
 
+export const PRESET_SECTION_TEMPLATES = [
+  {
+    presetKey: 'sample_requirements',
+    title: '',
+    content: `<p><strong>NOTE- GIVEN ARE FOR PER SAMPLE CHARGES.</strong><br/>
+TRQUIRED 2-5 LTRS OF SAMPLE FOR WATER ANALYSIS<br/>
+TRQUIRED 500G- 1KG OF SAMPLE FOR WATER ANALYSIS</p>
+<p><strong><u>TAT – 6-8 Working Days for Chemical &amp; Micro analysis.</u></strong></p>`
+  },
+  {
+    presetKey: 'validity',
+    title: '1. Validity of Quotation',
+    content: `<ul>
+  <li>Collection and testing of samples will commence only after receipt of a clear purchase order.</li>
+  <li>This quotation is valid for <strong>30 days</strong> from the date of issue.</li>
+</ul>`
+  },
+  {
+    presetKey: 'payment_terms',
+    title: '2. Payment Terms',
+    content: `<ul>
+  <li>Overdue payments will attract <strong>24% annual interest</strong>.</li>
+  <li>Priority services may incur fast-track charges.</li>
+  <li>Online payments must be confirmed via email.</li>
+  <li>GST will be charged extra, as applicable, at the time of billing.</li>
+  <li>TDS Certificates, where applicable, must be provided within 30 days from the end of each quarter.</li>
+  <li>Statutory deductions (e.g., ESIC, PF) do not apply to our representatives, who visit customer premises solely for sampling.</li>
+</ul>`
+  },
+  {
+    presetKey: 'sampling_conditions',
+    title: '3. Sampling Conditions',
+    content: `<ul>
+  <li>If the sampling team is unable to proceed due to lack of infrastructure or customer cooperation, sampling fees will be charged again.</li>
+  <li>Customers must ensure adequate arrangements (platforms, ports, power supply, etc.), safety/security, and cooperation for sampling.</li>
+</ul>`
+  },
+  {
+    presetKey: 'sample_handling',
+    title: '4. Sample Handling & Disposal',
+    content: `<ul>
+  <li>Leftover samples requiring special or legal disposal will be billed extra or must be collected back by the customer.</li>
+  <li>Cancelled or unaccepted project samples will be returned at the customer's expense.</li>
+  <li>Perishable samples are disposed within <strong>7 days</strong> of reporting.</li>
+  <li>Non-perishable samples are disposed within <strong>15 days</strong>, unless otherwise requested.</li>
+  <li>Storage beyond the laboratory's retention period may be chargeable.</li>
+</ul>`
+  },
+  {
+    presetKey: 'suspension_of_work',
+    title: '5. Suspension of Work',
+    content: `<ul>
+  <li>Customers may request suspension of work by written notice.</li>
+  <li>Charges apply for all work completed up to the suspension date.</li>
+  <li>Unfinished analysis will be billed on a prorated basis.</li>
+</ul>`
+  },
+  {
+    presetKey: 'invoicing_reports',
+    title: '6. Invoicing & Reports',
+    content: `<ul>
+  <li>If no payment advice is received, invoices will be adjusted on a <strong>FIFO basis</strong> within 2 working days.</li>
+  <li>Customers are liable to pay for all services rendered, irrespective of disputes regarding results.</li>
+  <li>One original test report is provided free of charge; additional copies are available on request at extra cost.</li>
+  <li>As our endeavor towards caring for environment, all test reports will be issued as soft copies.</li>
+</ul>`
+  },
+  {
+    presetKey: 'compliance_requirements',
+    title: 'Management System Compliance Requirements',
+    content: `<p><strong>1. Confidentiality &amp; Impartiality</strong></p>
+<ul>
+  <li>Both the laboratory and customer must treat shared information as confidential.</li>
+  <li>Disclosure will only occur where legally required, with prior intimation (unless prohibited by law).</li>
+  <li>Both parties must notify each other of any potential conflicts affecting confidentiality or impartiality.</li>
+  <li>Test reports, once issued, enter the public domain.</li>
+</ul>
+<p><strong>2. Test Methods</strong></p>
+<ul>
+  <li>Accredited parameters are tested as per the laboratory's NABL scope (available on request).</li>
+  <li>For non-accredited parameters, or where methods are outdated/inappropriate, the laboratory will select suitable methods and inform the customer.</li>
+</ul>
+<p><strong>3. Use of External Service Providers</strong></p>
+<ul>
+  <li>If internal resources are unavailable, the laboratory may—upon customer approval—engage a competent external service provider.</li>
+</ul>
+<p><strong>4. Statement of Conformity</strong></p>
+<ul>
+  <li>Any decision rule applied to specifications/standards will be agreed upon with the customer in advance.</li>
+  <li>The applied decision rule will be explicitly mentioned in the report.</li>
+  <li>Opinions/interpretations will only be provided with documented evidence.</li>
+</ul>
+<p><strong>5. Customer Cooperation</strong></p>
+<ul>
+  <li>Customers may witness tests or request performance monitoring, subject to compliance with requirements.</li>
+  <li>Such arrangements should be made through the Customer Support Team.</li>
+</ul>
+<p><strong>6. Sample Delivery &amp; Acceptance</strong></p>
+<ul>
+  <li>Samples are accepted only if:
+    <ul style="list-style-type: circle; padding-left: 18px;">
+      <li>Quantity is sufficient,</li>
+      <li>They do not pose health, safety, environmental, or legal risks,</li>
+      <li>Holding times have not compromised integrity, and</li>
+      <li>They do not affect laboratory operations.</li>
+    </ul>
+  </li>
+  <li>Non-conforming samples may still be tested at customer's insistence but under <strong>disclaimer</strong>, clearly noted in the report.</li>
+  <li>All samples must be marked: <strong>"Samples for testing purposes – No commercial value."</strong></li>
+  <li>Customers bear the risk of damage/loss until samples are accepted by the laboratory (unless sampling is done by the laboratory).</li>
+</ul>
+<p><strong>7. Sample Disposal</strong></p>
+<ul>
+  <li>Perishable: within <strong>7 days</strong> of reporting.</li>
+  <li>Non-perishable: within <strong>15 days</strong>, unless otherwise instructed.</li>
+</ul>
+<p><strong>8. Decision Rule Application</strong></p>
+<ul>
+  <li>If measurement uncertainty impacts results, the sample will be reported as <strong>Fail</strong>.</li>
+  <li>The <strong>ILAC G8</strong> model will be applied where relevant.</li>
+</ul>
+<p><em>If the decision rule is defined by customer, regulation, or normative documents, no further risk assessment will be undertaken.</em></p>`
+  },
+  {
+    presetKey: 'page_break',
+    title: 'Page Break',
+    isPageBreak: true,
+    content: '<!-- PAGE BREAK -->'
+  },
+  {
+    presetKey: 'custom',
+    title: 'Custom Terms Section',
+    content: `<p>Enter custom section terms or notes here...</p>`
+  }
+];
+
 export const getGeneralTestingMasterTerms = () => {
   try {
     const raw = localStorage.getItem(GENERAL_TESTING_MASTER_TERMS_KEY);
@@ -712,6 +848,161 @@ export const saveGeneralTestingMasterTerms = (terms) => {
   }
 };
 
+/**
+ * Ensures sections array exists for General Testing quotations (backward compatibility)
+ */
+export const ensureQuotationSections = (quotation = {}) => {
+  const sectionsWithPages = (Array.isArray(quotation.sections) && quotation.sections.length > 0)
+    ? quotation.sections.map((sec, idx) => {
+        if (sec.pageNumber) return sec;
+        let p = 2;
+        if (sec.presetKey === 'sample_requirements' || sec.presetKey === 'validity' || sec.presetKey === 'payment_terms' || idx <= 2) p = 1;
+        else if (sec.presetKey === 'decision_rule_disposal' || sec.title?.includes('Decision Rule') || idx >= 8) p = 3;
+        return { ...sec, pageNumber: p };
+      })
+    : null;
+
+  if (sectionsWithPages) return sectionsWithPages;
+
+  const terms = quotation.termsAndConditions || {};
+  const notes = quotation.notes || {};
+  const validityDays = terms.validityDays || 30;
+  const overdueInterest = terms.overdueInterestPercent || 24;
+
+  const sections = [];
+
+  // 1. Sample Requirements Note
+  const sampleNote = notes.sampleRequirement || `NOTE- GIVEN ARE FOR PER SAMPLE CHARGES.\nTRQUIRED 2-5 LTRS OF SAMPLE FOR WATER ANALYSIS\nTRQUIRED 500G- 1KG OF SAMPLE FOR SOLID / SLUDGE ANALYSIS`;
+  const tat = notes.tat || '6-8 Working Days for Chemical & Micro analysis.';
+  sections.push({
+    id: 'sec_notes_default',
+    presetKey: 'sample_requirements',
+    pageNumber: 1,
+    title: 'Sample Requirements & TAT Notes',
+    content: `<p><strong>${sampleNote.replace(/\n/g, '<br/>')}</strong></p><p><strong><u>TAT – ${tat}</u></strong></p>`
+  });
+
+  // 2. Validity
+  if (terms.p1_validity) {
+    const valContent = terms.p1_validity.replace(/{validityDays}/g, validityDays).split('\n').filter(Boolean).map(li => `<li>${li.replace(/^[•\-]\s*/, '')}</li>`).join('');
+    sections.push({
+      id: 'sec_val_default',
+      presetKey: 'validity',
+      pageNumber: 1,
+      title: '1. Validity of Quotation',
+      content: `<ul>${valContent}</ul>`
+    });
+  }
+
+  // 3. Payment Terms
+  if (terms.p1_payment) {
+    const payContent = terms.p1_payment.replace(/{overdueInterestPercent}/g, overdueInterest).split('\n').filter(Boolean).map(li => `<li>${li.replace(/^[•\-]\s*/, '')}</li>`).join('');
+    sections.push({
+      id: 'sec_pay_default',
+      presetKey: 'payment_terms',
+      pageNumber: 1,
+      title: '2. Payment Terms',
+      content: `<ul>${payContent}</ul>`
+    });
+  }
+
+  // 4. Sampling Conditions
+  if (terms.p2_samplingConditions) {
+    const scContent = terms.p2_samplingConditions.split('\n').filter(Boolean).map(li => `<li>${li.replace(/^[•\-]\s*/, '')}</li>`).join('');
+    sections.push({
+      id: 'sec_sc_default',
+      presetKey: 'sampling_conditions',
+      pageNumber: 2,
+      title: '3. Sampling Conditions',
+      content: `<ul>${scContent}</ul>`
+    });
+  }
+
+  // 5. Sample Handling & Disposal
+  if (terms.p2_sampleHandling) {
+    const shContent = terms.p2_sampleHandling.split('\n').filter(Boolean).map(li => `<li>${li.replace(/^[•\-]\s*/, '')}</li>`).join('');
+    sections.push({
+      id: 'sec_sh_default',
+      presetKey: 'sample_handling',
+      pageNumber: 2,
+      title: '4. Sample Handling & Disposal',
+      content: `<ul>${shContent}</ul>`
+    });
+  }
+
+  // 6. Suspension of Work
+  if (terms.p2_suspensionOfWork) {
+    const swContent = terms.p2_suspensionOfWork.split('\n').filter(Boolean).map(li => `<li>${li.replace(/^[•\-]\s*/, '')}</li>`).join('');
+    sections.push({
+      id: 'sec_sw_default',
+      presetKey: 'suspension_of_work',
+      pageNumber: 2,
+      title: '5. Suspension of Work',
+      content: `<ul>${swContent}</ul>`
+    });
+  }
+
+  // 7. Invoicing & Reports
+  if (terms.p2_invoicingReports) {
+    const irContent = terms.p2_invoicingReports.split('\n').filter(Boolean).map(li => `<li>${li.replace(/^[•\-]\s*/, '')}</li>`).join('');
+    sections.push({
+      id: 'sec_ir_default',
+      presetKey: 'invoicing_reports',
+      pageNumber: 2,
+      title: '6. Invoicing & Reports',
+      content: `<ul>${irContent}</ul>`
+    });
+  }
+
+  // 8. Management System Compliance Requirements (Subsections 1 to 8)
+  const complianceHtml = [];
+  if (terms.p2_compliance_confidentiality) {
+    complianceHtml.push(`<p><strong>1. Confidentiality &amp; Impartiality</strong></p><ul>${terms.p2_compliance_confidentiality.split('\n').filter(Boolean).map(li => `<li>${li.replace(/^[•\-]\s*/, '')}</li>`).join('')}</ul>`);
+  }
+  if (terms.p2_compliance_testMethods) {
+    complianceHtml.push(`<p><strong>2. Test Methods</strong></p><ul>${terms.p2_compliance_testMethods.split('\n').filter(Boolean).map(li => `<li>${li.replace(/^[•\-]\s*/, '')}</li>`).join('')}</ul>`);
+  }
+  if (terms.p2_compliance_externalProviders) {
+    complianceHtml.push(`<p><strong>3. Use of External Service Providers</strong></p><ul>${terms.p2_compliance_externalProviders.split('\n').filter(Boolean).map(li => `<li>${li.replace(/^[•\-]\s*/, '')}</li>`).join('')}</ul>`);
+  }
+  if (terms.p2_compliance_conformity) {
+    complianceHtml.push(`<p><strong>4. Statement of Conformity</strong></p><ul>${terms.p2_compliance_conformity.split('\n').filter(Boolean).map(li => `<li>${li.replace(/^[•\-]\s*/, '')}</li>`).join('')}</ul>`);
+  }
+  if (terms.p2_compliance_customerCooperation) {
+    complianceHtml.push(`<p><strong>5. Customer Cooperation</strong></p><ul>${terms.p2_compliance_customerCooperation.split('\n').filter(Boolean).map(li => `<li>${li.replace(/^[•\-]\s*/, '')}</li>`).join('')}</ul>`);
+  }
+  if (terms.p2_compliance_deliveryAcceptance) {
+    const delLines = terms.p2_compliance_deliveryAcceptance.split('\n').filter(Boolean);
+    const firstLine = delLines[0] || 'Samples are accepted only if:';
+    const subItems = delLines.slice(1).map(li => `<li>${li.replace(/^[•\-o▪]\s*/, '')}</li>`).join('');
+    let contBullets = '';
+    if (terms.p3_continuationClause) {
+      contBullets = terms.p3_continuationClause.split('\n').filter(Boolean).map(li => `<li>${li.replace(/^[•\-]\s*/, '')}</li>`).join('');
+    }
+    complianceHtml.push(`<p><strong>6. Sample Delivery &amp; Acceptance</strong></p><ul><li>${firstLine}<ul style="list-style-type: circle; padding-left: 18px;">${subItems}</ul></li>${contBullets}</ul>`);
+  }
+  if (terms.p3_sampleDisposal) {
+    complianceHtml.push(`<p><strong>7. Sample Disposal</strong></p><ul>${terms.p3_sampleDisposal.split('\n').filter(Boolean).map(li => `<li>${li.replace(/^[•\-]\s*/, '')}</li>`).join('')}</ul>`);
+  }
+  if (terms.p3_decisionRule) {
+    complianceHtml.push(`<p><strong>8. Decision Rule Application</strong></p><ul>${terms.p3_decisionRule.split('\n').filter(Boolean).map(li => `<li>${li.replace(/^[•\-]\s*/, '')}</li>`).join('')}</ul><p><em>If the decision rule is defined by customer, regulation, or normative documents, no further risk assessment will be undertaken.</em></p>`);
+  }
+
+  if (complianceHtml.length > 0) {
+    sections.push({
+      id: 'sec_comp_default',
+      presetKey: 'compliance_requirements',
+      pageNumber: 2,
+      title: 'Management System Compliance Requirements',
+      content: complianceHtml.join('')
+    });
+  }
+
+  return sections.length > 0
+    ? sections
+    : PRESET_SECTION_TEMPLATES.slice(0, 8).map((p, idx) => ({ ...p, id: `sec_init_${idx + 1}` }));
+};
+
 export const createInitialGeneralTestingQuotation = (company = {}) => {
   const now = new Date();
   const year = now.getFullYear();
@@ -721,12 +1012,16 @@ export const createInitialGeneralTestingQuotation = (company = {}) => {
   const seq = String(existingList.length + 1).padStart(8, '0');
   const masterTerms = getGeneralTestingMasterTerms();
 
+  const defaultSections = PRESET_SECTION_TEMPLATES.slice(0, 8).map((p, idx) => ({
+    ...p,
+    id: `sec_${Date.now()}_${idx + 1}`,
+  }));
+
   return {
     id: 'gtq_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
     quotationType: 'General Testing / Consulting',
     quotationCategoryType: 'general_testing',
     categoryType: 'general_testing',
-    categoryLabel: 'General Testing/Consulting',
     quotationNo: `JLT/Q/${seq}/${finYear}`,
     quotationNumber: `JLT/Q/${seq}/${finYear}`,
     revNo: '00',
@@ -767,7 +1062,7 @@ export const createInitialGeneralTestingQuotation = (company = {}) => {
       }
     },
 
-    // Pricing / Sample Table (Dynamic multi-line rows)
+    // Pricing / Sample Table (Dynamic multi-line rows with auto-calculated total & discount)
     lineItems: [
       {
         id: 'li_1',
@@ -775,7 +1070,9 @@ export const createInitialGeneralTestingQuotation = (company = {}) => {
         sampleName: 'pH, COD, BOD, SUSPENDED SOLID, TOTAL NITROGEN, KJELDAL NITROGEN, AMMONICAL NITROGEN, OIL & GREASE, FECAL COLIFORM',
         noOfSamples: 1,
         chargesPerSample: 5500,
-        discountedChargesPerSample: 3500,
+        discountPercent: 0,
+        discountedChargesPerSample: 5500,
+        total: 5500,
       },
       {
         id: 'li_2',
@@ -783,20 +1080,26 @@ export const createInitialGeneralTestingQuotation = (company = {}) => {
         sampleName: 'STP SLUDGE',
         noOfSamples: 1,
         chargesPerSample: 3000,
-        discountedChargesPerSample: 2000,
+        discountPercent: 0,
+        discountedChargesPerSample: 3000,
+        total: 3000,
       }
     ],
 
-    // Notes
+    // Flexible Dynamic Sections
+    sections: defaultSections,
+
+    // Notes & GST Configuration
     notes: {
       sampleRequirement: masterTerms.sampleRequirementsText,
       tat: masterTerms.tatText,
       gstNote: masterTerms.gstNote,
       gstPercent: masterTerms.gstPercent || 18,
+      gstEnabled: true,
       showSubtotal: true,
     },
 
-    // Terms
+    // Legacy terms for backward compatibility
     termsAndConditions: {
       validityDays: masterTerms.validityDays || 30,
       overdueInterestPercent: masterTerms.overdueInterestPercent || 24,
@@ -817,9 +1120,18 @@ export const createInitialGeneralTestingQuotation = (company = {}) => {
       p3_decisionRule: masterTerms.p3_decisionRule,
     },
 
-    signatureRequired: masterTerms.signatureRequired || false,
+    // Signature Settings
+    signatureRequired: false,
+    signature: {
+      required: false,
+      signatureImage: '',
+      name: company.signatory || 'Mr. HITARTH',
+      designation: 'Authorized Signatory',
+      date: now.toISOString().split('T')[0],
+      place: 'Rajkot',
+    },
     signatureDisclaimer: masterTerms.signatureDisclaimer,
     watermarkEnabled: true,
-    grandTotal: 5500,
+    grandTotal: 8500,
   };
 };

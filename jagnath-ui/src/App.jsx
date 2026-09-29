@@ -71,16 +71,8 @@ const ProtectedRoute = ({ children }) => {
   return <DashboardLayout>{children}</DashboardLayout>;
 };
 
-// Protected Print Route (No Dashboard Layout)
+// Print Route Wrapper Component (No Dashboard Layout)
 const ProtectedPrintRoute = ({ children }) => {
-  const token = getActiveToken();
-  const user = getStoredUser();
-  const isAuthenticated = !!(token && user);
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
   return children;
 };
 

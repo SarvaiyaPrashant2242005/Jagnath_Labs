@@ -645,3 +645,102 @@ export const calculatePage2Charges = (quotation = {}, annexureATotalParam = null
   };
 };
 
+/**
+ * Formats a number according to the Indian numbering system (e.g. 2,42,116/-)
+ * Gracefully handles empty, 0, strings, and NaN values.
+ * @param {number|string} val
+ * @param {boolean} showSymbol - prepend ₹
+ * @param {boolean} withSlash - append /-
+ * @returns {string}
+ */
+export const formatIndianCurrency = (val, showSymbol = false, withSlash = true) => {
+  if (val === undefined || val === null || val === '') return '-';
+  const num = Number(val);
+  if (isNaN(num)) return String(val);
+  const rounded = Math.round(num);
+  const formatted = rounded.toLocaleString('en-IN');
+  const prefix = showSymbol ? '₹' : '';
+  const suffix = withSlash ? '/-' : '';
+  return `${prefix}${formatted}${suffix}`;
+};
+
+/**
+ * Sanitizes HTML to prevent script injection while preserving formatting tags
+ * @param {string} dirtyHtml
+ * @returns {string}
+ */
+export const sanitizeHtml = (dirtyHtml) => {
+  if (!dirtyHtml || typeof dirtyHtml !== 'string') return '';
+  return dirtyHtml
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+    .replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, '')
+    .replace(/<embed\b[^<]*(?:(?!<\/embed>)<[^<]*)*<\/embed>/gi, '')
+    .replace(/\son\w+\s*=\s*(['"]).*?\1/gi, '')
+    .replace(/\son\w+\s*=\s*[^>\s]+/gi, '')
+    .replace(/javascript:/gi, '');
+};
+
+/**
+ * Calculates row total for quotation pricing table
+ * Formula: Total = No. of Samples × Charges per Sample × (1 - Discount% / 100)
+ * @param {Object} item
+ * @returns {Object} item with auto-calculated total and validated numbers
+ */
+export const calculatePricingRow = (item = {}) => {
+  const qty = Math.max(1, parseFloat(item.noOfSamples) || 1);
+  const unitCharge = Math.max(0, parseFloat(item.chargesPerSample) || 0);
+  
+  // Handle discount percent with backwards compatibility
+  let discountPct = 0;
+  if (item.discountPercent !== undefined && item.discountPercent !== null && item.discountPercent !== '') {
+    discountPct = Math.max(0, Math.min(100, parseFloat(item.discountPercent) || 0));
+  } else if (item.discount !== undefined && item.discount !== null && item.discount !== '') {
+    discountPct = Math.max(0, Math.min(100, parseFloat(item.discount) || 0));
+  } else if (item.discountedChargesPerSample !== undefined && unitCharge > 0) {
+    const rawDisc = ((unitCharge * qty - Number(item.discountedChargesPerSample)) / (unitCharge * qty)) * 100;
+    discountPct = Math.max(0, Math.min(100, Math.round(rawDisc * 100) / 100));
+  }
+
+  // Exact formula: Total = No. of Samples × Charges per Sample × (1 - Discount% / 100)
+  const total = Math.round(qty * unitCharge * (1 - discountPct / 100));
+
+  return {
+    ...item,
+    noOfSamples: qty,
+    chargesPerSample: unitCharge,
+    discountPercent: discountPct,
+    discountedChargesPerSample: total, // for backwards compatibility
+    total,
+  };
+};
+
+/**
+ * Calculates totals for the General Testing pricing table including subtotal and optional GST
+ * @param {Array} lineItems
+ * @param {Object} gstConfig - { enabled: boolean, percent: number }
+ * @returns {Object}
+ */
+export const calculateGeneralTestingTotals = (lineItems = [], gstConfig = {}) => {
+  const calculatedRows = (lineItems || []).map(calculatePricingRow);
+  const rawSubtotal = calculatedRows.reduce((sum, r) => sum + (r.chargesPerSample * r.noOfSamples), 0);
+  const subtotal = calculatedRows.reduce((sum, r) => sum + (r.total || 0), 0);
+  const totalDiscount = Math.max(0, rawSubtotal - subtotal);
+  
+  const gstEnabled = gstConfig.enabled !== false && gstConfig.gstEnabled !== false;
+  const gstPercent = parseFloat(gstConfig.gstPercent !== undefined ? gstConfig.gstPercent : (gstConfig.percent || 18)) || 0;
+  const gstAmount = gstEnabled ? Math.round(subtotal * (gstPercent / 100)) : 0;
+  const grandTotal = subtotal + gstAmount;
+
+  return {
+    rows: calculatedRows,
+    rawSubtotal,
+    subtotal,
+    totalDiscount,
+    gstEnabled,
+    gstPercent,
+    gstAmount,
+    grandTotal,
+  };
+};
+

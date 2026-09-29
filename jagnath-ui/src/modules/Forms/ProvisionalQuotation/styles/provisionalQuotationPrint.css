@@ -1,6 +1,7 @@
 /**
  * @file provisionalQuotationPrint.css
  * @description Official A4 Preview & Clean Print Stylesheet for Provisional Quotations.
+ * Optimized for discrete <Page> pagination and crisp vector PDF generation.
  */
 
 .preview-page-container {
@@ -17,7 +18,7 @@
   padding-bottom: 3rem;
 }
 
-/* Base A4 Sheet */
+/* Base A4 Sheet for Audit Quotations */
 .a4-sheet {
   background: #ffffff;
   width: 210mm;
@@ -28,192 +29,127 @@
   display: flex;
   flex-direction: column;
   position: relative;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: Arial, "Helvetica Neue", Helvetica, "Liberation Sans", "Arimo", sans-serif;
   color: #1e293b;
   font-size: 13px;
   line-height: 1.5;
 }
 
-/* Document Header */
-.company-title {
-  font-size: 20px;
-  font-weight: 800;
-  color: #0f172a;
-  letter-spacing: 0.02em;
-  margin: 0 0 4px 0;
+/* ========================================================================= */
+/* GENERAL TESTING / CONSULTING QUOTATION STYLES (MATCHING REFERENCE B1-B3)  */
+/* ========================================================================= */
+
+.general-testing-quotation-root {
+  font-family: Arial, "Helvetica Neue", Helvetica, "Liberation Sans", "Arimo", sans-serif;
+  color: #000000;
+  width: 100%;
 }
 
-.company-sub {
-  font-size: 11px;
-  font-weight: 700;
-  color: #2563eb;
-  letter-spacing: 0.06em;
-  margin: 0 0 2px 0;
+/* Discrete A4 Page Wrapper */
+.gt-a4-page {
+  background: #ffffff;
+  width: 210mm;
+  height: 297mm;
+  min-height: 297mm;
+  max-height: 297mm;
+  padding: 8mm 10mm;
+  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  font-family: Arial, "Helvetica Neue", Helvetica, "Liberation Sans", "Arimo", sans-serif;
+  font-size: 10.5pt;
+  line-height: 1.35;
+  color: #000000;
+  margin: 0 auto 24px auto;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
 }
 
-.company-accreditation {
-  font-size: 10px;
-  color: #64748b;
-  margin: 0;
-  font-style: italic;
+.gt-page-frame {
+  border: 1px solid #000000;
+  padding: 8px 10px 22px 10px;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  z-index: 1;
 }
 
-.company-doc-logo {
-  max-height: 60px;
-  max-width: 130px;
-  object-fit: contain;
+/* Bullet styling & nested lists */
+.doc-section-rich-content ul,
+.general-testing-quotation-root ul {
+  list-style-type: disc;
+  padding-left: 18px;
+  margin: 2px 0 4px 0;
 }
 
-.header-divider {
-  height: 2px;
-  background: linear-gradient(90deg, #2563eb 0%, #0f172a 100%);
-  margin-top: 12px;
-  margin-bottom: 16px;
+.doc-section-rich-content ul ul,
+.general-testing-quotation-root ul ul {
+  list-style-type: circle !important;
+  padding-left: 18px;
+  margin: 2px 0 2px 0;
 }
 
-/* Metadata & Client Box */
-.meta-line {
-  margin: 0 0 4px 0;
-  font-size: 12px;
+.doc-section-rich-content ol,
+.general-testing-quotation-root ol {
+  padding-left: 18px;
+  margin: 2px 0 4px 0;
 }
 
-.client-recipient-box {
-  background: #f8fafc;
-  border-left: 3px solid #2563eb;
-  padding: 10px 14px;
-  border-radius: 4px;
+.doc-section-rich-content li,
+.general-testing-quotation-root li {
+  margin-bottom: 2px;
+  line-height: 1.32;
 }
 
-.recipient-salutation {
-  font-size: 12px;
-  color: #64748b;
-}
-
-.recipient-name {
-  font-size: 14px;
-  color: #0f172a;
-}
-
-.recipient-address {
-  font-size: 12px;
-  color: #334155;
-}
-
-.subject-box {
-  background: #eff6ff;
-  border: 1px dashed #93c5fd;
-  padding: 8px 12px;
-  border-radius: 4px;
-}
-
-.subject-text {
-  font-size: 12.5px;
-  color: #1e3a8a;
-  margin: 0;
-}
-
-.covering-letter-body,
-.covering-letter-body p,
-.covering-letter-body div,
-.covering-letter-body span,
-.covering-letter-body li,
-.intro-paragraphs,
-.intro-paragraphs p,
-.intro-paragraphs div,
-.intro-paragraphs span {
-  font-size: 12.5px !important;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
-  line-height: 1.6 !important;
-  color: #1e293b !important;
-}
-
-.covering-letter-body p,
-.intro-paragraphs p {
-  margin: 0 0 10px 0 !important;
+.doc-section-rich-content p,
+.general-testing-quotation-root p {
+  margin: 0 0 3px 0;
+  line-height: 1.32;
 }
 
 /* Document Tables */
-.section-doc-title {
-  font-size: 14px;
-  font-weight: 800;
-  color: #0f172a;
-  border-bottom: 1.5px solid #0f172a;
-  padding-bottom: 4px;
-  margin-bottom: 12px;
-  letter-spacing: 0.03em;
-}
-
 .doc-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: 10pt;
 }
 
 .doc-table th {
   background-color: #f1f5f9;
   color: #0f172a;
   font-weight: 700;
-  border: 1px solid #cbd5e1;
-  padding: 6px 8px;
+  border: 1px solid #000000;
+  padding: 4px 6px;
   text-align: left;
 }
 
 .doc-table td {
-  border: 1px solid #e2e8f0;
-  padding: 6px 8px;
-  color: #334155;
+  border: 1px solid #000000;
+  padding: 4px 6px;
+  color: #000000;
 }
 
-.doc-table tfoot td {
-  border-top: 2px solid #94a3b8;
-  padding: 6px 8px;
-}
+/* ========================================================================= */
+/* PRINT MEDIA QUERIES (CHROMIUM VECTOR PDF & PUPPETEER COMPATIBLE)          */
+/* ========================================================================= */
 
-.doc-scope-list,
-.doc-terms-list {
-  padding-left: 20px;
-  margin: 0;
-}
-
-.doc-scope-list li,
-.doc-terms-list li {
-  font-size: 12px;
-  line-height: 1.55;
-  color: #334155;
-}
-
-/* Signatures */
-.doc-signature-img {
-  max-height: 50px;
-  max-width: 120px;
-  object-fit: contain;
-  display: block;
-  margin: 0 auto 4px auto;
-}
-
-.doc-stamp-img {
-  max-height: 55px;
-  max-width: 110px;
-  object-fit: contain;
-  display: block;
-  margin: 0 auto 4px auto;
-}
-
-.page-number-footer {
-  text-align: right;
-  font-size: 10px;
-  color: #94a3b8;
-  margin-top: 10px;
-}
-
-/* PRINT MEDIA QUERIES */
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 0 !important;
+  }
+
   body {
     background: #ffffff !important;
     margin: 0 !important;
     padding: 0 !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+    font-family: Arial, "Helvetica Neue", Helvetica, "Liberation Sans", sans-serif !important;
   }
 
   /* Hide app shell */
@@ -235,6 +171,27 @@
     display: block !important;
   }
 
+  .gt-a4-page {
+    box-shadow: none !important;
+    margin: 0 !important;
+    width: 210mm !important;
+    height: 297mm !important;
+    min-height: 297mm !important;
+    max-height: 297mm !important;
+    padding: 8mm 10mm !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+
+  .gt-a4-page:last-child {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
   .a4-sheet,
   .print-sheet-page {
     box-shadow: none !important;
@@ -242,7 +199,7 @@
     width: 100% !important;
     min-height: auto !important;
     height: auto !important;
-    padding: 8mm 12mm 4mm 12mm !important;
+    padding: 6mm 10mm !important;
     page-break-after: always !important;
     break-after: page !important;
     box-sizing: border-box !important;
@@ -254,28 +211,26 @@
     break-after: avoid !important;
   }
 
-  .doc-page-footer {
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-    margin-top: auto !important;
-    padding-top: 4px !important;
-  }
-
   table {
     page-break-inside: auto;
   }
 
   tr {
-    page-break-inside: avoid !important;
     break-inside: avoid !important;
+    page-break-inside: avoid !important;
   }
 
   thead {
     display: table-header-group;
   }
 
-  @page {
-    size: A4 portrait;
-    margin: 5mm;
+  li {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  p {
+    orphans: 2;
+    widows: 2;
   }
 }

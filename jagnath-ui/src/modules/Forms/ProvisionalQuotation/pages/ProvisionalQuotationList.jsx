@@ -9,7 +9,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import {
   FaFileInvoiceDollar, FaPlus, FaSearch, FaFilter, FaEdit,
   FaPrint, FaTrash, FaHistory, FaCalendarAlt,
-  FaBuilding, FaCheckCircle, FaExclamationCircle, FaFilePdf
+  FaBuilding, FaCheckCircle, FaExclamationCircle, FaFilePdf, FaFileAlt
 } from 'react-icons/fa';
 import {
   getSavedQuotations,
