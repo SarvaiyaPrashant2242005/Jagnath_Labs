@@ -11,7 +11,8 @@ import {
   FaFileInvoiceDollar, FaCar, FaUserTie, FaHotel, FaFlask,
   FaTable, FaGavel, FaSignature, FaStamp, FaUpload, FaTrash,
   FaPlus, FaCheckCircle, FaPercent, FaEye, FaCalculator, FaUndo,
-  FaFileAlt, FaArrowUp, FaArrowDown, FaCopy, FaTimes, FaImage
+  FaFileAlt, FaArrowUp, FaArrowDown, FaCopy, FaTimes, FaImage,
+  FaSearch, FaLayerGroup, FaListUl
 } from 'react-icons/fa';
 
 import { apiService } from '../../../../shared/services/apiService';
@@ -182,6 +183,116 @@ const renderStandardPageFooter = (pageNum) => (
     </div>
   </div>
 );
+
+const ANNEXURE_B_PRESETS = [
+  {
+    category: 'WASTE WATER (EFFLUENT ETP - INLET)',
+    parameters: [
+      { id: 'p_inlet_1', description: 'SAMPLE PREPARATION CHARGES', rate: 700 },
+      { id: 'p_inlet_2', description: 'pH', rate: 110 },
+      { id: 'p_inlet_3', description: 'Temperature', rate: 110 },
+      { id: 'p_inlet_4', description: 'Colour', rate: 180 },
+      { id: 'p_inlet_5', description: 'Total Suspended Solids', rate: 180 },
+      { id: 'p_inlet_6', description: 'Oil and Grease', rate: 350 },
+      { id: 'p_inlet_7', description: 'Chloride', rate: 180 },
+      { id: 'p_inlet_8', description: 'Sulphate', rate: 270 },
+      { id: 'p_inlet_9', description: 'BOD, 3-day at 27°C', rate: 1050 },
+      { id: 'p_inlet_10', description: 'COD', rate: 620 },
+      { id: 'p_inlet_11', description: 'Total Dissolved Solids', rate: 180 },
+      { id: 'p_inlet_12', description: 'Grab sampling/Sample/Place', rate: 960 },
+    ]
+  },
+  {
+    category: 'TREATMENT PLANT STAGE WISE SAMPLING',
+    parameters: [
+      { id: 'p_stage_1', description: 'pH', rate: 110 },
+      { id: 'p_stage_2', description: 'Total Suspended Solids', rate: 180 },
+      { id: 'p_stage_3', description: 'COD', rate: 620 },
+      { id: 'p_stage_4', description: 'BOD, 3-day at 27°C', rate: 1050 },
+      { id: 'p_stage_5', description: 'Mixed Liquor Suspended Solids (MLSS)', rate: 280 },
+      { id: 'p_stage_6', description: 'Grab sampling/Sample/Place', rate: 960 },
+    ]
+  },
+  {
+    category: 'WASTE WATER (EFFLUENT ETP - OUTLET)',
+    parameters: [
+      { id: 'p_out_1', description: 'SAMPLE PREPARATION CHARGES', rate: 700 },
+      { id: 'p_out_2', description: 'pH', rate: 110 },
+      { id: 'p_out_3', description: 'Temperature', rate: 110 },
+      { id: 'p_out_4', description: 'Colour', rate: 180 },
+      { id: 'p_out_5', description: 'Total Suspended Solids', rate: 180 },
+      { id: 'p_out_6', description: 'Oil and Grease', rate: 350 },
+      { id: 'p_out_7', description: 'Chloride', rate: 180 },
+      { id: 'p_out_8', description: 'Sulphate', rate: 270 },
+      { id: 'p_out_9', description: 'BOD, 3-day at 27°C', rate: 1050 },
+      { id: 'p_out_10', description: 'COD', rate: 620 },
+      { id: 'p_out_11', description: 'Total Dissolved Solids', rate: 180 },
+      { id: 'p_out_12', description: 'Grab sampling/Sample/Place', rate: 960 },
+    ]
+  },
+  {
+    category: 'STP WATER ANALYSIS',
+    parameters: [
+      { id: 'p_stp_1', description: 'pH', rate: 110 },
+      { id: 'p_stp_2', description: 'Total Suspended Solids', rate: 180 },
+      { id: 'p_stp_3', description: 'BOD, 3-day at 27°C', rate: 1050 },
+      { id: 'p_stp_4', description: 'COD', rate: 620 },
+      { id: 'p_stp_5', description: 'Fecal Coliform', rate: 650 },
+      { id: 'p_stp_6', description: 'Grab sampling/Sample/Place', rate: 960 },
+    ]
+  },
+  {
+    category: 'AMBIENT AIR QUALITY MONITORING (24 HRS.)',
+    parameters: [
+      { id: 'p_air_1', description: 'Particulate Matter (PM10)', rate: 1200 },
+      { id: 'p_air_2', description: 'Particulate Matter (PM2.5)', rate: 1800 },
+      { id: 'p_air_3', description: 'Sulphur Dioxide (SO2)', rate: 950 },
+      { id: 'p_air_4', description: 'Oxides of Nitrogen (NOx)', rate: 950 },
+      { id: 'p_air_5', description: 'Carbon Monoxide (CO)', rate: 1200 },
+      { id: 'p_air_6', description: 'Sampling Charges / Location / 24 Hours', rate: 9350 },
+    ]
+  },
+  {
+    category: 'FLUE GAS STACK EMISSION MONITORING',
+    parameters: [
+      { id: 'p_stack_1', description: 'Sampling/ Measurements charges for stack', rate: 9600 },
+      { id: 'p_stack_2', description: 'Sampling of SO2/NOx', rate: 3500 },
+      { id: 'p_stack_3', description: 'Analysis SPM', rate: 1050 },
+      { id: 'p_stack_4', description: 'Analysis of SO2', rate: 1050 },
+      { id: 'p_stack_5', description: 'Analysis of NOx', rate: 1050 },
+    ]
+  },
+  {
+    category: 'PROCESS STACK EMISSION MONITORING',
+    parameters: [
+      { id: 'p_pstack_1', description: 'Sampling/ Measurements charges for process stack', rate: 9600 },
+      { id: 'p_pstack_2', description: 'Analysis SPM', rate: 1050 },
+    ]
+  },
+  {
+    category: 'AMBIENT NOISE LEVEL MONITORING',
+    parameters: [
+      { id: 'p_noise_1', description: 'Ambient Noise Monitoring (Day & Night Time)', rate: 4500 },
+    ]
+  },
+  {
+    category: 'SOIL ANALYSIS',
+    parameters: [
+      { id: 'p_soil_1', description: 'pH & Electrical Conductivity', rate: 300 },
+      { id: 'p_soil_2', description: 'Organic Matter & Carbon', rate: 650 },
+      { id: 'p_soil_3', description: 'Heavy Metals (Pb, Cd, Cr, Ni, Cu, Zn)', rate: 3600 },
+      { id: 'p_soil_4', description: 'Soil Sampling Charges', rate: 950 },
+    ]
+  }
+];
+
+const getMasterParamPrice = (paramObj, masters = {}) => {
+  if (!paramObj) return 0;
+  const pm = (masters.priceMasters || []).find(p => p.parameterId === paramObj.id || p.parameter_id === paramObj.id);
+  if (pm && !isNaN(parseFloat(pm.price))) return parseFloat(pm.price);
+  if (!isNaN(parseFloat(paramObj.price))) return parseFloat(paramObj.price);
+  return 0;
+};
 
 const ProvisionalQuotationForm = () => {
   const { id } = useParams();
@@ -763,20 +874,38 @@ const ProvisionalQuotationForm = () => {
   const handleUpdateActivity = (index, field, val) => {
     setFormData(prev => {
       const activities = [...(prev.activities || [])];
+      const annexureB = [...(prev.annexureB || [])];
       if (!activities[index]) return prev;
 
       const act = { ...activities[index] };
 
       if (field === 'description') {
         act.description = val;
+        if (annexureB[index]) {
+          annexureB[index] = { ...annexureB[index], category: val };
+        }
       } else if (field === 'parametersMonitored') {
         act.parametersMonitored = val;
       } else if (field === 'srNo') {
         act.srNo = val;
+        act.parametersMonitored = `As per annexure- B, Sr. No. ${val}`;
+        if (annexureB[index]) {
+          annexureB[index] = { ...annexureB[index], srNo: val };
+        }
       } else if (field === 'visits') {
         act.visits = parseInt(val, 10) || 1;
       } else if (field === 'sampleQuarter') {
         act.sampleQuarter = val;
+        const match = val.match(/^([0-9.]+)/);
+        if (match) {
+          const qty = parseFloat(match[1]);
+          if (!isNaN(qty) && qty > 0) {
+            act.sampleQty = qty;
+            if (!act.isChargeOverridden) {
+              act.chargePerVisit = Math.round((parseFloat(act.ratePerSample) || 0) * qty);
+            }
+          }
+        }
       } else if (field === 'sampleQty') {
         const qty = parseFloat(val) || 0;
         act.sampleQty = qty;
@@ -802,37 +931,63 @@ const ProvisionalQuotationForm = () => {
       }
 
       activities[index] = act;
-      return { ...prev, activities };
+      return { ...prev, activities, annexureB };
     });
   };
 
-  const handleAddActivity = () => {
+  const handleAddActivity = (presetGroup = null) => {
     setFormData(prev => {
       const activities = [...(prev.activities || [])];
+      const annexureB = [...(prev.annexureB || [])];
       const newSr = String(activities.length + 1);
       const visits = prev.annexureAVisits || 3;
+      const grpId = 'grp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+      const actId = 'act_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+
+      let categoryName = presetGroup?.category || 'New Sampling / Monitoring Activity';
+      let parameters = presetGroup?.parameters ? JSON.parse(JSON.stringify(presetGroup.parameters)) : [
+        { id: 'p_' + Date.now() + '_1', description: 'Sample Analysis Parameter', rate: 1000 }
+      ];
+      let ratePerSample = parameters.reduce((sum, p) => sum + (parseFloat(p.rate) || 0), 0);
+
+      const isLoc = categoryName.toLowerCase().includes('air') || categoryName.toLowerCase().includes('noise') || categoryName.toLowerCase().includes('stack');
+      const sampleQuarter = isLoc ? '01 Locations' : '01 Sample';
+
       activities.push({
-        id: 'act_' + Date.now(),
+        id: actId,
+        groupId: grpId,
         srNo: newSr,
-        description: 'New Sampling / Monitoring Activity',
+        description: categoryName,
         parametersMonitored: `As per annexure- B, Sr. No. ${newSr}`,
-        ratePerSample: 0,
+        ratePerSample: ratePerSample,
         isRateOverridden: false,
         visits: visits,
-        sampleQuarter: '01 Sample',
+        sampleQuarter: sampleQuarter,
         sampleQty: 1,
-        chargePerVisit: 0,
+        chargePerVisit: ratePerSample,
         isChargeOverridden: false,
       });
-      return { ...prev, activities };
+
+      annexureB.push({
+        id: grpId,
+        srNo: newSr,
+        category: categoryName,
+        parameters: parameters
+      });
+
+      return { ...prev, activities, annexureB };
     });
   };
 
   const handleDeleteActivity = (index) => {
     setFormData(prev => {
       const activities = [...(prev.activities || [])];
+      const annexureB = [...(prev.annexureB || [])];
       activities.splice(index, 1);
-      return { ...prev, activities };
+      if (annexureB[index]) {
+        annexureB.splice(index, 1);
+      }
+      return { ...prev, activities, annexureB };
     });
   };
 
@@ -843,7 +998,6 @@ const ProvisionalQuotationForm = () => {
       return { ...prev, activities: synced };
     });
   };
-
 
   // Annexure-B Rate Override Handlers
   const handleRateOverride = (uniqueKey, rateVal) => {
@@ -857,84 +1011,161 @@ const ProvisionalQuotationForm = () => {
   };
 
   // Annexure-B Discipline Group and Parameter Handlers
-  const handleAddAnnexureBGroup = () => {
+  const handleAddAnnexureBGroup = (presetGroup = null) => {
     setFormData(prev => {
-      const groups = prev.annexureB || [];
+      const groups = [...(prev.annexureB || [])];
+      const activities = [...(prev.activities || [])];
       const newSr = String(groups.length + 1);
-      return {
-        ...prev,
-        annexureB: [
-          ...groups,
-          {
-            id: 'grp_' + Date.now(),
-            srNo: newSr,
-            category: 'New Discipline Group',
-            parameters: [
-              { id: 'p_' + Date.now(), description: 'Sample Parameter', rate: 1000 }
-            ]
-          }
-        ]
-      };
+      const visits = prev.annexureAVisits || 3;
+      const grpId = 'grp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+      const actId = 'act_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+
+      let categoryName = presetGroup?.category || 'New Discipline Group';
+      let parameters = presetGroup?.parameters ? JSON.parse(JSON.stringify(presetGroup.parameters)) : [
+        { id: 'p_' + Date.now() + '_1', description: 'Sample Parameter', rate: 1000 }
+      ];
+      let groupRate = parameters.reduce((sum, p) => sum + (parseFloat(p.rate) || 0), 0);
+
+      const isLoc = categoryName.toLowerCase().includes('air') || categoryName.toLowerCase().includes('noise') || categoryName.toLowerCase().includes('stack');
+      const sampleQuarter = isLoc ? '01 Locations' : '01 Sample';
+
+      groups.push({
+        id: grpId,
+        srNo: newSr,
+        category: categoryName,
+        parameters: parameters
+      });
+
+      activities.push({
+        id: actId,
+        groupId: grpId,
+        srNo: newSr,
+        description: categoryName,
+        parametersMonitored: `As per annexure- B, Sr. No. ${newSr}`,
+        ratePerSample: groupRate,
+        isRateOverridden: false,
+        visits: visits,
+        sampleQuarter: sampleQuarter,
+        sampleQty: 1,
+        chargePerVisit: groupRate,
+        isChargeOverridden: false,
+      });
+
+      return { ...prev, annexureB: groups, activities };
     });
   };
 
   const handleUpdateAnnexureBGroup = (groupIdx, field, val) => {
     setFormData(prev => {
       const groups = [...(prev.annexureB || [])];
+      const activities = [...(prev.activities || [])];
       if (groups[groupIdx]) {
         groups[groupIdx] = { ...groups[groupIdx], [field]: val };
+        if (field === 'category' && activities[groupIdx]) {
+          activities[groupIdx] = { ...activities[groupIdx], description: val };
+        } else if (field === 'srNo' && activities[groupIdx]) {
+          activities[groupIdx] = {
+            ...activities[groupIdx],
+            srNo: val,
+            parametersMonitored: `As per annexure- B, Sr. No. ${val}`
+          };
+        }
       }
-      return { ...prev, annexureB: groups };
+      return { ...prev, annexureB: groups, activities };
     });
   };
 
   const handleDeleteAnnexureBGroup = (groupIdx) => {
     setFormData(prev => {
       const groups = [...(prev.annexureB || [])];
+      const activities = [...(prev.activities || [])];
       groups.splice(groupIdx, 1);
-      return { ...prev, annexureB: groups };
+      if (activities[groupIdx]) {
+        activities.splice(groupIdx, 1);
+      }
+      return { ...prev, annexureB: groups, activities };
     });
   };
 
-  const handleAddAnnexureBParam = (groupIdx) => {
+  const handleAddAnnexureBParam = (groupIdx, paramData = null) => {
     setFormData(prev => {
       const groups = [...(prev.annexureB || [])];
+      const activities = [...(prev.activities || [])];
       if (groups[groupIdx]) {
         const params = [...(groups[groupIdx].parameters || [])];
+        const newRate = paramData?.rate !== undefined
+          ? parseFloat(paramData.rate)
+          : (paramData?.price !== undefined ? parseFloat(paramData.price) : 500);
+        
         params.push({
           id: 'p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
-          description: '',
-          rate: 0
+          description: paramData?.parameterName || paramData?.name || paramData?.description || 'New Parameter',
+          rate: isNaN(newRate) ? 0 : newRate
         });
         groups[groupIdx] = { ...groups[groupIdx], parameters: params };
+
+        // Recalculate group sum and auto-update activity rate if not overridden
+        const newSum = params.reduce((sum, p) => sum + (parseFloat(p.rate) || 0), 0);
+        if (activities[groupIdx] && !activities[groupIdx].isRateOverridden) {
+          const qty = parseFloat(activities[groupIdx].sampleQty !== undefined ? activities[groupIdx].sampleQty : 1) || 1;
+          activities[groupIdx] = {
+            ...activities[groupIdx],
+            ratePerSample: newSum,
+            chargePerVisit: activities[groupIdx].isChargeOverridden ? activities[groupIdx].chargePerVisit : Math.round(newSum * qty)
+          };
+        }
       }
-      return { ...prev, annexureB: groups };
+      return { ...prev, annexureB: groups, activities };
     });
   };
 
   const handleUpdateAnnexureBParam = (groupIdx, pIdx, field, val) => {
     setFormData(prev => {
       const groups = [...(prev.annexureB || [])];
+      const activities = [...(prev.activities || [])];
       if (groups[groupIdx]) {
         const params = [...(groups[groupIdx].parameters || [])];
         if (params[pIdx]) {
-          params[pIdx] = { ...params[pIdx], [field]: val };
+          params[pIdx] = { ...params[pIdx], [field]: field === 'rate' ? (parseFloat(val) || 0) : val };
           groups[groupIdx] = { ...groups[groupIdx], parameters: params };
+
+          if (field === 'rate') {
+            const newSum = params.reduce((sum, p) => sum + (parseFloat(p.rate) || 0), 0);
+            if (activities[groupIdx] && !activities[groupIdx].isRateOverridden) {
+              const qty = parseFloat(activities[groupIdx].sampleQty !== undefined ? activities[groupIdx].sampleQty : 1) || 1;
+              activities[groupIdx] = {
+                ...activities[groupIdx],
+                ratePerSample: newSum,
+                chargePerVisit: activities[groupIdx].isChargeOverridden ? activities[groupIdx].chargePerVisit : Math.round(newSum * qty)
+              };
+            }
+          }
         }
       }
-      return { ...prev, annexureB: groups };
+      return { ...prev, annexureB: groups, activities };
     });
   };
 
   const handleDeleteAnnexureBParam = (groupIdx, pIdx) => {
     setFormData(prev => {
       const groups = [...(prev.annexureB || [])];
+      const activities = [...(prev.activities || [])];
       if (groups[groupIdx]) {
         const params = [...(groups[groupIdx].parameters || [])];
         params.splice(pIdx, 1);
         groups[groupIdx] = { ...groups[groupIdx], parameters: params };
+
+        const newSum = params.reduce((sum, p) => sum + (parseFloat(p.rate) || 0), 0);
+        if (activities[groupIdx] && !activities[groupIdx].isRateOverridden) {
+          const qty = parseFloat(activities[groupIdx].sampleQty !== undefined ? activities[groupIdx].sampleQty : 1) || 1;
+          activities[groupIdx] = {
+            ...activities[groupIdx],
+            ratePerSample: newSum,
+            chargePerVisit: activities[groupIdx].isChargeOverridden ? activities[groupIdx].chargePerVisit : Math.round(newSum * qty)
+          };
+        }
       }
-      return { ...prev, annexureB: groups };
+      return { ...prev, annexureB: groups, activities };
     });
   };
 
@@ -3140,13 +3371,13 @@ const ProvisionalQuotationForm = () => {
               <div
                 onFocusCapture={() => scrollToPreview('preview-annexure-a')}
                 onClick={() => scrollToPreview('preview-annexure-a')}
-                style={{ background: '#f8fafc', border: '1.5px solid #cbd5e1', borderRadius: '10px', padding: '1.1rem', boxShadow: '0 2px 6px rgba(0,0,0,0.03)', cursor: 'default' }}
+                style={{ background: '#f8fafc', border: '1.5px solid #cbd5e1', borderRadius: '10px', padding: '1.1rem', boxShadow: '0 2px 6px rgba(0,0,0,0.03)', cursor: 'default', marginBottom: '1.25rem' }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.4rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                   <h4 style={{ fontSize: '0.92rem', fontWeight: 800, margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
                     <span>📊</span> 7. Annexure - A: Sampling Activities Matrix (Page 4 - Bottom)
                   </h4>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                     <button
                       type="button"
                       className="btn btn-outline-secondary btn-xs font-semibold"
@@ -3156,10 +3387,30 @@ const ProvisionalQuotationForm = () => {
                     >
                       <FaUndo /> Sync from Annexure-B
                     </button>
+                    {/* Quick Preset Dropdown */}
+                    <div className="dropdown d-inline-block">
+                      <select
+                        className="form-select form-select-sm"
+                        style={{ fontSize: '0.72rem', height: '28px', padding: '2px 24px 2px 6px', borderColor: '#10b981', background: '#ecfdf5', fontWeight: 700, color: '#047857' }}
+                        onChange={(e) => {
+                          const idx = parseInt(e.target.value, 10);
+                          if (!isNaN(idx) && ANNEXURE_B_PRESETS[idx]) {
+                            handleAddActivity(ANNEXURE_B_PRESETS[idx]);
+                            e.target.value = '';
+                          }
+                        }}
+                        defaultValue=""
+                      >
+                        <option value="" disabled>+ Add Preset Activity...</option>
+                        {ANNEXURE_B_PRESETS.map((p, idx) => (
+                          <option key={idx} value={idx}>{p.category}</option>
+                        ))}
+                      </select>
+                    </div>
                     <button
                       type="button"
                       className="btn btn-success btn-xs font-semibold"
-                      onClick={handleAddActivity}
+                      onClick={() => handleAddActivity()}
                       style={{ fontSize: '0.72rem', padding: '3px 10px', display: 'flex', alignItems: 'center', gap: '4px' }}
                     >
                       <FaPlus /> Add Activity
@@ -3208,6 +3459,10 @@ const ProvisionalQuotationForm = () => {
                 ) : (
                   (formData.activities || []).map((act, aIdx) => {
                     const rowCalc = calculateAnnexureARowCharge(act, globalVisits);
+                    const matchingBGroup = (formData.annexureB || [])[aIdx] || (formData.annexureB || []).find(g => g.id === act.groupId || g.srNo === act.srNo);
+                    const paramCount = (matchingBGroup?.parameters || []).length;
+                    const bGroupTotal = calculateGroupTotal(matchingBGroup || {});
+
                     return (
                       <div
                         key={act.id || aIdx}
@@ -3250,26 +3505,41 @@ const ProvisionalQuotationForm = () => {
                             type="button"
                             className="btn btn-outline-danger btn-xs mt-3"
                             onClick={() => handleDeleteActivity(aIdx)}
-                            title="Delete Activity Row"
+                            title="Delete Activity Row & Linked Annexure-B Group"
                             style={{ height: '30px', padding: '0 8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                           >
                             <FaTrash style={{ fontSize: '0.72rem' }} />
                           </button>
                         </div>
 
-                        {/* Row 2: Parameters Monitored Reference Text */}
-                        <div className="form-group mb-2">
-                          <label style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748b', display: 'block', marginBottom: '2px' }}>
-                            Parameters To Be Monitored Reference
-                          </label>
-                          <input
-                            type="text"
-                            value={act.parametersMonitored || ''}
-                            onChange={(e) => handleUpdateActivity(aIdx, 'parametersMonitored', e.target.value)}
-                            placeholder="e.g. As per annexure- B, Sr. No. 1"
-                            className="form-control"
-                            style={{ height: '28px', fontSize: '0.76rem' }}
-                          />
+                        {/* Row 2: Parameters Monitored Reference Text & Link to Annexure B */}
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', marginBottom: '8px' }}>
+                          <div style={{ flexGrow: 1 }}>
+                            <label style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748b', display: 'block', marginBottom: '2px' }}>
+                              Parameters To Be Monitored Reference
+                            </label>
+                            <input
+                              type="text"
+                              value={act.parametersMonitored || ''}
+                              onChange={(e) => handleUpdateActivity(aIdx, 'parametersMonitored', e.target.value)}
+                              placeholder="e.g. As per annexure- B, Sr. No. 1"
+                              className="form-control"
+                              style={{ height: '28px', fontSize: '0.76rem' }}
+                            />
+                          </div>
+                          <a
+                            href={`#annexure-b-group-${aIdx}`}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              const el = document.getElementById(`annexure-b-group-${aIdx}`);
+                              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }}
+                            className="btn btn-outline-primary btn-xs font-semibold"
+                            style={{ fontSize: '0.7rem', height: '28px', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}
+                            title="Jump to edit detailed parameters in Annexure-B"
+                          >
+                            <span>📋 Annexure-B ({paramCount} params • ₹{Number(bGroupTotal).toLocaleString('en-IN')})</span>
+                          </a>
                         </div>
 
                         {/* Row 3: The 3 User-Editable Columns */}
@@ -3369,6 +3639,257 @@ const ProvisionalQuotationForm = () => {
                     />
                   </div>
                 </div>
+              </div>
+
+              {/* 8. ANNEXURE - B TESTING PARAMETERS & DISCIPLINE GROUPS (PAGE 5) */}
+              <div
+                onFocusCapture={() => scrollToPreview('preview-annexure-b')}
+                onClick={() => scrollToPreview('preview-annexure-b')}
+                style={{ background: '#f8fafc', border: '1.5px solid #cbd5e1', borderRadius: '10px', padding: '1.1rem', boxShadow: '0 2px 6px rgba(0,0,0,0.03)', cursor: 'default', marginBottom: '1.25rem' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.4rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <div>
+                    <h4 style={{ fontSize: '0.92rem', fontWeight: 800, margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                      <span>🔬</span> 8. Annexure - B: Discipline Groups &amp; Testing Parameters (Page 5)
+                    </h4>
+                    <span style={{ fontSize: '0.68rem', color: '#64748b' }}>
+                      Add or edit parameter breakdown per location/discipline. Changing rates updates Annexure-A automatically.
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                    {/* Quick Preset Dropdown for Annexure-B */}
+                    <div className="dropdown d-inline-block">
+                      <select
+                        className="form-select form-select-sm"
+                        style={{ fontSize: '0.72rem', height: '28px', padding: '2px 24px 2px 6px', borderColor: '#2563eb', background: '#eff6ff', fontWeight: 700, color: '#1d4ed8' }}
+                        onChange={(e) => {
+                          const idx = parseInt(e.target.value, 10);
+                          if (!isNaN(idx) && ANNEXURE_B_PRESETS[idx]) {
+                            handleAddAnnexureBGroup(ANNEXURE_B_PRESETS[idx]);
+                            e.target.value = '';
+                          }
+                        }}
+                        defaultValue=""
+                      >
+                        <option value="" disabled>+ Add Preset Group...</option>
+                        {ANNEXURE_B_PRESETS.map((p, idx) => (
+                          <option key={idx} value={idx}>{p.category}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-xs font-semibold"
+                      onClick={() => handleAddAnnexureBGroup()}
+                      style={{ fontSize: '0.72rem', padding: '3px 10px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      <FaPlus /> Add Discipline Group
+                    </button>
+                  </div>
+                </div>
+
+                {/* Groups List */}
+                {(formData.annexureB || []).length === 0 ? (
+                  <div style={{ background: '#ffffff', border: '1.5px dashed #cbd5e1', borderRadius: '8px', padding: '16px', textAlign: 'center', color: '#64748b', marginBottom: '10px' }}>
+                    <p style={{ margin: '0 0 6px 0', fontSize: '0.82rem', fontWeight: 700, color: '#334155' }}>No Annexure-B Discipline Groups configured.</p>
+                    <span style={{ fontSize: '0.74rem' }}>Click "+ Add Preset Group" or "+ Add Discipline Group" above to add testing parameters for Annexure-B.</span>
+                  </div>
+                ) : (
+                  (formData.annexureB || []).map((group, gIdx) => {
+                    const groupTotal = calculateGroupTotal(group);
+                    const searchTerm = (paramSearchTerms[gIdx] || '').trim().toLowerCase();
+                    const filteredParams = searchTerm
+                      ? (masters.parameters || []).filter(p => (p.name || p.parameterName || '').toLowerCase().includes(searchTerm)).slice(0, 10)
+                      : [];
+
+                    return (
+                      <div
+                        key={group.id || gIdx}
+                        id={`annexure-b-group-${gIdx}`}
+                        style={{
+                          background: '#ffffff',
+                          border: '1.5px solid #cbd5e1',
+                          borderRadius: '8px',
+                          padding: '10px 12px',
+                          marginBottom: '12px',
+                          boxShadow: '0 1px 4px rgba(0,0,0,0.04)'
+                        }}
+                      >
+                        {/* Group Header: Sr, Title, Total & Actions */}
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap' }}>
+                          <div style={{ width: '50px' }}>
+                            <label style={{ fontSize: '0.65rem', fontWeight: 700, color: '#64748b', display: 'block', marginBottom: '1px' }}>
+                              Sr.
+                            </label>
+                            <input
+                              type="text"
+                              value={group.srNo || ''}
+                              onChange={(e) => handleUpdateAnnexureBGroup(gIdx, 'srNo', e.target.value)}
+                              className="form-control font-bold text-center"
+                              style={{ height: '28px', fontSize: '0.78rem' }}
+                            />
+                          </div>
+                          <div style={{ flexGrow: 1, minWidth: '180px' }}>
+                            <label style={{ fontSize: '0.65rem', fontWeight: 700, color: '#64748b', display: 'block', marginBottom: '1px' }}>
+                              Discipline Group / Sample Location Category
+                            </label>
+                            <input
+                              type="text"
+                              value={group.category || ''}
+                              onChange={(e) => handleUpdateAnnexureBGroup(gIdx, 'category', e.target.value)}
+                              className="form-control font-bold"
+                              style={{ height: '28px', fontSize: '0.8rem', color: '#0f172a' }}
+                            />
+                          </div>
+                          <div style={{ background: '#ecfdf5', border: '1px solid #10b981', borderRadius: '6px', padding: '3px 10px', textAlign: 'right' }}>
+                            <div style={{ fontSize: '0.6rem', color: '#047857', fontWeight: 700 }}>GROUP TOTAL</div>
+                            <div style={{ fontSize: '0.84rem', fontWeight: 800, color: '#065f46' }}>₹{Number(groupTotal).toLocaleString('en-IN')}/-</div>
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-outline-danger btn-xs"
+                            onClick={() => handleDeleteAnnexureBGroup(gIdx)}
+                            title="Delete this Discipline Group"
+                            style={{ height: '28px', padding: '0 8px', display: 'flex', alignItems: 'center' }}
+                          >
+                            <FaTrash style={{ fontSize: '0.72rem' }} />
+                          </button>
+                        </div>
+
+                        {/* Quick Parameter Search & Add from Master */}
+                        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 8px', marginBottom: '8px' }}>
+                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            <div style={{ position: 'relative', flexGrow: 1 }}>
+                              <input
+                                type="text"
+                                placeholder="🔍 Search & quick-add master parameter (e.g. pH, BOD, COD, SO2, Noise)..."
+                                value={paramSearchTerms[gIdx] || ''}
+                                onChange={(e) => setParamSearchTerms(prev => ({ ...prev, [gIdx]: e.target.value }))}
+                                className="form-control form-control-sm"
+                                style={{ fontSize: '0.74rem', height: '28px', paddingLeft: '8px' }}
+                              />
+                              {searchTerm && filteredParams.length > 0 && (
+                                <div style={{
+                                  position: 'absolute',
+                                  top: '30px',
+                                  left: 0,
+                                  right: 0,
+                                  background: '#ffffff',
+                                  border: '1.5px solid #3b82f6',
+                                  borderRadius: '6px',
+                                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                  zIndex: 50,
+                                  maxHeight: '180px',
+                                  overflowY: 'auto'
+                                }}>
+                                  {filteredParams.map(param => {
+                                    const paramPrice = getMasterParamPrice(param, masters);
+                                    return (
+                                      <div
+                                        key={param.id}
+                                        onClick={() => {
+                                          handleAddAnnexureBParam(gIdx, {
+                                            parameterName: param.name || param.parameterName,
+                                            rate: paramPrice
+                                          });
+                                          setParamSearchTerms(prev => ({ ...prev, [gIdx]: '' }));
+                                        }}
+                                        style={{
+                                          padding: '5px 10px',
+                                          fontSize: '0.74rem',
+                                          cursor: 'pointer',
+                                          display: 'flex',
+                                          justifyContent: 'space-between',
+                                          alignItems: 'center',
+                                          borderBottom: '1px solid #f1f5f9'
+                                        }}
+                                        className="hover:bg-blue-50"
+                                      >
+                                        <span style={{ fontWeight: 600, color: '#0f172a' }}>{param.name || param.parameterName}</span>
+                                        <span style={{ fontWeight: 700, color: '#059669' }}>₹{paramPrice}/-</span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              className="btn btn-outline-success btn-xs font-semibold"
+                              onClick={() => handleAddAnnexureBParam(gIdx)}
+                              style={{ fontSize: '0.7rem', height: '28px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}
+                            >
+                              <FaPlus /> Add Custom Param
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Parameters Table */}
+                        <div style={{ border: '1px solid #e2e8f0', borderRadius: '6px', overflow: 'hidden' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.74rem' }}>
+                            <thead>
+                              <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #cbd5e1' }}>
+                                <th style={{ width: '30px', padding: '4px 6px', textAlign: 'center', fontWeight: 700 }}>#</th>
+                                <th style={{ padding: '4px 8px', textAlign: 'left', fontWeight: 700 }}>Parameter Description</th>
+                                <th style={{ width: '110px', padding: '4px 8px', textAlign: 'right', fontWeight: 700 }}>Rate (₹)</th>
+                                <th style={{ width: '36px', padding: '4px 4px', textAlign: 'center' }}></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(group.parameters || []).map((param, pIdx) => (
+                                <tr key={param.id || pIdx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                  <td style={{ textAlign: 'center', color: '#64748b', fontWeight: 600, padding: '3px 4px' }}>
+                                    {pIdx + 1}
+                                  </td>
+                                  <td style={{ padding: '3px 6px' }}>
+                                    <input
+                                      type="text"
+                                      value={param.description || ''}
+                                      onChange={(e) => handleUpdateAnnexureBParam(gIdx, pIdx, 'description', e.target.value)}
+                                      placeholder="Parameter Name / Test Method"
+                                      className="form-control form-control-sm"
+                                      style={{ height: '26px', fontSize: '0.74rem' }}
+                                    />
+                                  </td>
+                                  <td style={{ padding: '3px 6px' }}>
+                                    <input
+                                      type="number"
+                                      value={param.rate !== undefined ? param.rate : ''}
+                                      onChange={(e) => handleUpdateAnnexureBParam(gIdx, pIdx, 'rate', e.target.value)}
+                                      className="form-control form-control-sm font-bold text-right"
+                                      style={{ height: '26px', fontSize: '0.76rem', color: '#0f172a' }}
+                                    />
+                                  </td>
+                                  <td style={{ textAlign: 'center', padding: '3px 4px' }}>
+                                    <button
+                                      type="button"
+                                      className="btn btn-link p-0 text-danger"
+                                      onClick={() => handleDeleteAnnexureBParam(gIdx, pIdx)}
+                                      title="Remove Parameter"
+                                      style={{ fontSize: '0.72rem' }}
+                                    >
+                                      <FaTrash />
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                              {/* Subtotal row */}
+                              <tr style={{ background: '#f8fafc', fontWeight: 700 }}>
+                                <td colSpan={2} style={{ padding: '4px 8px', textAlign: 'right', color: '#334155' }}>
+                                  Total ({group.category || 'Group'}):
+                                </td>
+                                <td style={{ padding: '4px 8px', textAlign: 'right', color: '#065f46', fontWeight: 800 }}>
+                                  ₹{Number(groupTotal).toLocaleString('en-IN')}/-
+                                </td>
+                                <td></td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </>
           )}
@@ -4222,7 +4743,7 @@ const ProvisionalQuotationForm = () => {
                   if (!allGroups.length) return null;
 
                   return (
-                    <div className="a4-sheet" style={{ width: '100%', minHeight: 'auto', padding: '8mm 12mm 4mm 12mm', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: '10.5px', background: '#ffffff', borderRadius: '4px', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+                    <div id="preview-annexure-b" className="a4-sheet" style={{ width: '100%', minHeight: 'auto', padding: '8mm 12mm 4mm 12mm', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: '10.5px', background: '#ffffff', borderRadius: '4px', position: 'relative', display: 'flex', flexDirection: 'column' }}>
                       {/* TOP HEADER: LOGO */}
                       <div style={{ textAlign: 'center', marginBottom: '4px' }}>
                         <img

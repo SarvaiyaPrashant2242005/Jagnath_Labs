@@ -118,6 +118,63 @@ const DEFAULT_ANNEXURE = [
   { category: "7. Noise", description: "For 08 Hours continuous monitoring", ratePerSample: 18000, samplePerVisit: 1, chargesPerVisit: 18000, total: 54000 }
 ];
 
+const SAMPLE_GROUP_PRESETS = [
+  {
+    title: '1. Effluent Water Analysis (Inlet)',
+    locationOfSample: 'Inlet',
+    deptKeyword: 'WATER',
+    catKeyword: 'WASTE WATER'
+  },
+  {
+    title: '2. Treatment plant stage wise sampling',
+    locationOfSample: 'Stage wise',
+    deptKeyword: 'WATER',
+    catKeyword: 'WASTE WATER'
+  },
+  {
+    title: '3. Effluent Water Analysis (Outlet)',
+    locationOfSample: 'Outlet',
+    deptKeyword: 'WATER',
+    catKeyword: 'WASTE WATER'
+  },
+  {
+    title: '3-B. STP Water Analysis',
+    locationOfSample: 'STP',
+    deptKeyword: 'WATER',
+    catKeyword: 'WASTE WATER'
+  },
+  {
+    title: '4. Ambient Air Quality Monitoring (24 hrs.)',
+    locationOfSample: 'Ambient Air',
+    deptKeyword: 'AIR',
+    catKeyword: 'AMBIENT AIR'
+  },
+  {
+    title: '5. Stack Emission Monitoring',
+    locationOfSample: 'Stack',
+    deptKeyword: 'AIR',
+    catKeyword: 'STACK'
+  },
+  {
+    title: '6. Process Stack Emission',
+    locationOfSample: 'Process Stack',
+    deptKeyword: 'AIR',
+    catKeyword: 'STACK'
+  },
+  {
+    title: '7. Noise Level Monitoring',
+    locationOfSample: 'Plant Site',
+    deptKeyword: 'NOISE',
+    catKeyword: 'NOISE'
+  },
+  {
+    title: '8. Soil / Solid Waste Analysis',
+    locationOfSample: 'Solid Waste Area',
+    deptKeyword: 'SOLID',
+    catKeyword: 'SOIL'
+  }
+];
+
 const TestRequestForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -139,6 +196,23 @@ const TestRequestForm = () => {
   const [selectedParamLocation, setSelectedParamLocation] = useState('');
   const [priceMasterMap, setPriceMasterMap] = useState({});
 
+  // Multi-Sample / Location Groups State for Testing Parameters & Annexure-B
+  const [sampleGroups, setSampleGroups] = useState([
+    {
+      id: 'grp_1',
+      title: '1. Effluent Water Analysis (Inlet)',
+      locationOfSample: 'Inlet',
+      departmentId: '',
+      categoryIds: [],
+      subCategoryId: '',
+      checkedParameters: {},
+      selectedParamSequence: []
+    }
+  ]);
+  const [activeGroupIndex, setActiveGroupIndex] = useState(0);
+  const [showPresetDropdown, setShowPresetDropdown] = useState(false);
+  const presetDropdownRef = useRef(null);
+
   // State for dynamic parameter checklist & pagination
   const [isGpcbOnly, setIsGpcbOnly] = useState(false);
   const [parameters, setParameters] = useState([]);
@@ -157,6 +231,9 @@ const TestRequestForm = () => {
     const handleClickOutside = (event) => {
       if (emailDropdownRef.current && !emailDropdownRef.current.contains(event.target)) {
         setShowEmailDropdown(false);
+      }
+      if (presetDropdownRef.current && !presetDropdownRef.current.contains(event.target)) {
+        setShowPresetDropdown(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -890,52 +967,194 @@ const TestRequestForm = () => {
     }
   };
 
+  // Active group accessor
+  const currentGroup = sampleGroups[activeGroupIndex] || sampleGroups[0] || {
+    id: 'grp_1',
+    title: '1. Effluent Water Analysis (Inlet)',
+    locationOfSample: 'Inlet',
+    departmentId: '',
+    categoryIds: [],
+    subCategoryId: '',
+    checkedParameters: {},
+    selectedParamSequence: []
+  };
+
+  const updateActiveGroup = (updates) => {
+    setSampleGroups(prev => {
+      const next = [...prev];
+      const targetIdx = activeGroupIndex >= 0 && activeGroupIndex < next.length ? activeGroupIndex : 0;
+      next[targetIdx] = { ...next[targetIdx], ...updates };
+      return next;
+    });
+  };
+
+  const handleAddSampleGroup = (preset = null) => {
+    let matchedDeptId = '';
+    let matchedCatIds = [];
+
+    if (preset) {
+      if (preset.deptKeyword) {
+        const foundDept = departments.find(d => (d.name || '').toUpperCase().includes(preset.deptKeyword));
+        if (foundDept) matchedDeptId = foundDept.id;
+      }
+      if (preset.catKeyword) {
+        const foundCat = categories.find(c => (c.name || '').toUpperCase().includes(preset.catKeyword));
+        if (foundCat) matchedCatIds = [foundCat.id];
+      }
+    }
+
+    if (!matchedDeptId && currentGroup.departmentId) {
+      matchedDeptId = currentGroup.departmentId;
+    }
+    if (matchedCatIds.length === 0 && currentGroup.categoryIds?.length) {
+      matchedCatIds = [...currentGroup.categoryIds];
+    }
+
+    const newIdx = sampleGroups.length;
+    const nextGroupNum = newIdx + 1;
+    const newGroup = {
+      id: `grp_${Date.now()}_${newIdx}`,
+      title: preset?.title || `${nextGroupNum}. Sample Location #${nextGroupNum}`,
+      locationOfSample: preset?.locationOfSample || '',
+      departmentId: matchedDeptId || '',
+      categoryIds: matchedCatIds,
+      subCategoryId: '',
+      checkedParameters: {},
+      selectedParamSequence: []
+    };
+
+    setSampleGroups(prev => [...prev, newGroup]);
+    setActiveGroupIndex(newIdx);
+    setShowPresetDropdown(false);
+    setParamPage(1);
+    setParamSearch('');
+
+    if (matchedDeptId) {
+      fetchCategoriesForDepartment(matchedDeptId, isGpcbOnly);
+    }
+    if (matchedCatIds.length > 0) {
+      fetchSubCategoriesForCategories(matchedCatIds, isGpcbOnly);
+      fetchParameters('', matchedCatIds, [], isGpcbOnly);
+    } else {
+      setParameters([]);
+    }
+  };
+
+  const handleRemoveSampleGroup = (idx, e) => {
+    if (e) e.stopPropagation();
+    if (sampleGroups.length <= 1) {
+      triggerToast('At least one sample location / group is required.', 'error');
+      return;
+    }
+    setSampleGroups(prev => prev.filter((_, i) => i !== idx));
+    if (activeGroupIndex >= idx) {
+      setActiveGroupIndex(prev => Math.max(0, prev - 1));
+    }
+  };
+
+  const handleDuplicateSampleGroup = (idx, e) => {
+    if (e) e.stopPropagation();
+    const source = sampleGroups[idx];
+    if (!source) return;
+    const newGroup = {
+      ...source,
+      id: `grp_${Date.now()}_dup`,
+      title: `${source.title || 'Sample Group'} (Copy)`,
+      locationOfSample: source.locationOfSample ? `${source.locationOfSample}` : '',
+      checkedParameters: { ...source.checkedParameters },
+      selectedParamSequence: [...(source.selectedParamSequence || [])]
+    };
+    setSampleGroups(prev => [...prev, newGroup]);
+    setActiveGroupIndex(sampleGroups.length);
+  };
+
+  const handleSwitchActiveGroup = (idx) => {
+    setActiveGroupIndex(idx);
+    setParamPage(1);
+    setParamSearch('');
+    const target = sampleGroups[idx];
+    if (target) {
+      if (target.departmentId) {
+        fetchCategoriesForDepartment(target.departmentId, isGpcbOnly);
+      }
+      const catIds = target.categoryIds || [];
+      if (catIds.length > 0) {
+        fetchSubCategoriesForCategories(catIds, isGpcbOnly);
+        const checkedIds = Object.keys(target.checkedParameters || {}).filter(k => !k.startsWith('_id_') && target.checkedParameters[k]);
+        fetchParameters(target.subCategoryId, catIds, checkedIds, isGpcbOnly);
+      } else {
+        setSubCategories([]);
+        const checkedIds = Object.keys(target.checkedParameters || {}).filter(k => !k.startsWith('_id_') && target.checkedParameters[k]);
+        if (checkedIds.length > 0) {
+          fetchParameters('', [], checkedIds, isGpcbOnly);
+        } else {
+          setParameters([]);
+        }
+      }
+    }
+  };
+
   const handleToggleGpcb = async (e) => {
     const nextGpcb = e.target.checked;
     setIsGpcbOnly(nextGpcb);
 
-    // Clear dependent selection to prevent mismatched stale states
-    setSelectedSubCategory('');
-    setSelectedCategoryIds([]);
-    setFormData(prev => ({
-      ...prev,
+    updateActiveGroup({
       departmentId: '',
-      categoryId: '',
+      categoryIds: [],
       subCategoryId: ''
-    }));
+    });
     setCategories([]);
     setSubCategories([]);
     setParamPage(1);
     setParamSearch('');
 
-    const currentCheckedIds = Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]);
+    const currentCheckedIds = Object.keys(currentGroup.checkedParameters || {}).filter(k => !k.startsWith('_id_') && currentGroup.checkedParameters[k]);
     if (currentCheckedIds.length > 0) {
       fetchParameters('', [], currentCheckedIds, nextGpcb);
     } else {
       setParameters([]);
     }
 
-    // Fetch fresh departments list with new GPCB state
     await fetchDepartmentsList(nextGpcb);
   };
 
-  const handleCategorySelectionChange = (selectedVals) => {
+  const handleGroupDepartmentChange = (selectedDeptId) => {
+    updateActiveGroup({
+      departmentId: selectedDeptId,
+      categoryIds: [],
+      subCategoryId: ''
+    });
+    setParamPage(1);
+    setParamSearch('');
+    if (selectedDeptId) {
+      fetchCategoriesForDepartment(selectedDeptId, isGpcbOnly);
+    } else {
+      setCategories([]);
+    }
+    const currentCheckedIds = Object.keys(currentGroup.checkedParameters || {}).filter(k => !k.startsWith('_id_') && currentGroup.checkedParameters[k]);
+    if (currentCheckedIds.length > 0) {
+      fetchParameters('', [], currentCheckedIds, isGpcbOnly);
+    } else {
+      setParameters([]);
+    }
+  };
+
+  const handleGroupCategoryChange = (selectedVals) => {
     const catIdsArray = Array.isArray(selectedVals)
       ? selectedVals.filter(Boolean)
       : (selectedVals ? [selectedVals] : []);
 
-    setSelectedCategoryIds(catIdsArray);
-    setFormData(prev => ({
-      ...prev,
-      categoryId: catIdsArray[0] || ''
-    }));
+    updateActiveGroup({
+      categoryIds: catIdsArray,
+      subCategoryId: ''
+    });
     setParamPage(1);
 
-    const currentCheckedIds = Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]);
+    const currentCheckedIds = Object.keys(currentGroup.checkedParameters || {}).filter(k => !k.startsWith('_id_') && currentGroup.checkedParameters[k]);
 
     if (catIdsArray.length > 0) {
       fetchSubCategoriesForCategories(catIdsArray, isGpcbOnly);
-      fetchParameters(selectedSubCategory, catIdsArray, currentCheckedIds, isGpcbOnly);
+      fetchParameters(currentGroup.subCategoryId, catIdsArray, currentCheckedIds, isGpcbOnly);
     } else {
       setSubCategories([]);
       if (currentCheckedIds.length > 0) {
@@ -946,49 +1165,110 @@ const TestRequestForm = () => {
     }
   };
 
-  const handleSubCategoryChange = (e) => {
-    const subId = e.target.value;
-    setSelectedSubCategory(subId);
-    setFormData(prev => ({ ...prev, subCategoryId: subId }));
+  const handleGroupSubCategoryChange = (selectedVal) => {
+    const subId = selectedVal;
+    updateActiveGroup({
+      subCategoryId: subId
+    });
     setParamPage(1);
+    const currentCheckedIds = Object.keys(currentGroup.checkedParameters || {}).filter(k => !k.startsWith('_id_') && currentGroup.checkedParameters[k]);
+    fetchParameters(subId, currentGroup.categoryIds || [], currentCheckedIds, isGpcbOnly);
+  };
 
-    const currentCheckedIds = Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]);
-    fetchParameters(subId, selectedCategoryIds, currentCheckedIds, isGpcbOnly);
+  const handleGroupLocationChange = (selectedLocation) => {
+    updateActiveGroup({
+      locationOfSample: selectedLocation
+    });
+  };
+
+  const handleGroupTitleChange = (newTitle) => {
+    updateActiveGroup({
+      title: newTitle
+    });
   };
 
   const handleToggleSelectAllParameters = () => {
     const displayedParams = parameters.filter(param => {
-      if (selectedSubCategory) {
-        return param.subCategoryId === selectedSubCategory || param.subCategory?.id === selectedSubCategory || checkedParameters[param.id];
+      if (currentGroup.subCategoryId) {
+        return param.subCategoryId === currentGroup.subCategoryId || param.subCategory?.id === currentGroup.subCategoryId || currentGroup.checkedParameters?.[param.id];
       }
       return true;
     });
     if (displayedParams.length === 0) return;
 
-    const allChecked = displayedParams.every(p => !!checkedParameters[p.id]);
+    const currentChecks = currentGroup.checkedParameters || {};
+    const allChecked = displayedParams.every(p => !!currentChecks[p.id]);
     const displayedIds = displayedParams.map(p => p.id);
 
-    setCheckedParameters(prev => {
-      const next = { ...prev };
-      displayedParams.forEach(p => {
-        if (allChecked) {
-          delete next[p.id];
-        } else {
-          next[p.id] = true;
-        }
-      });
-      return next;
-    });
-
-    setSelectedParamSequence(prevSeq => {
+    const nextChecks = { ...currentChecks };
+    displayedParams.forEach(p => {
       if (allChecked) {
-        return prevSeq.filter(id => !displayedIds.includes(id));
+        delete nextChecks[p.id];
       } else {
-        const newIdsToAdd = displayedIds.filter(id => !prevSeq.includes(id));
-        return [...prevSeq, ...newIdsToAdd];
+        nextChecks[p.id] = true;
       }
     });
+
+    let nextSeq = currentGroup.selectedParamSequence || [];
+    if (allChecked) {
+      nextSeq = nextSeq.filter(id => !displayedIds.includes(id));
+    } else {
+      const newIds = displayedIds.filter(id => !nextSeq.includes(id));
+      nextSeq = [...nextSeq, ...newIds];
+    }
+
+    updateActiveGroup({
+      checkedParameters: nextChecks,
+      selectedParamSequence: nextSeq
+    });
   };
+
+  const handleParameterCheck = (paramId) => {
+    const currentChecks = currentGroup.checkedParameters || {};
+    const isCurrentlyChecked = !!currentChecks[paramId];
+
+    const updatedChecks = {
+      ...currentChecks,
+      [paramId]: !isCurrentlyChecked
+    };
+
+    let updatedSeq = currentGroup.selectedParamSequence || [];
+    if (!isCurrentlyChecked) {
+      updatedSeq = updatedSeq.includes(paramId) ? updatedSeq : [...updatedSeq, paramId];
+    } else {
+      updatedSeq = updatedSeq.filter(id => id !== paramId);
+    }
+
+    updateActiveGroup({
+      checkedParameters: updatedChecks,
+      selectedParamSequence: updatedSeq
+    });
+  };
+
+  // Overall stats across all sample groups
+  const overallGroupStats = useMemo(() => {
+    let totalParamCount = 0;
+    let totalPrice = 0;
+    const allUniqueParamIds = new Set();
+
+    sampleGroups.forEach(grp => {
+      const pIds = Object.keys(grp.checkedParameters || {}).filter(k => !k.startsWith('_id_') && grp.checkedParameters[k]);
+      pIds.forEach(pId => {
+        totalParamCount++;
+        allUniqueParamIds.add(pId);
+        const paramObj = parameters.find(p => p.id === pId);
+        const price = priceMasterMap[pId] !== undefined ? priceMasterMap[pId] : (parseFloat(paramObj?.price) || 0);
+        totalPrice += price;
+      });
+    });
+
+    return {
+      totalGroups: sampleGroups.length,
+      totalParamCount,
+      uniqueParamCount: allUniqueParamIds.size,
+      totalPrice
+    };
+  }, [sampleGroups, parameters, priceMasterMap]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -998,26 +1278,6 @@ const TestRequestForm = () => {
       setFormData(prev => ({ ...prev, industryType: value, industryPrice: price }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
-    }
-
-    if (name === 'departmentId') {
-      setSelectedSubCategory('');
-      setSelectedCategoryIds([]);
-      setFormData(prev => ({ ...prev, departmentId: value, categoryId: '', subCategoryId: '' }));
-      setSubCategories([]);
-      setParamPage(1);
-      setParamSearch('');
-      if (value) {
-        fetchCategoriesForDepartment(value, isGpcbOnly);
-      } else {
-        setCategories([]);
-      }
-      const currentCheckedIds = Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]);
-      if (currentCheckedIds.length > 0) {
-        fetchParameters('', [], currentCheckedIds, isGpcbOnly);
-      } else {
-        setParameters([]);
-      }
     }
 
     if (name === 'clientId') {
@@ -1093,23 +1353,6 @@ const TestRequestForm = () => {
     }
   };
 
-  const handleParameterCheck = (paramId) => {
-    const isCurrentlyChecked = !!checkedParameters[paramId];
-
-    setCheckedParameters(prev => ({
-      ...prev,
-      [paramId]: !isCurrentlyChecked
-    }));
-
-    setSelectedParamSequence(prevSeq => {
-      if (!isCurrentlyChecked) {
-        return prevSeq.includes(paramId) ? prevSeq : [...prevSeq, paramId];
-      } else {
-        return prevSeq.filter(id => id !== paramId);
-      }
-    });
-  };
-
   const validateForm = () => {
     if (!formData.companyId) {
       triggerToast('Please select a Company.', 'error');
@@ -1119,35 +1362,54 @@ const TestRequestForm = () => {
       triggerToast('Please select a Client.', 'error');
       return false;
     }
-    if (!formData.departmentId) {
-      triggerToast('Please select a Department.', 'error');
+    const primaryDeptId = sampleGroups[0]?.departmentId || currentGroup.departmentId || formData.departmentId;
+    if (!primaryDeptId) {
+      triggerToast('Please select a Department for at least one sample group.', 'error');
       return false;
     }
-    const activeCatId = selectedCategoryIds[0] || formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : '');
-    if (!activeCatId) {
+    const primaryCatId = sampleGroups[0]?.categoryIds?.[0] || currentGroup.categoryIds?.[0] || formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : '');
+    if (!primaryCatId) {
       triggerToast('Please select at least one Discipline Group.', 'error');
       return false;
     }
     return true;
   };
 
-
-
   const handleSave = async () => {
     if (!validateForm()) return false;
     setSubmitting(true);
 
     try {
-      // 1. Save Test Request
-      const activeCatId = selectedCategoryIds[0] || formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : null);
+      // 1. Collect all checked parameters across all sample groups
+      const allGroupCheckedParamIds = [];
+      sampleGroups.forEach(grp => {
+        const seq = grp.selectedParamSequence || [];
+        const pIds = Object.keys(grp.checkedParameters || {}).filter(k => !k.startsWith('_id_') && grp.checkedParameters[k]);
+        const orderedGroupIds = [
+          ...seq.filter(id => pIds.includes(id)),
+          ...pIds.filter(id => !seq.includes(id))
+        ];
+        orderedGroupIds.forEach(id => {
+          if (!allGroupCheckedParamIds.includes(id)) {
+            allGroupCheckedParamIds.push(id);
+          }
+        });
+      });
+
+      const allLocations = sampleGroups.map(g => g.locationOfSample).filter(Boolean);
+      const combinedLocationStr = allLocations.length > 0 ? allLocations.join(', ') : (formData.locationOfSample || '');
+      const primaryCatId = sampleGroups[0]?.categoryIds?.[0] || formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : null);
+      const primaryDeptId = sampleGroups[0]?.departmentId || formData.departmentId || null;
+      const primarySubCatId = sampleGroups[0]?.subCategoryId || formData.subCategoryId || null;
       const textSampleParticular = (formData.sampleParticular && formData.sampleParticular.length === 36) ? '' : formData.sampleParticular;
 
       const payload = {
         ...formData,
-        categoryId: activeCatId,
-        departmentId: formData.departmentId || null,
+        locationOfSample: combinedLocationStr,
+        categoryId: primaryCatId,
+        departmentId: primaryDeptId,
         sampleParticular: textSampleParticular,
-        subCategoryId: selectedSubCategory || formData.subCategoryId || null,
+        subCategoryId: primarySubCatId,
         includeCaution: Boolean(formData.includeCaution),
         cautionId: formData.includeCaution && formData.cautionId ? formData.cautionId : null,
         reportIssueDays: formData.tentativeDays,
@@ -1178,42 +1440,37 @@ const TestRequestForm = () => {
       setSavedRequestId(savedTrId);
 
       // 2. Save Parameters Checklist with sequence
-      const checkedParamIds = Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]);
+      const checkedParamIds = allGroupCheckedParamIds;
 
-      // Delete any previously saved parameters that have been unselected
-      const savedParamKeys = Object.keys(checkedParameters).filter(k => k.startsWith('_id_'));
-      const keysToDeleteFromState = [];
+      // Check existing database transaction records
+      const allExistingChecks = {};
+      sampleGroups.forEach(grp => {
+        Object.keys(grp.checkedParameters || {}).forEach(k => {
+          if (k.startsWith('_id_')) {
+            allExistingChecks[k] = grp.checkedParameters[k];
+          }
+        });
+      });
+
+      const savedParamKeys = Object.keys(allExistingChecks);
       for (const key of savedParamKeys) {
         const pId = key.replace('_id_', '');
         if (!checkedParamIds.includes(pId)) {
-          const trpId = checkedParameters[key];
+          const trpId = allExistingChecks[key];
           if (trpId) {
             try {
               await apiService.delete(TEST_REQUEST_PARAMETER_ENDPOINTS.DELETE(trpId));
-              keysToDeleteFromState.push(key, pId);
             } catch (err) {
               console.error("Failed to delete unchecked parameter from database", err);
             }
           }
         }
       }
-      if (keysToDeleteFromState.length > 0) {
-        setCheckedParameters(prev => {
-          const updated = { ...prev };
-          keysToDeleteFromState.forEach(k => delete updated[k]);
-          return updated;
-        });
-      }
 
-      const orderedParamIds = Array.from(new Set([
-        ...selectedParamSequence.filter(id => checkedParamIds.includes(id)),
-        ...checkedParamIds.filter(id => !selectedParamSequence.includes(id))
-      ]));
-
-      for (let i = 0; i < orderedParamIds.length; i++) {
-        const pId = orderedParamIds[i];
+      for (let i = 0; i < checkedParamIds.length; i++) {
+        const pId = checkedParamIds[i];
         const seqNum = i + 1;
-        const trpId = checkedParameters[`_id_${pId}`];
+        const trpId = allExistingChecks[`_id_${pId}`];
 
         if (!trpId) {
           const targetParam = parameters.find(p => p.id === pId);
@@ -1225,7 +1482,12 @@ const TestRequestForm = () => {
             price: priceMasterMap[pId] || 0
           });
           if (res?.data?.id) {
-            setCheckedParameters(prev => ({ ...prev, [`_id_${pId}`]: res.data.id }));
+            updateActiveGroup({
+              checkedParameters: {
+                ...currentGroup.checkedParameters,
+                [`_id_${pId}`]: res.data.id
+              }
+            });
           }
         } else {
           await apiService.put(TEST_REQUEST_PARAMETER_ENDPOINTS.UPDATE(trpId), {
@@ -1234,10 +1496,37 @@ const TestRequestForm = () => {
         }
       }
 
+      // 3. Build dynamic Annexure-B from all Sample Groups for Quotation
+      const dynamicAnnexure = [];
+      sampleGroups.forEach((grp, gIdx) => {
+        const seq = grp.selectedParamSequence || [];
+        const pIds = Object.keys(grp.checkedParameters || {}).filter(k => !k.startsWith('_id_') && grp.checkedParameters[k]);
+        const ordered = [
+          ...seq.filter(id => pIds.includes(id)),
+          ...pIds.filter(id => !seq.includes(id))
+        ];
+        if (ordered.length > 0) {
+          const groupTitle = grp.title || (grp.locationOfSample ? `${gIdx + 1}. Analysis (${grp.locationOfSample})` : `Sample Group ${gIdx + 1}`);
+          ordered.forEach(pId => {
+            const paramObj = parameters.find(p => p.id === pId);
+            const price = priceMasterMap[pId] !== undefined ? priceMasterMap[pId] : (parseFloat(paramObj?.price) || 0);
+            dynamicAnnexure.push({
+              category: groupTitle,
+              description: paramObj?.parameterName || paramObj?.name || 'Parameter Analysis',
+              ratePerSample: price,
+              samplePerVisit: 1,
+              chargesPerVisit: price,
+              total: price * 3
+            });
+          });
+        }
+      });
+
       // Save Audit Quotation if required
       if (formData.quotationRequired === 'Yes' && formData.quotationType === 'Audit') {
         const qPayload = {
           ...quotationData,
+          annexure: dynamicAnnexure.length > 0 ? dynamicAnnexure : quotationData.annexure,
           testRequestId: savedTrId,
           companyId: formData.companyId,
           clientId: formData.clientId
@@ -1529,25 +1818,6 @@ const TestRequestForm = () => {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Location of Sample</label>
-                <SearchableSelect
-                  options={[
-                    { id: '', name: 'Select Location of Sample' },
-                    ...[...locationSamples].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(loc => ({ id: loc.name, name: loc.name })),
-                    ...(formData.locationOfSample && !locationSamples.some(l => l.name === formData.locationOfSample)
-                      ? [{ id: formData.locationOfSample, name: formData.locationOfSample }]
-                      : [])
-                  ]}
-                  value={formData.locationOfSample}
-                  onChange={(selectedVal) => {
-                    handleChange({ target: { name: 'locationOfSample', value: selectedVal } });
-                  }}
-                  placeholder="Select Location of Sample"
-                  searchPlaceholder="Search location..."
-                />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                 <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Contact Person</label>
                 <input type="text" name="contactPerson" value={formData.contactPerson} onChange={handleChange} className="premium-input" placeholder="Name of contact" />
               </div>
@@ -1683,23 +1953,37 @@ const TestRequestForm = () => {
             </div>
           </div>
 
-          {/* Testing Parameters Card */}
-          <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc' }}>
+          {/* Testing Parameters / Multi-Sample Location Groups Card */}
+          <div className="test-request-form-card" style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc', flexWrap: 'wrap', gap: '0.75rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div style={{ width: '12px', height: '24px', background: 'linear-gradient(to bottom, #8b5cf6, #a78bfa)', borderRadius: '6px' }}></div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Testing Parameters</h3>
+                <div style={{ width: '12px', height: '24px', background: 'linear-gradient(to bottom, #3b82f6, #60a5fa)', borderRadius: '6px' }}></div>
+                <div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Testing Parameters</h3>
+                  <span style={{ fontSize: '0.78rem', color: '#64748b' }}>Configure multiple sample locations (Inlet, Outlet, Stage-wise, Stack, etc.) for TRF &amp; Quotation Annexure-B</span>
+                </div>
               </div>
 
-              {/* GPCB Parameters Toggle */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                {/* Overall Summary Badges */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '0.8rem', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '0.3rem 0.75rem', borderRadius: '20px', fontWeight: 700 }}>
+                    {overallGroupStats.totalGroups} Location{overallGroupStats.totalGroups > 1 ? 's' : ''} • {overallGroupStats.totalParamCount} Test{overallGroupStats.totalParamCount !== 1 ? 's' : ''}
+                  </span>
+                  <span style={{ fontSize: '0.8rem', background: '#ecfdf5', color: '#15803d', border: '1px solid #bbf7d0', padding: '0.3rem 0.75rem', borderRadius: '20px', fontWeight: 700 }}>
+                    Total: ₹{overallGroupStats.totalPrice.toFixed(2)}
+                  </span>
+                </div>
+
+                {/* GPCB Toggle */}
                 <label style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.6rem',
+                  gap: '0.5rem',
                   cursor: 'pointer',
-                  padding: '0.45rem 0.9rem',
-                  borderRadius: '10px',
+                  padding: '0.4rem 0.8rem',
+                  borderRadius: '8px',
                   backgroundColor: isGpcbOnly ? '#f0fdf4' : '#f8fafc',
                   border: isGpcbOnly ? '1.5px solid #86efac' : '1.5px solid #e2e8f0',
                   transition: 'all 0.2s ease',
@@ -1711,111 +1995,342 @@ const TestRequestForm = () => {
                     checked={isGpcbOnly}
                     onChange={handleToggleGpcb}
                     style={{
-                      width: '1.2rem',
-                      height: '1.2rem',
+                      width: '1.1rem',
+                      height: '1.1rem',
                       accentColor: '#16a34a',
                       cursor: 'pointer'
                     }}
                   />
                   <span style={{
-                    fontSize: '0.9rem',
+                    fontSize: '0.82rem',
                     fontWeight: isGpcbOnly ? 700 : 600,
                     color: isGpcbOnly ? '#15803d' : '#475569'
                   }}>
-                    GPCB Parameters Only
+                    GPCB Only
                   </span>
                 </label>
-                {isGpcbOnly && (
-                  <span style={{
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    backgroundColor: '#dcfce7',
-                    color: '#15803d',
-                    padding: '0.3rem 0.65rem',
-                    borderRadius: '20px',
-                    border: '1px solid #bbf7d0',
-                    display: 'flex',
+              </div>
+            </div>
+
+            {/* Location & Sample Groups Navigation Tabs */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: '#f8fafc',
+              padding: '0.6rem 0.8rem',
+              borderRadius: '12px',
+              border: '1px solid #e2e8f0',
+              marginBottom: '1.5rem',
+              gap: '0.75rem',
+              flexWrap: 'wrap'
+            }}>
+              {/* Tab Pills */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflowX: 'auto', paddingBottom: '2px', flex: 1 }}>
+                {sampleGroups.map((grp, gIdx) => {
+                  const isActive = gIdx === activeGroupIndex;
+                  const grpCheckedCount = Object.keys(grp.checkedParameters || {}).filter(k => !k.startsWith('_id_') && grp.checkedParameters[k]).length;
+                  const grpLoc = grp.locationOfSample || `Loc #${gIdx + 1}`;
+                  return (
+                    <div
+                      key={grp.id || gIdx}
+                      onClick={() => handleSwitchActiveGroup(gIdx)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        padding: '0.45rem 0.9rem',
+                        borderRadius: '9px',
+                        background: isActive ? '#3b82f6' : '#ffffff',
+                        color: isActive ? '#ffffff' : '#334155',
+                        border: isActive ? '1px solid #2563eb' : '1px solid #cbd5e1',
+                        boxShadow: isActive ? '0 2px 6px rgba(59, 130, 246, 0.25)' : '0 1px 2px rgba(0,0,0,0.04)',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        fontWeight: isActive ? 700 : 600,
+                        fontSize: '0.85rem',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <span>📍 {grp.title || `${gIdx + 1}. ${grpLoc}`}</span>
+                      <span style={{
+                        fontSize: '0.72rem',
+                        padding: '1px 6px',
+                        borderRadius: '10px',
+                        background: isActive ? 'rgba(255,255,255,0.25)' : '#f1f5f9',
+                        color: isActive ? '#ffffff' : '#64748b',
+                        fontWeight: 700
+                      }}>
+                        {grpCheckedCount}
+                      </span>
+                      {sampleGroups.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={(e) => handleRemoveSampleGroup(gIdx, e)}
+                          title="Delete Location Group"
+                          style={{
+                            border: 'none',
+                            background: 'transparent',
+                            color: isActive ? '#ffffff' : '#94a3b8',
+                            cursor: 'pointer',
+                            padding: '0 2px',
+                            fontSize: '0.8rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            opacity: 0.8
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.opacity = 1}
+                          onMouseLeave={(e) => e.currentTarget.style.opacity = 0.8}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Add Group & Presets Dropdown */}
+              <div style={{ position: 'relative' }} ref={presetDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowPresetDropdown(!showPresetDropdown)}
+                  style={{
+                    display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '0.35rem'
+                    gap: '0.45rem',
+                    background: 'linear-gradient(135deg, #10b981, #059669)',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '0.45rem 0.9rem',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)'
+                  }}
+                >
+                  <FaPlus size={10} /> Add Sample Location / Group <span style={{ fontSize: '0.65rem' }}>▼</span>
+                </button>
+
+                {showPresetDropdown && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '100%',
+                    right: 0,
+                    marginTop: '0.4rem',
+                    background: '#ffffff',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '10px',
+                    boxShadow: '0 10px 25px rgba(0,0,0,0.12)',
+                    zIndex: 100,
+                    minWidth: '280px',
+                    padding: '0.4rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.2rem'
                   }}>
-                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#16a34a', display: 'inline-block' }}></span>
-                    GPCB Mode Active
-                  </span>
+                    <div style={{ padding: '0.4rem 0.6rem', fontSize: '0.72rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Audit Quote Annexure-B Presets
+                    </div>
+                    {SAMPLE_GROUP_PRESETS.map((preset, pIdx) => (
+                      <button
+                        key={pIdx}
+                        type="button"
+                        onClick={() => handleAddSampleGroup(preset)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '0.5rem 0.75rem',
+                          borderRadius: '6px',
+                          border: 'none',
+                          background: 'transparent',
+                          color: '#1e293b',
+                          fontSize: '0.82rem',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          fontWeight: 500
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#f1f5f9'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <span>{preset.title}</span>
+                        <span style={{ fontSize: '0.7rem', color: '#059669', background: '#ecfdf5', padding: '1px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                          {preset.locationOfSample}
+                        </span>
+                      </button>
+                    ))}
+                    <div style={{ borderTop: '1px solid #f1f5f9', margin: '0.2rem 0' }}></div>
+                    <button
+                      type="button"
+                      onClick={() => handleAddSampleGroup(null)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        padding: '0.5rem 0.75rem',
+                        borderRadius: '6px',
+                        border: 'none',
+                        background: '#eff6ff',
+                        color: '#1d4ed8',
+                        fontSize: '0.82rem',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <FaPlus size={10} /> + Custom Location / Scope
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
-
-              {/* Department Selector */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Department <span style={{ color: '#ef4444' }}>*</span></label>
-                <SearchableSelect
-                  options={[...departments].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
-                  value={formData.departmentId || ''}
-                  onChange={(selectedVal) => {
-                    handleChange({ target: { name: 'departmentId', value: selectedVal } });
-                  }}
-                  placeholder="Select Department"
-                  searchPlaceholder="Search department..."
-                />
-              </div>
-
-              {/* Discipline Group Dropdown (Multi-Select) */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Discipline Group <span style={{ color: '#ef4444' }}>*</span></label>
-                  <AddMasterButton label="Add New Group" onClick={() => setInlineModal({ isOpen: true, type: 'category', parentData: { companyId: formData.companyId, departmentId: formData.departmentId } })} />
-                </div>
-                <SearchableSelect
-                  options={[...categories].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
-                  value={selectedCategoryIds.length > 0 ? selectedCategoryIds : (formData.categoryId ? [formData.categoryId] : [])}
-                  onChange={handleCategorySelectionChange}
-                  placeholder="Select Discipline Group(s)"
-                  searchPlaceholder="Search discipline group..."
-                  disabled={!formData.departmentId}
-                  isMulti={true}
-                />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>
-                    Sub Category {subCategoriesLoading && <span style={{ fontSize: '0.75rem', color: '#64748b' }}>(Loading...)</span>}
+            {/* Active Group Header & Details Card */}
+            <div style={{
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: '12px',
+              padding: '1.25rem',
+              marginBottom: '1.5rem'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+                {/* Editable Scope Title */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: '240px' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', whiteSpace: 'nowrap' }}>
+                    Group / Annexure-B Title:
                   </label>
-                  <AddMasterButton
-                    label="Add New Sub Category"
-                    onClick={() => {
-                      const activeCatId = selectedCategoryIds[0] || formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : '');
-                      if (!activeCatId) {
-                        triggerToast('Please select a Discipline Group first.', 'error');
-                        return;
-                      }
-                      setInlineModal({ isOpen: true, type: 'subCategory', parentData: { categoryId: activeCatId, companyId: formData.companyId } });
+                  <input
+                    type="text"
+                    value={currentGroup.title || ''}
+                    onChange={(e) => handleGroupTitleChange(e.target.value)}
+                    placeholder="e.g. 1. Effluent Water Analysis (Inlet)"
+                    style={{
+                      padding: '0.4rem 0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '0.88rem',
+                      fontWeight: 700,
+                      color: '#0f172a',
+                      background: '#ffffff',
+                      width: '100%',
+                      maxWidth: '420px',
+                      outline: 'none'
                     }}
                   />
                 </div>
-                <SearchableSelect
-                  options={[...subCategories].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
-                  value={selectedSubCategory || formData.subCategoryId || ''}
-                  onChange={(selectedVal) => {
-                    handleSubCategoryChange({ target: { value: selectedVal } });
+
+                {/* Duplicate button */}
+                <button
+                  type="button"
+                  onClick={(e) => handleDuplicateSampleGroup(activeGroupIndex, e)}
+                  style={{
+                    background: '#ffffff',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '8px',
+                    padding: '0.35rem 0.75rem',
+                    fontSize: '0.78rem',
+                    fontWeight: 600,
+                    color: '#475569',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.35rem'
                   }}
-                  placeholder="Select Sub Category (Optional)"
-                  searchPlaceholder="Search sub category..."
-                  disabled={(selectedCategoryIds.length === 0 && !formData.categoryId && (!formData.sampleParticular || formData.sampleParticular.length !== 36)) || subCategoriesLoading}
-                />
-                {(selectedCategoryIds.length > 0 || formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36)) && !subCategoriesLoading && subCategories.length === 0 && (
-                  <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic' }}>
-                    No subcategories available for selected discipline groups
-                  </span>
-                )}
+                >
+                  📋 Duplicate Group
+                </button>
+              </div>
+
+              {/* 4-column Selector Grid for Active Group */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
+
+                {/* Department Selector */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>Department <span style={{ color: '#ef4444' }}>*</span></label>
+                  <SearchableSelect
+                    options={[...departments].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
+                    value={currentGroup.departmentId || ''}
+                    onChange={handleGroupDepartmentChange}
+                    placeholder="Select Department"
+                    searchPlaceholder="Search department..."
+                  />
+                </div>
+
+                {/* Discipline Group Dropdown (Multi-Select) */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>Discipline Group <span style={{ color: '#ef4444' }}>*</span></label>
+                    <AddMasterButton label="Add New Group" onClick={() => setInlineModal({ isOpen: true, type: 'category', parentData: { companyId: formData.companyId, departmentId: currentGroup.departmentId } })} />
+                  </div>
+                  <SearchableSelect
+                    options={[...categories].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
+                    value={currentGroup.categoryIds || []}
+                    onChange={handleGroupCategoryChange}
+                    placeholder="Select Discipline Group(s)"
+                    searchPlaceholder="Search discipline group..."
+                    disabled={!currentGroup.departmentId}
+                    isMulti={true}
+                  />
+                </div>
+
+                {/* Sub Category */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>
+                      Sub Category {subCategoriesLoading && <span style={{ fontSize: '0.75rem', color: '#64748b' }}>(Loading...)</span>}
+                    </label>
+                    <AddMasterButton
+                      label="Add Sub Category"
+                      onClick={() => {
+                        const activeCatId = currentGroup.categoryIds?.[0];
+                        if (!activeCatId) {
+                          triggerToast('Please select a Discipline Group first.', 'error');
+                          return;
+                        }
+                        setInlineModal({ isOpen: true, type: 'subCategory', parentData: { categoryId: activeCatId, companyId: formData.companyId } });
+                      }}
+                    />
+                  </div>
+                  <SearchableSelect
+                    options={[...subCategories].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
+                    value={currentGroup.subCategoryId || ''}
+                    onChange={handleGroupSubCategoryChange}
+                    placeholder="Select Sub Category (Optional)"
+                    searchPlaceholder="Search sub category..."
+                    disabled={(!currentGroup.categoryIds || currentGroup.categoryIds.length === 0) || subCategoriesLoading}
+                  />
+                </div>
+
+                {/* Location of Sample */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>Location of Sample</label>
+                    <AddMasterButton
+                      label="Add Location"
+                      onClick={() => setInlineModal({ isOpen: true, type: 'locationSample', parentData: { companyId: formData.companyId } })}
+                    />
+                  </div>
+                  <SearchableSelect
+                    options={[
+                      { id: '', name: 'Select Location of Sample' },
+                      ...[...locationSamples].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(loc => ({ id: loc.name, name: loc.name })),
+                      ...(currentGroup.locationOfSample && !locationSamples.some(l => l.name === currentGroup.locationOfSample)
+                        ? [{ id: currentGroup.locationOfSample, name: currentGroup.locationOfSample }]
+                        : [])
+                    ]}
+                    value={currentGroup.locationOfSample || ''}
+                    onChange={handleGroupLocationChange}
+                    placeholder="Select Location of Sample"
+                    searchPlaceholder="Search location..."
+                  />
+                </div>
               </div>
             </div>
 
-            {(selectedCategoryIds.length === 0 && !formData.categoryId && (!formData.sampleParticular || formData.sampleParticular.length !== 36)) ? (
+            {(!currentGroup.categoryIds || currentGroup.categoryIds.length === 0) ? (
               <div style={{ padding: '2.5rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1', fontWeight: 500 }}>
-                Please select a Discipline Group to begin.
+                Please select a Discipline Group for "{currentGroup.title || 'this location'}" to view and select parameters.
               </div>
             ) : parametersLoading ? (
               <div style={{ padding: '2.5rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
@@ -1826,11 +2341,12 @@ const TestRequestForm = () => {
                 No parameters mapped to this selection
               </div>
             ) : (() => {
+              const currentChecks = currentGroup.checkedParameters || {};
               const categoryFilteredParams = parameters.filter(param => {
-                const matchesSubCat = !selectedSubCategory ||
-                  param.subCategoryId === selectedSubCategory ||
-                  param.subCategory?.id === selectedSubCategory ||
-                  checkedParameters[param.id];
+                const matchesSubCat = !currentGroup.subCategoryId ||
+                  param.subCategoryId === currentGroup.subCategoryId ||
+                  param.subCategory?.id === currentGroup.subCategoryId ||
+                  currentChecks[param.id];
                 return matchesSubCat;
               });
               const searchFilteredParams = categoryFilteredParams
@@ -1854,7 +2370,7 @@ const TestRequestForm = () => {
                 safeParamPage * paramPageSize
               );
 
-              const checkedParamIdsList = Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]);
+              const checkedParamIdsList = Object.keys(currentChecks).filter(k => !k.startsWith('_id_') && currentChecks[k]);
               const totalCheckedPrice = checkedParamIdsList.reduce((sum, pId) => {
                 const paramObj = parameters.find(p => p.id === pId);
                 const price = priceMasterMap[pId] !== undefined ? priceMasterMap[pId] : (paramObj?.price || 0);
@@ -1865,8 +2381,11 @@ const TestRequestForm = () => {
                 <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
                   {/* Top Bar / Header */}
                   <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #e2e8f0', background: 'linear-gradient(to right, #f8fafc, #ffffff)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
-                    <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '1rem' }}>
-                      Select Test Parameters to be Analyzed
+                    <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span>Select Test Parameters for</span>
+                      <span style={{ color: '#2563eb', background: '#eff6ff', padding: '2px 8px', borderRadius: '6px', border: '1px solid #bfdbfe' }}>
+                        {currentGroup.title || currentGroup.locationOfSample || 'Current Location'}
+                      </span>
                     </div>
 
                     <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -1917,12 +2436,12 @@ const TestRequestForm = () => {
                           transition: 'all 0.15s ease'
                         }}
                       >
-                        {categoryFilteredParams.length > 0 && categoryFilteredParams.every(p => !!checkedParameters[p.id])
+                        {categoryFilteredParams.length > 0 && categoryFilteredParams.every(p => !!currentChecks[p.id])
                           ? 'Deselect All' : 'Select All'}
                       </button>
 
                       <span style={{ fontSize: '0.85rem', background: '#dcfce7', color: '#166534', padding: '0.3rem 0.75rem', borderRadius: '999px', fontWeight: 700 }}>
-                        Total: ₹{totalCheckedPrice.toFixed(2)}
+                        {currentGroup.locationOfSample || 'Group'} Total: ₹{totalCheckedPrice.toFixed(2)}
                       </span>
 
                       <span style={{ fontSize: '0.8rem', background: '#e0e7ff', color: '#4338ca', padding: '0.25rem 0.65rem', borderRadius: '999px', fontWeight: 600 }}>
@@ -1939,9 +2458,9 @@ const TestRequestForm = () => {
                           <th style={{ padding: '0.75rem 1rem', textAlign: 'center', width: '70px', color: '#64748b', fontWeight: 600 }}>
                             <input
                               type="checkbox"
-                              checked={categoryFilteredParams.length > 0 && categoryFilteredParams.every(p => !!checkedParameters[p.id])}
+                              checked={categoryFilteredParams.length > 0 && categoryFilteredParams.every(p => !!currentChecks[p.id])}
                               onChange={handleToggleSelectAllParameters}
-                              title={categoryFilteredParams.length > 0 && categoryFilteredParams.every(p => !!checkedParameters[p.id]) ? "Deselect All" : "Select All"}
+                              title={categoryFilteredParams.length > 0 && categoryFilteredParams.every(p => !!currentChecks[p.id]) ? "Deselect All" : "Select All"}
                               style={{ width: '1.1rem', height: '1.1rem', cursor: 'pointer', accentColor: '#22c55e' }}
                             />
                           </th>
@@ -1959,9 +2478,9 @@ const TestRequestForm = () => {
                           </tr>
                         ) : (
                           paginatedParams.map(param => {
-                            const isChecked = !!checkedParameters[param.id];
+                            const isChecked = !!currentChecks[param.id];
                             const paramPrice = priceMasterMap[param.id] !== undefined ? priceMasterMap[param.id] : (parseFloat(param.price) || 0);
-                            const seqIndex = selectedParamSequence.indexOf(param.id);
+                            const seqIndex = (currentGroup.selectedParamSequence || []).indexOf(param.id);
                             const seqNumber = seqIndex >= 0 ? seqIndex + 1 : null;
                             const catLabel = param.categoryName || param.category?.name || '';
                             const subCatLabel = param.subCategoryName || param.subCategory?.name || '';
@@ -2042,7 +2561,7 @@ const TestRequestForm = () => {
                     borderTop: '1px solid #e2e8f0',
                     background: '#f8fafc',
                     display: 'flex',
-                    justify: 'space-between',
+                    justifyContent: 'space-between',
                     alignItems: 'center',
                     flexWrap: 'wrap',
                     gap: '0.75rem'
