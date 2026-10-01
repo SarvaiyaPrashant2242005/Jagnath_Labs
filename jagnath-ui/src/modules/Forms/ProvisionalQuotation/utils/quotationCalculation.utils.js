@@ -327,18 +327,12 @@ export const mapTRFAnnexureToGroups = (annexureItems) => {
 };
 
 /**
- * Builds Annexure-B containing ONLY parameters selected in the chosen TRF, grouped by Discipline Group.
+ * Builds Annexure-B containing ONLY parameters selected in the chosen TRF, grouped by Location of Sample or Discipline Group.
  */
 export const buildAnnexureBFromTRF = (selectedTR, trParams = [], masters = {}) => {
   if (!selectedTR) return [];
 
-  // 1. If TR has explicit annexure items saved from TRF Audit Quotation
-  if (Array.isArray(selectedTR.annexure) && selectedTR.annexure.length > 0) {
-    const mapped = mapTRFAnnexureToGroups(selectedTR.annexure);
-    if (mapped && mapped.length > 0) return mapped;
-  }
-
-  // 2. If TR has test request parameters (checked in TRF)
+  // 1. If TR has test request parameters (checked in TRF)
   const paramList = Array.isArray(trParams) && trParams.length > 0 
     ? trParams 
     : (Array.isArray(selectedTR.testRequestParameters) ? selectedTR.testRequestParameters : (Array.isArray(selectedTR.parameters) ? selectedTR.parameters : []));
@@ -355,8 +349,12 @@ export const buildAnnexureBFromTRF = (selectedTR, trParams = [], masters = {}) =
       const pId = trp.parameterId || trp.parameter_id || (typeof trp.parameter === 'object' ? trp.parameter?.id : trp.id);
       const paramObj = (typeof trp.parameter === 'object' && trp.parameter) ? trp.parameter : allParams.find(p => p.id === pId);
 
-      const desc = (paramObj?.parameterName || paramObj?.name || trp.description || trp.name || `Parameter #${idx + 1}`).trim();
+      const desc = (trp.parameterName || paramObj?.parameterName || paramObj?.name || trp.description || trp.name || `Parameter #${idx + 1}`).trim();
       
+      // Determine Location of Sample
+      const rawLoc = (trp.locationOfSample || trp.location_of_sample || selectedTR.locationOfSample || selectedTR.location_of_sample || '').trim();
+      const hasSpecificLoc = rawLoc && rawLoc.toLowerCase() !== 'general';
+
       // Determine Category / Discipline
       let cat = '';
       if (paramObj?.category && typeof paramObj.category === 'object') {
@@ -374,55 +372,65 @@ export const buildAnnexureBFromTRF = (selectedTR, trParams = [], masters = {}) =
       }
 
       if (!cat) {
-        cat = selectedTR.sampleParticular || selectedTR.sampleParticularName || selectedTR.category?.name || 'General Water Analysis';
+        cat = selectedTR.formTitle || selectedTR.sampleParticular || selectedTR.sampleParticularName || selectedTR.category?.name || 'WATER ANALYSIS';
       }
 
       const rawCat = cat.trim();
+      const cleanBaseCat = rawCat.replace(/^[0-9]+[A-Za-z\-]*\.\s*/, '').trim();
 
-      // Deduplication check: prevent duplicate parameter entries within the same category
-      const uniqueKey = `${rawCat}___${pId || desc}`;
+      // Determine Group Category Header: Discipline Group + [Location] (e.g. "WATER TESTING [Inletttt]")
+      const groupHeader = hasSpecificLoc ? `${cleanBaseCat} [${rawLoc}]` : cleanBaseCat;
+
+      // Deduplication check: unique per location and parameter
+      const uniqueKey = `${rawLoc || 'GEN'}___${cleanBaseCat}___${pId || desc}`;
       if (seenParamKeys.has(uniqueKey)) {
         return;
       }
       seenParamKeys.add(uniqueKey);
 
-      // Determine rate
-      let rate = parseFloat(trp.price);
-      if (isNaN(rate) || rate === 0) {
+      // Determine rate: use exact price saved in TRF
+      let rate = (trp.price !== undefined && trp.price !== null && !isNaN(parseFloat(trp.price)))
+        ? parseFloat(trp.price)
+        : NaN;
+
+      if (isNaN(rate)) {
         const pm = priceMasters.find(pr => pr.parameterId === pId || pr.parameter_id === pId);
-        if (pm) rate = parseFloat(pm.price || pm.rate || 0);
-      }
-      if (isNaN(rate) || rate === 0) {
-        rate = parseFloat(paramObj?.price || paramObj?.rate || 0) || 0;
-      }
-
-      let srNo = '';
-      let cleanCat = rawCat;
-      const match = rawCat.match(/^([0-9]+[A-Za-z\-]*)\.\s*(.*)$/);
-      if (match) {
-        srNo = match[1];
-        cleanCat = match[2];
-      } else {
-        srNo = String(groupsMap.size + 1);
+        if (pm && !isNaN(parseFloat(pm.price || pm.rate))) {
+          rate = parseFloat(pm.price || pm.rate);
+        } else {
+          rate = parseFloat(paramObj?.price || paramObj?.rate || 0) || 0;
+        }
       }
 
-      if (!groupsMap.has(rawCat)) {
-        groupsMap.set(rawCat, {
+      if (!groupsMap.has(groupHeader)) {
+        groupsMap.set(groupHeader, {
           id: 'grp_' + (groupsMap.size + 1) + '_' + Math.random().toString(36).substr(2, 4),
-          srNo: srNo,
-          category: cleanCat,
+          srNo: String(groupsMap.size + 1),
+          category: groupHeader,
+          location: rawLoc || '',
           parameters: []
         });
       }
 
-      groupsMap.get(rawCat).parameters.push({
+      groupsMap.get(groupHeader).parameters.push({
         id: 'p_' + idx + '_' + Math.random().toString(36).substr(2, 4),
         description: desc,
+        location: rawLoc || '',
         rate: isNaN(rate) ? 0 : rate
       });
     });
 
-    return Array.from(groupsMap.values());
+    // Re-index srNo sequentially 1, 2, 3...
+    return Array.from(groupsMap.values()).map((g, i) => ({
+      ...g,
+      srNo: String(i + 1)
+    }));
+  }
+
+  // 2. Fallback: If TR has explicit annexure items saved from TRF Audit Quotation
+  if (Array.isArray(selectedTR.annexure) && selectedTR.annexure.length > 0) {
+    const mapped = mapTRFAnnexureToGroups(selectedTR.annexure);
+    if (mapped && mapped.length > 0) return mapped;
   }
 
   return [];

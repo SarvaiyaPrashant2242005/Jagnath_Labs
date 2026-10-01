@@ -297,32 +297,30 @@ const ProvisionalQuotationForm = () => {
     let selectedTR = (masters.testRequests || []).find(r => r.id === trId);
     let trParams = [];
 
-    // Fetch full TR details by ID to get nested relations & testRequestParameters
+    // Fetch full TR details by ID to get nested relations
     try {
       const fullRes = await apiService.get(TEST_REQUEST_ENDPOINTS.GET_BY_ID(trId));
       if (fullRes?.data) {
         selectedTR = fullRes.data;
-        if (Array.isArray(fullRes.data.testRequestParameters)) {
-          trParams = fullRes.data.testRequestParameters;
-        } else if (Array.isArray(fullRes.data.parameters)) {
-          trParams = fullRes.data.parameters;
-        }
       }
     } catch (e) {
       console.log('Using cached TRF object or fallback', e);
     }
 
-    // Fallback: If trParams is not directly in TR, fetch matching transaction records
-    if (!trParams.length) {
-      try {
-        const trpRes = await apiService.get(TEST_REQUEST_PARAMETER_ENDPOINTS.GET_ALL);
-        if (trpRes?.data) {
-          const allTrps = Array.isArray(trpRes.data) ? trpRes.data : (trpRes.data?.rows || []);
-          trParams = allTrps.filter(t => t.testRequestId === trId || t.test_request_id === trId);
+    // Always fetch latest transaction parameters with exact price and locationOfSample
+    try {
+      const trpRes = await apiService.get(TEST_REQUEST_PARAMETER_ENDPOINTS.GET_ALL);
+      if (trpRes?.data) {
+        const allTrps = Array.isArray(trpRes.data) ? trpRes.data : (trpRes.data?.rows || []);
+        const matching = allTrps.filter(t => t.testRequestId === trId || t.test_request_id === trId);
+        if (matching.length > 0) {
+          trParams = matching;
+        } else if (Array.isArray(selectedTR?.testRequestParameters)) {
+          trParams = selectedTR.testRequestParameters;
         }
-      } catch (e) {
-        console.log('Error fetching TR transaction parameters', e);
       }
+    } catch (e) {
+      console.log('Error fetching TR transaction parameters', e);
     }
 
     if (!selectedTR) return;
@@ -3463,6 +3461,17 @@ const ProvisionalQuotationForm = () => {
                               </React.Fragment>
                             );
                           })}
+
+                          {/* Final Grand Total Row */}
+                          <tr style={{ background: '#e2e8f0', fontWeight: 900, borderTop: '2px solid #0f172a' }}>
+                            <td style={{ border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 900 }}></td>
+                            <td style={{ border: '1px solid #0f172a', padding: '5px 6px', textAlign: 'right', fontWeight: 900, color: '#0f172a', fontSize: '10.5px', textTransform: 'uppercase' }}>
+                              Grand Total (Annexure - B):
+                            </td>
+                            <td style={{ border: '1px solid #0f172a', padding: '5px 6px', textAlign: 'right', fontWeight: 900, color: '#0f172a', fontSize: '10.5px' }}>
+                              {Number(calculateAnnexureBTotal(allGroups)).toLocaleString('en-IN')}/-
+                            </td>
+                          </tr>
                         </tbody>
                       </table>
 

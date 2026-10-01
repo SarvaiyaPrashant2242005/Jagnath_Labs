@@ -23,6 +23,7 @@ import {
   calculateGST,
   calculateGrandTotal,
   generateAnnexureB,
+  calculateAnnexureBTotal,
   calculateGroupTotal,
   calculateActivity,
   calculateAnnexureARowCharge,
@@ -1033,6 +1034,17 @@ const ProvisionalQuotationPreview = () => {
                       </React.Fragment>
                     );
                   })}
+
+                  {/* Final Grand Total Row */}
+                  <tr style={{ background: '#e2e8f0', fontWeight: 900, borderTop: '2px solid #0f172a' }}>
+                    <td style={{ border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 900 }}></td>
+                    <td style={{ border: '1px solid #0f172a', padding: '5px 6px', textAlign: 'right', fontWeight: 900, color: '#0f172a', fontSize: '10.5px', textTransform: 'uppercase' }}>
+                      Grand Total (Annexure - B):
+                    </td>
+                    <td style={{ border: '1px solid #0f172a', padding: '5px 6px', textAlign: 'right', fontWeight: 900, color: '#0f172a', fontSize: '10.5px' }}>
+                      {Number(calculateAnnexureBTotal(allGroups)).toLocaleString('en-IN')}/-
+                    </td>
+                  </tr>
                 </tbody>
               </table>
 
