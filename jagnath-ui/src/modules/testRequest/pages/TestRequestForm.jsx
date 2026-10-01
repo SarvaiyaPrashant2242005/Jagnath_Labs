@@ -1179,9 +1179,55 @@ const TestRequestForm = () => {
   };
 
   const handleGroupLocationChange = (selectedLocation) => {
-    updateActiveGroup({
-      locationOfSample: selectedLocation
-    });
+    if (!selectedLocation) {
+      updateActiveGroup({
+        locationOfSample: '',
+        title: ''
+      });
+      return;
+    }
+
+    // 1. If another existing group already has this location, switch to it
+    const existingIdx = sampleGroups.findIndex(
+      (g, idx) => idx !== activeGroupIndex && (g.locationOfSample || '').trim().toLowerCase() === selectedLocation.trim().toLowerCase()
+    );
+
+    if (existingIdx !== -1) {
+      handleSwitchActiveGroup(existingIdx);
+      return;
+    }
+
+    // 2. If current group already has parameters selected and a different location name, auto-create a new location group
+    const currentCheckedCount = Object.keys(currentGroup.checkedParameters || {}).filter(k => !k.startsWith('_id_') && currentGroup.checkedParameters[k]).length;
+    if (currentGroup.locationOfSample && currentGroup.locationOfSample !== selectedLocation && currentCheckedCount > 0) {
+      const newIdx = sampleGroups.length;
+      const newGroup = {
+        id: `grp_${Date.now()}_${newIdx}`,
+        title: selectedLocation,
+        locationOfSample: selectedLocation,
+        departmentId: currentGroup.departmentId || '',
+        categoryIds: currentGroup.categoryIds ? [...currentGroup.categoryIds] : [],
+        subCategoryId: currentGroup.subCategoryId || '',
+        checkedParameters: {},
+        selectedParamSequence: []
+      };
+      setSampleGroups(prev => [...prev, newGroup]);
+      setActiveGroupIndex(newIdx);
+      setParamPage(1);
+      setParamSearch('');
+      if (newGroup.departmentId) {
+        fetchCategoriesForDepartment(newGroup.departmentId, isGpcbOnly);
+      }
+      if (newGroup.categoryIds && newGroup.categoryIds.length > 0) {
+        fetchSubCategoriesForCategories(newGroup.categoryIds, isGpcbOnly);
+        fetchParameters(newGroup.subCategoryId, newGroup.categoryIds, [], isGpcbOnly);
+      }
+    } else {
+      updateActiveGroup({
+        locationOfSample: selectedLocation,
+        title: selectedLocation
+      });
+    }
   };
 
   const handleGroupTitleChange = (newTitle) => {
@@ -2092,31 +2138,38 @@ const TestRequestForm = () => {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <span style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>
-                    Location {activeGroupIndex + 1}: {currentGroup.locationOfSample || 'New Location'}
+                    {currentGroup.locationOfSample ? `Location: ${currentGroup.locationOfSample}` : `Location ${activeGroupIndex + 1}`}
                   </span>
+                  {sampleGroups.length > 1 && (
+                    <span style={{ fontSize: '0.75rem', background: '#e0e7ff', color: '#3730a3', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>
+                      {activeGroupIndex + 1} of {sampleGroups.length}
+                    </span>
+                  )}
                 </div>
 
                 {/* Actions */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                   <button
                     type="button"
-                    onClick={(e) => handleDuplicateSampleGroup(activeGroupIndex, e)}
+                    onClick={handleAddSampleGroup}
                     style={{
-                      background: '#ffffff',
-                      border: '1px solid #cbd5e1',
+                      background: '#10b981',
+                      border: 'none',
                       borderRadius: '8px',
                       padding: '0.4rem 0.8rem',
                       fontSize: '0.8rem',
                       fontWeight: 600,
-                      color: '#475569',
+                      color: '#ffffff',
                       cursor: 'pointer',
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: '0.35rem'
+                      gap: '0.35rem',
+                      boxShadow: '0 1px 3px rgba(16, 185, 129, 0.2)'
                     }}
                   >
-                    📋 Duplicate Location
+                    <FaPlus size={10} /> Add Another Location
                   </button>
+
                   {sampleGroups.length > 1 && (
                     <button
                       type="button"
@@ -2572,39 +2625,15 @@ const TestRequestForm = () => {
             })()}
           </div>
 
-          {/* Quotation Summary Section */}
+          {/* Testing Locations & Parameters Summary Section */}
           <div className="test-request-form-card" style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc', flexWrap: 'wrap', gap: '0.75rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 <div style={{ width: '12px', height: '24px', background: 'linear-gradient(to bottom, #10b981, #059669)', borderRadius: '6px' }}></div>
                 <div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Quotation Summary</h3>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Testing Locations &amp; Parameters Summary</h3>
                   <span style={{ fontSize: '0.78rem', color: '#64748b' }}>Consolidated testing groups, parameter counts, and pricing for this TRF</span>
                 </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <button
-                  type="button"
-                  onClick={handleSaveAndQuotation}
-                  disabled={submitting}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    backgroundColor: '#0284c7',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: '8px',
-                    padding: '0.55rem 1.25rem',
-                    fontSize: '0.85rem',
-                    fontWeight: 700,
-                    cursor: submitting ? 'not-allowed' : 'pointer',
-                    boxShadow: '0 2px 6px rgba(2, 132, 199, 0.25)'
-                  }}
-                >
-                  <FaFilePdf />
-                  <span>Generate Quotation</span>
-                </button>
               </div>
             </div>
 
@@ -2612,51 +2641,104 @@ const TestRequestForm = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
               {overallGroupStats.groupBreakdown.length === 0 ? (
                 <div style={{ padding: '1.5rem', textAlign: 'center', color: '#94a3b8', background: '#f8fafc', borderRadius: '10px', border: '1px dashed #cbd5e1' }}>
-                  No testing parameters selected yet. Add a location and select parameters above.
+                  No testing parameters selected yet. Select a location and check parameters above.
                 </div>
               ) : (
-                overallGroupStats.groupBreakdown.map((grp, idx) => (
-                  <div
-                    key={`quotation_summary_g${idx}_${grp.groupId || grp.id || 'grp'}`}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '1rem 1.25rem',
-                      background: '#f8fafc',
-                      borderRadius: '10px',
-                      border: '1px solid #e2e8f0',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#1e293b' }}>
-                          {grp.title || `${idx + 1}. ${grp.location}`}
-                        </span>
-                        <span style={{ fontSize: '0.72rem', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '1px 6px', borderRadius: '4px', fontWeight: 600 }}>
-                          {grp.location}
-                        </span>
+                overallGroupStats.groupBreakdown.map((grp, idx) => {
+                  const isEditingThis = idx === activeGroupIndex;
+                  return (
+                    <div
+                      key={`quotation_summary_g${idx}_${grp.groupId || grp.id || 'grp'}`}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '1rem 1.25rem',
+                        background: isEditingThis ? '#f0fdf4' : '#f8fafc',
+                        borderRadius: '10px',
+                        border: isEditingThis ? '1.5px solid #86efac' : '1px solid #e2e8f0',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#1e293b' }}>
+                            {grp.location || grp.title || `Location ${idx + 1}`}
+                          </span>
+                          <span style={{
+                            fontSize: '0.72rem',
+                            background: isEditingThis ? '#dcfce7' : '#eff6ff',
+                            color: isEditingThis ? '#15803d' : '#1d4ed8',
+                            border: isEditingThis ? '1px solid #bbf7d0' : '1px solid #bfdbfe',
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            fontWeight: 600
+                          }}>
+                            {isEditingThis ? 'Currently Editing' : grp.location}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                          {grp.departmentName || 'Dept'} • {grp.disciplineName || 'Discipline'}{grp.subCategoryName ? ` • ${grp.subCategoryName}` : ''}
+                        </div>
                       </div>
-                      <div style={{ fontSize: '0.78rem', color: '#64748b' }}>
-                        {grp.departmentName || 'Dept'} • {grp.disciplineName || 'Discipline'}{grp.subCategoryName ? ` • ${grp.subCategoryName}` : ''}
-                      </div>
-                    </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                      <div style={{ textAlign: 'right' }}>
-                        <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#475569', background: '#ffffff', border: '1px solid #cbd5e1', padding: '0.2rem 0.6rem', borderRadius: '6px' }}>
-                          {grp.paramCount} Parameter{grp.paramCount !== 1 ? 's' : ''}
-                        </span>
-                      </div>
-                      <div style={{ minWidth: '110px', textAlign: 'right' }}>
-                        <span style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>
-                          ₹{grp.subtotal.toFixed(2)}
-                        </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+                        <div style={{ textAlign: 'right' }}>
+                          <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#475569', background: '#ffffff', border: '1px solid #cbd5e1', padding: '0.2rem 0.6rem', borderRadius: '6px' }}>
+                            {grp.paramCount} Parameter{grp.paramCount !== 1 ? 's' : ''}
+                          </span>
+                        </div>
+                        <div style={{ minWidth: '95px', textAlign: 'right' }}>
+                          <span style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>
+                            ₹{grp.subtotal.toFixed(2)}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          {!isEditingThis ? (
+                            <button
+                              type="button"
+                              onClick={() => handleSwitchActiveGroup(idx)}
+                              style={{
+                                background: '#ffffff',
+                                border: '1px solid #cbd5e1',
+                                borderRadius: '6px',
+                                padding: '0.3rem 0.65rem',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                color: '#0284c7',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              ✏️ Edit
+                            </button>
+                          ) : (
+                            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#16a34a', padding: '0.3rem 0.5rem' }}>
+                              ✓ Active
+                            </span>
+                          )}
+                          {sampleGroups.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleRemoveSampleGroup(idx, e)}
+                              title="Delete location"
+                              style={{
+                                background: '#ffffff',
+                                border: '1px solid #fecaca',
+                                borderRadius: '6px',
+                                padding: '0.3rem 0.5rem',
+                                fontSize: '0.75rem',
+                                color: '#dc2626',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              🗑️
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
 
@@ -2665,7 +2747,7 @@ const TestRequestForm = () => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              padding: '1.25rem',
+              padding: '1.25rem 1.5rem',
               background: 'linear-gradient(135deg, #1e293b, #0f172a)',
               borderRadius: '12px',
               color: '#ffffff',
@@ -2681,31 +2763,11 @@ const TestRequestForm = () => {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                <div style={{ textAlign: 'right' }}>
-                  <span style={{ fontSize: '0.78rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block' }}>Grand Total</span>
-                  <span style={{ fontSize: '1.4rem', fontWeight: 800, color: '#4ade80' }}>
-                    ₹{overallGroupStats.totalPrice.toFixed(2)}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleSaveAndQuotation}
-                  disabled={submitting || overallGroupStats.totalParamCount === 0}
-                  style={{
-                    backgroundColor: overallGroupStats.totalParamCount === 0 ? '#475569' : '#10b981',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: '8px',
-                    padding: '0.65rem 1.25rem',
-                    fontSize: '0.9rem',
-                    fontWeight: 700,
-                    cursor: (submitting || overallGroupStats.totalParamCount === 0) ? 'not-allowed' : 'pointer',
-                    boxShadow: overallGroupStats.totalParamCount === 0 ? 'none' : '0 4px 12px rgba(16, 185, 129, 0.3)'
-                  }}
-                >
-                  Generate Quotation →
-                </button>
+              <div style={{ textAlign: 'right' }}>
+                <span style={{ fontSize: '0.78rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block' }}>Grand Total</span>
+                <span style={{ fontSize: '1.4rem', fontWeight: 800, color: '#4ade80' }}>
+                  ₹{overallGroupStats.totalPrice.toFixed(2)}
+                </span>
               </div>
             </div>
           </div>
