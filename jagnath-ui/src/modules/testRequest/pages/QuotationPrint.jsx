@@ -75,11 +75,18 @@ const QuotationPrint = () => {
 
       const matchingComp = cList.find(c => c.id === tr.companyId || (c.companyName || c.company_name) === tr.companyName) || tr.company || {};
       const matchingClient = clList.find(c => c.id === tr.clientId || c.clientName === tr.clientName) || tr.client || {};
-      const matchingCat = catList.find(c => c.id === tr.sampleParticular || c.name === tr.sampleParticularName) || {};
+      const matchingCat = catList.find(c =>
+        c.id === tr.categoryId ||
+        c.id === tr.category_id ||
+        c.id === tr.sampleParticular ||
+        c.id === tr.sample_particular ||
+        c.name?.toLowerCase() === tr.sampleParticularName?.toLowerCase() ||
+        c.name?.toLowerCase() === tr.sampleParticular?.toLowerCase()
+      ) || tr.category || {};
 
       setSelCompany(matchingComp);
       setSelClient(matchingClient);
-      if (matchingCat.id) setSelCategory(matchingCat);
+      if (matchingCat.id || matchingCat.name) setSelCategory(matchingCat);
 
       const pMap = {};
       pList.forEach(pm => {
@@ -127,6 +134,7 @@ const QuotationPrint = () => {
               ...(catParam || {}),
               id: pId,
               parameterName: trp.parameterName || trp.parameter?.parameterName || catParam?.parameterName || catParam?.name || 'Parameter',
+              locationOfSample: trp.locationOfSample || trp.location_of_sample || tr.locationOfSample || 'General',
               testMethod: trp.testMethod || trp.test_method || catParam?.testMethod || catParam?.defaultTestMethod || '',
               price: pPrice
             });
@@ -141,7 +149,9 @@ const QuotationPrint = () => {
       }
 
       setTimeout(() => {
-        window.print();
+        if (window.self === window.top) {
+          window.print();
+        }
       }, 500);
 
     } catch (err) {
@@ -164,6 +174,25 @@ const QuotationPrint = () => {
     return logoPath;
   };
 
+  // Group parameters by location
+  const locationGroups = React.useMemo(() => {
+    const groups = {};
+    (parameters || []).forEach(p => {
+      const loc = (p.locationOfSample || '').trim() || 'General';
+      if (!groups[loc]) {
+        groups[loc] = {
+          locationName: loc,
+          items: [],
+          subtotal: 0
+        };
+      }
+      groups[loc].items.push(p);
+      const val = parseFloat(p.price);
+      groups[loc].subtotal += (isNaN(val) ? 0 : val);
+    });
+    return Object.values(groups);
+  }, [parameters]);
+
   if (loading) {
     return <div style={{ padding: '2rem', textAlign: 'center', fontFamily: 'sans-serif' }}>Loading Quotation Preview...</div>;
   }
@@ -176,8 +205,7 @@ const QuotationPrint = () => {
     );
   }
 
-  // Calculations
-  const rawSubtotal = parameters.reduce((sum, item) => {
+  const rawSubtotal = (parameters || []).reduce((sum, item) => {
     const val = parseFloat(item.price);
     return sum + (isNaN(val) ? 0 : val);
   }, 0);
@@ -193,26 +221,56 @@ const QuotationPrint = () => {
   };
 
   const quoRefNo = `JLT/EM/${formData.reportNumber || formData.sampleIdNumber || '06-25/449'}`;
-  const clientDisplayName = selClient.clientName || selCompany.companyName || selCompany.company_name || 'JINDAL SAW LTD.';
-  const clientLocation = formData.address || selClient.address || 'MUNDRA Kutchh.';
-  const sampleParticularName = selCategory.name || 'DISTILLED WATER';
-  const paramNamesList = parameters.map(p => p.parameterName || p.name).join(', ') || 'pH, Electric Conductivity, Total Dissolved Solids, Chloride, Sodium';
+  const clientDisplayName = selClient.clientName || selClient.companyName || formData.clientName || selCompany.companyName || selCompany.company_name || 'CLIENT';
+  const clientLocation = formData.address || selClient.plantAddress || selClient.officeAddress || selClient.address || 'Address';
+  const sampleParticularName = (
+    formData.formTitle ||
+    formData.form_title ||
+    (formData.sampleParticular && formData.sampleParticular.length !== 36 ? formData.sampleParticular : null) ||
+    formData.sampleParticularName ||
+    formData.sampleMatrix ||
+    formData.sample_matrix ||
+    selCategory.name ||
+    formData.category?.name ||
+    formData.sampleName ||
+    formData.sample_name ||
+    'WATER & WASTE WATER'
+  );
+  const paramNamesList = parameters.map(p => p.parameterName || p.name).join(', ') || '';
 
   return (
     <div className="paper-quotation-container" style={{
-      width: '210mm',
+      width: '100%',
+      maxWidth: '210mm',
       minHeight: '297mm',
       margin: '0 auto',
-      padding: '10mm 15mm 15mm 15mm',
+      padding: '8mm 12mm',
       boxSizing: 'border-box',
       backgroundColor: '#ffffff',
       fontFamily: '"Times New Roman", Times, serif, Arial',
-      fontSize: '10.5pt',
+      fontSize: '10pt',
       color: '#000000',
       lineHeight: '1.35',
       position: 'relative'
     }}>
       <style>{`
+        body {
+          margin: 0;
+          padding: 0;
+          background: #ffffff;
+          overflow-x: hidden;
+        }
+        * {
+          box-sizing: border-box;
+        }
+        @media screen {
+          .paper-quotation-container {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 12px 14px !important;
+            font-size: 9pt !important;
+          }
+        }
         @media print {
           @page {
             size: A4 portrait;
@@ -233,6 +291,7 @@ const QuotationPrint = () => {
             padding: 0 !important;
             margin: 0 !important;
             box-shadow: none !important;
+            font-size: 10.5pt !important;
           }
         }
       `}</style>
@@ -257,7 +316,9 @@ const QuotationPrint = () => {
 
       {/* Subject */}
       <div style={{ marginBottom: '15px', fontWeight: 'bold' }}>
-        SUBJECT: - <span style={{ textDecoration: 'underline' }}>{(formData.quotationType || 'QUOTATION').toUpperCase()} FOR {sampleParticularName.toUpperCase()} SAMPLE ANALYSIS.</span>
+        SUBJECT: - <span style={{ textDecoration: 'underline' }}>
+          {(formData.quotationType || 'QUOTATION').toUpperCase()} FOR {sampleParticularName.toUpperCase()}{/analysis|consulting|work|audit/i.test(sampleParticularName) ? '' : ' SAMPLE ANALYSIS'}.
+        </span>
       </div>
 
       {/* Salutation & Intro Paragraphs */}
@@ -288,7 +349,7 @@ const QuotationPrint = () => {
 
       {/* Detail of Charges Table Title */}
       <div style={{ textAlign: 'center', fontWeight: 'bold', textDecoration: 'underline', marginBottom: '8px', fontSize: '11pt' }}>
-        Detail of Charges for carrying out {sampleParticularName} Analysis
+        Detail of Charges for carrying out {sampleParticularName}{/analysis|consulting|work|audit/i.test(sampleParticularName) ? '' : ' Analysis'}
       </div>
 
       {/* Charges Table */}
@@ -304,22 +365,31 @@ const QuotationPrint = () => {
           </tr>
         </thead>
         <tbody>
-          <tr style={{ borderBottom: '1px solid #000000', verticalAlign: 'top' }}>
-            <td style={{ borderRight: '1px solid #000000', padding: '6px', textAlign: 'center', fontWeight: 'bold' }}>1</td>
-            <td style={{ borderRight: '1px solid #000000', padding: '6px' }}>
-              <div>Charges for {sampleParticularName} analysis of {clientDisplayName}.</div>
-              <div style={{ fontSize: '9pt', color: '#222', marginTop: '3px' }}>
-                ({paramNamesList})
-              </div>
-            </td>
-            <td style={{ borderRight: '1px solid #000000', padding: '6px', textAlign: 'center' }}>1</td>
-            <td style={{ borderRight: '1px solid #000000', padding: '6px', textAlign: 'center' }}>No.</td>
-            <td style={{ borderRight: '1px solid #000000', padding: '6px', textAlign: 'center' }}>{subtotal}/-</td>
-            <td style={{ padding: '6px', textAlign: 'center' }}>{subtotal}/-</td>
-          </tr>
+          {locationGroups.map((group, idx) => {
+            const groupParamNames = group.items.map(p => p.parameterName || p.name).join(', ');
+            return (
+              <tr key={idx} style={{ borderBottom: '1px solid #000000', verticalAlign: 'top' }}>
+                <td style={{ borderRight: '1px solid #000000', padding: '6px', textAlign: 'center', fontWeight: 'bold' }}>{idx + 1}</td>
+                <td style={{ borderRight: '1px solid #000000', padding: '6px' }}>
+                  <div style={{ fontWeight: 'bold', fontSize: '9.5pt', color: '#000000' }}>
+                    {group.locationName && group.locationName !== 'General'
+                      ? `[${group.locationName}]:`
+                      : `${sampleParticularName} Analysis:`}
+                  </div>
+                  <div style={{ fontSize: '9pt', color: '#111827', marginTop: '2px', lineHeight: '1.35' }}>
+                    ({groupParamNames})
+                  </div>
+                </td>
+                <td style={{ borderRight: '1px solid #000000', padding: '6px', textAlign: 'center' }}>1</td>
+                <td style={{ borderRight: '1px solid #000000', padding: '6px', textAlign: 'center' }}>No.</td>
+                <td style={{ borderRight: '1px solid #000000', padding: '6px', textAlign: 'center' }}>{group.subtotal}/-</td>
+                <td style={{ padding: '6px', textAlign: 'center', fontWeight: '500' }}>{group.subtotal}/-</td>
+              </tr>
+            );
+          })}
 
           <tr style={{ borderBottom: '1px solid #000000' }}>
-            <td style={{ borderRight: '1px solid #000000', padding: '6px', textAlign: 'center', fontWeight: 'bold' }}>2</td>
+            <td style={{ borderRight: '1px solid #000000', padding: '6px', textAlign: 'center', fontWeight: 'bold' }}>{locationGroups.length + 1}</td>
             <td style={{ borderRight: '1px solid #000000', padding: '6px' }}>Rates Total With Tax Details</td>
             <td colSpan="4" style={{ padding: '6px', textAlign: 'center' }}>
               <div>As actual as per GPCB rates</div>

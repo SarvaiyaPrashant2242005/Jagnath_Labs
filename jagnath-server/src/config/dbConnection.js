@@ -61,6 +61,9 @@ const connectDB = async () => {
         const { runMigration: runMigration14 } = require("../database/migrations/14_add_reference_standard_to_parameters");
         await runMigration14();
 
+        const { runMigration: runMigration15 } = require("../database/migrations/15_add_location_of_sample_to_test_request_parameters");
+        await runMigration15();
+
         // 3. Sync all models with the database
         await sequelize.sync({ alter: true });
         console.log('📂 Database & tables synced!');

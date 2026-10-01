@@ -283,6 +283,15 @@ const TestReportForm = () => {
           if (trpList.length > 0) {
             // Sort by sequence to preserve the order selected in TRF
             trpList.sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
+
+            const distinctLocs = Array.from(new Set(trpList.map(p => (p.locationOfSample || p.location_of_sample || '').trim()).filter(Boolean)));
+            if (distinctLocs.length > 0) {
+              setFormData(prev => ({
+                ...prev,
+                samplingLocation: distinctLocs.join(', ')
+              }));
+            }
+
             const formatted = trpList.map((p, idx) => {
               const isLimitApp = p.isPermissibleLimitApplicable === true || p.is_permissible_limit_applicable === true;
               const limitVal = isLimitApp ? (p.permissibleLimit || p.permissible_limit || 'Applicable') : '-';

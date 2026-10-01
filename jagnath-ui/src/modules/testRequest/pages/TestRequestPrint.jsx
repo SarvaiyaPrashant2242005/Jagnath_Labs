@@ -118,7 +118,8 @@ const TestRequestPrint = () => {
             selectedList.push({
               id: pId,
               parameterName: t.parameterName || t.parameter?.parameterName || (catParam ? (catParam.parameterName || catParam.name) : 'Parameter'),
-              testMethod: t.testMethod || t.test_method || (catParam ? (catParam.testMethod || catParam.defaultTestMethod) : '')
+              testMethod: t.testMethod || t.test_method || (catParam ? (catParam.testMethod || catParam.defaultTestMethod) : ''),
+              locationOfSample: t.locationOfSample || t.location_of_sample || ''
             });
           });
 
@@ -163,6 +164,9 @@ const TestRequestPrint = () => {
   if (error) {
     return <div style={{ padding: '2rem', textAlign: 'center', color: 'red' }}>Error loading data.</div>;
   }
+
+  const distinctLocations = Array.from(new Set(parameters.map(p => p.locationOfSample).filter(Boolean)));
+  const displayLocations = distinctLocations.length > 0 ? distinctLocations.join(', ') : (formData.locationOfSample || '');
 
   return (
     <div className="print-container">
@@ -224,7 +228,7 @@ const TestRequestPrint = () => {
               <td className="label-col">Email ID</td><td className="colon-col">:</td>
               <td colSpan={4} className="val-col">{formData.email}</td>
               <td className="label-col">Location of Sample</td><td className="colon-col">:</td>
-              <td className="val-col">{formData.locationOfSample}</td>
+              <td className="val-col">{displayLocations}</td>
             </tr>
             <tr>
               <td className="label-col">Contact Person</td><td className="colon-col">:</td>
@@ -389,11 +393,13 @@ const TestRequestPrint = () => {
             {Array.from({ length: Math.max(20, parameters.length) }).map((_, i) => {
               const param = parameters[i];
               const pName = param ? (param.parameterName || param.name || param.parameter?.parameterName || '') : '';
+              const pLoc = param?.locationOfSample ? ` [${param.locationOfSample}]` : '';
+              const displayName = pName ? `${pName}${pLoc}` : '';
               const pMethod = param ? (param.testMethod || param.defaultTestMethod || param.test_method || '') : '';
               return (
                 <tr key={i}>
                   <td style={{ textAlign: 'center' }}>{i + 1}.</td>
-                  <td style={{ textAlign: 'left', paddingLeft: '8px' }}>{pName}</td>
+                  <td style={{ textAlign: 'left', paddingLeft: '8px' }}>{displayName}</td>
                   <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{param && pName ? '√' : ''}</td>
                   <td style={{ textAlign: 'center' }}>{pMethod}</td>
                 </tr>
