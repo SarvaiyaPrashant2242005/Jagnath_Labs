@@ -67,6 +67,31 @@ const TestRequestParameter = sequelize.define("TestRequestParameter", {
     enteredAt: {
         type: DataTypes.STRING,
         allowNull: true,
+    },
+    groupId: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+        field: "group_id"
+    },
+    locationOfSample: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+        field: "location_of_sample"
+    },
+    departmentId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        field: "department_id"
+    },
+    categoryId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        field: "category_id"
+    },
+    subCategoryId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        field: "sub_category_id"
     }
 }, {
     tableName: "test_request_parameters",

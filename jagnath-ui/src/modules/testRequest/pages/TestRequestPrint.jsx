@@ -26,6 +26,7 @@ const TestRequestPrint = () => {
 
   const [parameters, setParameters] = useState([]);
   const [checkedParameters, setCheckedParameters] = useState({});
+  const [parsedGroups, setParsedGroups] = useState([]);
 
   useEffect(() => {
     if (id) {
@@ -124,6 +125,31 @@ const TestRequestPrint = () => {
 
           setCheckedParameters(checks);
           setParameters(selectedList.length > 0 ? selectedList : allCategoryParams);
+
+          let rawGroups = tr.sampleGroups || tr.sample_groups;
+          if (typeof rawGroups === 'string') {
+            try { rawGroups = JSON.parse(rawGroups); } catch(e) {}
+          }
+          if (Array.isArray(rawGroups) && rawGroups.length > 0) {
+            const builtGroups = rawGroups.map((g, gIdx) => {
+              const grpParams = matchingTrps.filter(t => (t.groupId && t.groupId === g.id) || (t.group_id && t.group_id === g.id) || (t.locationOfSample === g.locationOfSample || t.location_of_sample === g.locationOfSample));
+              const items = (grpParams.length > 0 ? grpParams : []).map(t => {
+                const pId = t.parameterId || t.parameter_id || t.id;
+                const catParam = allCategoryParams.find(p => p.id === pId || p.parameterId === pId || p.parameter_id === pId);
+                return {
+                  id: pId,
+                  parameterName: t.parameterName || t.parameter?.parameterName || (catParam ? (catParam.parameterName || catParam.name) : 'Parameter'),
+                  testMethod: t.testMethod || t.test_method || (catParam ? (catParam.testMethod || catParam.defaultTestMethod) : '')
+                };
+              });
+              return {
+                title: g.title || `${gIdx + 1}. ${g.locationOfSample || 'Sample Location'}`,
+                locationOfSample: g.locationOfSample,
+                parameters: items
+              };
+            });
+            setParsedGroups(builtGroups);
+          }
         } else {
           setParameters(allCategoryParams);
         }
@@ -386,19 +412,47 @@ const TestRequestPrint = () => {
             </tr>
           </thead>
           <tbody>
-            {Array.from({ length: Math.max(20, parameters.length) }).map((_, i) => {
-              const param = parameters[i];
-              const pName = param ? (param.parameterName || param.name || param.parameter?.parameterName || '') : '';
-              const pMethod = param ? (param.testMethod || param.defaultTestMethod || param.test_method || '') : '';
-              return (
-                <tr key={i}>
-                  <td style={{ textAlign: 'center' }}>{i + 1}.</td>
-                  <td style={{ textAlign: 'left', paddingLeft: '8px' }}>{pName}</td>
-                  <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{param && pName ? '√' : ''}</td>
-                  <td style={{ textAlign: 'center' }}>{pMethod}</td>
-                </tr>
-              );
-            })}
+            {parsedGroups.length > 1 ? (
+              parsedGroups.flatMap((grp, gIdx) => {
+                const headerRow = (
+                  <tr key={`hdr_${gIdx}`} style={{ background: '#f1f5f9', fontWeight: 'bold' }}>
+                    <td colSpan={4} style={{ textAlign: 'left', padding: '4px 8px', fontSize: '0.8rem', background: '#e2e8f0', color: '#0f172a' }}>
+                      📍 {grp.title || `${gIdx + 1}. ${grp.locationOfSample}`}
+                    </td>
+                  </tr>
+                );
+                const rows = (grp.parameters && grp.parameters.length > 0) ? (
+                  grp.parameters.map((param, pIdx) => (
+                    <tr key={`p_${gIdx}_${param.id || pIdx}`}>
+                      <td style={{ textAlign: 'center' }}>{pIdx + 1}.</td>
+                      <td style={{ textAlign: 'left', paddingLeft: '8px' }}>{param.parameterName}</td>
+                      <td style={{ textAlign: 'center', fontWeight: 'bold', color: '#15803d' }}>√</td>
+                      <td style={{ textAlign: 'center' }}>{param.testMethod || ''}</td>
+                    </tr>
+                  ))
+                ) : [
+                  <tr key={`empty_${gIdx}`}>
+                    <td style={{ textAlign: 'center' }}>-</td>
+                    <td colSpan={3} style={{ textAlign: 'left', paddingLeft: '8px', color: '#64748b', fontStyle: 'italic' }}>No parameters selected for this group</td>
+                  </tr>
+                ];
+                return [headerRow, ...rows];
+              })
+            ) : (
+              Array.from({ length: Math.max(20, parameters.length) }).map((_, i) => {
+                const param = parameters[i];
+                const pName = param ? (param.parameterName || param.name || param.parameter?.parameterName || '') : '';
+                const pMethod = param ? (param.testMethod || param.defaultTestMethod || param.test_method || '') : '';
+                return (
+                  <tr key={i}>
+                    <td style={{ textAlign: 'center' }}>{i + 1}.</td>
+                    <td style={{ textAlign: 'left', paddingLeft: '8px' }}>{pName}</td>
+                    <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{param && pName ? '√' : ''}</td>
+                    <td style={{ textAlign: 'center' }}>{pMethod}</td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
 

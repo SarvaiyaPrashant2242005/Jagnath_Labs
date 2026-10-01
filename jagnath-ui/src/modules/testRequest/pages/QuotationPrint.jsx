@@ -9,6 +9,7 @@ import {
   TEST_REQUEST_PARAMETER_ENDPOINTS,
   COMPANY_ENDPOINTS,
   CAUTION_ENDPOINTS,
+  DEPARTMENT_ENDPOINTS,
   PRICE_MASTER_ENDPOINTS,
   BACKEND_ROOT_URL
 } from '../../../shared/services/apiEndpoints';
@@ -26,6 +27,7 @@ const QuotationPrint = () => {
   const [formData, setFormData] = useState({});
 
   const [parameters, setParameters] = useState([]);
+  const [locationGroups, setLocationGroups] = useState([]);
   const [priceMap, setPriceMap] = useState({});
 
   useEffect(() => {
@@ -56,22 +58,25 @@ const QuotationPrint = () => {
       if (tr.client) setSelClient(tr.client);
       if (tr.caution) setSelCaution(tr.caution);
 
-      const [compRes, clientRes, catRes, priceRes] = await Promise.allSettled([
+      const [compRes, clientRes, catRes, priceRes, deptRes] = await Promise.allSettled([
         apiService.get(COMPANY_ENDPOINTS.GET_MY),
         apiService.get(CLIENT_ENDPOINTS.GET_ALL),
         apiService.get(CATEGORY_ENDPOINTS.GET_ALL),
-        apiService.get(PRICE_MASTER_ENDPOINTS.GET_ALL)
+        apiService.get(PRICE_MASTER_ENDPOINTS.GET_ALL),
+        apiService.get(`${DEPARTMENT_ENDPOINTS.GET_ALL}?status=Active&limit=500`)
       ]);
 
       const compData = compRes.status === 'fulfilled' ? compRes.value?.data : null;
       const clientData = clientRes.status === 'fulfilled' ? clientRes.value?.data : null;
       const catData = catRes.status === 'fulfilled' ? catRes.value?.data : null;
       const priceData = priceRes.status === 'fulfilled' ? priceRes.value?.data : null;
+      const deptData = deptRes.status === 'fulfilled' ? deptRes.value?.data : null;
 
       const cList = Array.isArray(compData) ? compData : (compData ? [compData] : []);
       const clList = Array.isArray(clientData) ? clientData : (clientData?.rows ? clientData.rows : (clientData ? [clientData] : []));
       const catList = Array.isArray(catData) ? catData : (catData?.rows ? catData.rows : (catData ? [catData] : []));
       const pList = Array.isArray(priceData) ? priceData : (priceData?.rows ? priceData.rows : (priceData ? [priceData] : []));
+      const deptList = Array.isArray(deptData) ? deptData : (deptData?.rows ? deptData.rows : (deptData ? [deptData] : []));
 
       const matchingComp = cList.find(c => c.id === tr.companyId || (c.companyName || c.company_name) === tr.companyName) || tr.company || {};
       const matchingClient = clList.find(c => c.id === tr.clientId || c.clientName === tr.clientName) || tr.client || {};
@@ -111,34 +116,74 @@ const QuotationPrint = () => {
         }
       }
 
+      let selectedList = [];
       try {
         const trpRes = await apiService.get(TEST_REQUEST_PARAMETER_ENDPOINTS.GET_ALL);
         if (trpRes?.data) {
           const trps = Array.isArray(trpRes.data) ? trpRes.data : (trpRes.data?.rows || [trpRes.data]);
           const matchingTrps = trps.filter(t => t.testRequestId === id || t.test_request_id === id);
+          matchingTrps.sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
 
-          const selectedList = [];
           matchingTrps.forEach(trp => {
             const pId = trp.parameterId || trp.parameter_id || trp.id;
             const catParam = allCategoryParams.find(p => p.id === pId || p.parameterId === pId || p.parameter_id === pId);
-            const parsedPrice = trp.price !== undefined && trp.price !== null ? parseFloat(trp.price) : parseFloat(catParam?.price || 0);
+            const parsedPrice = trp.price !== undefined && trp.price !== null ? parseFloat(trp.price) : parseFloat(catParam?.price || pMap[pId] || 0);
             const pPrice = isNaN(parsedPrice) ? 0 : parsedPrice;
             selectedList.push({
               ...(catParam || {}),
               id: pId,
               parameterName: trp.parameterName || trp.parameter?.parameterName || catParam?.parameterName || catParam?.name || 'Parameter',
               testMethod: trp.testMethod || trp.test_method || catParam?.testMethod || catParam?.defaultTestMethod || '',
-              price: pPrice
+              price: pPrice,
+              groupId: trp.groupId || trp.group_id,
+              locationOfSample: trp.locationOfSample || trp.location_of_sample,
+              departmentId: trp.departmentId || trp.department_id,
+              categoryId: trp.categoryId || trp.category_id,
+              subCategoryId: trp.subCategoryId || trp.sub_category_id
             });
           });
-
-          setParameters(selectedList.length > 0 ? selectedList : allCategoryParams);
-        } else {
-          setParameters(allCategoryParams);
         }
       } catch (e) {
-        setParameters(allCategoryParams);
+        console.error("Error fetching request parameters", e);
       }
+
+      setParameters(selectedList.length > 0 ? selectedList : allCategoryParams);
+
+      // Construct Multi-Location Groups Breakdown
+      const rawGroups = tr.sampleGroups || tr.sample_groups || [];
+      const computedGroups = [];
+
+      if (Array.isArray(rawGroups) && rawGroups.length > 0) {
+        rawGroups.forEach((grp, gIdx) => {
+          const matchedDept = deptList.find(d => d.id === grp.departmentId);
+          const matchedCats = catList.filter(c => (grp.categoryIds || []).includes(c.id));
+          const catTitle = matchedCats.map(c => c.name).join(', ') || 'EFFLUENT WATER ANALYSIS';
+
+          // Match parameters for this group
+          let grpParams = selectedList.filter(p => p.groupId && p.groupId === grp.id);
+          if (grpParams.length === 0 && grp.locationOfSample) {
+            grpParams = selectedList.filter(p => (p.locationOfSample || '').trim().toUpperCase() === (grp.locationOfSample || '').trim().toUpperCase());
+          }
+          if (grpParams.length === 0 && grp.checkedParameters) {
+            grpParams = selectedList.filter(p => grp.checkedParameters[p.id]);
+          }
+
+          const groupSubtotal = grpParams.reduce((sum, p) => sum + (parseFloat(p.price) || 0), 0);
+
+          computedGroups.push({
+            groupIndex: gIdx,
+            id: grp.id || `grp_${gIdx}`,
+            title: grp.title || `${gIdx + 1}. ${grp.locationOfSample || 'SAMPLE LOCATION'}`,
+            location: grp.locationOfSample || `Location ${gIdx + 1}`,
+            departmentName: matchedDept?.name || 'WATER TESTING',
+            disciplineName: catTitle,
+            parameters: grpParams,
+            subtotal: groupSubtotal
+          });
+        });
+      }
+
+      setLocationGroups(computedGroups);
 
       setTimeout(() => {
         window.print();
@@ -177,10 +222,14 @@ const QuotationPrint = () => {
   }
 
   // Calculations
-  const rawSubtotal = parameters.reduce((sum, item) => {
-    const val = parseFloat(item.price);
-    return sum + (isNaN(val) ? 0 : val);
-  }, 0);
+  const hasMultiGroups = locationGroups.length > 0;
+  const rawSubtotal = hasMultiGroups
+    ? locationGroups.reduce((sum, g) => sum + g.subtotal, 0)
+    : parameters.reduce((sum, item) => {
+        const val = parseFloat(item.price);
+        return sum + (isNaN(val) ? 0 : val);
+      }, 0);
+
   const subtotal = isNaN(rawSubtotal) ? 0 : rawSubtotal;
   const gstAmount = subtotal * 0.18;
   const grandTotal = Math.round(subtotal + gstAmount);
@@ -294,9 +343,9 @@ const QuotationPrint = () => {
       {/* Charges Table */}
       <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '15px', border: '1.5px solid #000000', fontSize: '9.5pt' }}>
         <thead>
-          <tr style={{ borderBottom: '1.5px solid #000000' }}>
+          <tr style={{ borderBottom: '1.5px solid #000000', background: '#f8fafc' }}>
             <th style={{ borderRight: '1px solid #000000', padding: '5px', width: '8%', textAlign: 'center' }}>SR. NO.</th>
-            <th style={{ borderRight: '1px solid #000000', padding: '5px', width: '52%', textAlign: 'center' }}>DESCRIPTION OF WORK</th>
+            <th style={{ borderRight: '1px solid #000000', padding: '5px', width: '52%', textAlign: 'center' }}>DESCRIPTION OF WORK / LOCATION</th>
             <th style={{ borderRight: '1px solid #000000', padding: '5px', width: '8%', textAlign: 'center' }}>QTY.</th>
             <th style={{ borderRight: '1px solid #000000', padding: '5px', width: '8%', textAlign: 'center' }}>UNIT</th>
             <th style={{ borderRight: '1px solid #000000', padding: '5px', width: '12%', textAlign: 'center' }}>RATE/QTY</th>
@@ -304,22 +353,55 @@ const QuotationPrint = () => {
           </tr>
         </thead>
         <tbody>
-          <tr style={{ borderBottom: '1px solid #000000', verticalAlign: 'top' }}>
-            <td style={{ borderRight: '1px solid #000000', padding: '6px', textAlign: 'center', fontWeight: 'bold' }}>1</td>
-            <td style={{ borderRight: '1px solid #000000', padding: '6px' }}>
-              <div>Charges for {sampleParticularName} analysis of {clientDisplayName}.</div>
-              <div style={{ fontSize: '9pt', color: '#222', marginTop: '3px' }}>
-                ({paramNamesList})
-              </div>
-            </td>
-            <td style={{ borderRight: '1px solid #000000', padding: '6px', textAlign: 'center' }}>1</td>
-            <td style={{ borderRight: '1px solid #000000', padding: '6px', textAlign: 'center' }}>No.</td>
-            <td style={{ borderRight: '1px solid #000000', padding: '6px', textAlign: 'center' }}>{subtotal}/-</td>
-            <td style={{ padding: '6px', textAlign: 'center' }}>{subtotal}/-</td>
-          </tr>
+          {hasMultiGroups ? (
+            locationGroups.map((grp, gIdx) => {
+              const grpParamsList = (grp.parameters || []).map(p => `${p.parameterName} (₹${p.price})`).join(', ');
+              return (
+                <tr key={grp.id || gIdx} style={{ borderBottom: '1px solid #000000', verticalAlign: 'top' }}>
+                  <td style={{ borderRight: '1px solid #000000', padding: '6px', textAlign: 'center', fontWeight: 'bold' }}>
+                    {gIdx + 1}
+                  </td>
+                  <td style={{ borderRight: '1px solid #000000', padding: '6px' }}>
+                    <div style={{ fontWeight: 'bold', fontSize: '10pt', color: '#0f172a' }}>
+                      {grp.title || `${gIdx + 1}. Location: ${grp.location}`}
+                    </div>
+                    <div style={{ fontSize: '8.5pt', color: '#475569', margin: '2px 0 4px 0' }}>
+                      <strong>Dept:</strong> {grp.departmentName} | <strong>Discipline:</strong> {grp.disciplineName}
+                    </div>
+                    {grp.parameters && grp.parameters.length > 0 && (
+                      <div style={{ fontSize: '8.5pt', color: '#334155', background: '#f8fafc', padding: '4px 6px', border: '1px solid #e2e8f0', borderRadius: '4px', marginTop: '4px' }}>
+                        <strong>Testing Parameters ({grp.parameters.length}):</strong><br />
+                        {grpParamsList}
+                      </div>
+                    )}
+                  </td>
+                  <td style={{ borderRight: '1px solid #000000', padding: '6px', textAlign: 'center' }}>1</td>
+                  <td style={{ borderRight: '1px solid #000000', padding: '6px', textAlign: 'center' }}>Group</td>
+                  <td style={{ borderRight: '1px solid #000000', padding: '6px', textAlign: 'center' }}>{grp.subtotal}/-</td>
+                  <td style={{ padding: '6px', textAlign: 'center', fontWeight: 'bold' }}>{grp.subtotal}/-</td>
+                </tr>
+              );
+            })
+          ) : (
+            <tr style={{ borderBottom: '1px solid #000000', verticalAlign: 'top' }}>
+              <td style={{ borderRight: '1px solid #000000', padding: '6px', textAlign: 'center', fontWeight: 'bold' }}>1</td>
+              <td style={{ borderRight: '1px solid #000000', padding: '6px' }}>
+                <div>Charges for {sampleParticularName} analysis of {clientDisplayName}.</div>
+                <div style={{ fontSize: '9pt', color: '#222', marginTop: '3px' }}>
+                  ({paramNamesList})
+                </div>
+              </td>
+              <td style={{ borderRight: '1px solid #000000', padding: '6px', textAlign: 'center' }}>1</td>
+              <td style={{ borderRight: '1px solid #000000', padding: '6px', textAlign: 'center' }}>No.</td>
+              <td style={{ borderRight: '1px solid #000000', padding: '6px', textAlign: 'center' }}>{subtotal}/-</td>
+              <td style={{ padding: '6px', textAlign: 'center' }}>{subtotal}/-</td>
+            </tr>
+          )}
 
           <tr style={{ borderBottom: '1px solid #000000' }}>
-            <td style={{ borderRight: '1px solid #000000', padding: '6px', textAlign: 'center', fontWeight: 'bold' }}>2</td>
+            <td style={{ borderRight: '1px solid #000000', padding: '6px', textAlign: 'center', fontWeight: 'bold' }}>
+              {hasMultiGroups ? locationGroups.length + 1 : 2}
+            </td>
             <td style={{ borderRight: '1px solid #000000', padding: '6px' }}>Rates Total With Tax Details</td>
             <td colSpan="4" style={{ padding: '6px', textAlign: 'center' }}>
               <div>As actual as per GPCB rates</div>
@@ -327,8 +409,8 @@ const QuotationPrint = () => {
             </td>
           </tr>
 
-          <tr style={{ fontWeight: 'bold', borderTop: '1.5px solid #000000' }}>
-            <td colSpan="5" style={{ padding: '6px', textAlign: 'right', borderRight: '1px solid #000000' }}>Total</td>
+          <tr style={{ fontWeight: 'bold', borderTop: '1.5px solid #000000', background: '#f8fafc' }}>
+            <td colSpan="5" style={{ padding: '6px', textAlign: 'right', borderRight: '1px solid #000000' }}>Total (Including GST)</td>
             <td style={{ padding: '6px', textAlign: 'center' }}>{grandTotal}/-</td>
           </tr>
         </tbody>

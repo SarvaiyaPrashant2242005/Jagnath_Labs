@@ -87,6 +87,9 @@ const formatTestRequest = (tr) => {
     } else {
         trObj.departmentName = trObj.departmentId ? "Unknown Department" : "Department Not Assigned";
     }
+    if (!trObj.sampleGroups && trObj.sample_groups) {
+        trObj.sampleGroups = trObj.sample_groups;
+    }
     return trObj;
 };
 

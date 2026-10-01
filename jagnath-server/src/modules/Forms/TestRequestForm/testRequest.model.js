@@ -211,6 +211,12 @@ const TestRequest = sequelize.define("TestRequest", {
         type: DataTypes.INTEGER,
         allowNull: true,
         field: "industry_price"
+    },
+    sampleGroups: {
+        type: DataTypes.JSONB,
+        allowNull: true,
+        defaultValue: [],
+        field: "sample_groups"
     }
 }, {
     tableName: "test_requests",

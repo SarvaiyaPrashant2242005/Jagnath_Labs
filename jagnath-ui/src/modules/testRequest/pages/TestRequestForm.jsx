@@ -120,44 +120,38 @@ const DEFAULT_ANNEXURE = [
 
 const SAMPLE_GROUP_PRESETS = [
   {
-    title: '1. Effluent Water Analysis (Inlet)',
-    locationOfSample: 'Inlet',
+    title: '1. Effluent Water Analysis (INLET)',
+    locationOfSample: 'INLET',
     deptKeyword: 'WATER',
     catKeyword: 'WASTE WATER'
   },
   {
-    title: '2. Treatment plant stage wise sampling',
-    locationOfSample: 'Stage wise',
+    title: '2. Effluent Water Analysis (OUTLET)',
+    locationOfSample: 'OUTLET',
     deptKeyword: 'WATER',
     catKeyword: 'WASTE WATER'
   },
   {
-    title: '3. Effluent Water Analysis (Outlet)',
-    locationOfSample: 'Outlet',
+    title: '3. Treatment Plant STAGE-WISE Sampling',
+    locationOfSample: 'STAGE-WISE',
     deptKeyword: 'WATER',
     catKeyword: 'WASTE WATER'
   },
   {
-    title: '3-B. STP Water Analysis',
+    title: '4. STP Water Analysis',
     locationOfSample: 'STP',
     deptKeyword: 'WATER',
     catKeyword: 'WASTE WATER'
   },
   {
-    title: '4. Ambient Air Quality Monitoring (24 hrs.)',
+    title: '5. Ambient Air Quality Monitoring (24 hrs.)',
     locationOfSample: 'Ambient Air',
     deptKeyword: 'AIR',
     catKeyword: 'AMBIENT AIR'
   },
   {
-    title: '5. Stack Emission Monitoring',
+    title: '6. Stack Emission Monitoring',
     locationOfSample: 'Stack',
-    deptKeyword: 'AIR',
-    catKeyword: 'STACK'
-  },
-  {
-    title: '6. Process Stack Emission',
-    locationOfSample: 'Process Stack',
     deptKeyword: 'AIR',
     catKeyword: 'STACK'
   },
@@ -188,20 +182,18 @@ const TestRequestForm = () => {
   const [clients, setClients] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [selectedCategoryIds, setSelectedCategoryIds] = useState([]);
   const [subCategories, setSubCategories] = useState([]);
-  const [selectedSubCategory, setSelectedSubCategory] = useState('');
   const [cautions, setCautions] = useState([]);
   const [locationSamples, setLocationSamples] = useState([]);
-  const [selectedParamLocation, setSelectedParamLocation] = useState('');
   const [priceMasterMap, setPriceMasterMap] = useState({});
+  const [paramMetaMap, setParamMetaMap] = useState({});
 
-  // Multi-Sample / Location Groups State for Testing Parameters & Annexure-B
+  // Multi-Sample / Location Groups State for Testing Parameters & Quotation
   const [sampleGroups, setSampleGroups] = useState([
     {
       id: 'grp_1',
-      title: '1. Effluent Water Analysis (Inlet)',
-      locationOfSample: 'Inlet',
+      title: '1. Effluent Water Analysis (INLET)',
+      locationOfSample: 'INLET',
       departmentId: '',
       categoryIds: [],
       subCategoryId: '',
@@ -703,45 +695,96 @@ const TestRequestForm = () => {
           }
         }
 
-        // Fetch checked parameters for this test request
-        const checks = {};
-        const loadedSeq = [];
+        // Fetch checked parameters and construct sample groups
+        const rawGroups = tr.sampleGroups || tr.sample_groups;
+        let initialSampleGroups = [];
+        if (Array.isArray(rawGroups) && rawGroups.length > 0) {
+          initialSampleGroups = rawGroups.map((g, idx) => ({
+            id: g.id || `grp_${Date.now()}_${idx}`,
+            title: g.title || `${idx + 1}. ${g.locationOfSample || 'Sample Location ' + (idx + 1)}`,
+            locationOfSample: g.locationOfSample || '',
+            departmentId: g.departmentId || '',
+            categoryIds: Array.isArray(g.categoryIds) ? g.categoryIds : (g.categoryId ? [g.categoryId] : []),
+            subCategoryId: g.subCategoryId || '',
+            checkedParameters: {},
+            selectedParamSequence: []
+          }));
+        }
+
         try {
           const trpRes = await apiService.get(TEST_REQUEST_PARAMETER_ENDPOINTS.GET_ALL);
           if (trpRes?.data) {
             const trps = Array.isArray(trpRes.data) ? trpRes.data : (trpRes.data.rows || [trpRes.data]);
             const matchingTrps = trps.filter(t => String(t.testRequestId) === String(id));
             matchingTrps.sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
-            matchingTrps.forEach(t => {
-              if (t.parameterId) {
-                checks[t.parameterId] = true;
-                checks[`_id_${t.parameterId}`] = t.id; // Store transaction ID for updates/deletes
-                if (!loadedSeq.includes(t.parameterId)) {
-                  loadedSeq.push(t.parameterId);
+
+            if (initialSampleGroups.length > 0) {
+              matchingTrps.forEach(t => {
+                const pId = t.parameterId;
+                if (!pId) return;
+                let targetGrp = null;
+                if (t.groupId) {
+                  targetGrp = initialSampleGroups.find(g => g.id === t.groupId);
                 }
-              }
-            });
-            setCheckedParameters(checks);
-            setSelectedParamSequence(loadedSeq);
+                if (!targetGrp && t.locationOfSample) {
+                  targetGrp = initialSampleGroups.find(g => (g.locationOfSample || '').trim().toUpperCase() === (t.locationOfSample || '').trim().toUpperCase());
+                }
+                if (!targetGrp) {
+                  targetGrp = initialSampleGroups[0];
+                }
+                if (targetGrp) {
+                  targetGrp.checkedParameters[pId] = true;
+                  targetGrp.checkedParameters[`_id_${pId}`] = t.id;
+                  if (!targetGrp.selectedParamSequence.includes(pId)) {
+                    targetGrp.selectedParamSequence.push(pId);
+                  }
+                }
+              });
+            } else {
+              // Legacy single-location TRF
+              const legacyChecks = {};
+              const legacySeq = [];
+              matchingTrps.forEach(t => {
+                if (t.parameterId) {
+                  legacyChecks[t.parameterId] = true;
+                  legacyChecks[`_id_${t.parameterId}`] = t.id;
+                  if (!legacySeq.includes(t.parameterId)) {
+                    legacySeq.push(t.parameterId);
+                  }
+                }
+              });
+              const singleLoc = tr.locationOfSample || 'INLET';
+              initialSampleGroups = [{
+                id: 'grp_1',
+                title: `1. Effluent Water Analysis (${singleLoc})`,
+                locationOfSample: singleLoc,
+                departmentId: savedDepartmentId,
+                categoryIds: savedCategoryId ? [savedCategoryId] : [],
+                subCategoryId: savedSubCatId,
+                checkedParameters: legacyChecks,
+                selectedParamSequence: legacySeq
+              }];
+            }
           }
         } catch (e) {
           console.error("Error fetching request parameters", e);
         }
 
-        // If category or subcategory is missing in TR record, try inferring from checked parameters
-        if ((!savedCategoryId || !savedSubCatId) && loadedSeq.length > 0) {
-          try {
-            const paramRes = await apiService.get(`${PARAMETER_ENDPOINTS.GET_ALL}?status=Active&all=true`);
-            const allParams = Array.isArray(paramRes?.data) ? paramRes.data : (paramRes?.data?.rows || []);
-            const matchedParam = allParams.find(p => loadedSeq.includes(p.id));
-            if (matchedParam) {
-              if (!savedCategoryId) savedCategoryId = matchedParam.categoryId || matchedParam.category_id || '';
-              if (!savedSubCatId) savedSubCatId = matchedParam.subCategoryId || matchedParam.sub_category_id || '';
-            }
-          } catch (err) {
-            console.error("Error inferring category from parameters", err);
-          }
+        if (initialSampleGroups.length === 0) {
+          initialSampleGroups = [{
+            id: 'grp_1',
+            title: `1. Effluent Water Analysis (${tr.locationOfSample || 'INLET'})`,
+            locationOfSample: tr.locationOfSample || 'INLET',
+            departmentId: savedDepartmentId,
+            categoryIds: savedCategoryId ? [savedCategoryId] : [],
+            subCategoryId: savedSubCatId,
+            checkedParameters: {},
+            selectedParamSequence: []
+          }];
         }
+
+        setSampleGroups(initialSampleGroups);
+        setActiveGroupIndex(0);
 
         setFormData({
           companyId: matchingComp.id || tr.companyId || '',
@@ -784,20 +827,19 @@ const TestRequestForm = () => {
           industryPrice: tr.industryPrice || tr.industry_price || ''
         });
 
-        const initialCatIds = savedCategoryId ? [savedCategoryId] : [];
-        setSelectedCategoryIds(initialCatIds);
+        const activeInitialGrp = initialSampleGroups[0];
+        const activeInitDeptId = activeInitialGrp.departmentId || savedDepartmentId;
+        const activeInitCatIds = activeInitialGrp.categoryIds?.length ? activeInitialGrp.categoryIds : (savedCategoryId ? [savedCategoryId] : []);
+        const activeInitSubCatId = activeInitialGrp.subCategoryId || savedSubCatId;
+        const activeInitCheckedIds = Object.keys(activeInitialGrp.checkedParameters || {}).filter(k => !k.startsWith('_id_') && activeInitialGrp.checkedParameters[k]);
 
-        if (savedSubCatId) {
-          setSelectedSubCategory(savedSubCatId);
+        if (activeInitDeptId) {
+          fetchCategoriesForDepartment(activeInitDeptId);
         }
-
-        if (savedDepartmentId) {
-          fetchCategoriesForDepartment(savedDepartmentId);
+        if (activeInitCatIds.length > 0) {
+          fetchSubCategoriesForCategories(activeInitCatIds);
         }
-        if (initialCatIds.length > 0) {
-          fetchSubCategoriesForCategories(initialCatIds);
-        }
-        fetchParameters(savedSubCatId, initialCatIds, loadedSeq);
+        fetchParameters(activeInitSubCatId, activeInitCatIds, activeInitCheckedIds);
       } else {
         // Pre-select company if we resolved one and auto-generate next Report No (e.g. JLT010826RR00320)
         const nowForFallback = new Date();
@@ -1245,20 +1287,47 @@ const TestRequestForm = () => {
     });
   };
 
-  // Overall stats across all sample groups
+  // Overall stats and structured breakdown across all sample groups for Quotation Summary
   const overallGroupStats = useMemo(() => {
     let totalParamCount = 0;
     let totalPrice = 0;
     const allUniqueParamIds = new Set();
+    const groupBreakdown = [];
 
-    sampleGroups.forEach(grp => {
+    sampleGroups.forEach((grp, gIdx) => {
       const pIds = Object.keys(grp.checkedParameters || {}).filter(k => !k.startsWith('_id_') && grp.checkedParameters[k]);
+      let groupSubtotal = 0;
+      const groupParamDetails = [];
+
       pIds.forEach(pId => {
         totalParamCount++;
         allUniqueParamIds.add(pId);
-        const paramObj = parameters.find(p => p.id === pId);
+        const paramObj = parameters.find(p => p.id === pId) || paramMetaMap[pId];
         const price = priceMasterMap[pId] !== undefined ? priceMasterMap[pId] : (parseFloat(paramObj?.price) || 0);
+        groupSubtotal += price;
         totalPrice += price;
+        groupParamDetails.push({
+          id: pId,
+          name: paramObj?.parameterName || paramObj?.name || 'Parameter',
+          testMethod: paramObj?.testMethod || '',
+          price
+        });
+      });
+
+      const matchedDept = departments.find(d => d.id === grp.departmentId);
+      const matchedCats = categories.filter(c => (grp.categoryIds || []).includes(c.id));
+      const catNames = matchedCats.map(c => c.name).join(', ');
+
+      groupBreakdown.push({
+        groupIndex: gIdx,
+        id: grp.id,
+        title: grp.title || `${gIdx + 1}. ${grp.locationOfSample || 'Location ' + (gIdx + 1)}`,
+        location: grp.locationOfSample || `Location ${gIdx + 1}`,
+        departmentName: matchedDept?.name || 'WATER TESTING',
+        disciplineName: catNames || 'WASTE WATER (EFFLUENT ETP)',
+        paramCount: pIds.length,
+        parameters: groupParamDetails,
+        subtotal: groupSubtotal
       });
     });
 
@@ -1266,9 +1335,10 @@ const TestRequestForm = () => {
       totalGroups: sampleGroups.length,
       totalParamCount,
       uniqueParamCount: allUniqueParamIds.size,
-      totalPrice
+      totalPrice,
+      groupBreakdown
     };
-  }, [sampleGroups, parameters, priceMasterMap]);
+  }, [sampleGroups, parameters, paramMetaMap, priceMasterMap, departments, categories]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -1362,15 +1432,31 @@ const TestRequestForm = () => {
       triggerToast('Please select a Client.', 'error');
       return false;
     }
-    const primaryDeptId = sampleGroups[0]?.departmentId || currentGroup.departmentId || formData.departmentId;
-    if (!primaryDeptId) {
-      triggerToast('Please select a Department for at least one sample group.', 'error');
+    if (!sampleGroups || sampleGroups.length === 0) {
+      triggerToast('At least one testing location / group is required.', 'error');
       return false;
     }
-    const primaryCatId = sampleGroups[0]?.categoryIds?.[0] || currentGroup.categoryIds?.[0] || formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : '');
-    if (!primaryCatId) {
-      triggerToast('Please select at least one Discipline Group.', 'error');
-      return false;
+
+    for (let i = 0; i < sampleGroups.length; i++) {
+      const grp = sampleGroups[i];
+      const grpLabel = grp.locationOfSample || grp.title || `Location #${i + 1}`;
+      if (!grp.locationOfSample && !grp.title) {
+        triggerToast(`Testing Group ${i + 1}: Please select or enter Location / Stage.`, 'error');
+        return false;
+      }
+      if (!grp.departmentId) {
+        triggerToast(`Location "${grpLabel}": Please select a Department.`, 'error');
+        return false;
+      }
+      if (!grp.categoryIds || grp.categoryIds.length === 0) {
+        triggerToast(`Location "${grpLabel}": Please select at least one Discipline Group.`, 'error');
+        return false;
+      }
+      const checkedCount = Object.keys(grp.checkedParameters || {}).filter(k => !k.startsWith('_id_') && grp.checkedParameters[k]).length;
+      if (checkedCount === 0) {
+        triggerToast(`Location "${grpLabel}": Please select at least one Testing Parameter.`, 'error');
+        return false;
+      }
     }
     return true;
   };
@@ -1380,22 +1466,6 @@ const TestRequestForm = () => {
     setSubmitting(true);
 
     try {
-      // 1. Collect all checked parameters across all sample groups
-      const allGroupCheckedParamIds = [];
-      sampleGroups.forEach(grp => {
-        const seq = grp.selectedParamSequence || [];
-        const pIds = Object.keys(grp.checkedParameters || {}).filter(k => !k.startsWith('_id_') && grp.checkedParameters[k]);
-        const orderedGroupIds = [
-          ...seq.filter(id => pIds.includes(id)),
-          ...pIds.filter(id => !seq.includes(id))
-        ];
-        orderedGroupIds.forEach(id => {
-          if (!allGroupCheckedParamIds.includes(id)) {
-            allGroupCheckedParamIds.push(id);
-          }
-        });
-      });
-
       const allLocations = sampleGroups.map(g => g.locationOfSample).filter(Boolean);
       const combinedLocationStr = allLocations.length > 0 ? allLocations.join(', ') : (formData.locationOfSample || '');
       const primaryCatId = sampleGroups[0]?.categoryIds?.[0] || formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : null);
@@ -1405,6 +1475,7 @@ const TestRequestForm = () => {
 
       const payload = {
         ...formData,
+        sampleGroups: sampleGroups,
         locationOfSample: combinedLocationStr,
         categoryId: primaryCatId,
         departmentId: primaryDeptId,
@@ -1427,7 +1498,7 @@ const TestRequestForm = () => {
         await apiService.put(TEST_REQUEST_ENDPOINTS.UPDATE(targetId), payload);
       } else {
         const res = await apiService.post(TEST_REQUEST_ENDPOINTS.CREATE, payload);
-        savedTrId = res?.data?.id || res?.data?.data?.id; // depending on response format
+        savedTrId = res?.data?.id || res?.data?.data?.id;
       }
 
       if (!savedTrId) {
@@ -1436,67 +1507,87 @@ const TestRequestForm = () => {
         return false;
       }
 
-      // Update saved requestId state
       setSavedRequestId(savedTrId);
 
-      // 2. Save Parameters Checklist with sequence
-      const checkedParamIds = allGroupCheckedParamIds;
+      // Collect all checked parameters per group
+      const allTrpItems = [];
+      const updatedSampleGroups = JSON.parse(JSON.stringify(sampleGroups));
 
-      // Check existing database transaction records
-      const allExistingChecks = {};
+      sampleGroups.forEach((grp, gIdx) => {
+        const seq = grp.selectedParamSequence || [];
+        const pIds = Object.keys(grp.checkedParameters || {}).filter(k => !k.startsWith('_id_') && grp.checkedParameters[k]);
+        const orderedPIds = [
+          ...seq.filter(id => pIds.includes(id)),
+          ...pIds.filter(id => !seq.includes(id))
+        ];
+        orderedPIds.forEach((pId, sIdx) => {
+          allTrpItems.push({
+            groupIndex: gIdx,
+            groupId: grp.id,
+            locationOfSample: grp.locationOfSample || grp.title,
+            departmentId: grp.departmentId || null,
+            categoryId: grp.categoryIds?.[0] || null,
+            subCategoryId: grp.subCategoryId || null,
+            parameterId: pId,
+            sequence: sIdx + 1,
+            existingTrpId: grp.checkedParameters[`_id_${pId}`] || null
+          });
+        });
+      });
+
+      // Find database transactions to delete
+      const allActiveExistingTrpIds = allTrpItems.map(item => item.existingTrpId).filter(Boolean);
       sampleGroups.forEach(grp => {
         Object.keys(grp.checkedParameters || {}).forEach(k => {
           if (k.startsWith('_id_')) {
-            allExistingChecks[k] = grp.checkedParameters[k];
+            const trpId = grp.checkedParameters[k];
+            if (trpId && !allActiveExistingTrpIds.includes(trpId)) {
+              apiService.delete(TEST_REQUEST_PARAMETER_ENDPOINTS.DELETE(trpId)).catch(err => {
+                console.error("Error deleting unchecked parameter", err);
+              });
+            }
           }
         });
       });
 
-      const savedParamKeys = Object.keys(allExistingChecks);
-      for (const key of savedParamKeys) {
-        const pId = key.replace('_id_', '');
-        if (!checkedParamIds.includes(pId)) {
-          const trpId = allExistingChecks[key];
-          if (trpId) {
-            try {
-              await apiService.delete(TEST_REQUEST_PARAMETER_ENDPOINTS.DELETE(trpId));
-            } catch (err) {
-              console.error("Failed to delete unchecked parameter from database", err);
-            }
-          }
-        }
-      }
+      // Save/update transactions
+      for (const item of allTrpItems) {
+        const targetParam = parameters.find(p => p.id === item.parameterId) || paramMetaMap[item.parameterId];
+        const price = priceMasterMap[item.parameterId] !== undefined ? priceMasterMap[item.parameterId] : (targetParam?.price || 0);
+        const testMethod = targetParam ? (targetParam.testMethod || targetParam.defaultTestMethod) : null;
 
-      for (let i = 0; i < checkedParamIds.length; i++) {
-        const pId = checkedParamIds[i];
-        const seqNum = i + 1;
-        const trpId = allExistingChecks[`_id_${pId}`];
-
-        if (!trpId) {
-          const targetParam = parameters.find(p => p.id === pId);
-          const res = await apiService.post(TEST_REQUEST_PARAMETER_ENDPOINTS.CREATE, {
+        if (!item.existingTrpId) {
+          const createRes = await apiService.post(TEST_REQUEST_PARAMETER_ENDPOINTS.CREATE, {
             testRequestId: savedTrId,
-            parameterId: pId,
-            sequence: seqNum,
-            testMethod: targetParam ? (targetParam.testMethod || targetParam.defaultTestMethod) : null,
-            price: priceMasterMap[pId] || 0
+            parameterId: item.parameterId,
+            sequence: item.sequence,
+            testMethod: testMethod,
+            price: price,
+            groupId: item.groupId,
+            locationOfSample: item.locationOfSample,
+            departmentId: item.departmentId,
+            categoryId: item.categoryId,
+            subCategoryId: item.subCategoryId
           });
-          if (res?.data?.id) {
-            updateActiveGroup({
-              checkedParameters: {
-                ...currentGroup.checkedParameters,
-                [`_id_${pId}`]: res.data.id
-              }
-            });
+          if (createRes?.data?.id) {
+            updatedSampleGroups[item.groupIndex].checkedParameters[`_id_${item.parameterId}`] = createRes.data.id;
           }
         } else {
-          await apiService.put(TEST_REQUEST_PARAMETER_ENDPOINTS.UPDATE(trpId), {
-            sequence: seqNum
+          await apiService.put(TEST_REQUEST_PARAMETER_ENDPOINTS.UPDATE(item.existingTrpId), {
+            sequence: item.sequence,
+            groupId: item.groupId,
+            locationOfSample: item.locationOfSample,
+            departmentId: item.departmentId,
+            categoryId: item.categoryId,
+            subCategoryId: item.subCategoryId,
+            price: price
           });
         }
       }
 
-      // 3. Build dynamic Annexure-B from all Sample Groups for Quotation
+      setSampleGroups(updatedSampleGroups);
+
+      // Build dynamic Annexure-B for Audit Quotation
       const dynamicAnnexure = [];
       sampleGroups.forEach((grp, gIdx) => {
         const seq = grp.selectedParamSequence || [];
@@ -1508,7 +1599,7 @@ const TestRequestForm = () => {
         if (ordered.length > 0) {
           const groupTitle = grp.title || (grp.locationOfSample ? `${gIdx + 1}. Analysis (${grp.locationOfSample})` : `Sample Group ${gIdx + 1}`);
           ordered.forEach(pId => {
-            const paramObj = parameters.find(p => p.id === pId);
+            const paramObj = parameters.find(p => p.id === pId) || paramMetaMap[pId];
             const price = priceMasterMap[pId] !== undefined ? priceMasterMap[pId] : (parseFloat(paramObj?.price) || 0);
             dynamicAnnexure.push({
               category: groupTitle,
@@ -1522,7 +1613,6 @@ const TestRequestForm = () => {
         }
       });
 
-      // Save Audit Quotation if required
       if (formData.quotationRequired === 'Yes' && formData.quotationType === 'Audit') {
         const qPayload = {
           ...quotationData,
@@ -1561,6 +1651,20 @@ const TestRequestForm = () => {
       setTimeout(() => {
         navigate('/test-requests');
       }, 500);
+    }
+  };
+
+  const handleSaveAndPrintTRF = async () => {
+    const savedId = await handleSave();
+    if (savedId) {
+      window.open(`#/test-requests/print/${savedId}`, '_blank');
+    }
+  };
+
+  const handleSaveAndPrintQuotation = async () => {
+    const savedId = await handleSave();
+    if (savedId) {
+      window.open(`#/test-requests/quotation/${savedId}`, '_blank');
     }
   };
 
@@ -2667,6 +2771,144 @@ const TestRequestForm = () => {
             })()}
           </div>
 
+          {/* Quotation Summary Section */}
+          <div className="test-request-form-card" style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc', flexWrap: 'wrap', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ width: '12px', height: '24px', background: 'linear-gradient(to bottom, #10b981, #059669)', borderRadius: '6px' }}></div>
+                <div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Quotation Summary</h3>
+                  <span style={{ fontSize: '0.78rem', color: '#64748b' }}>Consolidated testing groups, parameter counts, and pricing for this TRF</span>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <button
+                  type="button"
+                  onClick={handleSaveAndQuotation}
+                  disabled={submitting}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    backgroundColor: '#0284c7',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '0.55rem 1.25rem',
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    cursor: submitting ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 2px 6px rgba(2, 132, 199, 0.25)'
+                  }}
+                >
+                  <FaFilePdf />
+                  <span>Generate Quotation</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Breakdown List of Location Groups */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
+              {overallGroupStats.groupBreakdown.length === 0 ? (
+                <div style={{ padding: '1.5rem', textAlign: 'center', color: '#94a3b8', background: '#f8fafc', borderRadius: '10px', border: '1px dashed #cbd5e1' }}>
+                  No testing parameters selected yet. Add a location and select parameters above.
+                </div>
+              ) : (
+                overallGroupStats.groupBreakdown.map((grp, idx) => (
+                  <div
+                    key={grp.groupId || idx}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '1rem 1.25rem',
+                      background: '#f8fafc',
+                      borderRadius: '10px',
+                      border: '1px solid #e2e8f0',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#1e293b' }}>
+                          {grp.title || `${idx + 1}. ${grp.location}`}
+                        </span>
+                        <span style={{ fontSize: '0.72rem', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '1px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                          {grp.location}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                        {grp.departmentName || 'Dept'} • {grp.disciplineName || 'Discipline'}{grp.subCategoryName ? ` • ${grp.subCategoryName}` : ''}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                      <div style={{ textAlign: 'right' }}>
+                        <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#475569', background: '#ffffff', border: '1px solid #cbd5e1', padding: '0.2rem 0.6rem', borderRadius: '6px' }}>
+                          {grp.paramCount} Parameter{grp.paramCount !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                      <div style={{ minWidth: '110px', textAlign: 'right' }}>
+                        <span style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>
+                          ₹{grp.subtotal.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Total Footer */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '1.25rem',
+              background: 'linear-gradient(135deg, #1e293b, #0f172a)',
+              borderRadius: '12px',
+              color: '#ffffff',
+              flexWrap: 'wrap',
+              gap: '1rem'
+            }}>
+              <div>
+                <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>
+                  Total Testing Locations: <strong style={{ color: '#ffffff' }}>{overallGroupStats.totalGroups}</strong>
+                </div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#f8fafc', marginTop: '2px' }}>
+                  Total Testing Parameters: <strong style={{ color: '#38bdf8' }}>{overallGroupStats.totalParamCount}</strong>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{ fontSize: '0.78rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block' }}>Grand Total</span>
+                  <span style={{ fontSize: '1.4rem', fontWeight: 800, color: '#4ade80' }}>
+                    ₹{overallGroupStats.totalPrice.toFixed(2)}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSaveAndQuotation}
+                  disabled={submitting || overallGroupStats.totalParamCount === 0}
+                  style={{
+                    backgroundColor: overallGroupStats.totalParamCount === 0 ? '#475569' : '#10b981',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '0.65rem 1.25rem',
+                    fontSize: '0.9rem',
+                    fontWeight: 700,
+                    cursor: (submitting || overallGroupStats.totalParamCount === 0) ? 'not-allowed' : 'pointer',
+                    boxShadow: overallGroupStats.totalParamCount === 0 ? 'none' : '0 4px 12px rgba(16, 185, 129, 0.3)'
+                  }}
+                >
+                  Generate Quotation →
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* Facility & Technical Feasibility Card */}
           <div className="test-request-form-card" style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc', flexWrap: 'wrap', gap: '0.75rem' }}>
@@ -3705,7 +3947,7 @@ const TestRequestForm = () => {
                   </table>
 
                   <div style={{ fontWeight: 'bold', fontSize: '8px', marginBottom: '8px', border: '1px solid #000000', borderTop: 'none', background: '#f8fafc', padding: '3px', textAlign: 'center' }}>
-                    Test Parameter to Be Analyzed: - {selCategory.name || 'WATER & WASTE WATER'}
+                    Test Parameters to Be Analyzed ({overallGroupStats.totalGroups} Testing Location{overallGroupStats.totalGroups > 1 ? 's' : ''}, {overallGroupStats.totalParamCount} Parameter{overallGroupStats.totalParamCount !== 1 ? 's' : ''})
                   </div>
 
                   {/* Parameters Grid */}
@@ -3719,18 +3961,43 @@ const TestRequestForm = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {Array.from({ length: Math.max(20, parameters.length) }).map((_, i) => {
-                        const param = parameters[i];
-                        const isChecked = param ? !!checkedParameters[param.id] : false;
-                        return (
-                          <tr key={i} style={{ borderBottom: '1px solid #000000' }}>
-                            <td style={{ padding: '2px', borderRight: '1px solid #000000', textAlign: 'center' }}>{i + 1}.</td>
-                            <td style={{ padding: '2px 4px', borderRight: '1px solid #000000', textAlign: 'left' }}>{param ? (param.parameterName || param.name) : ''}</td>
-                            <td style={{ padding: '2px', borderRight: '1px solid #000000', textAlign: 'center', fontWeight: 'bold', color: '#15803d' }}>{isChecked ? '√' : ''}</td>
-                            <td style={{ padding: '2px 4px', textAlign: 'left' }}>{param ? (param.testMethod || '') : ''}</td>
-                          </tr>
-                        );
-                      })}
+                      {overallGroupStats.totalParamCount > 0 ? (
+                        overallGroupStats.groupBreakdown.flatMap((grp, gIdx) => {
+                          const grpRows = grp.parameters.map((p, pIdx) => (
+                            <tr key={`${grp.groupId}_${p.id || pIdx}`} style={{ borderBottom: '1px solid #000000' }}>
+                              <td style={{ padding: '2px', borderRight: '1px solid #000000', textAlign: 'center' }}>{pIdx + 1}.</td>
+                              <td style={{ padding: '2px 4px', borderRight: '1px solid #000000', textAlign: 'left' }}>{p.parameterName || p.name}</td>
+                              <td style={{ padding: '2px', borderRight: '1px solid #000000', textAlign: 'center', fontWeight: 'bold', color: '#15803d' }}>√</td>
+                              <td style={{ padding: '2px 4px', textAlign: 'left' }}>{p.testMethod || ''}</td>
+                            </tr>
+                          ));
+
+                          if (overallGroupStats.totalGroups > 1) {
+                            return [
+                              <tr key={`hdr_${grp.groupId || gIdx}`} style={{ background: '#f1f5f9', borderBottom: '1px solid #000000', fontWeight: 'bold' }}>
+                                <td colSpan={4} style={{ padding: '3px 6px', fontSize: '7.5px', color: '#0f172a' }}>
+                                  📍 {grp.title || `${gIdx + 1}. ${grp.location}`} {grp.departmentName ? `(${grp.departmentName} - ${grp.disciplineName || ''})` : ''}
+                                </td>
+                              </tr>,
+                              ...grpRows
+                            ];
+                          }
+                          return grpRows;
+                        })
+                      ) : (
+                        Array.from({ length: Math.max(20, parameters.length) }).map((_, i) => {
+                          const param = parameters[i];
+                          const isChecked = param ? !!checkedParameters[param.id] : false;
+                          return (
+                            <tr key={i} style={{ borderBottom: '1px solid #000000' }}>
+                              <td style={{ padding: '2px', borderRight: '1px solid #000000', textAlign: 'center' }}>{i + 1}.</td>
+                              <td style={{ padding: '2px 4px', borderRight: '1px solid #000000', textAlign: 'left' }}>{param ? (param.parameterName || param.name) : ''}</td>
+                              <td style={{ padding: '2px', borderRight: '1px solid #000000', textAlign: 'center', fontWeight: 'bold', color: '#15803d' }}>{isChecked ? '√' : ''}</td>
+                              <td style={{ padding: '2px 4px', textAlign: 'left' }}>{param ? (param.testMethod || '') : ''}</td>
+                            </tr>
+                          );
+                        })
+                      )}
                     </tbody>
                   </table>
 
