@@ -16,6 +16,7 @@ import {
 
 import { apiService } from '../../../../shared/services/apiService';
 import { TEST_REQUEST_ENDPOINTS, TEST_REQUEST_PARAMETER_ENDPOINTS } from '../../../../shared/services/apiEndpoints';
+import SearchableSelect from '../../../../shared/components/Select/SearchableSelect';
 
 import {
   fetchMasterData,
@@ -185,6 +186,7 @@ const ProvisionalQuotationForm = () => {
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const [quotationCategoryType, setQuotationCategoryType] = useState(searchParams.get('type') === 'regular' ? 'regular' : 'provisional'); // 'provisional' | 'regular'
+  const [groupFilterState, setGroupFilterState] = useState({}); // { [gIdx]: { categoryId, subCategoryId, gpcbOnly } }
 
   // Master Data
   const [masters, setMasters] = useState({
@@ -686,76 +688,109 @@ const ProvisionalQuotationForm = () => {
   const handleUpdateActivity = (index, field, val) => {
     setFormData(prev => {
       const activities = [...(prev.activities || [])];
+      const groups = [...(prev.annexureB || [])];
       if (!activities[index]) return prev;
 
       const act = { ...activities[index] };
 
       if (field === 'description') {
         act.description = val;
+        if (groups[index]) {
+          groups[index] = { ...groups[index], category: val };
+        }
       } else if (field === 'parametersMonitored') {
         act.parametersMonitored = val;
       } else if (field === 'srNo') {
         act.srNo = val;
+        if (groups[index]) {
+          groups[index] = { ...groups[index], srNo: val };
+        }
       } else if (field === 'visits') {
         act.visits = parseInt(val, 10) || 1;
       } else if (field === 'sampleQuarter') {
         act.sampleQuarter = val;
       } else if (field === 'sampleQty') {
+        act.sampleQty = val === '' ? '' : (parseFloat(val) || 0);
         const qty = parseFloat(val) || 0;
-        act.sampleQty = qty;
         const isLoc = (act.sampleQuarter || '').toLowerCase().includes('loc') || (act.description || '').toLowerCase().includes('air') || (act.description || '').toLowerCase().includes('noise') || (act.description || '').toLowerCase().includes('stack');
         const unit = isLoc ? 'Locations' : 'Sample';
-        act.sampleQuarter = `${String(qty).padStart(2, '0')} ${unit}`;
+        if (val !== '') {
+          act.sampleQuarter = `${String(qty).padStart(2, '0')} ${unit}`;
+        }
         if (!act.isChargeOverridden) {
-          act.chargePerVisit = Math.round((parseFloat(act.ratePerSample) || 0) * qty);
+          act.chargePerVisit = act.ratePerSample === '' ? '' : Math.round((parseFloat(act.ratePerSample) || 0) * qty);
         }
       } else if (field === 'ratePerSample') {
-        const rate = parseFloat(val) || 0;
+        const rate = val === '' ? '' : (parseFloat(val) || 0);
         act.ratePerSample = rate;
         act.isRateOverridden = true;
         if (!act.isChargeOverridden) {
-          act.chargePerVisit = Math.round(rate * (parseFloat(act.sampleQty !== undefined ? act.sampleQty : 1) || 1));
+          act.chargePerVisit = rate === '' ? '' : Math.round(Number(rate) * (parseFloat(act.sampleQty !== undefined && act.sampleQty !== '' ? act.sampleQty : 1) || 1));
         }
       } else if (field === 'chargePerVisit') {
-        act.chargePerVisit = parseFloat(val) || 0;
+        act.chargePerVisit = val === '' ? '' : (parseFloat(val) || 0);
         act.isChargeOverridden = true;
       } else if (field === 'resetOverride') {
         act.isChargeOverridden = false;
-        act.chargePerVisit = Math.round((parseFloat(act.ratePerSample) || 0) * (parseFloat(act.sampleQty !== undefined ? act.sampleQty : 1) || 1));
+        act.chargePerVisit = act.ratePerSample === '' ? '' : Math.round((parseFloat(act.ratePerSample) || 0) * (parseFloat(act.sampleQty !== undefined && act.sampleQty !== '' ? act.sampleQty : 1) || 1));
       }
 
       activities[index] = act;
-      return { ...prev, activities };
+      return { ...prev, activities, annexureB: groups };
     });
   };
 
   const handleAddActivity = () => {
     setFormData(prev => {
       const activities = [...(prev.activities || [])];
+      const groups = [...(prev.annexureB || [])];
       const newSr = String(activities.length + 1);
       const visits = prev.annexureAVisits || 3;
       activities.push({
         id: 'act_' + Date.now(),
         srNo: newSr,
-        description: 'New Sampling / Monitoring Activity',
+        description: '',
         parametersMonitored: `As per annexure- B, Sr. No. ${newSr}`,
-        ratePerSample: 0,
+        ratePerSample: '',
         isRateOverridden: false,
         visits: visits,
-        sampleQuarter: '01 Sample',
-        sampleQty: 1,
-        chargePerVisit: 0,
+        sampleQuarter: '',
+        sampleQty: '',
+        chargePerVisit: '',
         isChargeOverridden: false,
       });
-      return { ...prev, activities };
+
+      groups.push({
+        id: 'grp_' + Date.now(),
+        srNo: newSr,
+        category: '',
+        location: '',
+        parameters: [],
+        isNewActivity: true
+      });
+
+      return { ...prev, activities, annexureB: groups };
     });
   };
 
   const handleDeleteActivity = (index) => {
     setFormData(prev => {
       const activities = [...(prev.activities || [])];
+      const groups = [...(prev.annexureB || [])];
       activities.splice(index, 1);
-      return { ...prev, activities };
+      if (groups[index]) {
+        groups.splice(index, 1);
+      }
+      const updatedActs = activities.map((act, i) => ({
+        ...act,
+        srNo: String(i + 1),
+        parametersMonitored: `As per annexure- B, Sr. No. ${i + 1}`
+      }));
+      const updatedGroups = groups.map((grp, i) => ({
+        ...grp,
+        srNo: String(i + 1)
+      }));
+      return { ...prev, activities: updatedActs, annexureB: updatedGroups };
     });
   };
 
@@ -766,7 +801,6 @@ const ProvisionalQuotationForm = () => {
       return { ...prev, activities: synced };
     });
   };
-
 
   // Annexure-B Rate Override Handlers
   const handleRateOverride = (uniqueKey, rateVal) => {
@@ -782,82 +816,200 @@ const ProvisionalQuotationForm = () => {
   // Annexure-B Discipline Group and Parameter Handlers
   const handleAddAnnexureBGroup = () => {
     setFormData(prev => {
-      const groups = prev.annexureB || [];
+      const groups = [...(prev.annexureB || [])];
+      const activities = [...(prev.activities || [])];
       const newSr = String(groups.length + 1);
-      return {
-        ...prev,
-        annexureB: [
-          ...groups,
-          {
-            id: 'grp_' + Date.now(),
-            srNo: newSr,
-            category: 'New Discipline Group',
-            parameters: [
-              { id: 'p_' + Date.now(), description: 'Sample Parameter', rate: 1000 }
-            ]
-          }
-        ]
-      };
+      const visits = prev.annexureAVisits || 3;
+
+      groups.push({
+        id: 'grp_' + Date.now(),
+        srNo: newSr,
+        category: '',
+        location: '',
+        parameters: [],
+        isNewActivity: true
+      });
+
+      activities.push({
+        id: 'act_' + Date.now(),
+        srNo: newSr,
+        description: '',
+        parametersMonitored: `As per annexure- B, Sr. No. ${newSr}`,
+        ratePerSample: '',
+        isRateOverridden: false,
+        visits: visits,
+        sampleQuarter: '',
+        sampleQty: '',
+        chargePerVisit: '',
+        isChargeOverridden: false,
+      });
+
+      return { ...prev, annexureB: groups, activities };
     });
   };
 
   const handleUpdateAnnexureBGroup = (groupIdx, field, val) => {
     setFormData(prev => {
       const groups = [...(prev.annexureB || [])];
+      const activities = [...(prev.activities || [])];
       if (groups[groupIdx]) {
         groups[groupIdx] = { ...groups[groupIdx], [field]: val };
+        if (field === 'category' && activities[groupIdx]) {
+          activities[groupIdx] = { ...activities[groupIdx], description: val };
+        }
+        if (field === 'srNo' && activities[groupIdx]) {
+          activities[groupIdx] = { ...activities[groupIdx], srNo: val, parametersMonitored: `As per annexure- B, Sr. No. ${val}` };
+        }
       }
-      return { ...prev, annexureB: groups };
+      return { ...prev, annexureB: groups, activities };
     });
   };
 
   const handleDeleteAnnexureBGroup = (groupIdx) => {
     setFormData(prev => {
       const groups = [...(prev.annexureB || [])];
+      const activities = [...(prev.activities || [])];
       groups.splice(groupIdx, 1);
-      return { ...prev, annexureB: groups };
+      if (activities[groupIdx]) {
+        activities.splice(groupIdx, 1);
+      }
+      const updatedGroups = groups.map((grp, i) => ({
+        ...grp,
+        srNo: String(i + 1)
+      }));
+      const updatedActs = activities.map((act, i) => ({
+        ...act,
+        srNo: String(i + 1),
+        parametersMonitored: `As per annexure- B, Sr. No. ${i + 1}`
+      }));
+      return { ...prev, annexureB: updatedGroups, activities: updatedActs };
     });
   };
 
-  const handleAddAnnexureBParam = (groupIdx) => {
+  const handleAddAnnexureBParam = (groupIdx, selectedMasterParam = null) => {
     setFormData(prev => {
       const groups = [...(prev.annexureB || [])];
+      const activities = [...(prev.activities || [])];
       if (groups[groupIdx]) {
         const params = [...(groups[groupIdx].parameters || [])];
-        params.push({
+        const newParam = selectedMasterParam ? {
+          id: 'p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+          parameterId: selectedMasterParam.id,
+          description: selectedMasterParam.parameterName || selectedMasterParam.name || '',
+          rate: parseFloat(selectedMasterParam.price || selectedMasterParam.rate || 0) || 0
+        } : {
           id: 'p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
           description: '',
-          rate: 0
-        });
+          rate: ''
+        };
+        params.push(newParam);
         groups[groupIdx] = { ...groups[groupIdx], parameters: params };
+
+        // Auto-sync group total to Annexure-A activity rate
+        const groupTotal = params.reduce((sum, p) => sum + (parseFloat(p.rate) || 0), 0);
+        if (activities[groupIdx] && !activities[groupIdx].isRateOverridden) {
+          const qty = parseFloat(activities[groupIdx].sampleQty) || 1;
+          activities[groupIdx] = {
+            ...activities[groupIdx],
+            ratePerSample: groupTotal,
+            chargePerVisit: activities[groupIdx].isChargeOverridden ? activities[groupIdx].chargePerVisit : Math.round(groupTotal * qty)
+          };
+        }
       }
-      return { ...prev, annexureB: groups };
+      return { ...prev, annexureB: groups, activities };
+    });
+  };
+
+  const handleSyncAnnexureBGroupParams = (groupIdx, nextIds) => {
+    setFormData(prev => {
+      const groups = [...(prev.annexureB || [])];
+      const activities = [...(prev.activities || [])];
+      if (!groups[groupIdx]) return prev;
+
+      const curParams = groups[groupIdx].parameters || [];
+      const idArray = Array.isArray(nextIds) ? nextIds.map(String) : (nextIds ? [String(nextIds)] : []);
+
+      // Preserve custom parameters (parameters added manually without a parameterId in masters)
+      const customParams = curParams.filter(p => !p.parameterId && !(masters.parameters || []).some(mp => String(mp.id) === String(p.id)));
+
+      // Map selected master parameter IDs into group parameters
+      const masterParams = idArray.map(id => {
+        const existingParam = curParams.find(p => String(p.parameterId) === String(id) || String(p.id) === String(id));
+        if (existingParam) return existingParam;
+        const masterObj = (masters.parameters || []).find(p => String(p.id) === String(id));
+        return {
+          id: 'p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+          parameterId: id,
+          description: masterObj ? (masterObj.parameterName || masterObj.name) : 'Parameter',
+          rate: masterObj ? (parseFloat(masterObj.price || masterObj.rate || 0) || 0) : 0
+        };
+      });
+
+      const newParams = [...customParams, ...masterParams];
+      groups[groupIdx] = { ...groups[groupIdx], parameters: newParams };
+
+      // Auto-sync group total to Annexure-A activity rate
+      const groupTotal = newParams.reduce((sum, p) => sum + (parseFloat(p.rate) || 0), 0);
+      if (activities[groupIdx] && !activities[groupIdx].isRateOverridden) {
+        const qty = parseFloat(activities[groupIdx].sampleQty) || 1;
+        activities[groupIdx] = {
+          ...activities[groupIdx],
+          ratePerSample: groupTotal,
+          chargePerVisit: activities[groupIdx].isChargeOverridden ? activities[groupIdx].chargePerVisit : Math.round(groupTotal * qty)
+        };
+      }
+
+      return { ...prev, annexureB: groups, activities };
     });
   };
 
   const handleUpdateAnnexureBParam = (groupIdx, pIdx, field, val) => {
     setFormData(prev => {
       const groups = [...(prev.annexureB || [])];
+      const activities = [...(prev.activities || [])];
       if (groups[groupIdx]) {
         const params = [...(groups[groupIdx].parameters || [])];
         if (params[pIdx]) {
           params[pIdx] = { ...params[pIdx], [field]: val };
           groups[groupIdx] = { ...groups[groupIdx], parameters: params };
+
+          // Auto-sync group total to Annexure-A activity rate
+          const groupTotal = params.reduce((sum, p) => sum + (parseFloat(p.rate) || 0), 0);
+          if (activities[groupIdx] && !activities[groupIdx].isRateOverridden) {
+            const qty = parseFloat(activities[groupIdx].sampleQty) || 1;
+            activities[groupIdx] = {
+              ...activities[groupIdx],
+              ratePerSample: groupTotal,
+              chargePerVisit: activities[groupIdx].isChargeOverridden ? activities[groupIdx].chargePerVisit : Math.round(groupTotal * qty)
+            };
+          }
         }
       }
-      return { ...prev, annexureB: groups };
+      return { ...prev, annexureB: groups, activities };
     });
   };
 
   const handleDeleteAnnexureBParam = (groupIdx, pIdx) => {
     setFormData(prev => {
       const groups = [...(prev.annexureB || [])];
+      const activities = [...(prev.activities || [])];
       if (groups[groupIdx]) {
         const params = [...(groups[groupIdx].parameters || [])];
         params.splice(pIdx, 1);
         groups[groupIdx] = { ...groups[groupIdx], parameters: params };
+
+        // Auto-sync group total to Annexure-A activity rate
+        const groupTotal = params.reduce((sum, p) => sum + (parseFloat(p.rate) || 0), 0);
+        if (activities[groupIdx] && !activities[groupIdx].isRateOverridden) {
+          const qty = parseFloat(activities[groupIdx].sampleQty) || 1;
+          activities[groupIdx] = {
+            ...activities[groupIdx],
+            ratePerSample: groupTotal,
+            chargePerVisit: activities[groupIdx].isChargeOverridden ? activities[groupIdx].chargePerVisit : Math.round(groupTotal * qty)
+          };
+        }
       }
-      return { ...prev, annexureB: groups };
+      return { ...prev, annexureB: groups, activities };
     });
   };
 
@@ -2537,6 +2689,277 @@ const ProvisionalQuotationForm = () => {
                     />
                   </div>
                 </div>
+              </div>
+
+              {/* ================= 9. ANNEXURE - B: DISCIPLINE GROUPS & PARAMETERS EDITOR ================= */}
+              <div
+                id="section-9-annexure-b"
+                style={{
+                  background: '#f8fafc',
+                  border: '1.5px solid #cbd5e1',
+                  borderRadius: '10px',
+                  padding: '12px',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
+                  marginTop: '1rem'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.4rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <h4 style={{ fontSize: '0.92rem', fontWeight: 800, margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                    <span>📑</span> 9. Annexure - B: Discipline Groups & Parameters (Page 5)
+                  </h4>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#2563eb', background: '#eff6ff', padding: '2px 8px', borderRadius: '6px', border: '1px solid #bfdbfe' }}>
+                      Total: ₹{Number(calculateAnnexureBTotal(formData.annexureB || [])).toLocaleString('en-IN')}/-
+                    </span>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-xs font-semibold"
+                      onClick={handleAddAnnexureBGroup}
+                      style={{ fontSize: '0.72rem', padding: '3px 10px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      <FaPlus /> Add Group
+                    </button>
+                  </div>
+                </div>
+
+                {(formData.annexureB || []).length === 0 ? (
+                  <div style={{ background: '#ffffff', border: '1.5px dashed #cbd5e1', borderRadius: '8px', padding: '16px', textAlign: 'center', color: '#64748b', marginBottom: '10px' }}>
+                    <p style={{ margin: '0 0 6px 0', fontSize: '0.82rem', fontWeight: 700, color: '#334155' }}>No Annexure-B groups loaded.</p>
+                    <span style={{ fontSize: '0.74rem' }}>Select a TRF in Section 1 or click "+ Add Activity" in Section 8 to automatically create Annexure-B groups.</span>
+                  </div>
+                ) : (
+                  (formData.annexureB || []).map((grp, gIdx) => {
+                    const groupTotal = calculateGroupTotal(grp);
+                    return (
+                      <div
+                        key={grp.id || gIdx}
+                        style={{
+                          background: '#ffffff',
+                          border: '1px solid #94a3b8',
+                          borderRadius: '8px',
+                          padding: '10px 12px',
+                          marginBottom: '12px',
+                          boxShadow: '0 1px 4px rgba(0,0,0,0.05)'
+                        }}
+                      >
+                        {/* Group Header Row */}
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '10px', background: '#f1f5f9', padding: '6px 8px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                          <div style={{ width: '50px' }}>
+                            <label style={{ fontSize: '0.64rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '1px' }}>
+                              Sr. No.
+                            </label>
+                            <input
+                              type="text"
+                              value={grp.srNo || ''}
+                              onChange={(e) => handleUpdateAnnexureBGroup(gIdx, 'srNo', e.target.value)}
+                              className="form-control font-bold text-center"
+                              style={{ height: '28px', fontSize: '0.76rem' }}
+                            />
+                          </div>
+                          <div style={{ flexGrow: 1 }}>
+                            <label style={{ fontSize: '0.64rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '1px' }}>
+                              Discipline / Category Name
+                            </label>
+                            <input
+                              type="text"
+                              value={grp.category || ''}
+                              onChange={(e) => handleUpdateAnnexureBGroup(gIdx, 'category', e.target.value)}
+                              placeholder="e.g. WATER TESTING [Inletttt]"
+                              className="form-control font-bold"
+                              style={{ height: '28px', fontSize: '0.78rem' }}
+                            />
+                          </div>
+                          <div style={{ textAlign: 'right', minWidth: '95px' }}>
+                            <div style={{ fontSize: '0.62rem', fontWeight: 700, color: '#64748b' }}>GROUP TOTAL</div>
+                            <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#0f172a' }}>
+                              ₹{Number(groupTotal).toLocaleString('en-IN')}/-
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-outline-danger btn-xs"
+                            onClick={() => handleDeleteAnnexureBGroup(gIdx)}
+                            title="Delete Annexure-B Group"
+                            style={{ height: '28px', padding: '0 8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          >
+                            <FaTrash style={{ fontSize: '0.7rem' }} />
+                          </button>
+                        </div>
+
+                        {/* Parameters Sub-Table / List */}
+                        <div style={{ marginBottom: '8px' }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 35px', gap: '6px', padding: '0 4px', marginBottom: '4px' }}>
+                            <span style={{ fontSize: '0.66rem', fontWeight: 700, color: '#475569' }}>Parameter Description</span>
+                            <span style={{ fontSize: '0.66rem', fontWeight: 700, color: '#475569', textAlign: 'right' }}>Rate (₹)</span>
+                            <span></span>
+                          </div>
+
+                          {(grp.parameters || []).map((param, pIdx) => (
+                            <div key={param.id || pIdx} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 35px', gap: '6px', alignItems: 'center', marginBottom: '6px' }}>
+                              <input
+                                type="text"
+                                value={param.description || ''}
+                                onChange={(e) => handleUpdateAnnexureBParam(gIdx, pIdx, 'description', e.target.value)}
+                                placeholder="Parameter name"
+                                className="form-control"
+                                style={{ height: '28px', fontSize: '0.76rem' }}
+                              />
+                              <input
+                                type="number"
+                                value={param.rate !== undefined ? param.rate : ''}
+                                onChange={(e) => handleUpdateAnnexureBParam(gIdx, pIdx, 'rate', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
+                                placeholder="0"
+                                className="form-control font-bold text-right"
+                                style={{ height: '28px', fontSize: '0.76rem', textAlign: 'right' }}
+                              />
+                              <button
+                                type="button"
+                                className="btn btn-outline-danger btn-xs"
+                                onClick={() => handleDeleteAnnexureBParam(gIdx, pIdx)}
+                                title="Delete Parameter"
+                                style={{ height: '28px', padding: '0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                              >
+                                <FaTrash style={{ fontSize: '0.64rem' }} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Searchable & Filterable Master Parameter Selector (Only for Newly Added Groups) */}
+                        {(() => {
+                          const isNewGroup = grp.isNewActivity || (grp.parameters || []).length === 0;
+                          if (!isNewGroup) return null;
+
+                          const filter = groupFilterState[gIdx] || {};
+                          const availableSubCats = (masters.subCategories || []).filter(sc =>
+                            !filter.categoryId || sc.categoryId === filter.categoryId || sc.category_id === filter.categoryId
+                          );
+
+                          const filteredMasterParams = (masters.parameters || []).filter(p => {
+                            if (filter.categoryId && p.categoryId !== filter.categoryId && p.category_id !== filter.categoryId) {
+                              return false;
+                            }
+                            if (filter.subCategoryId && p.subCategoryId !== filter.subCategoryId && p.subCategory_id !== filter.subCategoryId && p.subCategory?.id !== filter.subCategoryId) {
+                              return false;
+                            }
+                            if (filter.gpcbOnly && !p.isGpcb && !p.is_gpcb && !p.gpcb) {
+                              return false;
+                            }
+                            return true;
+                          }).map(p => ({
+                            id: p.id,
+                            name: `${p.parameterName || p.name || 'Parameter'}${p.testMethod ? ` (${p.testMethod})` : ''} - ₹${parseFloat(p.price || p.rate || 0).toLocaleString('en-IN')}`,
+                            parameterName: p.parameterName || p.name,
+                            price: p.price || p.rate || 0,
+                            testMethod: p.testMethod || ''
+                          }));
+
+                          return (
+                            <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '10px 12px', marginTop: '10px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
+                                <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                  <FaFlask style={{ color: '#2563eb' }} /> Add Parameter from Master
+                                </span>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', fontSize: '0.72rem', color: filter.gpcbOnly ? '#15803d' : '#64748b', fontWeight: 700, margin: 0 }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={!!filter.gpcbOnly}
+                                    onChange={(e) => setGroupFilterState(prev => ({
+                                      ...prev,
+                                      [gIdx]: { ...prev[gIdx], gpcbOnly: e.target.checked }
+                                    }))}
+                                    style={{ width: '14px', height: '14px', accentColor: '#16a34a', cursor: 'pointer' }}
+                                  />
+                                  GPCB Parameters Only
+                                </label>
+                              </div>
+
+                              {/* Filter Dropdowns: Discipline Group(s) / Category & Sub Category */}
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px', marginBottom: '8px' }}>
+                                <div>
+                                  <label style={{ fontSize: '0.64rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '2px' }}>
+                                    Discipline Group (Category Filter)
+                                  </label>
+                                  <SearchableSelect
+                                    options={[
+                                      { id: '', name: 'All Discipline Groups' },
+                                      ...(masters.categories || []).map(c => ({ id: c.id, name: c.name || c.categoryName }))
+                                    ]}
+                                    value={filter.categoryId || ''}
+                                    onChange={(catId) => {
+                                      setGroupFilterState(prev => ({
+                                        ...prev,
+                                        [gIdx]: { ...prev[gIdx], categoryId: catId, subCategoryId: '' }
+                                      }));
+                                      if (catId && !grp.category) {
+                                        const selectedCat = (masters.categories || []).find(c => String(c.id) === String(catId));
+                                        if (selectedCat) {
+                                          const catName = selectedCat.name || selectedCat.categoryName || '';
+                                          handleUpdateAnnexureBGroup(gIdx, 'category', catName);
+                                        }
+                                      }
+                                    }}
+                                    placeholder="All Discipline Groups"
+                                    searchPlaceholder="Filter by discipline group..."
+                                  />
+                                </div>
+
+                                <div>
+                                  <label style={{ fontSize: '0.64rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '2px' }}>
+                                    Sub Category (Auto-sets Group Name)
+                                  </label>
+                                  <SearchableSelect
+                                    options={[
+                                      { id: '', name: 'All Sub Categories' },
+                                      ...availableSubCats.map(sc => ({ id: sc.id, name: sc.name || sc.subCategoryName }))
+                                    ]}
+                                    value={filter.subCategoryId || ''}
+                                    onChange={(scId) => {
+                                      setGroupFilterState(prev => ({
+                                        ...prev,
+                                        [gIdx]: { ...prev[gIdx], subCategoryId: scId }
+                                      }));
+                                      if (scId) {
+                                        const selectedSc = (masters.subCategories || []).find(sc => String(sc.id) === String(scId));
+                                        if (selectedSc) {
+                                          const scName = selectedSc.name || selectedSc.subCategoryName || '';
+                                          handleUpdateAnnexureBGroup(gIdx, 'category', scName);
+                                        }
+                                      }
+                                    }}
+                                    placeholder="Select Sub Category..."
+                                    searchPlaceholder="Search & select sub category..."
+                                    disabled={availableSubCats.length === 0}
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Searchable Multi-Select Parameter Selector */}
+                              <div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                                  <label style={{ fontSize: '0.64rem', fontWeight: 700, color: '#475569', margin: 0 }}>
+                                    Multi-Select Parameters to Add <span style={{ color: '#2563eb' }}>({filteredMasterParams.length} available)</span>
+                                  </label>
+                                  <span style={{ fontSize: '0.64rem', color: '#059669', fontWeight: 700 }}>
+                                    {(grp.parameters || []).length} Selected in Group
+                                  </span>
+                                </div>
+                                <SearchableSelect
+                                  options={filteredMasterParams}
+                                  value={(grp.parameters || []).map(p => p.parameterId || p.id)}
+                                  onChange={(nextIds) => handleSyncAnnexureBGroupParams(gIdx, nextIds)}
+                                  placeholder="🔍 Click to search & multi-select parameters..."
+                                  searchPlaceholder="Search parameter by name or test method..."
+                                  isMulti={true}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </>
           )}
