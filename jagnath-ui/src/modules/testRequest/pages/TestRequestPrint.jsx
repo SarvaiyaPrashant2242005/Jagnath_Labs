@@ -5,6 +5,7 @@ import {
   CLIENT_ENDPOINTS,
   CATEGORY_ENDPOINTS,
   CATEGORY_PARAMETER_ENDPOINTS,
+  PARAMETER_ENDPOINTS,
   TEST_REQUEST_ENDPOINTS,
   TEST_REQUEST_PARAMETER_ENDPOINTS,
   COMPANY_ENDPOINTS,
@@ -90,16 +91,13 @@ const TestRequestPrint = () => {
       }
 
       let allCategoryParams = [];
-      const activeCatId = tr.categoryId || (tr.sampleParticular && tr.sampleParticular.length === 36 ? tr.sampleParticular : null);
-      if (activeCatId) {
-        try {
-          const paramRes = await apiService.get(CATEGORY_PARAMETER_ENDPOINTS.GET_BY_CATEGORY(activeCatId));
-          if (paramRes?.data) {
-            allCategoryParams = Array.isArray(paramRes.data) ? paramRes.data : [paramRes.data];
-          }
-        } catch (e) {
-          console.error("Error fetching category parameters:", e);
+      try {
+        const paramRes = await apiService.get(`${PARAMETER_ENDPOINTS.GET_ALL}?status=Active&all=true`);
+        if (paramRes?.data) {
+          allCategoryParams = Array.isArray(paramRes.data) ? paramRes.data : (paramRes.data?.rows || [paramRes.data]);
         }
+      } catch (e) {
+        console.error("Error fetching all parameters for print:", e);
       }
 
       try {

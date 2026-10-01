@@ -55,12 +55,14 @@ const createTestRequestSchema = Joi.object({
         "any.only": "Status must be Active or Inactive."
     }),
     quotationRequired: Joi.string().valid("Yes", "No").optional().default("No").allow("", null),
-    quotationType: Joi.string().valid("Quotation", "Consulting", "Audit", "General Testing / Consulting", "Monthly Consulting").optional().allow("", null),
+    quotationType: Joi.string().valid("Quotation", "Consulting", "Audit", "General Testing / Consulting", "Monthly Consulting", "Provisional").optional().allow("", null),
     industryType: Joi.string().valid(...Object.values(INDUSTRY_TYPES)).optional().allow("", null).messages({
         "any.only": "Industry Type must be small, medium, or large."
     }),
-    industryPrice: Joi.number().integer().optional().allow(null)
-});
+    industryPrice: Joi.number().integer().optional().allow(null),
+    sampleGroups: Joi.alternatives().try(Joi.array(), Joi.object(), Joi.string()).optional().allow(null),
+    sample_groups: Joi.alternatives().try(Joi.array(), Joi.object(), Joi.string()).optional().allow(null)
+}).unknown(true);
 
 const updateTestRequestSchema = Joi.object({
     companyId: Joi.string().optional().messages({
@@ -110,12 +112,14 @@ const updateTestRequestSchema = Joi.object({
         "any.only": "Status must be Active or Inactive."
     }),
     quotationRequired: Joi.string().valid("Yes", "No").optional().allow("", null),
-    quotationType: Joi.string().valid("Quotation", "Consulting", "Audit", "General Testing / Consulting", "Monthly Consulting").optional().allow("", null),
+    quotationType: Joi.string().valid("Quotation", "Consulting", "Audit", "General Testing / Consulting", "Monthly Consulting", "Provisional").optional().allow("", null),
     industryType: Joi.string().valid(...Object.values(INDUSTRY_TYPES)).optional().allow("", null).messages({
         "any.only": "Industry Type must be small, medium, or large."
     }),
-    industryPrice: Joi.number().integer().optional().allow(null)
-});
+    industryPrice: Joi.number().integer().optional().allow(null),
+    sampleGroups: Joi.alternatives().try(Joi.array(), Joi.object(), Joi.string()).optional().allow(null),
+    sample_groups: Joi.alternatives().try(Joi.array(), Joi.object(), Joi.string()).optional().allow(null)
+}).unknown(true);
 
 module.exports = {
     createTestRequestSchema,

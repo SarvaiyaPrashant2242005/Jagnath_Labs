@@ -118,57 +118,6 @@ const DEFAULT_ANNEXURE = [
   { category: "7. Noise", description: "For 08 Hours continuous monitoring", ratePerSample: 18000, samplePerVisit: 1, chargesPerVisit: 18000, total: 54000 }
 ];
 
-const SAMPLE_GROUP_PRESETS = [
-  {
-    title: '1. Effluent Water Analysis (INLET)',
-    locationOfSample: 'INLET',
-    deptKeyword: 'WATER',
-    catKeyword: 'WASTE WATER'
-  },
-  {
-    title: '2. Effluent Water Analysis (OUTLET)',
-    locationOfSample: 'OUTLET',
-    deptKeyword: 'WATER',
-    catKeyword: 'WASTE WATER'
-  },
-  {
-    title: '3. Treatment Plant STAGE-WISE Sampling',
-    locationOfSample: 'STAGE-WISE',
-    deptKeyword: 'WATER',
-    catKeyword: 'WASTE WATER'
-  },
-  {
-    title: '4. STP Water Analysis',
-    locationOfSample: 'STP',
-    deptKeyword: 'WATER',
-    catKeyword: 'WASTE WATER'
-  },
-  {
-    title: '5. Ambient Air Quality Monitoring (24 hrs.)',
-    locationOfSample: 'Ambient Air',
-    deptKeyword: 'AIR',
-    catKeyword: 'AMBIENT AIR'
-  },
-  {
-    title: '6. Stack Emission Monitoring',
-    locationOfSample: 'Stack',
-    deptKeyword: 'AIR',
-    catKeyword: 'STACK'
-  },
-  {
-    title: '7. Noise Level Monitoring',
-    locationOfSample: 'Plant Site',
-    deptKeyword: 'NOISE',
-    catKeyword: 'NOISE'
-  },
-  {
-    title: '8. Soil / Solid Waste Analysis',
-    locationOfSample: 'Solid Waste Area',
-    deptKeyword: 'SOLID',
-    catKeyword: 'SOIL'
-  }
-];
-
 const TestRequestForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -192,8 +141,8 @@ const TestRequestForm = () => {
   const [sampleGroups, setSampleGroups] = useState([
     {
       id: 'grp_1',
-      title: '1. Effluent Water Analysis (INLET)',
-      locationOfSample: 'INLET',
+      title: 'Location 1',
+      locationOfSample: '',
       departmentId: '',
       categoryIds: [],
       subCategoryId: '',
@@ -202,8 +151,6 @@ const TestRequestForm = () => {
     }
   ]);
   const [activeGroupIndex, setActiveGroupIndex] = useState(0);
-  const [showPresetDropdown, setShowPresetDropdown] = useState(false);
-  const presetDropdownRef = useRef(null);
 
   // State for dynamic parameter checklist & pagination
   const [isGpcbOnly, setIsGpcbOnly] = useState(false);
@@ -223,9 +170,6 @@ const TestRequestForm = () => {
     const handleClickOutside = (event) => {
       if (emailDropdownRef.current && !emailDropdownRef.current.contains(event.target)) {
         setShowEmailDropdown(false);
-      }
-      if (presetDropdownRef.current && !presetDropdownRef.current.contains(event.target)) {
-        setShowPresetDropdown(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -658,6 +602,28 @@ const TestRequestForm = () => {
         setPriceMasterMap(pMap);
       }
 
+      // Fetch all parameters metadata to globally cache names and test methods across all testing location groups
+      try {
+        const allParamsRes = await apiService.get(`${PARAMETER_ENDPOINTS.GET_ALL}?status=Active&all=true`);
+        const allParamsList = Array.isArray(allParamsRes?.data) ? allParamsRes.data : (allParamsRes?.data?.rows || []);
+        const metaObj = {};
+        allParamsList.forEach(p => {
+          if (p.id) {
+            metaObj[p.id] = {
+              id: p.id,
+              parameterName: p.parameterName || p.name || 'Parameter',
+              testMethod: p.testMethod || p.defaultTestMethod || p.test_method || '',
+              price: parseFloat(p.price || 0),
+              categoryId: p.categoryId,
+              subCategoryId: p.subCategoryId
+            };
+          }
+        });
+        setParamMetaMap(metaObj);
+      } catch (e) {
+        console.error("Error fetching all parameters metadata", e);
+      }
+
       // Finalize targetCompanyId fallback check
       if (!targetCompanyId && cList.length > 0) {
         targetCompanyId = cList[0].id;
@@ -753,10 +719,10 @@ const TestRequestForm = () => {
                   }
                 }
               });
-              const singleLoc = tr.locationOfSample || 'INLET';
+              const singleLoc = tr.locationOfSample || '';
               initialSampleGroups = [{
                 id: 'grp_1',
-                title: `1. Effluent Water Analysis (${singleLoc})`,
+                title: singleLoc ? singleLoc : 'Location 1',
                 locationOfSample: singleLoc,
                 departmentId: savedDepartmentId,
                 categoryIds: savedCategoryId ? [savedCategoryId] : [],
@@ -771,10 +737,11 @@ const TestRequestForm = () => {
         }
 
         if (initialSampleGroups.length === 0) {
+          const singleLoc = tr.locationOfSample || '';
           initialSampleGroups = [{
             id: 'grp_1',
-            title: `1. Effluent Water Analysis (${tr.locationOfSample || 'INLET'})`,
-            locationOfSample: tr.locationOfSample || 'INLET',
+            title: singleLoc ? singleLoc : 'Location 1',
+            locationOfSample: singleLoc,
             departmentId: savedDepartmentId,
             categoryIds: savedCategoryId ? [savedCategoryId] : [],
             subCategoryId: savedSubCatId,
@@ -1000,6 +967,22 @@ const TestRequestForm = () => {
       }
 
       setParameters(uniqueParams);
+      setParamMetaMap(prev => {
+        const next = { ...prev };
+        uniqueParams.forEach(p => {
+          if (p.id) {
+            next[p.id] = {
+              id: p.id,
+              parameterName: p.parameterName || p.name || 'Parameter',
+              testMethod: p.testMethod || p.defaultTestMethod || p.test_method || '',
+              price: parseFloat(p.price || 0),
+              categoryId: p.categoryId,
+              subCategoryId: p.subCategoryId
+            };
+          }
+        });
+        return next;
+      });
       setParamPage(1);
     } catch (e) {
       console.error("Error fetching parameters", e);
@@ -1030,53 +1013,31 @@ const TestRequestForm = () => {
     });
   };
 
-  const handleAddSampleGroup = (preset = null) => {
-    let matchedDeptId = '';
-    let matchedCatIds = [];
-
-    if (preset) {
-      if (preset.deptKeyword) {
-        const foundDept = departments.find(d => (d.name || '').toUpperCase().includes(preset.deptKeyword));
-        if (foundDept) matchedDeptId = foundDept.id;
-      }
-      if (preset.catKeyword) {
-        const foundCat = categories.find(c => (c.name || '').toUpperCase().includes(preset.catKeyword));
-        if (foundCat) matchedCatIds = [foundCat.id];
-      }
-    }
-
-    if (!matchedDeptId && currentGroup.departmentId) {
-      matchedDeptId = currentGroup.departmentId;
-    }
-    if (matchedCatIds.length === 0 && currentGroup.categoryIds?.length) {
-      matchedCatIds = [...currentGroup.categoryIds];
-    }
-
+  const handleAddSampleGroup = () => {
     const newIdx = sampleGroups.length;
     const nextGroupNum = newIdx + 1;
     const newGroup = {
       id: `grp_${Date.now()}_${newIdx}`,
-      title: preset?.title || `${nextGroupNum}. Sample Location #${nextGroupNum}`,
-      locationOfSample: preset?.locationOfSample || '',
-      departmentId: matchedDeptId || '',
-      categoryIds: matchedCatIds,
-      subCategoryId: '',
+      title: `Location ${nextGroupNum}`,
+      locationOfSample: '',
+      departmentId: currentGroup.departmentId || '',
+      categoryIds: currentGroup.categoryIds ? [...currentGroup.categoryIds] : [],
+      subCategoryId: currentGroup.subCategoryId || '',
       checkedParameters: {},
       selectedParamSequence: []
     };
 
     setSampleGroups(prev => [...prev, newGroup]);
     setActiveGroupIndex(newIdx);
-    setShowPresetDropdown(false);
     setParamPage(1);
     setParamSearch('');
 
-    if (matchedDeptId) {
-      fetchCategoriesForDepartment(matchedDeptId, isGpcbOnly);
+    if (newGroup.departmentId) {
+      fetchCategoriesForDepartment(newGroup.departmentId, isGpcbOnly);
     }
-    if (matchedCatIds.length > 0) {
-      fetchSubCategoriesForCategories(matchedCatIds, isGpcbOnly);
-      fetchParameters('', matchedCatIds, [], isGpcbOnly);
+    if (newGroup.categoryIds && newGroup.categoryIds.length > 0) {
+      fetchSubCategoriesForCategories(newGroup.categoryIds, isGpcbOnly);
+      fetchParameters(newGroup.subCategoryId, newGroup.categoryIds, [], isGpcbOnly);
     } else {
       setParameters([]);
     }
@@ -1309,7 +1270,8 @@ const TestRequestForm = () => {
         groupParamDetails.push({
           id: pId,
           name: paramObj?.parameterName || paramObj?.name || 'Parameter',
-          testMethod: paramObj?.testMethod || '',
+          parameterName: paramObj?.parameterName || paramObj?.name || 'Parameter',
+          testMethod: paramObj?.testMethod || paramObj?.defaultTestMethod || paramObj?.test_method || '',
           price
         });
       });
@@ -1320,7 +1282,8 @@ const TestRequestForm = () => {
 
       groupBreakdown.push({
         groupIndex: gIdx,
-        id: grp.id,
+        id: grp.id || `grp_${gIdx}`,
+        groupId: grp.id || `grp_${gIdx}`,
         title: grp.title || `${gIdx + 1}. ${grp.locationOfSample || 'Location ' + (gIdx + 1)}`,
         location: grp.locationOfSample || `Location ${gIdx + 1}`,
         departmentName: matchedDept?.name || 'WATER TESTING',
@@ -2116,7 +2079,7 @@ const TestRequestForm = () => {
               </div>
             </div>
 
-            {/* Location & Sample Groups Navigation Tabs */}
+            {/* Dynamic Testing Locations Navigation Tabs */}
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -2134,7 +2097,7 @@ const TestRequestForm = () => {
                 {sampleGroups.map((grp, gIdx) => {
                   const isActive = gIdx === activeGroupIndex;
                   const grpCheckedCount = Object.keys(grp.checkedParameters || {}).filter(k => !k.startsWith('_id_') && grp.checkedParameters[k]).length;
-                  const grpLoc = grp.locationOfSample || `Loc #${gIdx + 1}`;
+                  const grpLabel = grp.locationOfSample ? `${gIdx + 1}. ${grp.locationOfSample}` : (grp.title || `Location ${gIdx + 1}`);
                   return (
                     <div
                       key={grp.id || gIdx}
@@ -2143,7 +2106,7 @@ const TestRequestForm = () => {
                         display: 'flex',
                         alignItems: 'center',
                         gap: '0.5rem',
-                        padding: '0.45rem 0.9rem',
+                        padding: '0.5rem 1rem',
                         borderRadius: '9px',
                         background: isActive ? '#3b82f6' : '#ffffff',
                         color: isActive ? '#ffffff' : '#334155',
@@ -2156,7 +2119,7 @@ const TestRequestForm = () => {
                         transition: 'all 0.15s ease'
                       }}
                     >
-                      <span>📍 {grp.title || `${gIdx + 1}. ${grpLoc}`}</span>
+                      <span>📍 {grpLabel}</span>
                       <span style={{
                         fontSize: '0.72rem',
                         padding: '1px 6px',
@@ -2171,14 +2134,14 @@ const TestRequestForm = () => {
                         <button
                           type="button"
                           onClick={(e) => handleRemoveSampleGroup(gIdx, e)}
-                          title="Delete Location Group"
+                          title="Remove this testing location"
                           style={{
                             border: 'none',
                             background: 'transparent',
                             color: isActive ? '#ffffff' : '#94a3b8',
                             cursor: 'pointer',
                             padding: '0 2px',
-                            fontSize: '0.8rem',
+                            fontSize: '0.85rem',
                             display: 'flex',
                             alignItems: 'center',
                             opacity: 0.8
@@ -2194,11 +2157,11 @@ const TestRequestForm = () => {
                 })}
               </div>
 
-              {/* Add Group & Presets Dropdown */}
-              <div style={{ position: 'relative' }} ref={presetDropdownRef}>
+              {/* Add Testing Location Direct Dynamic Button */}
+              <div>
                 <button
                   type="button"
-                  onClick={() => setShowPresetDropdown(!showPresetDropdown)}
+                  onClick={handleAddSampleGroup}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -2207,86 +2170,15 @@ const TestRequestForm = () => {
                     color: '#ffffff',
                     border: 'none',
                     borderRadius: '8px',
-                    padding: '0.45rem 0.9rem',
-                    fontSize: '0.82rem',
+                    padding: '0.5rem 1rem',
+                    fontSize: '0.85rem',
                     fontWeight: 700,
                     cursor: 'pointer',
                     boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)'
                   }}
                 >
-                  <FaPlus size={10} /> Add Sample Location / Group <span style={{ fontSize: '0.65rem' }}>▼</span>
+                  <FaPlus size={11} /> Add Testing Location
                 </button>
-
-                {showPresetDropdown && (
-                  <div style={{
-                    position: 'absolute',
-                    top: '100%',
-                    right: 0,
-                    marginTop: '0.4rem',
-                    background: '#ffffff',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '10px',
-                    boxShadow: '0 10px 25px rgba(0,0,0,0.12)',
-                    zIndex: 100,
-                    minWidth: '280px',
-                    padding: '0.4rem',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.2rem'
-                  }}>
-                    <div style={{ padding: '0.4rem 0.6rem', fontSize: '0.72rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      Audit Quote Annexure-B Presets
-                    </div>
-                    {SAMPLE_GROUP_PRESETS.map((preset, pIdx) => (
-                      <button
-                        key={pIdx}
-                        type="button"
-                        onClick={() => handleAddSampleGroup(preset)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '0.5rem 0.75rem',
-                          borderRadius: '6px',
-                          border: 'none',
-                          background: 'transparent',
-                          color: '#1e293b',
-                          fontSize: '0.82rem',
-                          textAlign: 'left',
-                          cursor: 'pointer',
-                          fontWeight: 500
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = '#f1f5f9'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                      >
-                        <span>{preset.title}</span>
-                        <span style={{ fontSize: '0.7rem', color: '#059669', background: '#ecfdf5', padding: '1px 6px', borderRadius: '4px', fontWeight: 600 }}>
-                          {preset.locationOfSample}
-                        </span>
-                      </button>
-                    ))}
-                    <div style={{ borderTop: '1px solid #f1f5f9', margin: '0.2rem 0' }}></div>
-                    <button
-                      type="button"
-                      onClick={() => handleAddSampleGroup(null)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        padding: '0.5rem 0.75rem',
-                        borderRadius: '6px',
-                        border: 'none',
-                        background: '#eff6ff',
-                        color: '#1d4ed8',
-                        fontSize: '0.82rem',
-                        fontWeight: 700,
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <FaPlus size={10} /> + Custom Location / Scope
-                    </button>
-                  </div>
-                )}
               </div>
             </div>
 
@@ -2298,60 +2190,92 @@ const TestRequestForm = () => {
               padding: '1.25rem',
               marginBottom: '1.5rem'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-                {/* Editable Scope Title */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: '240px' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', whiteSpace: 'nowrap' }}>
-                    Group / Annexure-B Title:
-                  </label>
-                  <input
-                    type="text"
-                    value={currentGroup.title || ''}
-                    onChange={(e) => handleGroupTitleChange(e.target.value)}
-                    placeholder="e.g. 1. Effluent Water Analysis (Inlet)"
-                    style={{
-                      padding: '0.4rem 0.75rem',
-                      borderRadius: '8px',
-                      border: '1px solid #cbd5e1',
-                      fontSize: '0.88rem',
-                      fontWeight: 700,
-                      color: '#0f172a',
-                      background: '#ffffff',
-                      width: '100%',
-                      maxWidth: '420px',
-                      outline: 'none'
-                    }}
-                  />
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>
+                    Location {activeGroupIndex + 1}: {currentGroup.locationOfSample || 'New Location'}
+                  </span>
                 </div>
 
-                {/* Duplicate button */}
-                <button
-                  type="button"
-                  onClick={(e) => handleDuplicateSampleGroup(activeGroupIndex, e)}
-                  style={{
-                    background: '#ffffff',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '8px',
-                    padding: '0.35rem 0.75rem',
-                    fontSize: '0.78rem',
-                    fontWeight: 600,
-                    color: '#475569',
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.35rem'
-                  }}
-                >
-                  📋 Duplicate Group
-                </button>
+                {/* Actions */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <button
+                    type="button"
+                    onClick={(e) => handleDuplicateSampleGroup(activeGroupIndex, e)}
+                    style={{
+                      background: '#ffffff',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '8px',
+                      padding: '0.4rem 0.8rem',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      color: '#475569',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem'
+                    }}
+                  >
+                    📋 Duplicate Location
+                  </button>
+                  {sampleGroups.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={(e) => handleRemoveSampleGroup(activeGroupIndex, e)}
+                      style={{
+                        background: '#fef2f2',
+                        border: '1px solid #fecaca',
+                        borderRadius: '8px',
+                        padding: '0.4rem 0.8rem',
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        color: '#dc2626',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem'
+                      }}
+                    >
+                      🗑️ Remove Location
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* 4-column Selector Grid for Active Group */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
 
-                {/* Department Selector */}
+                {/* 1. Location / Stage Selector */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>Department <span style={{ color: '#ef4444' }}>*</span></label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>
+                      Location / Stage <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <AddMasterButton
+                      label="Add Location"
+                      onClick={() => setInlineModal({ isOpen: true, type: 'locationSample', parentData: { companyId: formData.companyId } })}
+                    />
+                  </div>
+                  <SearchableSelect
+                    options={[
+                      { id: '', name: 'Select Location / Stage' },
+                      ...Array.from(new Set(
+                        [...locationSamples.map(l => (l?.name || '').trim()), (currentGroup.locationOfSample || '').trim()]
+                          .filter(Boolean)
+                      )).sort((a, b) => a.localeCompare(b)).map(name => ({ id: name, name }))
+                    ]}
+                    value={currentGroup.locationOfSample || ''}
+                    onChange={handleGroupLocationChange}
+                    placeholder="Select Location / Stage"
+                    searchPlaceholder="Search location..."
+                  />
+                </div>
+
+                {/* 2. Department Selector */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>
+                    Department <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
                   <SearchableSelect
                     options={[...departments].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
                     value={currentGroup.departmentId || ''}
@@ -2361,10 +2285,12 @@ const TestRequestForm = () => {
                   />
                 </div>
 
-                {/* Discipline Group Dropdown (Multi-Select) */}
+                {/* 3. Discipline Group Dropdown (Multi-Select) */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>Discipline Group <span style={{ color: '#ef4444' }}>*</span></label>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>
+                      Discipline Group <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
                     <AddMasterButton label="Add New Group" onClick={() => setInlineModal({ isOpen: true, type: 'category', parentData: { companyId: formData.companyId, departmentId: currentGroup.departmentId } })} />
                   </div>
                   <SearchableSelect
@@ -2378,7 +2304,7 @@ const TestRequestForm = () => {
                   />
                 </div>
 
-                {/* Sub Category */}
+                {/* 4. Sub Category */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>
@@ -2403,30 +2329,6 @@ const TestRequestForm = () => {
                     placeholder="Select Sub Category (Optional)"
                     searchPlaceholder="Search sub category..."
                     disabled={(!currentGroup.categoryIds || currentGroup.categoryIds.length === 0) || subCategoriesLoading}
-                  />
-                </div>
-
-                {/* Location of Sample */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>Location of Sample</label>
-                    <AddMasterButton
-                      label="Add Location"
-                      onClick={() => setInlineModal({ isOpen: true, type: 'locationSample', parentData: { companyId: formData.companyId } })}
-                    />
-                  </div>
-                  <SearchableSelect
-                    options={[
-                      { id: '', name: 'Select Location of Sample' },
-                      ...Array.from(new Set(
-                        [...locationSamples.map(l => (l?.name || '').trim()), (currentGroup.locationOfSample || '').trim()]
-                          .filter(Boolean)
-                      )).sort((a, b) => a.localeCompare(b)).map(name => ({ id: name, name }))
-                    ]}
-                    value={currentGroup.locationOfSample || ''}
-                    onChange={handleGroupLocationChange}
-                    placeholder="Select Location of Sample"
-                    searchPlaceholder="Search location..."
                   />
                 </div>
               </div>
@@ -2816,7 +2718,7 @@ const TestRequestForm = () => {
               ) : (
                 overallGroupStats.groupBreakdown.map((grp, idx) => (
                   <div
-                    key={grp.groupId || idx}
+                    key={`quotation_summary_g${idx}_${grp.groupId || grp.id || 'grp'}`}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -3964,7 +3866,7 @@ const TestRequestForm = () => {
                       {overallGroupStats.totalParamCount > 0 ? (
                         overallGroupStats.groupBreakdown.flatMap((grp, gIdx) => {
                           const grpRows = grp.parameters.map((p, pIdx) => (
-                            <tr key={`${grp.groupId}_${p.id || pIdx}`} style={{ borderBottom: '1px solid #000000' }}>
+                            <tr key={`row_g${gIdx}_${grp.groupId || grp.id || 'grp'}_p${pIdx}_${p.id || 'param'}`} style={{ borderBottom: '1px solid #000000' }}>
                               <td style={{ padding: '2px', borderRight: '1px solid #000000', textAlign: 'center' }}>{pIdx + 1}.</td>
                               <td style={{ padding: '2px 4px', borderRight: '1px solid #000000', textAlign: 'left' }}>{p.parameterName || p.name}</td>
                               <td style={{ padding: '2px', borderRight: '1px solid #000000', textAlign: 'center', fontWeight: 'bold', color: '#15803d' }}>√</td>
@@ -3974,7 +3876,7 @@ const TestRequestForm = () => {
 
                           if (overallGroupStats.totalGroups > 1) {
                             return [
-                              <tr key={`hdr_${grp.groupId || gIdx}`} style={{ background: '#f1f5f9', borderBottom: '1px solid #000000', fontWeight: 'bold' }}>
+                              <tr key={`hdr_g${gIdx}_${grp.groupId || grp.id || 'grp'}`} style={{ background: '#f1f5f9', borderBottom: '1px solid #000000', fontWeight: 'bold' }}>
                                 <td colSpan={4} style={{ padding: '3px 6px', fontSize: '7.5px', color: '#0f172a' }}>
                                   📍 {grp.title || `${gIdx + 1}. ${grp.location}`} {grp.departmentName ? `(${grp.departmentName} - ${grp.disciplineName || ''})` : ''}
                                 </td>
