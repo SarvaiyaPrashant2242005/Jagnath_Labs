@@ -1863,60 +1863,6 @@ const ProvisionalQuotationForm = () => {
           {/* General Testing / Consulting Form UI Editor */}
           {quotationCategoryType === 'general_testing' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              {/* 3-Page Workflow Navigator Bar */}
-              <div style={{
-                background: '#ffffff',
-                border: '1.5px solid #0284c7',
-                borderRadius: '10px',
-                padding: '0.65rem 0.85rem',
-                boxShadow: '0 2px 6px rgba(2,132,199,0.08)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: '0.5rem'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#0369a1' }}>📑 3-Page Structure:</span>
-                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Design &amp; preview identically across 3 pages</span>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
-                  <button
-                    type="button"
-                    onClick={() => handleScrollToGtPage('all')}
-                    className={`btn btn-xs font-bold ${gtActivePageTab === 'all' ? 'btn-primary' : 'btn-outline-secondary'}`}
-                    style={gtActivePageTab === 'all' ? { background: '#0284c7', borderColor: '#0284c7' } : {}}
-                  >
-                    📄 All Pages
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleScrollToGtPage(1)}
-                    className={`btn btn-xs font-bold ${gtActivePageTab === '1' ? 'btn-primary' : 'btn-outline-primary'}`}
-                    style={gtActivePageTab === '1' ? { background: '#0284c7', borderColor: '#0284c7' } : {}}
-                  >
-                    1️⃣ Page 1: Quote &amp; Pricing
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleScrollToGtPage(2)}
-                    className={`btn btn-xs font-bold ${gtActivePageTab === '2' ? 'btn-primary' : 'btn-outline-primary'}`}
-                    style={gtActivePageTab === '2' ? { background: '#0284c7', borderColor: '#0284c7' } : {}}
-                  >
-                    2️⃣ Page 2: Terms &amp; Compliance
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleScrollToGtPage(3)}
-                    className={`btn btn-xs font-bold ${gtActivePageTab === '3' ? 'btn-primary' : 'btn-outline-primary'}`}
-                    style={gtActivePageTab === '3' ? { background: '#0284c7', borderColor: '#0284c7' } : {}}
-                  >
-                    3️⃣ Page 3: Bank &amp; Signature
-                  </button>
-                </div>
-              </div>
-
               {/* Card 1: Quotation Meta & Identification */}
               <div style={{ background: '#f8fafc', border: '1.5px solid #cbd5e1', borderRadius: '10px', padding: '1.1rem', boxShadow: '0 2px 6px rgba(0,0,0,0.03)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.4rem' }}>
@@ -2151,96 +2097,135 @@ const ProvisionalQuotationForm = () => {
                           background: '#ffffff',
                           border: '1px solid #cbd5e1',
                           borderRadius: '8px',
-                          padding: '0.75rem',
-                          display: 'grid',
-                          gridTemplateColumns: '36px 1fr 90px 125px 95px 125px 70px',
-                          gap: '0.55rem',
-                          alignItems: 'center'
+                          padding: '0.85rem',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '0.65rem',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
                         }}
                       >
-                        <div style={{ fontWeight: 800, textAlign: 'center', color: '#64748b', fontSize: '0.82rem' }}>
-                          #{idx + 1}
-                        </div>
-                        <div>
-                          <label className="text-muted text-xs d-block mb-1 font-semibold">Parameter / Description</label>
-                          <textarea
-                            rows={2}
-                            value={item.sampleName || ''}
-                            onChange={(e) => handlePricingRowChange(idx, 'sampleName', e.target.value)}
-                            className="form-control text-xs font-medium"
-                            placeholder="Sample Name / Test / Parameters..."
-                            style={{ resize: 'vertical', minHeight: '42px' }}
-                          />
-                        </div>
-                        <div>
-                          <label className="text-muted text-xs d-block mb-1 font-semibold">Samples</label>
-                          <input
-                            type="number"
-                            min="1"
-                            value={item.noOfSamples || 1}
-                            onChange={(e) => handlePricingRowChange(idx, 'noOfSamples', e.target.value)}
-                            className="form-control text-xs font-bold text-center"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-muted text-xs d-block mb-1 font-semibold">Charges/Sample (₹)</label>
-                          <input
-                            type="number"
-                            min="0"
-                            value={item.chargesPerSample ?? 0}
-                            onChange={(e) => handlePricingRowChange(idx, 'chargesPerSample', e.target.value)}
-                            className="form-control text-xs font-bold text-right"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-muted text-xs d-block mb-1 font-semibold">Discount %</label>
-                          <input
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="0.1"
-                            value={item.discountPercent ?? 0}
-                            onChange={(e) => handlePricingRowChange(idx, 'discountPercent', e.target.value)}
-                            className="form-control text-xs font-bold text-center text-primary"
-                            placeholder="0%"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-muted text-xs d-block mb-1 font-semibold">Total (₹) [Read-Only]</label>
-                          <div
-                            style={{
-                              background: '#f8fafc',
-                              border: '1px solid #e2e8f0',
-                              borderRadius: '6px',
-                              padding: '6px 8px',
-                              fontWeight: 800,
-                              fontSize: '0.82rem',
-                              textAlign: 'right',
-                              color: '#0f172a',
-                            }}
-                          >
-                            {formatIndianCurrency(rowData.total)}
+                        {/* Top Line: Row Index, Parameter / Description, and Action Buttons */}
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem' }}>
+                          <div style={{
+                            fontWeight: 800,
+                            color: '#0284c7',
+                            background: '#f0f9ff',
+                            border: '1px solid #bae6fd',
+                            borderRadius: '6px',
+                            padding: '4px 8px',
+                            fontSize: '0.82rem',
+                            minWidth: '32px',
+                            textAlign: 'center',
+                            marginTop: '1.25rem',
+                            flexShrink: 0
+                          }}>
+                            #{idx + 1}
+                          </div>
+
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <label className="text-muted text-xs d-block mb-1 font-semibold">
+                              Parameter / Description
+                            </label>
+                            <textarea
+                              rows={2}
+                              value={item.sampleName || ''}
+                              onChange={(e) => handlePricingRowChange(idx, 'sampleName', e.target.value)}
+                              className="form-control text-xs font-medium"
+                              placeholder="Sample Name / Test / Parameters..."
+                              style={{ resize: 'vertical', minHeight: '38px', width: '100%' }}
+                            />
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '1.25rem', flexShrink: 0 }}>
+                            <button
+                              type="button"
+                              onClick={() => handleDuplicatePricingRow(idx)}
+                              className="btn btn-outline-secondary btn-xs"
+                              title="Duplicate Row"
+                              style={{ padding: '5px 7px', borderRadius: '6px' }}
+                            >
+                              <FaCopy size={11} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeletePricingRow(idx)}
+                              className="btn btn-outline-danger btn-xs"
+                              title="Delete Row"
+                              style={{ padding: '5px 7px', borderRadius: '6px' }}
+                            >
+                              <FaTrash size={11} />
+                            </button>
                           </div>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                          <button
-                            type="button"
-                            onClick={() => handleDuplicatePricingRow(idx)}
-                            className="btn btn-outline-secondary btn-xs"
-                            title="Duplicate Row"
-                            style={{ padding: '4px 6px' }}
-                          >
-                            <FaCopy size={10} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeletePricingRow(idx)}
-                            className="btn btn-outline-danger btn-xs"
-                            title="Delete Row"
-                            style={{ padding: '4px 6px' }}
-                          >
-                            <FaTrash size={10} />
-                          </button>
+
+                        {/* Bottom Line: 4 Metric Columns in Responsive Grid */}
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
+                          gap: '0.55rem',
+                          background: '#f8fafc',
+                          padding: '0.55rem 0.65rem',
+                          borderRadius: '6px',
+                          border: '1px solid #e2e8f0'
+                        }}>
+                          <div>
+                            <label className="text-muted text-xs d-block mb-1 font-semibold" style={{ whiteSpace: 'nowrap' }}>Samples</label>
+                            <input
+                              type="number"
+                              min="1"
+                              value={item.noOfSamples || 1}
+                              onChange={(e) => handlePricingRowChange(idx, 'noOfSamples', e.target.value)}
+                              className="form-control text-xs font-bold text-center"
+                              style={{ height: '32px', background: '#ffffff' }}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-muted text-xs d-block mb-1 font-semibold" style={{ whiteSpace: 'nowrap' }}>Charges/Sample (₹)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={item.chargesPerSample ?? 0}
+                              onChange={(e) => handlePricingRowChange(idx, 'chargesPerSample', e.target.value)}
+                              className="form-control text-xs font-bold text-right"
+                              style={{ height: '32px', background: '#ffffff' }}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-muted text-xs d-block mb-1 font-semibold" style={{ whiteSpace: 'nowrap' }}>Discount %</label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.1"
+                              value={item.discountPercent ?? 0}
+                              onChange={(e) => handlePricingRowChange(idx, 'discountPercent', e.target.value)}
+                              className="form-control text-xs font-bold text-center text-primary"
+                              placeholder="0%"
+                              style={{ height: '32px', background: '#ffffff' }}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-muted text-xs d-block mb-1 font-semibold" style={{ whiteSpace: 'nowrap' }}>Total (₹) [Read-Only]</label>
+                            <div
+                              style={{
+                                background: '#ffffff',
+                                border: '1px solid #cbd5e1',
+                                borderRadius: '4px',
+                                padding: '4px 8px',
+                                fontWeight: 800,
+                                fontSize: '0.82rem',
+                                textAlign: 'right',
+                                color: '#0f172a',
+                                height: '32px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'flex-end',
+                                boxSizing: 'border-box'
+                              }}
+                            >
+                              {formatIndianCurrency(rowData.total)}
+                            </div>
+                          </div>
                         </div>
                       </div>
                     );
@@ -2348,39 +2333,15 @@ const ProvisionalQuotationForm = () => {
                     </span>
                   </div>
 
-                  {/* Add Section Preset Dropdown */}
+                  {/* Add Section Button */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <select
-                      onChange={(e) => {
-                        if (e.target.value) {
-                          handleAddSection(e.target.value);
-                          e.target.value = '';
-                        }
-                      }}
-                      defaultValue=""
-                      className="form-select form-select-sm font-bold"
-                      style={{ height: '30px', fontSize: '0.78rem', borderColor: '#0284c7', color: '#0369a1', cursor: 'pointer' }}
-                    >
-                      <option value="" disabled>➕ Add Section from Preset...</option>
-                      <option value="custom">📄 Blank / Custom Section</option>
-                      <option value="sample_requirements">📝 Sample Requirements &amp; TAT Notes</option>
-                      <option value="validity">1. Validity of Quotation</option>
-                      <option value="payment_terms">2. Payment Terms</option>
-                      <option value="sampling_conditions">3. Sampling Conditions</option>
-                      <option value="sample_handling">4. Sample Handling &amp; Disposal</option>
-                      <option value="suspension_of_work">5. Suspension of Work</option>
-                      <option value="invoicing_reports">6. Invoicing &amp; Reports</option>
-                      <option value="compliance_requirements">Management System Compliance Requirements</option>
-                      <option value="decision_rule_disposal">Decision Rule &amp; Disposal</option>
-                    </select>
-
                     <button
                       type="button"
                       onClick={() => handleAddSection('custom')}
                       className="btn btn-primary btn-xs font-bold"
-                      style={{ background: '#0284c7', borderColor: '#0284c7', display: 'flex', alignItems: 'center', gap: '0.35rem', height: '30px' }}
+                      style={{ background: '#0284c7', borderColor: '#0284c7', display: 'flex', alignItems: 'center', gap: '0.35rem', height: '30px', padding: '0 0.75rem' }}
                     >
-                      <FaPlus size={10} /> Blank Section
+                      <FaPlus size={10} /> Add Section
                     </button>
                   </div>
                 </div>

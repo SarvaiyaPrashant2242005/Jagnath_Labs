@@ -125,12 +125,46 @@ export const RichTextEditor = ({
       style={{
         border: '1.5px solid #cbd5e1',
         borderRadius: '8px',
-        overflow: 'visible',
+        overflow: 'hidden',
         background: '#ffffff',
         boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
         transition: 'border-color 0.15s ease',
       }}
     >
+      <style>{`
+        .rich-text-editor-container .rich-text-editor-content ul {
+          list-style-type: disc !important;
+          padding-left: 28px !important;
+          margin: 6px 0 !important;
+        }
+        .rich-text-editor-container .rich-text-editor-content ol {
+          list-style-type: decimal !important;
+          padding-left: 28px !important;
+          margin: 6px 0 !important;
+        }
+        .rich-text-editor-container .rich-text-editor-content ul ul {
+          list-style-type: circle !important;
+          padding-left: 22px !important;
+          margin: 3px 0 !important;
+        }
+        .rich-text-editor-container .rich-text-editor-content ol ol {
+          list-style-type: lower-alpha !important;
+          padding-left: 22px !important;
+          margin: 3px 0 !important;
+        }
+        .rich-text-editor-container .rich-text-editor-content li {
+          margin-bottom: 4px !important;
+          line-height: 1.5 !important;
+        }
+        .rich-text-editor-container .rich-text-editor-content p {
+          margin: 0 0 6px 0 !important;
+        }
+        .rich-text-editor-container .rich-text-editor-content:empty:before {
+          content: attr(data-placeholder);
+          color: #94a3b8;
+          pointer-events: none;
+        }
+      `}</style>
       {/* RICH TEXT TOOLBAR */}
       <div
         style={{
@@ -434,10 +468,11 @@ export const RichTextEditor = ({
         onInput={handleInput}
         onBlur={handleInput}
         onKeyDown={handleKeyDown}
+        className="rich-text-editor-content"
         style={{
           minHeight,
           maxHeight: maxHeight !== 'auto' ? maxHeight : undefined,
-          padding: '10px 12px',
+          padding: '10px 14px',
           fontSize: '0.88rem',
           lineHeight: '1.5',
           color: '#1e293b',
