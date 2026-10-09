@@ -481,10 +481,14 @@ const TestRequestForm = () => {
     if (selectedCompany) {
       const logoPath = selectedCompany.test_request_logo || selectedCompany.testRequestLogo || selectedCompany.logo;
       if (logoPath) {
-        const cleanPath = logoPath.replace(/\\/g, '/');
-        const idx = cleanPath.lastIndexOf('uploads/');
+        const cleanPath = String(logoPath).replace(/\\/g, '/');
+        const lower = cleanPath.toLowerCase();
+        const idx = lower.lastIndexOf('uploads/');
         if (idx !== -1) {
           return `${BACKEND_ROOT_URL}/${cleanPath.substring(idx)}`;
+        }
+        if (cleanPath.startsWith('file:') || /^[a-zA-Z]:\//.test(cleanPath)) {
+          return '/Images/Navbar_Logo.png';
         }
         return logoPath;
       }
@@ -674,6 +678,15 @@ const TestRequestForm = () => {
           if (matchedCat) {
             savedDepartmentId = matchedCat.departmentId || matchedCat.department_id || '';
           }
+        }
+
+        let initialSampleGroups = [];
+        let rawGroups = tr.sampleGroups || tr.sample_groups || [];
+        if (typeof rawGroups === 'string') {
+          try { rawGroups = JSON.parse(rawGroups); } catch (e) {}
+        }
+        if (Array.isArray(rawGroups) && rawGroups.length > 0) {
+          initialSampleGroups = rawGroups;
         }
 
         // Fetch checked parameters for this test request (Location-Wise grouping)
@@ -3374,9 +3387,10 @@ const TestRequestForm = () => {
               </button>
             </div>
           </div>
+        </div>
 
-          {/* Right Column: Sticky Live Preview Simulator */}
-          {showLivePreview && (
+        {/* Right Column: Sticky Live Preview Simulator */}
+        {showLivePreview && (
             <div className="live-preview-container hide-on-mobile" style={{
               width: '460px',
               flexShrink: 0,
@@ -4107,8 +4121,7 @@ const TestRequestForm = () => {
           />
         </div>
       </div>
-    </div>
-  );
+    );
 };
 
 export default TestRequestForm;
