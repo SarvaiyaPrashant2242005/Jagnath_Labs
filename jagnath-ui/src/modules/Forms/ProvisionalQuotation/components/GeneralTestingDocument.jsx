@@ -35,10 +35,11 @@ const PageContainer = ({
     <div
       className="gt-a4-page"
       style={{
-        width: '210mm',
-        height: '297mm',
-        minHeight: '297mm',
-        maxHeight: '297mm',
+        width: isPrintMode ? '210mm' : '100%',
+        maxWidth: '210mm',
+        height: isPrintMode ? '297mm' : 'auto',
+        minHeight: isPrintMode ? '297mm' : 'auto',
+        maxHeight: isPrintMode ? '297mm' : 'none',
         padding: '8mm 10mm',
         boxSizing: 'border-box',
         position: 'relative',

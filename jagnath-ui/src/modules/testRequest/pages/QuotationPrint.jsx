@@ -249,8 +249,9 @@ const QuotationPrint = () => {
 
   return (
     <div className="paper-quotation-container" style={{
-      width: '210mm',
-      minHeight: '297mm',
+      width: '100%',
+      maxWidth: '210mm',
+      minHeight: 'auto',
       margin: '0 auto',
       padding: '10mm 15mm 15mm 15mm',
       boxSizing: 'border-box',
@@ -259,7 +260,9 @@ const QuotationPrint = () => {
       fontSize: '10.5pt',
       color: '#000000',
       lineHeight: '1.35',
-      position: 'relative'
+      position: 'relative',
+      wordBreak: 'break-word',
+      overflowWrap: 'break-word'
     }}>
       <style>{`
         @media print {

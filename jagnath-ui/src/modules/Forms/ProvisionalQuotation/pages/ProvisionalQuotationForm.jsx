@@ -313,6 +313,7 @@ const ProvisionalQuotationForm = () => {
   const [gtActivePageTab, setGtActivePageTab] = useState('all'); // 'all' | '1' | '2' | '3'
   const [paramSearchTerms, setParamSearchTerms] = useState({});
   const [expandedAnnexureBInAct, setExpandedAnnexureBInAct] = useState({ 0: true, 1: true });
+  const [previewZoom, setPreviewZoom] = useState(1);
 
   // Master Data
   const [masters, setMasters] = useState({
@@ -1195,7 +1196,7 @@ const ProvisionalQuotationForm = () => {
       const newRate = paramData?.rate !== undefined
         ? parseFloat(paramData.rate)
         : (paramData?.price !== undefined ? parseFloat(paramData.price) : 500);
-      
+
       params.push({
         id: 'p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
         description: paramData?.parameterName || paramData?.name || paramData?.description || 'New Parameter',
@@ -1666,16 +1667,16 @@ const ProvisionalQuotationForm = () => {
         </div>
 
         <div className="d-flex align-center gap-2">
-          {quotationCategoryType === 'general_testing' && (
-            <button
-              type="button"
-              className="btn btn-outline-secondary btn-sm font-semibold"
-              onClick={() => setIsMasterTermsOpen(true)}
-              title="Manage Master Terms & Conditions Defaults"
-            >
-              <FaGavel /> Manage Default Terms
-            </button>
-          )}
+          {/* {quotationCategoryType === 'general_testing' && (
+            // <button
+            //   type="button"
+            //   className="btn btn-outline-secondary btn-sm font-semibold"
+            //   onClick={() => setIsMasterTermsOpen(true)}
+            //   title="Manage Master Terms & Conditions Defaults"
+            // >
+            //   <FaGavel /> Manage Default Terms
+            // </button>
+          )} */}
           <button
             type="button"
             className="btn btn-outline-primary btn-sm font-semibold"
@@ -4208,21 +4209,64 @@ const ProvisionalQuotationForm = () => {
         <div className="builder-preview-area">
 
           {/* Preview Header Bar */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0f172a', color: '#fff', padding: '0.6rem 0.85rem', borderRadius: '8px 8px 0 0' }}>
-            <span className="text-xs font-bold uppercase tracking-wider d-flex align-center gap-1">
-              <FaEye className="text-emerald-400" /> Live A4 Print Preview
-            </span>
-            <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 600, background: '#1e293b', padding: '0.2rem 0.55rem', borderRadius: '4px' }}>
-              {!formData.testRequestId
-                ? 'Select TRF to Preview'
-                : (quotationCategoryType === 'regular'
-                  ? 'Regular Quotation (1 Page)'
-                  : `Full Quotation (${(formData.annexureB || []).length === 0 ? '4 Pages' : ((formData.annexureB || []).length > 3 ? '6 Pages' : '5 Pages')})`)}
-            </span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0f172a', color: '#fff', padding: '0.55rem 0.85rem', borderRadius: '8px 8px 0 0', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span className="text-xs font-bold uppercase tracking-wider d-flex align-center gap-1">
+                <FaEye className="text-emerald-400" /> Live A4 Print Preview
+              </span>
+              <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 600, background: '#1e293b', padding: '0.2rem 0.55rem', borderRadius: '4px' }}>
+                {!formData.testRequestId
+                  ? 'Select TRF to Preview'
+                  : (quotationCategoryType === 'general_testing'
+                    ? 'General Testing Quotation'
+                    : (quotationCategoryType === 'regular'
+                      ? 'Regular Quotation (1 Page)'
+                      : `Full Quotation (${(formData.annexureB || []).length === 0 ? '4 Pages' : ((formData.annexureB || []).length > 3 ? '6 Pages' : '5 Pages')})`))}
+              </span>
+            </div>
+
+            {/* Quick Zoom Controls */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <button
+                type="button"
+                onClick={() => setPreviewZoom(prev => Math.max(0.5, Number((prev - 0.1).toFixed(1))))}
+                style={{ background: '#1e293b', color: '#e2e8f0', border: '1px solid #334155', borderRadius: '4px', padding: '2px 7px', fontSize: '11px', cursor: 'pointer' }}
+                title="Zoom Out"
+              >
+                -
+              </button>
+              <button
+                type="button"
+                onClick={() => setPreviewZoom(1)}
+                style={{ background: previewZoom === 1 ? '#0284c7' : '#1e293b', color: '#fff', border: '1px solid #334155', borderRadius: '4px', padding: '2px 7px', fontSize: '11px', cursor: 'pointer' }}
+                title="Reset Zoom / Fit Width"
+              >
+                {Math.round(previewZoom * 100)}%
+              </button>
+              <button
+                type="button"
+                onClick={() => setPreviewZoom(prev => Math.min(1.5, Number((prev + 0.1).toFixed(1))))}
+                style={{ background: '#1e293b', color: '#e2e8f0', border: '1px solid #334155', borderRadius: '4px', padding: '2px 7px', fontSize: '11px', cursor: 'pointer' }}
+                title="Zoom In"
+              >
+                +
+              </button>
+            </div>
           </div>
 
           {/* Scrollable A4 Preview Frame (All Pages Stacked) */}
-          <div className="a4-preview-scroll-frame" style={{ background: '#cbd5e1', padding: '1rem', overflowY: 'auto', border: '1px solid #94a3b8', borderTop: 'none', borderRadius: '0 0 8px 8px', flexGrow: 1, display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          <div className="a4-preview-scroll-frame" style={{ background: '#cbd5e1', padding: '1rem', overflowY: 'auto', overflowX: 'auto', border: '1px solid #94a3b8', borderTop: 'none', borderRadius: '0 0 8px 8px', flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2rem', width: '100%', boxSizing: 'border-box' }}>
+            <div style={{
+              width: '100%',
+              maxWidth: '100%',
+              transform: previewZoom !== 1 ? `scale(${previewZoom})` : 'none',
+              transformOrigin: 'top center',
+              transition: 'transform 0.15s ease-out',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '2rem',
+              alignItems: 'center'
+            }}>
 
             {!formData.testRequestId ? (
               <div style={{
@@ -5139,6 +5183,7 @@ const ProvisionalQuotationForm = () => {
               </>
             )}
 
+            </div>
           </div>
         </div>
       </div>

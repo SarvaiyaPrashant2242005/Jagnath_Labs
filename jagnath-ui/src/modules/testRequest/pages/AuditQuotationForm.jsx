@@ -254,10 +254,10 @@ const AuditQuotationForm = () => {
       </div>
 
       {/* Main Split Container */}
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+      <div className="audit-quotation-split-view" style={{ display: 'flex', flex: 1, overflow: 'hidden', flexWrap: 'wrap' }}>
         
         {/* Left Form Editor Pane (Scrollable) */}
-        <div style={{ width: '45%', padding: '1.5rem', overflowY: 'auto', borderRight: '1px solid #e2e8f0', boxSizing: 'border-box' }}>
+        <div style={{ flex: '1 1 450px', minWidth: '320px', padding: '1.5rem', overflowY: 'auto', borderRight: '1px solid #e2e8f0', boxSizing: 'border-box' }}>
           
           {/* Card 1: Basic details */}
           <div style={{ background: '#ffffff', borderRadius: '12px', padding: '1.5rem', marginBottom: '1.5rem', border: '1px solid #e2e8f0' }}>
@@ -460,10 +460,10 @@ const AuditQuotationForm = () => {
         </div>
 
         {/* Right Live Preview Pane (Scrollable) */}
-        <div style={{ width: '55%', background: '#cbd5e1', overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '2rem 0', boxSizing: 'border-box' }}>
+        <div style={{ flex: '1 1 500px', minWidth: '320px', background: '#cbd5e1', overflowY: 'auto', overflowX: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '1.5rem 1rem', boxSizing: 'border-box' }}>
           
           {/* Preview Page 1 */}
-          <div className="preview-page" style={{ width: '210mm', height: '297mm', background: '#ffffff', padding: '20mm', boxSizing: 'border-box', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.15)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', fontFamily: '"Times New Roman", Times, serif', fontSize: '11pt', color: '#000000', lineHeight: '1.4', marginBottom: '2rem' }}>
+          <div className="preview-page" style={{ width: '100%', maxWidth: '210mm', minHeight: 'auto', background: '#ffffff', padding: '14mm 16mm', boxSizing: 'border-box', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.15)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', fontFamily: '"Times New Roman", Times, serif', fontSize: '11pt', color: '#000000', lineHeight: '1.4', marginBottom: '2rem', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
             <div>
               <div style={{ textAlign: 'center', marginBottom: '5px' }}>
                 <img src={getLogoUrl()} alt="Company Logo" style={{ maxHeight: '60px', objectFit: 'contain' }} />
@@ -513,7 +513,7 @@ const AuditQuotationForm = () => {
           </div>
 
           {/* Preview Page 2 */}
-          <div className="preview-page" style={{ width: '210mm', height: '297mm', background: '#ffffff', padding: '20mm', boxSizing: 'border-box', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.15)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', fontFamily: '"Times New Roman", Times, serif', fontSize: '11pt', color: '#000000', lineHeight: '1.4', marginBottom: '2rem' }}>
+          <div className="preview-page" style={{ width: '100%', maxWidth: '210mm', minHeight: 'auto', background: '#ffffff', padding: '14mm 16mm', boxSizing: 'border-box', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.15)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', fontFamily: '"Times New Roman", Times, serif', fontSize: '11pt', color: '#000000', lineHeight: '1.4', marginBottom: '2rem', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
             <div>
               <div style={{ textAlign: 'center', marginBottom: '5px' }}>
                 <img src={getLogoUrl()} alt="Company Logo" style={{ maxHeight: '60px', objectFit: 'contain' }} />
@@ -615,7 +615,7 @@ const AuditQuotationForm = () => {
           </div>
 
           {/* Preview Page 3 */}
-          <div className="preview-page" style={{ width: '210mm', height: '297mm', background: '#ffffff', padding: '20mm', boxSizing: 'border-box', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.15)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', fontFamily: '"Times New Roman", Times, serif', fontSize: '11pt', color: '#000000', lineHeight: '1.4', marginBottom: '2rem' }}>
+          <div className="preview-page" style={{ width: '100%', maxWidth: '210mm', minHeight: 'auto', background: '#ffffff', padding: '14mm 16mm', boxSizing: 'border-box', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.15)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', fontFamily: '"Times New Roman", Times, serif', fontSize: '11pt', color: '#000000', lineHeight: '1.4', marginBottom: '2rem', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
             <div>
               <div style={{ textAlign: 'center', marginBottom: '5px' }}>
                 <img src={getLogoUrl()} alt="Company Logo" style={{ maxHeight: '60px', objectFit: 'contain' }} />
@@ -662,7 +662,7 @@ const AuditQuotationForm = () => {
           </div>
 
           {/* Preview Page 4 */}
-          <div className="preview-page" style={{ width: '210mm', height: '297mm', background: '#ffffff', padding: '15mm', boxSizing: 'border-box', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.15)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', fontFamily: '"Times New Roman", Times, serif', fontSize: '10pt', color: '#000000', lineHeight: '1.3', marginBottom: '2rem' }}>
+          <div className="preview-page" style={{ width: '100%', maxWidth: '210mm', minHeight: 'auto', background: '#ffffff', padding: '12mm 14mm', boxSizing: 'border-box', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.15)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', fontFamily: '"Times New Roman", Times, serif', fontSize: '10pt', color: '#000000', lineHeight: '1.3', marginBottom: '2rem', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
             <div>
               <div style={{ textAlign: 'center', marginBottom: '2px' }}>
                 <img src={getLogoUrl()} alt="Company Logo" style={{ maxHeight: '50px', objectFit: 'contain' }} />
