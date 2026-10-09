@@ -130,19 +130,22 @@ const TestRequestForm = () => {
   const [companies, setCompanies] = useState([]);
   const [clients, setClients] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [selectedDepartmentIds, setSelectedDepartmentIds] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState([]);
   const [subCategories, setSubCategories] = useState([]);
+  const [selectedSubCategory, setSelectedSubCategory] = useState('');
+  const [selectedParamLocation, setSelectedParamLocation] = useState('');
   const [cautions, setCautions] = useState([]);
   const [locationSamples, setLocationSamples] = useState([]);
   const [priceMasterMap, setPriceMasterMap] = useState({});
-  const [paramMetaMap, setParamMetaMap] = useState({});
 
-  // Multi-Sample / Location Groups State for Testing Parameters & Quotation
+  // State for dynamic parameter checklist & pagination (Location-Wise)
   const [sampleGroups, setSampleGroups] = useState([
     {
       id: 'grp_1',
-      title: 'Location 1',
-      locationOfSample: '',
+      title: '1. Effluent Water Analysis (Inlet)',
+      locationOfSample: 'Inlet',
       departmentId: '',
       categoryIds: [],
       subCategoryId: '',
@@ -151,8 +154,14 @@ const TestRequestForm = () => {
     }
   ]);
   const [activeGroupIndex, setActiveGroupIndex] = useState(0);
+  const [paramMetaMap, setParamMetaMap] = useState({});
+  const [configuredLocations, setConfiguredLocations] = useState(['Inlet']);
+  const [activeLocationTab, setActiveLocationTab] = useState('Inlet');
+  const [locationParameters, setLocationParameters] = useState({});
+  const [locationParamSequence, setLocationParamSequence] = useState({});
+  const [savedParamRecords, setSavedParamRecords] = useState({});
+  const [newLocationInput, setNewLocationInput] = useState('');
 
-  // State for dynamic parameter checklist & pagination
   const [isGpcbOnly, setIsGpcbOnly] = useState(false);
   const [parameters, setParameters] = useState([]);
   const [checkedParameters, setCheckedParameters] = useState({});
@@ -566,16 +575,22 @@ const TestRequestForm = () => {
       }
 
       // 2. Fetch other resources concurrently using the target company context
-      const [compRes, cautionRes, priceRes, deptRes, catRes] = await Promise.all([
+      const [compRes, cautionRes, priceRes, deptRes, catRes, locRes] = await Promise.all([
         apiService.get(COMPANY_ENDPOINTS.GET_MY),
         apiService.get(CAUTION_ENDPOINTS.GET_ALL),
         apiService.get(PRICE_MASTER_ENDPOINTS.GET_ALL),
         apiService.get(`${DEPARTMENT_ENDPOINTS.GET_ALL}?companyId=${targetCompanyId}&status=Active&limit=500&gpcbOnly=false&isGpcb=false`),
-        apiService.get(CATEGORY_ENDPOINTS.GET_ALL)
+        apiService.get(CATEGORY_ENDPOINTS.GET_ALL),
+        apiService.get(`${LOCATION_SAMPLE_ENDPOINTS.GET_ALL}?status=Active`)
       ]);
 
       const cList = Array.isArray(compRes?.data) ? compRes.data : [compRes?.data];
       if (compRes?.data) setCompanies(cList);
+
+      if (locRes?.data) {
+        const locList = Array.isArray(locRes.data) ? locRes.data : (locRes.data.rows || [locRes.data]);
+        setLocationSamples(locList);
+      }
 
       if (deptRes?.data) {
         setDepartments(deptRes.data.rows || deptRes.data || []);
@@ -661,21 +676,13 @@ const TestRequestForm = () => {
           }
         }
 
-        // Fetch checked parameters and construct sample groups
-        const rawGroups = tr.sampleGroups || tr.sample_groups;
-        let initialSampleGroups = [];
-        if (Array.isArray(rawGroups) && rawGroups.length > 0) {
-          initialSampleGroups = rawGroups.map((g, idx) => ({
-            id: g.id || `grp_${Date.now()}_${idx}`,
-            title: g.title || `${idx + 1}. ${g.locationOfSample || 'Sample Location ' + (idx + 1)}`,
-            locationOfSample: g.locationOfSample || '',
-            departmentId: g.departmentId || '',
-            categoryIds: Array.isArray(g.categoryIds) ? g.categoryIds : (g.categoryId ? [g.categoryId] : []),
-            subCategoryId: g.subCategoryId || '',
-            checkedParameters: {},
-            selectedParamSequence: []
-          }));
-        }
+        // Fetch checked parameters for this test request (Location-Wise grouping)
+        const locParamsMap = {};
+        const locSeqMap = {};
+        const savedRecordsMap = {};
+        const checks = {};
+        const loadedSeq = [];
+        const discoveredLocations = [];
 
         try {
           const trpRes = await apiService.get(TEST_REQUEST_PARAMETER_ENDPOINTS.GET_ALL);
@@ -683,54 +690,44 @@ const TestRequestForm = () => {
             const trps = Array.isArray(trpRes.data) ? trpRes.data : (trpRes.data.rows || [trpRes.data]);
             const matchingTrps = trps.filter(t => String(t.testRequestId) === String(id));
             matchingTrps.sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
+            matchingTrps.forEach(t => {
+              if (t.parameterId) {
+                const loc = (t.locationOfSample || t.location_of_sample || (tr.locationOfSample ? tr.locationOfSample.split(',')[0].trim() : '') || 'Inlet').trim();
+                if (!discoveredLocations.includes(loc)) {
+                  discoveredLocations.push(loc);
+                }
+                if (!locParamsMap[loc]) locParamsMap[loc] = {};
+                if (!locSeqMap[loc]) locSeqMap[loc] = [];
 
-            if (initialSampleGroups.length > 0) {
-              matchingTrps.forEach(t => {
-                const pId = t.parameterId;
-                if (!pId) return;
-                let targetGrp = null;
-                if (t.groupId) {
-                  targetGrp = initialSampleGroups.find(g => g.id === t.groupId);
+                locParamsMap[loc][t.parameterId] = true;
+                locParamsMap[loc][`_id_${t.parameterId}`] = t.id;
+                savedRecordsMap[`${loc}_${t.parameterId}`] = t.id;
+                if (!locSeqMap[loc].includes(t.parameterId)) {
+                  locSeqMap[loc].push(t.parameterId);
                 }
-                if (!targetGrp && t.locationOfSample) {
-                  targetGrp = initialSampleGroups.find(g => (g.locationOfSample || '').trim().toUpperCase() === (t.locationOfSample || '').trim().toUpperCase());
+
+                checks[t.parameterId] = true;
+                checks[`_id_${t.parameterId}`] = t.id;
+                if (!loadedSeq.includes(t.parameterId)) {
+                  loadedSeq.push(t.parameterId);
                 }
-                if (!targetGrp) {
-                  targetGrp = initialSampleGroups[0];
-                }
-                if (targetGrp) {
-                  targetGrp.checkedParameters[pId] = true;
-                  targetGrp.checkedParameters[`_id_${pId}`] = t.id;
-                  if (!targetGrp.selectedParamSequence.includes(pId)) {
-                    targetGrp.selectedParamSequence.push(pId);
-                  }
-                }
-              });
-            } else {
-              // Legacy single-location TRF
-              const legacyChecks = {};
-              const legacySeq = [];
-              matchingTrps.forEach(t => {
-                if (t.parameterId) {
-                  legacyChecks[t.parameterId] = true;
-                  legacyChecks[`_id_${t.parameterId}`] = t.id;
-                  if (!legacySeq.includes(t.parameterId)) {
-                    legacySeq.push(t.parameterId);
-                  }
-                }
-              });
-              const singleLoc = tr.locationOfSample || '';
-              initialSampleGroups = [{
-                id: 'grp_1',
-                title: singleLoc ? singleLoc : 'Location 1',
-                locationOfSample: singleLoc,
-                departmentId: savedDepartmentId,
-                categoryIds: savedCategoryId ? [savedCategoryId] : [],
-                subCategoryId: savedSubCatId,
-                checkedParameters: legacyChecks,
-                selectedParamSequence: legacySeq
-              }];
-            }
+              }
+            });
+
+            const trLocs = (tr.locationOfSample || '')
+              .split(',')
+              .map(l => l.trim())
+              .filter(Boolean);
+            const mergedLocs = Array.from(new Set([...discoveredLocations, ...trLocs]));
+            const finalLocations = mergedLocs.length > 0 ? mergedLocs : ['Inlet'];
+
+            setConfiguredLocations(finalLocations);
+            setActiveLocationTab(finalLocations[0]);
+            setLocationParameters(locParamsMap);
+            setLocationParamSequence(locSeqMap);
+            setSavedParamRecords(savedRecordsMap);
+            setCheckedParameters(checks);
+            setSelectedParamSequence(loadedSeq);
           }
         } catch (e) {
           console.error("Error fetching request parameters", e);
@@ -758,7 +755,7 @@ const TestRequestForm = () => {
           clientId: matchingClient.id || tr.clientId || '',
           address: tr.address || matchingClient.plantAddress || matchingClient.plant_address || matchingClient.officeAddress || matchingClient.office_address || matchingClient.address || '',
           email: tr.email || '',
-          locationOfSample: tr.locationOfSample || '',
+          locationOfSample: tr.locationOfSample || 'Inlet',
           contactPerson: tr.contactPerson || '',
           contactNumber: tr.contactNumber || '',
           dateOfCollection: tr.dateOfCollection || '',
@@ -850,26 +847,32 @@ const TestRequestForm = () => {
     }
   };
 
-  const fetchCategoriesForDepartment = async (departmentId, gpcbOnlyFlag = isGpcbOnly) => {
-    if (!departmentId) {
+  const fetchCategoriesForDepartments = async (departmentIds, gpcbOnlyFlag = isGpcbOnly) => {
+    const deptIdsArray = Array.isArray(departmentIds)
+      ? departmentIds.filter(Boolean)
+      : (departmentIds ? String(departmentIds).split(',').map(s => s.trim()).filter(Boolean) : []);
+
+    if (deptIdsArray.length === 0) {
       setCategories([]);
       return;
     }
     setCategoriesLoading(true);
     try {
       const activeCompId = formData.companyId || localStorage.getItem('selectedCompanyId') || '';
-      let url = `${CATEGORY_ENDPOINTS.GET_ALL}?departmentId=${departmentId}&companyId=${activeCompId}&status=Active&limit=1000&all=true&gpcbOnly=${gpcbOnlyFlag ? 'true' : 'false'}&isGpcb=${gpcbOnlyFlag ? 'true' : 'false'}`;
+      let url = `${CATEGORY_ENDPOINTS.GET_ALL}?departmentId=${deptIdsArray.join(',')}&companyId=${activeCompId}&status=Active&limit=1000&all=true&gpcbOnly=${gpcbOnlyFlag ? 'true' : 'false'}&isGpcb=${gpcbOnlyFlag ? 'true' : 'false'}`;
       const res = await apiService.get(url);
       const raw = res?.data;
       let list = Array.isArray(raw) ? raw : (raw?.rows || raw?.categories || raw?.data || []);
       setCategories(list.filter(c => c.status === 'Active' || c.status === true || !c.status));
     } catch (e) {
-      console.error("Error fetching categories for department", e);
+      console.error("Error fetching categories for departments", e);
       setCategories([]);
     } finally {
       setCategoriesLoading(false);
     }
   };
+
+  const fetchCategoriesForDepartment = fetchCategoriesForDepartments;
 
   const fetchSubCategoriesForCategories = async (categoryIds, gpcbOnlyFlag = isGpcbOnly) => {
     const idsArray = Array.isArray(categoryIds)
@@ -896,6 +899,8 @@ const TestRequestForm = () => {
       setSubCategoriesLoading(false);
     }
   };
+
+  const fetchSubCategoriesForCategory = fetchSubCategoriesForCategories;
 
   const fetchParameters = async (subCategoryId, categoryIds, extraIncludeIds = [], gpcbOnlyFlag = isGpcbOnly) => {
     const idsArray = Array.isArray(categoryIds)
@@ -1101,11 +1106,16 @@ const TestRequestForm = () => {
     const nextGpcb = e.target.checked;
     setIsGpcbOnly(nextGpcb);
 
-    updateActiveGroup({
+    // Clear dependent selection to prevent mismatched stale states
+    setSelectedSubCategory('');
+    setSelectedCategoryIds([]);
+    setSelectedDepartmentIds([]);
+    setFormData(prev => ({
+      ...prev,
       departmentId: '',
       categoryIds: [],
       subCategoryId: ''
-    });
+    }));
     setCategories([]);
     setSubCategories([]);
     setParamPage(1);
@@ -1121,45 +1131,28 @@ const TestRequestForm = () => {
     await fetchDepartmentsList(nextGpcb);
   };
 
-  const handleGroupDepartmentChange = (selectedDeptId) => {
-    updateActiveGroup({
-      departmentId: selectedDeptId,
-      categoryIds: [],
-      subCategoryId: ''
-    });
-    setParamPage(1);
-    setParamSearch('');
-    if (selectedDeptId) {
-      fetchCategoriesForDepartment(selectedDeptId, isGpcbOnly);
-    } else {
-      setCategories([]);
-    }
-    const currentCheckedIds = Object.keys(currentGroup.checkedParameters || {}).filter(k => !k.startsWith('_id_') && currentGroup.checkedParameters[k]);
-    if (currentCheckedIds.length > 0) {
-      fetchParameters('', [], currentCheckedIds, isGpcbOnly);
-    } else {
-      setParameters([]);
-    }
-  };
-
-  const handleGroupCategoryChange = (selectedVals) => {
-    const catIdsArray = Array.isArray(selectedVals)
+  const handleDepartmentSelectionChange = (selectedVals) => {
+    const deptIdsArray = Array.isArray(selectedVals)
       ? selectedVals.filter(Boolean)
       : (selectedVals ? [selectedVals] : []);
 
-    updateActiveGroup({
-      categoryIds: catIdsArray,
+    setSelectedDepartmentIds(deptIdsArray);
+    setFormData(prev => ({
+      ...prev,
+      departmentId: deptIdsArray[0] || '',
+      categoryId: '',
       subCategoryId: ''
-    });
+    }));
+    setSelectedCategoryIds([]);
+    setSelectedSubCategory('');
+    setSubCategories([]);
     setParamPage(1);
 
-    const currentCheckedIds = Object.keys(currentGroup.checkedParameters || {}).filter(k => !k.startsWith('_id_') && currentGroup.checkedParameters[k]);
-
-    if (catIdsArray.length > 0) {
-      fetchSubCategoriesForCategories(catIdsArray, isGpcbOnly);
-      fetchParameters(currentGroup.subCategoryId, catIdsArray, currentCheckedIds, isGpcbOnly);
+    if (deptIdsArray.length > 0) {
+      fetchCategoriesForDepartments(deptIdsArray, isGpcbOnly);
     } else {
-      setSubCategories([]);
+      setCategories([]);
+      const currentCheckedIds = getAllCheckedParamIds();
       if (currentCheckedIds.length > 0) {
         fetchParameters('', [], currentCheckedIds, isGpcbOnly);
       } else {
@@ -1168,131 +1161,153 @@ const TestRequestForm = () => {
     }
   };
 
-  const handleGroupSubCategoryChange = (selectedVal) => {
-    const subId = selectedVal;
-    updateActiveGroup({
-      subCategoryId: subId
+  const getAllCheckedParamIds = () => {
+    const allIds = new Set();
+    Object.values(locationParameters).forEach(locMap => {
+      Object.keys(locMap || {}).forEach(k => {
+        if (!k.startsWith('_id_') && locMap[k]) {
+          allIds.add(k);
+        }
+      });
     });
+    Object.keys(checkedParameters || {}).forEach(k => {
+      if (!k.startsWith('_id_') && checkedParameters[k]) {
+        allIds.add(k);
+      }
+    });
+    return Array.from(allIds);
+  };
+
+  const handleCategorySelectionChange = (selectedVals) => {
+    const catIdsArray = Array.isArray(selectedVals)
+      ? selectedVals.filter(Boolean)
+      : (selectedVals ? [selectedVals] : []);
+
+    setSelectedCategoryIds(catIdsArray);
+    setFormData(prev => ({
+      ...prev,
+      categoryId: catIdsArray[0] || ''
+    }));
     setParamPage(1);
-    const currentCheckedIds = Object.keys(currentGroup.checkedParameters || {}).filter(k => !k.startsWith('_id_') && currentGroup.checkedParameters[k]);
-    fetchParameters(subId, currentGroup.categoryIds || [], currentCheckedIds, isGpcbOnly);
-  };
+    setSelectedSubCategory('');
 
-  const handleGroupLocationChange = (selectedLocation) => {
-    if (!selectedLocation) {
-      updateActiveGroup({
-        locationOfSample: '',
-        title: ''
-      });
-      return;
-    }
-
-    // 1. If another existing group already has this location, switch to it
-    const existingIdx = sampleGroups.findIndex(
-      (g, idx) => idx !== activeGroupIndex && (g.locationOfSample || '').trim().toLowerCase() === selectedLocation.trim().toLowerCase()
-    );
-
-    if (existingIdx !== -1) {
-      handleSwitchActiveGroup(existingIdx);
-      return;
-    }
-
-    // 2. If current group already has parameters selected and a different location name, auto-create a new location group
-    const currentCheckedCount = Object.keys(currentGroup.checkedParameters || {}).filter(k => !k.startsWith('_id_') && currentGroup.checkedParameters[k]).length;
-    if (currentGroup.locationOfSample && currentGroup.locationOfSample !== selectedLocation && currentCheckedCount > 0) {
-      const newIdx = sampleGroups.length;
-      const newGroup = {
-        id: `grp_${Date.now()}_${newIdx}`,
-        title: selectedLocation,
-        locationOfSample: selectedLocation,
-        departmentId: currentGroup.departmentId || '',
-        categoryIds: currentGroup.categoryIds ? [...currentGroup.categoryIds] : [],
-        subCategoryId: currentGroup.subCategoryId || '',
-        checkedParameters: {},
-        selectedParamSequence: []
-      };
-      setSampleGroups(prev => [...prev, newGroup]);
-      setActiveGroupIndex(newIdx);
-      setParamPage(1);
-      setParamSearch('');
-      if (newGroup.departmentId) {
-        fetchCategoriesForDepartment(newGroup.departmentId, isGpcbOnly);
-      }
-      if (newGroup.categoryIds && newGroup.categoryIds.length > 0) {
-        fetchSubCategoriesForCategories(newGroup.categoryIds, isGpcbOnly);
-        fetchParameters(newGroup.subCategoryId, newGroup.categoryIds, [], isGpcbOnly);
-      }
+    if (catIdsArray.length > 0) {
+      fetchSubCategoriesForCategories(catIdsArray, isGpcbOnly);
+      const checkedIds = getAllCheckedParamIds();
+      fetchParameters('', catIdsArray, checkedIds, isGpcbOnly);
     } else {
-      updateActiveGroup({
-        locationOfSample: selectedLocation,
-        title: selectedLocation
-      });
+      setSubCategories([]);
+      const checkedIds = getAllCheckedParamIds();
+      if (checkedIds.length > 0) {
+        fetchParameters('', [], checkedIds, isGpcbOnly);
+      } else {
+        setParameters([]);
+      }
     }
   };
 
-  const handleGroupTitleChange = (newTitle) => {
-    updateActiveGroup({
-      title: newTitle
+  const handleSubCategoryChange = (e) => {
+    const val = e?.target?.value !== undefined ? e.target.value : (typeof e === 'string' ? e : '');
+    setSelectedSubCategory(val);
+    setFormData(prev => ({ ...prev, subCategoryId: val }));
+    setParamPage(1);
+    const checkedIds = getAllCheckedParamIds();
+    fetchParameters(val, selectedCategoryIds, checkedIds, isGpcbOnly);
+  };
+
+  const handleAddLocation = (locName) => {
+    const trimmed = (locName || '').trim();
+    if (!trimmed) return;
+    if (!configuredLocations.includes(trimmed)) {
+      setConfiguredLocations(prev => [...prev, trimmed]);
+    }
+    setActiveLocationTab(trimmed);
+    setNewLocationInput('');
+  };
+
+  const handleRemoveLocation = (locName) => {
+    if (configuredLocations.length <= 1) {
+      triggerToast('At least one location is required.', 'error');
+      return;
+    }
+    const filtered = configuredLocations.filter(l => l !== locName);
+    setConfiguredLocations(filtered);
+    if (activeLocationTab === locName) {
+      setActiveLocationTab(filtered[0] || 'Inlet');
+    }
+    setLocationParameters(prev => {
+      const next = { ...prev };
+      delete next[locName];
+      return next;
+    });
+    setLocationParamSequence(prev => {
+      const next = { ...prev };
+      delete next[locName];
+      return next;
     });
   };
 
   const handleToggleSelectAllParameters = () => {
+    const currentLoc = activeLocationTab || configuredLocations[0] || 'Inlet';
+    const locChecks = locationParameters[currentLoc] || {};
     const displayedParams = parameters.filter(param => {
-      if (currentGroup.subCategoryId) {
-        return param.subCategoryId === currentGroup.subCategoryId || param.subCategory?.id === currentGroup.subCategoryId || currentGroup.checkedParameters?.[param.id];
+      if (selectedSubCategory) {
+        return param.subCategoryId === selectedSubCategory || param.subCategory?.id === selectedSubCategory || locChecks[param.id];
       }
       return true;
     });
     if (displayedParams.length === 0) return;
 
-    const currentChecks = currentGroup.checkedParameters || {};
-    const allChecked = displayedParams.every(p => !!currentChecks[p.id]);
+    const allChecked = displayedParams.every(p => !!locChecks[p.id]);
     const displayedIds = displayedParams.map(p => p.id);
 
-    const nextChecks = { ...currentChecks };
-    displayedParams.forEach(p => {
+    setLocationParameters(prev => {
+      const curLocObj = { ...(prev[currentLoc] || {}) };
+      displayedParams.forEach(p => {
+        if (allChecked) {
+          delete curLocObj[p.id];
+        } else {
+          curLocObj[p.id] = true;
+        }
+      });
+      return {
+        ...prev,
+        [currentLoc]: curLocObj
+      };
+    });
+
+    setLocationParamSequence(prev => {
+      const curSeq = prev[currentLoc] || [];
       if (allChecked) {
-        delete nextChecks[p.id];
+        return {
+          ...prev,
+          [currentLoc]: curSeq.filter(id => !displayedIds.includes(id))
+        };
       } else {
-        nextChecks[p.id] = true;
+        const newIdsToAdd = displayedIds.filter(id => !curSeq.includes(id));
+        return {
+          ...prev,
+          [currentLoc]: [...curSeq, ...newIdsToAdd]
+        };
       }
     });
 
-    let nextSeq = currentGroup.selectedParamSequence || [];
-    if (allChecked) {
-      nextSeq = nextSeq.filter(id => !displayedIds.includes(id));
-    } else {
-      const newIds = displayedIds.filter(id => !nextSeq.includes(id));
-      nextSeq = [...nextSeq, ...newIds];
-    }
-
-    updateActiveGroup({
-      checkedParameters: nextChecks,
-      selectedParamSequence: nextSeq
+    // Also update global checkedParameters cache
+    setCheckedParameters(prev => {
+      const next = { ...prev };
+      displayedParams.forEach(p => {
+        if (allChecked) {
+          // only delete if not checked in another location
+          const inOtherLoc = configuredLocations.some(l => l !== currentLoc && (locationParameters[l] || {})[p.id]);
+          if (!inOtherLoc) delete next[p.id];
+        } else {
+          next[p.id] = true;
+        }
+      });
+      return next;
     });
   };
 
-  const handleParameterCheck = (paramId) => {
-    const currentChecks = currentGroup.checkedParameters || {};
-    const isCurrentlyChecked = !!currentChecks[paramId];
-
-    const updatedChecks = {
-      ...currentChecks,
-      [paramId]: !isCurrentlyChecked
-    };
-
-    let updatedSeq = currentGroup.selectedParamSequence || [];
-    if (!isCurrentlyChecked) {
-      updatedSeq = updatedSeq.includes(paramId) ? updatedSeq : [...updatedSeq, paramId];
-    } else {
-      updatedSeq = updatedSeq.filter(id => id !== paramId);
-    }
-
-    updateActiveGroup({
-      checkedParameters: updatedChecks,
-      selectedParamSequence: updatedSeq
-    });
-  };
 
   // Overall stats and structured breakdown across all sample groups for Quotation Summary
   const overallGroupStats = useMemo(() => {
@@ -1357,6 +1372,26 @@ const TestRequestForm = () => {
       setFormData(prev => ({ ...prev, industryType: value, industryPrice: price }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
+    }
+
+    if (name === 'departmentId') {
+      setSelectedSubCategory('');
+      setSelectedCategoryIds([]);
+      setFormData(prev => ({ ...prev, departmentId: value, categoryId: '', subCategoryId: '' }));
+      setSubCategories([]);
+      setParamPage(1);
+      setParamSearch('');
+      if (value) {
+        fetchCategoriesForDepartment(value, isGpcbOnly);
+      } else {
+        setCategories([]);
+      }
+      const currentCheckedIds = getAllCheckedParamIds();
+      if (currentCheckedIds.length > 0) {
+        fetchParameters('', [], currentCheckedIds, isGpcbOnly);
+      } else {
+        setParameters([]);
+      }
     }
 
     if (name === 'clientId') {
@@ -1432,6 +1467,49 @@ const TestRequestForm = () => {
     }
   };
 
+  const handleParameterCheck = (paramId) => {
+    const currentLoc = activeLocationTab || configuredLocations[0] || 'Inlet';
+    const locChecks = locationParameters[currentLoc] || {};
+    const isCurrentlyChecked = !!locChecks[paramId];
+
+    setLocationParameters(prev => ({
+      ...prev,
+      [currentLoc]: {
+        ...(prev[currentLoc] || {}),
+        [paramId]: !isCurrentlyChecked
+      }
+    }));
+
+    setLocationParamSequence(prev => {
+      const curSeq = prev[currentLoc] || [];
+      if (!isCurrentlyChecked) {
+        return {
+          ...prev,
+          [currentLoc]: curSeq.includes(paramId) ? curSeq : [...curSeq, paramId]
+        };
+      } else {
+        return {
+          ...prev,
+          [currentLoc]: curSeq.filter(id => id !== paramId)
+        };
+      }
+    });
+
+    setCheckedParameters(prev => {
+      if (!isCurrentlyChecked) {
+        return { ...prev, [paramId]: true };
+      } else {
+        const inOtherLoc = configuredLocations.some(l => l !== currentLoc && (locationParameters[l] || {})[paramId]);
+        if (!inOtherLoc) {
+          const next = { ...prev };
+          delete next[paramId];
+          return next;
+        }
+        return prev;
+      }
+    });
+  };
+
   const validateForm = () => {
     if (!formData.companyId) {
       triggerToast('Please select a Company.', 'error');
@@ -1441,8 +1519,8 @@ const TestRequestForm = () => {
       triggerToast('Please select a Client.', 'error');
       return false;
     }
-    if (!sampleGroups || sampleGroups.length === 0) {
-      triggerToast('At least one testing location / group is required.', 'error');
+    if (selectedDepartmentIds.length === 0 && !formData.departmentId) {
+      triggerToast('Please select at least one Department.', 'error');
       return false;
     }
 
@@ -1481,13 +1559,13 @@ const TestRequestForm = () => {
       const primaryDeptId = sampleGroups[0]?.departmentId || formData.departmentId || null;
       const primarySubCatId = sampleGroups[0]?.subCategoryId || formData.subCategoryId || null;
       const textSampleParticular = (formData.sampleParticular && formData.sampleParticular.length === 36) ? '' : formData.sampleParticular;
+      const activeLocationsStr = configuredLocations.join(', ');
 
       const payload = {
         ...formData,
-        sampleGroups: sampleGroups,
-        locationOfSample: combinedLocationStr,
-        categoryId: primaryCatId,
-        departmentId: primaryDeptId,
+        locationOfSample: activeLocationsStr || formData.locationOfSample,
+        categoryId: activeCatId,
+        departmentId: formData.departmentId || null,
         sampleParticular: textSampleParticular,
         subCategoryId: primarySubCatId,
         includeCaution: Boolean(formData.includeCaution),
@@ -1518,110 +1596,73 @@ const TestRequestForm = () => {
 
       setSavedRequestId(savedTrId);
 
-      // Collect all checked parameters per group
-      const allTrpItems = [];
-      const updatedSampleGroups = JSON.parse(JSON.stringify(sampleGroups));
+      // 2. Save Location-Wise Parameters
+      const allSelectedTuples = [];
+      configuredLocations.forEach(loc => {
+        const locChecks = locationParameters[loc] || {};
+        const checkedIds = Object.keys(locChecks).filter(k => !k.startsWith('_id_') && locChecks[k]);
+        const seqList = locationParamSequence[loc] || [];
+        const orderedIds = Array.from(new Set([
+          ...seqList.filter(id => checkedIds.includes(id)),
+          ...checkedIds.filter(id => !seqList.includes(id))
+        ]));
 
-      sampleGroups.forEach((grp, gIdx) => {
-        const seq = grp.selectedParamSequence || [];
-        const pIds = Object.keys(grp.checkedParameters || {}).filter(k => !k.startsWith('_id_') && grp.checkedParameters[k]);
-        const orderedPIds = [
-          ...seq.filter(id => pIds.includes(id)),
-          ...pIds.filter(id => !seq.includes(id))
-        ];
-        orderedPIds.forEach((pId, sIdx) => {
-          allTrpItems.push({
-            groupIndex: gIdx,
-            groupId: grp.id,
-            locationOfSample: grp.locationOfSample || grp.title,
-            departmentId: grp.departmentId || null,
-            categoryId: grp.categoryIds?.[0] || null,
-            subCategoryId: grp.subCategoryId || null,
+        orderedIds.forEach((pId, idx) => {
+          const targetParam = parameters.find(p => p.id === pId);
+          const key = `${loc}_${pId}`;
+          const existingTrpId = savedParamRecords[key] || locChecks[`_id_${pId}`];
+          const price = priceMasterMap[pId] !== undefined ? priceMasterMap[pId] : (parseFloat(targetParam?.price) || 0);
+          allSelectedTuples.push({
+            locationOfSample: loc,
             parameterId: pId,
-            sequence: sIdx + 1,
-            existingTrpId: grp.checkedParameters[`_id_${pId}`] || null
+            sequence: idx + 1,
+            price: price || 0,
+            testMethod: targetParam ? (targetParam.testMethod || targetParam.defaultTestMethod) : null,
+            key,
+            trpId: existingTrpId
           });
         });
       });
 
-      // Find database transactions to delete
-      const allActiveExistingTrpIds = allTrpItems.map(item => item.existingTrpId).filter(Boolean);
-      sampleGroups.forEach(grp => {
-        Object.keys(grp.checkedParameters || {}).forEach(k => {
-          if (k.startsWith('_id_')) {
-            const trpId = grp.checkedParameters[k];
-            if (trpId && !allActiveExistingTrpIds.includes(trpId)) {
-              apiService.delete(TEST_REQUEST_PARAMETER_ENDPOINTS.DELETE(trpId)).catch(err => {
-                console.error("Error deleting unchecked parameter", err);
-              });
-            }
+      // Delete removed parameters
+      const currentSelectedKeys = allSelectedTuples.map(t => t.key);
+      for (const [key, trpId] of Object.entries(savedParamRecords)) {
+        if (trpId && !currentSelectedKeys.includes(key)) {
+          try {
+            await apiService.delete(TEST_REQUEST_PARAMETER_ENDPOINTS.DELETE(trpId));
+          } catch (err) {
+            console.error("Failed to delete unchecked parameter from database", err);
           }
-        });
-      });
-
-      // Save/update transactions
-      for (const item of allTrpItems) {
-        const targetParam = parameters.find(p => p.id === item.parameterId) || paramMetaMap[item.parameterId];
-        const price = priceMasterMap[item.parameterId] !== undefined ? priceMasterMap[item.parameterId] : (targetParam?.price || 0);
-        const testMethod = targetParam ? (targetParam.testMethod || targetParam.defaultTestMethod) : null;
-
-        if (!item.existingTrpId) {
-          const createRes = await apiService.post(TEST_REQUEST_PARAMETER_ENDPOINTS.CREATE, {
-            testRequestId: savedTrId,
-            parameterId: item.parameterId,
-            sequence: item.sequence,
-            testMethod: testMethod,
-            price: price,
-            groupId: item.groupId,
-            locationOfSample: item.locationOfSample,
-            departmentId: item.departmentId,
-            categoryId: item.categoryId,
-            subCategoryId: item.subCategoryId
-          });
-          if (createRes?.data?.id) {
-            updatedSampleGroups[item.groupIndex].checkedParameters[`_id_${item.parameterId}`] = createRes.data.id;
-          }
-        } else {
-          await apiService.put(TEST_REQUEST_PARAMETER_ENDPOINTS.UPDATE(item.existingTrpId), {
-            sequence: item.sequence,
-            groupId: item.groupId,
-            locationOfSample: item.locationOfSample,
-            departmentId: item.departmentId,
-            categoryId: item.categoryId,
-            subCategoryId: item.subCategoryId,
-            price: price
-          });
         }
       }
 
-      setSampleGroups(updatedSampleGroups);
-
-      // Build dynamic Annexure-B for Audit Quotation
-      const dynamicAnnexure = [];
-      sampleGroups.forEach((grp, gIdx) => {
-        const seq = grp.selectedParamSequence || [];
-        const pIds = Object.keys(grp.checkedParameters || {}).filter(k => !k.startsWith('_id_') && grp.checkedParameters[k]);
-        const ordered = [
-          ...seq.filter(id => pIds.includes(id)),
-          ...pIds.filter(id => !seq.includes(id))
-        ];
-        if (ordered.length > 0) {
-          const groupTitle = grp.title || (grp.locationOfSample ? `${gIdx + 1}. Analysis (${grp.locationOfSample})` : `Sample Group ${gIdx + 1}`);
-          ordered.forEach(pId => {
-            const paramObj = parameters.find(p => p.id === pId) || paramMetaMap[pId];
-            const price = priceMasterMap[pId] !== undefined ? priceMasterMap[pId] : (parseFloat(paramObj?.price) || 0);
-            dynamicAnnexure.push({
-              category: groupTitle,
-              description: paramObj?.parameterName || paramObj?.name || 'Parameter Analysis',
-              ratePerSample: price,
-              samplePerVisit: 1,
-              chargesPerVisit: price,
-              total: price * 3
-            });
+      const updatedSavedRecords = {};
+      for (const tuple of allSelectedTuples) {
+        if (!tuple.trpId) {
+          const res = await apiService.post(TEST_REQUEST_PARAMETER_ENDPOINTS.CREATE, {
+            testRequestId: savedTrId,
+            parameterId: tuple.parameterId,
+            locationOfSample: tuple.locationOfSample,
+            sequence: tuple.sequence,
+            testMethod: tuple.testMethod,
+            price: tuple.price
           });
+          if (res?.data?.id) {
+            updatedSavedRecords[tuple.key] = res.data.id;
+          }
+        } else {
+          await apiService.put(TEST_REQUEST_PARAMETER_ENDPOINTS.UPDATE(tuple.trpId), {
+            locationOfSample: tuple.locationOfSample,
+            sequence: tuple.sequence,
+            testMethod: tuple.testMethod,
+            price: tuple.price
+          });
+          updatedSavedRecords[tuple.key] = tuple.trpId;
         }
-      });
+      }
+      setSavedParamRecords(updatedSavedRecords);
 
+      // Save Audit Quotation if required
       if (formData.quotationRequired === 'Yes' && formData.quotationType === 'Audit') {
         const qPayload = {
           ...quotationData,
@@ -2078,18 +2119,8 @@ const TestRequestForm = () => {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                {/* Overall Summary Badges */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <span style={{ fontSize: '0.8rem', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '0.3rem 0.75rem', borderRadius: '20px', fontWeight: 700 }}>
-                    {overallGroupStats.totalGroups} Location{overallGroupStats.totalGroups > 1 ? 's' : ''} • {overallGroupStats.totalParamCount} Test{overallGroupStats.totalParamCount !== 1 ? 's' : ''}
-                  </span>
-                  <span style={{ fontSize: '0.8rem', background: '#ecfdf5', color: '#15803d', border: '1px solid #bbf7d0', padding: '0.3rem 0.75rem', borderRadius: '20px', fontWeight: 700 }}>
-                    Total: ₹{overallGroupStats.totalPrice.toFixed(2)}
-                  </span>
-                </div>
-
-                {/* GPCB Toggle */}
+              {/* GPCB Parameters Toggle */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 <label style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -2194,14 +2225,13 @@ const TestRequestForm = () => {
                 </div>
               </div>
 
-              {/* 4-column Selector Grid for Active Group */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
 
-                {/* 1. Location / Stage Selector */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {/* Location of Sample Selector */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>
-                      Location / Stage <span style={{ color: '#ef4444' }}>*</span>
+                    <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>
+                      Location of Sample <span style={{ color: '#ef4444' }}>*</span>
                     </label>
                     <AddMasterButton
                       label="Add Location"
@@ -2210,62 +2240,62 @@ const TestRequestForm = () => {
                   </div>
                   <SearchableSelect
                     options={[
-                      { id: '', name: 'Select Location / Stage' },
-                      ...Array.from(new Set(
-                        [...locationSamples.map(l => (l?.name || '').trim()), (currentGroup.locationOfSample || '').trim()]
-                          .filter(Boolean)
-                      )).sort((a, b) => a.localeCompare(b)).map(name => ({ id: name, name }))
+                      ...[...locationSamples].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(loc => ({ id: loc.name, name: loc.name })),
+                      ...(newLocationInput && !locationSamples.some(l => l.name === newLocationInput)
+                        ? [{ id: newLocationInput, name: newLocationInput }]
+                        : [])
                     ]}
-                    value={currentGroup.locationOfSample || ''}
-                    onChange={handleGroupLocationChange}
-                    placeholder="Select Location / Stage"
-                    searchPlaceholder="Search location..."
+                    value={activeLocationTab || configuredLocations[0] || ''}
+                    onChange={(selectedVal) => {
+                      if (selectedVal) {
+                        handleAddLocation(selectedVal);
+                      }
+                    }}
+                    placeholder="Select Location of Sample"
+                    searchPlaceholder="Search or select location..."
                   />
                 </div>
 
-                {/* 2. Department Selector */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>
-                    Department <span style={{ color: '#ef4444' }}>*</span>
-                  </label>
+                {/* Department Selector (Multi-Select) */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                  <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Department(s) <span style={{ color: '#ef4444' }}>*</span></label>
                   <SearchableSelect
                     options={[...departments].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
-                    value={currentGroup.departmentId || ''}
-                    onChange={handleGroupDepartmentChange}
-                    placeholder="Select Department"
+                    value={selectedDepartmentIds.length > 0 ? selectedDepartmentIds : (formData.departmentId ? [formData.departmentId] : [])}
+                    onChange={handleDepartmentSelectionChange}
+                    placeholder="Select Department(s)"
                     searchPlaceholder="Search department..."
-                  />
-                </div>
-
-                {/* 3. Discipline Group Dropdown (Multi-Select) */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>
-                      Discipline Group <span style={{ color: '#ef4444' }}>*</span>
-                    </label>
-                    <AddMasterButton label="Add New Group" onClick={() => setInlineModal({ isOpen: true, type: 'category', parentData: { companyId: formData.companyId, departmentId: currentGroup.departmentId } })} />
-                  </div>
-                  <SearchableSelect
-                    options={[...categories].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
-                    value={currentGroup.categoryIds || []}
-                    onChange={handleGroupCategoryChange}
-                    placeholder="Select Discipline Group(s)"
-                    searchPlaceholder="Search discipline group..."
-                    disabled={!currentGroup.departmentId}
                     isMulti={true}
                   />
                 </div>
 
-                {/* 4. Sub Category */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {/* Discipline Group Dropdown (Multi-Select) */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>
+                    <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Discipline Group(s) <span style={{ color: '#ef4444' }}>*</span></label>
+                    <AddMasterButton label="Add New Group" onClick={() => setInlineModal({ isOpen: true, type: 'category', parentData: { companyId: formData.companyId, departmentId: selectedDepartmentIds[0] || formData.departmentId } })} />
+                  </div>
+                  <SearchableSelect
+                    options={[...categories].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
+                    value={selectedCategoryIds.length > 0 ? selectedCategoryIds : (formData.categoryId ? [formData.categoryId] : [])}
+                    onChange={handleCategorySelectionChange}
+                    placeholder="Select Discipline Group(s)"
+                    searchPlaceholder="Search discipline group..."
+                    disabled={selectedDepartmentIds.length === 0 && !formData.departmentId}
+                    isMulti={true}
+                  />
+                </div>
+
+                {/* Sub Category */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>
                       Sub Category {subCategoriesLoading && <span style={{ fontSize: '0.75rem', color: '#64748b' }}>(Loading...)</span>}
                     </label>
                     <AddMasterButton
-                      label="Add Sub Category"
+                      label="Add New Sub Category"
                       onClick={() => {
-                        const activeCatId = currentGroup.categoryIds?.[0];
+                        const activeCatId = selectedCategoryIds[0] || formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : '');
                         if (!activeCatId) {
                           triggerToast('Please select a Discipline Group first.', 'error');
                           return;
@@ -2276,941 +2306,1096 @@ const TestRequestForm = () => {
                   </div>
                   <SearchableSelect
                     options={[...subCategories].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
-                    value={currentGroup.subCategoryId || ''}
-                    onChange={handleGroupSubCategoryChange}
+                    value={selectedSubCategory || formData.subCategoryId || ''}
+                    onChange={(selectedVal) => {
+                      handleSubCategoryChange({ target: { value: selectedVal } });
+                    }}
                     placeholder="Select Sub Category (Optional)"
                     searchPlaceholder="Search sub category..."
-                    disabled={(!currentGroup.categoryIds || currentGroup.categoryIds.length === 0) || subCategoriesLoading}
+                    disabled={(selectedCategoryIds.length === 0 && !formData.categoryId && (!formData.sampleParticular || formData.sampleParticular.length !== 36)) || subCategoriesLoading}
                   />
+                  {(selectedCategoryIds.length > 0 || formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36)) && !subCategoriesLoading && subCategories.length === 0 && (
+                    <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                      No subcategories available for selected discipline groups
+                    </span>
+                  )}
                 </div>
               </div>
-            </div>
 
-            {(!currentGroup.categoryIds || currentGroup.categoryIds.length === 0) ? (
-              <div style={{ padding: '2.5rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1', fontWeight: 500 }}>
-                Please select a Discipline Group for "{currentGroup.title || 'this location'}" to view and select parameters.
-              </div>
-            ) : parametersLoading ? (
-              <div style={{ padding: '2.5rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
-                Loading parameters...
-              </div>
-            ) : parameters.length === 0 ? (
-              <div style={{ padding: '2.5rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
-                No parameters mapped to this selection
-              </div>
-            ) : (() => {
-              const currentChecks = currentGroup.checkedParameters || {};
-              const categoryFilteredParams = parameters.filter(param => {
-                const matchesSubCat = !currentGroup.subCategoryId ||
-                  param.subCategoryId === currentGroup.subCategoryId ||
-                  param.subCategory?.id === currentGroup.subCategoryId ||
-                  currentChecks[param.id];
-                return matchesSubCat;
-              });
-              const searchFilteredParams = categoryFilteredParams
-                .filter(param => {
-                  if (!paramSearch.trim()) return true;
-                  const q = paramSearch.toLowerCase();
-                  return (param.parameterName || '').toLowerCase().includes(q) ||
-                    (param.testMethod || '').toLowerCase().includes(q) ||
-                    (param.categoryName || '').toLowerCase().includes(q);
-                })
-                .sort((a, b) => (a.parameterName || '').localeCompare(b.parameterName || ''));
-
-              const totalParamItems = searchFilteredParams.length;
-              const totalParamPages = Math.ceil(totalParamItems / paramPageSize) || 1;
-              const safeParamPage = Math.min(Math.max(1, paramPage), totalParamPages);
-              const startParamItem = totalParamItems === 0 ? 0 : (safeParamPage - 1) * paramPageSize + 1;
-              const endParamItem = Math.min(safeParamPage * paramPageSize, totalParamItems);
-
-              const paginatedParams = searchFilteredParams.slice(
-                (safeParamPage - 1) * paramPageSize,
-                safeParamPage * paramPageSize
-              );
-
-              const checkedParamIdsList = Object.keys(currentChecks).filter(k => !k.startsWith('_id_') && currentChecks[k]);
-              const totalCheckedPrice = checkedParamIdsList.reduce((sum, pId) => {
-                const paramObj = parameters.find(p => p.id === pId);
-                const price = priceMasterMap[pId] !== undefined ? priceMasterMap[pId] : (paramObj?.price || 0);
-                return sum + parseFloat(price || 0);
-              }, 0);
-
-              return categoryFilteredParams.length > 0 && (
-                <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-                  {/* Top Bar / Header */}
-                  <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #e2e8f0', background: 'linear-gradient(to right, #f8fafc, #ffffff)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
-                    <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span>Select Test Parameters for</span>
-                      <span style={{ color: '#2563eb', background: '#eff6ff', padding: '2px 8px', borderRadius: '6px', border: '1px solid #bfdbfe' }}>
-                        {currentGroup.title || currentGroup.locationOfSample || 'Current Location'}
-                      </span>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                      {/* Search box */}
-                      <div style={{ position: 'relative', width: '220px' }}>
-                        <input
-                          type="text"
-                          placeholder="Search parameters..."
-                          value={paramSearch}
-                          onChange={(e) => {
-                            setParamSearch(e.target.value);
-                            setParamPage(1);
-                          }}
-                          style={{
-                            padding: '0.35rem 0.65rem 0.35rem 2rem',
-                            borderRadius: '8px',
-                            border: '1px solid #cbd5e1',
-                            fontSize: '0.85rem',
-                            width: '100%',
-                            outline: 'none',
-                            backgroundColor: '#ffffff'
-                          }}
-                        />
-                        <FaSearch size={12} style={{ position: 'absolute', left: '0.7rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-                        {paramSearch && (
-                          <button
-                            type="button"
-                            onClick={() => setParamSearch('')}
-                            style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', color: '#94a3b8', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold' }}
-                          >
-                            ✕
-                          </button>
-                        )}
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={handleToggleSelectAllParameters}
-                        style={{
-                          background: '#e0e7ff',
-                          color: '#4338ca',
-                          border: 'none',
-                          borderRadius: '8px',
-                          padding: '0.35rem 0.75rem',
-                          fontSize: '0.8rem',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          transition: 'all 0.15s ease'
-                        }}
-                      >
-                        {categoryFilteredParams.length > 0 && categoryFilteredParams.every(p => !!currentChecks[p.id])
-                          ? 'Deselect All' : 'Select All'}
-                      </button>
-
-                      <span style={{ fontSize: '0.85rem', background: '#dcfce7', color: '#166534', padding: '0.3rem 0.75rem', borderRadius: '999px', fontWeight: 700 }}>
-                        {currentGroup.locationOfSample || 'Group'} Total: ₹{totalCheckedPrice.toFixed(2)}
-                      </span>
-
-                      <span style={{ fontSize: '0.8rem', background: '#e0e7ff', color: '#4338ca', padding: '0.25rem 0.65rem', borderRadius: '999px', fontWeight: 600 }}>
-                        {checkedParamIdsList.length} Selected
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Clean Parameters Table */}
-                  <div style={{ width: '100%', overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.925rem' }}>
-                      <thead>
-                        <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                          <th style={{ padding: '0.75rem 1rem', textAlign: 'center', width: '70px', color: '#64748b', fontWeight: 600 }}>
-                            <input
-                              type="checkbox"
-                              checked={categoryFilteredParams.length > 0 && categoryFilteredParams.every(p => !!currentChecks[p.id])}
-                              onChange={handleToggleSelectAllParameters}
-                              title={categoryFilteredParams.length > 0 && categoryFilteredParams.every(p => !!currentChecks[p.id]) ? "Deselect All" : "Select All"}
-                              style={{ width: '1.1rem', height: '1.1rem', cursor: 'pointer', accentColor: '#22c55e' }}
-                            />
-                          </th>
-                          <th style={{ padding: '0.75rem 1rem', textAlign: 'left', color: '#64748b', fontWeight: 600 }}>Parameter Name</th>
-                          <th style={{ padding: '0.75rem 1rem', textAlign: 'left', color: '#64748b', fontWeight: 600 }}>Test Method</th>
-                          <th style={{ padding: '0.75rem 1rem', textAlign: 'right', color: '#64748b', fontWeight: 600, width: '130px' }}>Price (₹)</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {paginatedParams.length === 0 ? (
-                          <tr>
-                            <td colSpan={4} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-                              No parameters match your search criteria.
-                            </td>
-                          </tr>
-                        ) : (
-                          paginatedParams.map(param => {
-                            const isChecked = !!currentChecks[param.id];
-                            const paramPrice = priceMasterMap[param.id] !== undefined ? priceMasterMap[param.id] : (parseFloat(param.price) || 0);
-                            const seqIndex = (currentGroup.selectedParamSequence || []).indexOf(param.id);
-                            const seqNumber = seqIndex >= 0 ? seqIndex + 1 : null;
-                            const catLabel = param.categoryName || param.category?.name || '';
-                            const subCatLabel = param.subCategoryName || param.subCategory?.name || '';
-
-                            return (
-                              <tr
-                                key={param.id}
-                                onClick={() => handleParameterCheck(param.id)}
-                                style={{
-                                  borderBottom: '1px solid #f1f5f9',
-                                  cursor: 'pointer',
-                                  transition: 'background-color 0.15s ease',
-                                  backgroundColor: isChecked ? '#f0fdf4' : '#ffffff'
-                                }}
-                                onMouseEnter={(e) => { if (!isChecked) e.currentTarget.style.backgroundColor = '#f8fafc' }}
-                                onMouseLeave={(e) => { if (!isChecked) e.currentTarget.style.backgroundColor = '#ffffff' }}
-                              >
-                                <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
-                                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.4rem' }}>
-                                    <div style={{ width: '22px', height: '22px', borderRadius: '6px', border: isChecked ? 'none' : '2px solid #cbd5e1', background: isChecked ? '#22c55e' : 'transparent', display: 'flex', justifyContent: 'center', alignItems: 'center', transition: 'all 0.15s ease' }}>
-                                      {isChecked && <span style={{ color: 'white', fontSize: '13px', fontWeight: 'bold' }}>✓</span>}
-                                    </div>
-                                    {isChecked && seqNumber !== null && (
-                                      <span style={{
-                                        display: 'inline-flex',
-                                        justifyContent: 'center',
-                                        alignItems: 'center',
-                                        minWidth: '22px',
-                                        height: '22px',
-                                        borderRadius: '50%',
-                                        background: '#3b82f6',
-                                        color: '#ffffff',
-                                        fontSize: '0.7rem',
-                                        fontWeight: 700,
-                                        lineHeight: 1
-                                      }}>
-                                        {seqNumber}
-                                      </span>
-                                    )}
-                                  </div>
-                                </td>
-                                <td style={{ padding: '0.75rem 1rem' }}>
-                                  <div style={{ color: isChecked ? '#166534' : '#1e293b', fontWeight: isChecked ? 600 : 500 }}>
-                                    {param.parameterName}
-                                  </div>
-                                  {(catLabel || subCatLabel) && (
-                                    <div style={{ fontSize: '0.75rem', color: '#64748b', display: 'flex', gap: '0.4rem', marginTop: '3px', flexWrap: 'wrap' }}>
-                                      {catLabel && (
-                                        <span style={{ background: '#f1f5f9', color: '#475569', padding: '1px 7px', borderRadius: '4px', fontWeight: 500, border: '1px solid #e2e8f0' }}>
-                                          {catLabel}
-                                        </span>
-                                      )}
-                                      {subCatLabel && (
-                                        <span style={{ background: '#f8fafc', color: '#64748b', padding: '1px 7px', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
-                                          {subCatLabel}
-                                        </span>
-                                      )}
-                                    </div>
-                                  )}
-                                </td>
-                                <td style={{ padding: '0.75rem 1rem', color: isChecked ? '#15803d' : '#64748b' }}>
-                                  {param.testMethod || 'N/A'}
-                                </td>
-                                <td style={{ padding: '0.75rem 1rem', textAlign: 'right', color: isChecked ? '#15803d' : '#334155', fontWeight: 600 }}>
-                                  ₹{paramPrice.toFixed(2)}
-                                </td>
-                              </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Clean Pagination Footer */}
-                  <div style={{
-                    padding: '0.85rem 1.25rem',
-                    borderTop: '1px solid #e2e8f0',
-                    background: '#f8fafc',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    flexWrap: 'wrap',
-                    gap: '0.75rem'
-                  }}>
-                    <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                      Showing <strong style={{ color: '#0f172a' }}>{startParamItem}</strong> to <strong style={{ color: '#0f172a' }}>{endParamItem}</strong> of <strong style={{ color: '#0f172a' }}>{totalParamItems}</strong> parameters
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', color: '#64748b' }}>
-                        <span>Rows per page:</span>
-                        <select
-                          value={paramPageSize}
-                          onChange={(e) => {
-                            setParamPageSize(Number(e.target.value));
-                            setParamPage(1);
-                          }}
-                          style={{ padding: '0.25rem 0.4rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.8rem', backgroundColor: '#ffffff', outline: 'none' }}
-                        >
-                          <option value={10}>10</option>
-                          <option value={20}>20</option>
-                          <option value={50}>50</option>
-                        </select>
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                        <button
-                          type="button"
-                          onClick={() => setParamPage(p => Math.max(1, p - 1))}
-                          disabled={safeParamPage <= 1}
-                          style={{
-                            padding: '0.35rem 0.65rem',
-                            borderRadius: '6px',
-                            border: '1px solid #cbd5e1',
-                            backgroundColor: safeParamPage <= 1 ? '#f1f5f9' : '#ffffff',
-                            color: safeParamPage <= 1 ? '#94a3b8' : '#334155',
-                            cursor: safeParamPage <= 1 ? 'not-allowed' : 'pointer',
-                            fontWeight: 600,
-                            fontSize: '0.8rem',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.3rem'
-                          }}
-                        >
-                          <FaChevronLeft size={10} /> Prev
-                        </button>
-
-                        {/* Smart Page Pill Buttons */}
-                        {Array.from({ length: totalParamPages }, (_, i) => i + 1)
-                          .filter(page => page === 1 || page === totalParamPages || Math.abs(page - safeParamPage) <= 1)
-                          .map((page, idx, arr) => {
-                            const prevPage = arr[idx - 1];
-                            const showEllipsis = prevPage && page - prevPage > 1;
-                            return (
-                              <React.Fragment key={page}>
-                                {showEllipsis && <span style={{ color: '#94a3b8', fontSize: '0.8rem', padding: '0 0.15rem' }}>...</span>}
-                                <button
-                                  type="button"
-                                  onClick={() => setParamPage(page)}
-                                  style={{
-                                    padding: '0.35rem 0.6rem',
-                                    borderRadius: '6px',
-                                    border: page === safeParamPage ? '1px solid #8b5cf6' : '1px solid #cbd5e1',
-                                    backgroundColor: page === safeParamPage ? '#8b5cf6' : '#ffffff',
-                                    color: page === safeParamPage ? '#ffffff' : '#334155',
-                                    fontWeight: page === safeParamPage ? 700 : 500,
-                                    cursor: 'pointer',
-                                    fontSize: '0.8rem',
-                                    minWidth: '28px'
-                                  }}
-                                >
-                                  {page}
-                                </button>
-                              </React.Fragment>
-                            );
-                          })}
-
-                        <button
-                          type="button"
-                          onClick={() => setParamPage(p => Math.min(totalParamPages, p + 1))}
-                          disabled={safeParamPage >= totalParamPages}
-                          style={{
-                            padding: '0.35rem 0.65rem',
-                            borderRadius: '6px',
-                            border: '1px solid #cbd5e1',
-                            backgroundColor: safeParamPage >= totalParamPages ? '#f1f5f9' : '#ffffff',
-                            color: safeParamPage >= totalParamPages ? '#94a3b8' : '#334155',
-                            cursor: safeParamPage >= totalParamPages ? 'not-allowed' : 'pointer',
-                            fontWeight: 600,
-                            fontSize: '0.8rem',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.3rem'
-                          }}
-                        >
-                          Next <FaChevronRight size={10} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+              {(!currentGroup.categoryIds || currentGroup.categoryIds.length === 0) ? (
+                <div style={{ padding: '2.5rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1', fontWeight: 500 }}>
+                  Please select a Discipline Group for "{currentGroup.title || 'this location'}" to view and select parameters.
                 </div>
-              );
-            })()}
-          </div>
-
-          {/* Testing Locations & Parameters Summary Section */}
-          <div className="test-request-form-card" style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc', flexWrap: 'wrap', gap: '0.75rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div style={{ width: '12px', height: '24px', background: 'linear-gradient(to bottom, #10b981, #059669)', borderRadius: '6px' }}></div>
-                <div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Testing Locations &amp; Parameters Summary</h3>
-                  <span style={{ fontSize: '0.78rem', color: '#64748b' }}>Consolidated testing groups, parameter counts, and pricing for this TRF</span>
+              ) : parametersLoading ? (
+                <div style={{ padding: '2.5rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
+                  Loading parameters...
                 </div>
-              </div>
-            </div>
-
-            {/* Breakdown List of Location Groups */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
-              {overallGroupStats.groupBreakdown.length === 0 ? (
-                <div style={{ padding: '1.5rem', textAlign: 'center', color: '#94a3b8', background: '#f8fafc', borderRadius: '10px', border: '1px dashed #cbd5e1' }}>
-                  No testing parameters selected yet. Select a location and check parameters above.
+              ) : parameters.length === 0 ? (
+                <div style={{ padding: '2.5rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
+                  No parameters mapped to this selection
                 </div>
-              ) : (
-                overallGroupStats.groupBreakdown.map((grp, idx) => {
-                  const isEditingThis = idx === activeGroupIndex;
-                  return (
-                    <div
-                      key={`quotation_summary_g${idx}_${grp.groupId || grp.id || 'grp'}`}
-                      style={{
+              ) : (() => {
+                const currentLoc = activeLocationTab || configuredLocations[0] || 'Inlet';
+                const curLocChecks = locationParameters[currentLoc] || {};
+
+                const categoryFilteredParams = parameters.filter(param => {
+                  const matchesSubCat = !selectedSubCategory ||
+                    param.subCategoryId === selectedSubCategory ||
+                    param.subCategory?.id === selectedSubCategory ||
+                    curLocChecks[param.id];
+                  return matchesSubCat;
+                });
+                const searchFilteredParams = categoryFilteredParams
+                  .filter(param => {
+                    if (!paramSearch.trim()) return true;
+                    const q = paramSearch.toLowerCase();
+                    return (param.parameterName || '').toLowerCase().includes(q) ||
+                      (param.testMethod || '').toLowerCase().includes(q) ||
+                      (param.categoryName || '').toLowerCase().includes(q);
+                  })
+                  .sort((a, b) => (a.parameterName || '').localeCompare(b.parameterName || ''));
+
+                const totalParamItems = searchFilteredParams.length;
+                const totalParamPages = Math.ceil(totalParamItems / paramPageSize) || 1;
+                const safeParamPage = Math.min(Math.max(1, paramPage), totalParamPages);
+                const startParamItem = totalParamItems === 0 ? 0 : (safeParamPage - 1) * paramPageSize + 1;
+                const endParamItem = Math.min(safeParamPage * paramPageSize, totalParamItems);
+
+                const paginatedParams = searchFilteredParams.slice(
+                  (safeParamPage - 1) * paramPageSize,
+                  safeParamPage * paramPageSize
+                );
+
+                const curLocCheckedIds = Object.keys(curLocChecks).filter(k => !k.startsWith('_id_') && curLocChecks[k]);
+                const curLocCheckedPrice = curLocCheckedIds.reduce((sum, pId) => {
+                  const paramObj = parameters.find(p => p.id === pId);
+                  const price = priceMasterMap[pId] !== undefined ? priceMasterMap[pId] : (paramObj?.price || 0);
+                  return sum + parseFloat(price || 0);
+                }, 0);
+
+                // Multi-location summaries
+                const locationBreakdowns = configuredLocations.map(loc => {
+                  const locMap = locationParameters[loc] || {};
+                  const pIds = Object.keys(locMap).filter(k => !k.startsWith('_id_') && locMap[k]);
+                  const locSubtotal = pIds.reduce((sum, pId) => {
+                    const pObj = parameters.find(p => p.id === pId);
+                    const price = priceMasterMap[pId] !== undefined ? priceMasterMap[pId] : (pObj?.price || 0);
+                    return sum + parseFloat(price || 0);
+                  }, 0);
+                  return {
+                    location: loc,
+                    paramIds: pIds,
+                    count: pIds.length,
+                    subtotal: locSubtotal
+                  };
+                });
+
+                const totalParamsCount = locationBreakdowns.reduce((sum, item) => sum + item.count, 0);
+                const totalSubtotalAmount = locationBreakdowns.reduce((sum, item) => sum + item.subtotal, 0);
+                const totalGstAmount = totalSubtotalAmount * 0.18;
+                const totalGrandAmount = Math.round(totalSubtotalAmount + totalGstAmount);
+
+                return categoryFilteredParams.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
+                    {/* Active Locations Tabs Bar */}
+                    {configuredLocations.length > 0 && (
+                      <div style={{
+                        background: '#f8fafc',
+                        border: '1.5px solid #e2e8f0',
+                        borderRadius: '12px',
+                        padding: '0.75rem 1rem',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        padding: '1rem 1.25rem',
-                        background: isEditingThis ? '#f0fdf4' : '#f8fafc',
-                        borderRadius: '10px',
-                        border: isEditingThis ? '1.5px solid #86efac' : '1px solid #e2e8f0',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#1e293b' }}>
-                            {grp.location || grp.title || `Location ${idx + 1}`}
+                        flexWrap: 'wrap',
+                        gap: '0.75rem'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 700, color: '#475569', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            Locations:
                           </span>
-                          <span style={{
-                            fontSize: '0.72rem',
-                            background: isEditingThis ? '#dcfce7' : '#eff6ff',
-                            color: isEditingThis ? '#15803d' : '#1d4ed8',
-                            border: isEditingThis ? '1px solid #bbf7d0' : '1px solid #bfdbfe',
-                            padding: '1px 6px',
-                            borderRadius: '4px',
-                            fontWeight: 600
-                          }}>
-                            {isEditingThis ? 'Currently Editing' : grp.location}
-                          </span>
-                        </div>
-                        <div style={{ fontSize: '0.78rem', color: '#64748b' }}>
-                          {grp.departmentName || 'Dept'} • {grp.disciplineName || 'Discipline'}{grp.subCategoryName ? ` • ${grp.subCategoryName}` : ''}
+                          {configuredLocations.map(loc => {
+                            const isCurrent = currentLoc === loc;
+                            const locData = locationBreakdowns.find(b => b.location === loc) || { count: 0, subtotal: 0 };
+                            return (
+                              <div
+                                key={loc}
+                                onClick={() => setActiveLocationTab(loc)}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.6rem',
+                                  padding: '0.45rem 0.85rem',
+                                  borderRadius: '10px',
+                                  cursor: 'pointer',
+                                  border: isCurrent ? '2px solid #3b82f6' : '1px solid #cbd5e1',
+                                  background: isCurrent ? '#eff6ff' : '#ffffff',
+                                  boxShadow: isCurrent ? '0 2px 8px rgba(59, 130, 246, 0.15)' : 'none',
+                                  transition: 'all 0.15s ease',
+                                  userSelect: 'none'
+                                }}
+                              >
+                                <span style={{
+                                  fontWeight: isCurrent ? 700 : 600,
+                                  color: isCurrent ? '#1d4ed8' : '#334155',
+                                  fontSize: '0.9rem'
+                                }}>
+                                  {loc}
+                                </span>
+                                <span style={{
+                                  fontSize: '0.75rem',
+                                  fontWeight: 700,
+                                  padding: '0.15rem 0.5rem',
+                                  borderRadius: '999px',
+                                  background: isCurrent ? '#3b82f6' : '#e2e8f0',
+                                  color: isCurrent ? '#ffffff' : '#475569'
+                                }}>
+                                  {locData.count} params • ₹{locData.subtotal.toFixed(0)}
+                                </span>
+                                {configuredLocations.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleRemoveLocation(loc);
+                                    }}
+                                    title={`Remove ${loc}`}
+                                    style={{
+                                      background: 'transparent',
+                                      border: 'none',
+                                      color: isCurrent ? '#ef4444' : '#94a3b8',
+                                      cursor: 'pointer',
+                                      fontSize: '0.85rem',
+                                      fontWeight: 'bold',
+                                      padding: '0 2px',
+                                      lineHeight: 1
+                                    }}
+                                  >
+                                    ✕
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
+                    )}
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-                        <div style={{ textAlign: 'right' }}>
-                          <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#475569', background: '#ffffff', border: '1px solid #cbd5e1', padding: '0.2rem 0.6rem', borderRadius: '6px' }}>
-                            {grp.paramCount} Parameter{grp.paramCount !== 1 ? 's' : ''}
-                          </span>
+                    {/* Parameters Table Card */}
+                    <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+                      {/* Top Bar / Header */}
+                      <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #e2e8f0', background: 'linear-gradient(to right, #f8fafc, #ffffff)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+                        <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '1rem' }}>
+                          Parameters for: <span style={{ color: '#2563eb', textDecoration: 'underline' }}>{currentLoc}</span>
                         </div>
-                        <div style={{ minWidth: '95px', textAlign: 'right' }}>
-                          <span style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>
-                            ₹{grp.subtotal.toFixed(2)}
-                          </span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                          {!isEditingThis ? (
-                            <button
-                              type="button"
-                              onClick={() => handleSwitchActiveGroup(idx)}
+
+                        <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                          {/* Search box */}
+                          <div style={{ position: 'relative', width: '220px' }}>
+                            <input
+                              type="text"
+                              placeholder="Search parameters..."
+                              value={paramSearch}
+                              onChange={(e) => {
+                                setParamSearch(e.target.value);
+                                setParamPage(1);
+                              }}
                               style={{
-                                background: '#ffffff',
+                                padding: '0.35rem 0.65rem 0.35rem 2rem',
+                                borderRadius: '8px',
                                 border: '1px solid #cbd5e1',
-                                borderRadius: '6px',
-                                padding: '0.3rem 0.65rem',
-                                fontSize: '0.75rem',
-                                fontWeight: 600,
-                                color: '#0284c7',
-                                cursor: 'pointer'
+                                fontSize: '0.85rem',
+                                width: '100%',
+                                outline: 'none',
+                                backgroundColor: '#ffffff'
                               }}
+                            />
+                            <FaSearch size={12} style={{ position: 'absolute', left: '0.7rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                            {paramSearch && (
+                              <button
+                                type="button"
+                                onClick={() => setParamSearch('')}
+                                style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', color: '#94a3b8', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold' }}
+                              >
+                                ✕
+                              </button>
+                            )}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={handleToggleSelectAllParameters}
+                            style={{
+                              background: '#e0e7ff',
+                              color: '#4338ca',
+                              border: 'none',
+                              borderRadius: '8px',
+                              padding: '0.35rem 0.75rem',
+                              fontSize: '0.8rem',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            {categoryFilteredParams.length > 0 && categoryFilteredParams.every(p => !!curLocChecks[p.id])
+                              ? 'Deselect All' : 'Select All'}
+                          </button>
+
+                          <span style={{ fontSize: '0.85rem', background: '#dcfce7', color: '#166534', padding: '0.3rem 0.75rem', borderRadius: '999px', fontWeight: 700 }}>
+                            {currentLoc}: ₹{curLocCheckedPrice.toFixed(2)}
+                          </span>
+
+                          <span style={{ fontSize: '0.8rem', background: '#e0e7ff', color: '#4338ca', padding: '0.25rem 0.65rem', borderRadius: '999px', fontWeight: 600 }}>
+                            {curLocCheckedIds.length} Selected
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Clean Parameters Table */}
+                      <div style={{ width: '100%', overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.925rem' }}>
+                          <thead>
+                            <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                              <th style={{ padding: '0.75rem 1rem', textAlign: 'center', width: '70px', color: '#64748b', fontWeight: 600 }}>
+                                <input
+                                  type="checkbox"
+                                  checked={categoryFilteredParams.length > 0 && categoryFilteredParams.every(p => !!curLocChecks[p.id])}
+                                  onChange={handleToggleSelectAllParameters}
+                                  title={categoryFilteredParams.length > 0 && categoryFilteredParams.every(p => !!curLocChecks[p.id]) ? "Deselect All" : "Select All"}
+                                  style={{ width: '1.1rem', height: '1.1rem', cursor: 'pointer', accentColor: '#22c55e' }}
+                                />
+                              </th>
+                              <th style={{ padding: '0.75rem 1rem', textAlign: 'left', color: '#64748b', fontWeight: 600 }}>Parameter Name</th>
+                              <th style={{ padding: '0.75rem 1rem', textAlign: 'left', color: '#64748b', fontWeight: 600 }}>Test Method</th>
+                              <th style={{ padding: '0.75rem 1rem', textAlign: 'right', color: '#64748b', fontWeight: 600, width: '130px' }}>Price (₹)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {paginatedParams.length === 0 ? (
+                              <tr>
+                                <td colSpan={4} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                                  No parameters match your search criteria.
+                                </td>
+                              </tr>
+                            ) : (
+                              paginatedParams.map(param => {
+                                const isChecked = !!curLocChecks[param.id];
+                                const paramPrice = priceMasterMap[param.id] !== undefined ? priceMasterMap[param.id] : (parseFloat(param.price) || 0);
+                                const curLocSeq = locationParamSequence[currentLoc] || [];
+                                const seqIndex = curLocSeq.indexOf(param.id);
+                                const seqNumber = seqIndex >= 0 ? seqIndex + 1 : null;
+                                const catLabel = param.categoryName || param.category?.name || '';
+                                const subCatLabel = param.subCategoryName || param.subCategory?.name || '';
+
+                                return (
+                                  <tr
+                                    key={param.id}
+                                    onClick={() => handleParameterCheck(param.id)}
+                                    style={{
+                                      borderBottom: '1px solid #f1f5f9',
+                                      cursor: 'pointer',
+                                      transition: 'background-color 0.15s ease',
+                                      backgroundColor: isChecked ? '#f0fdf4' : '#ffffff'
+                                    }}
+                                    onMouseEnter={(e) => { if (!isChecked) e.currentTarget.style.backgroundColor = '#f8fafc' }}
+                                    onMouseLeave={(e) => { if (!isChecked) e.currentTarget.style.backgroundColor = '#ffffff' }}
+                                  >
+                                    <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
+                                      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.4rem' }}>
+                                        <div style={{ width: '22px', height: '22px', borderRadius: '6px', border: isChecked ? 'none' : '2px solid #cbd5e1', background: isChecked ? '#22c55e' : 'transparent', display: 'flex', justifyContent: 'center', alignItems: 'center', transition: 'all 0.15s ease' }}>
+                                          {isChecked && <span style={{ color: 'white', fontSize: '13px', fontWeight: 'bold' }}>✓</span>}
+                                        </div>
+                                        {isChecked && seqNumber !== null && (
+                                          <span style={{
+                                            display: 'inline-flex',
+                                            justifyContent: 'center',
+                                            alignItems: 'center',
+                                            minWidth: '22px',
+                                            height: '22px',
+                                            borderRadius: '50%',
+                                            background: '#3b82f6',
+                                            color: '#ffffff',
+                                            fontSize: '0.7rem',
+                                            fontWeight: 700,
+                                            lineHeight: 1
+                                          }}>
+                                            {seqNumber}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </td>
+                                    <td style={{ padding: '0.75rem 1rem' }}>
+                                      <div style={{ color: isChecked ? '#166534' : '#1e293b', fontWeight: isChecked ? 600 : 500 }}>
+                                        {param.parameterName}
+                                      </div>
+                                      {(catLabel || subCatLabel) && (
+                                        <div style={{ fontSize: '0.75rem', color: '#64748b', display: 'flex', gap: '0.4rem', marginTop: '3px', flexWrap: 'wrap' }}>
+                                          {catLabel && (
+                                            <span style={{ background: '#f1f5f9', color: '#475569', padding: '1px 7px', borderRadius: '4px', fontWeight: 500, border: '1px solid #e2e8f0' }}>
+                                              {catLabel}
+                                            </span>
+                                          )}
+                                          {subCatLabel && (
+                                            <span style={{ background: '#f8fafc', color: '#64748b', padding: '1px 7px', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
+                                              {subCatLabel}
+                                            </span>
+                                          )}
+                                        </div>
+                                      )}
+                                    </td>
+                                    <td style={{ padding: '0.75rem 1rem', color: isChecked ? '#15803d' : '#64748b' }}>
+                                      {param.testMethod || 'N/A'}
+                                    </td>
+                                    <td style={{ padding: '0.75rem 1rem', textAlign: 'right', color: isChecked ? '#15803d' : '#334155', fontWeight: 600 }}>
+                                      ₹{paramPrice.toFixed(2)}
+                                    </td>
+                                  </tr>
+                                );
+                              })
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Clean Pagination Footer */}
+                      <div style={{
+                        padding: '0.85rem 1.25rem',
+                        borderTop: '1px solid #e2e8f0',
+                        background: '#f8fafc',
+                        display: 'flex',
+                        justify: 'space-between',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: '0.75rem'
+                      }}>
+                        <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                          Showing <strong style={{ color: '#0f172a' }}>{startParamItem}</strong> to <strong style={{ color: '#0f172a' }}>{endParamItem}</strong> of <strong style={{ color: '#0f172a' }}>{totalParamItems}</strong> parameters
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', color: '#64748b' }}>
+                            <span>Rows per page:</span>
+                            <select
+                              value={paramPageSize}
+                              onChange={(e) => {
+                                setParamPageSize(Number(e.target.value));
+                                setParamPage(1);
+                              }}
+                              style={{ padding: '0.25rem 0.4rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.8rem', backgroundColor: '#ffffff', outline: 'none' }}
                             >
-                              ✏️ Edit
-                            </button>
-                          ) : (
-                            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#16a34a', padding: '0.3rem 0.5rem' }}>
-                              ✓ Active
-                            </span>
-                          )}
-                          {sampleGroups.length > 1 && (
+                              <option value={10}>10</option>
+                              <option value={20}>20</option>
+                              <option value={50}>50</option>
+                            </select>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                             <button
                               type="button"
-                              onClick={(e) => handleRemoveSampleGroup(idx, e)}
-                              title="Delete location"
+                              onClick={() => setParamPage(p => Math.max(1, p - 1))}
+                              disabled={safeParamPage <= 1}
                               style={{
-                                background: '#ffffff',
-                                border: '1px solid #fecaca',
+                                padding: '0.35rem 0.65rem',
                                 borderRadius: '6px',
-                                padding: '0.3rem 0.5rem',
-                                fontSize: '0.75rem',
-                                color: '#dc2626',
-                                cursor: 'pointer'
+                                border: '1px solid #cbd5e1',
+                                backgroundColor: safeParamPage <= 1 ? '#f1f5f9' : '#ffffff',
+                                color: safeParamPage <= 1 ? '#94a3b8' : '#334155',
+                                cursor: safeParamPage <= 1 ? 'not-allowed' : 'pointer',
+                                fontWeight: 600,
+                                fontSize: '0.8rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.3rem'
                               }}
                             >
-                              🗑️
+                              <FaChevronLeft size={10} /> Prev
                             </button>
-                          )}
+
+                            {/* Smart Page Pill Buttons */}
+                            {Array.from({ length: totalParamPages }, (_, i) => i + 1)
+                              .filter(page => page === 1 || page === totalParamPages || Math.abs(page - safeParamPage) <= 1)
+                              .map((page, idx, arr) => {
+                                const prevPage = arr[idx - 1];
+                                const showEllipsis = prevPage && page - prevPage > 1;
+                                return (
+                                  <React.Fragment key={page}>
+                                    {showEllipsis && <span style={{ color: '#94a3b8', fontSize: '0.8rem', padding: '0 0.15rem' }}>...</span>}
+                                    <button
+                                      type="button"
+                                      onClick={() => setParamPage(page)}
+                                      style={{
+                                        padding: '0.35rem 0.6rem',
+                                        borderRadius: '6px',
+                                        border: page === safeParamPage ? '1px solid #8b5cf6' : '1px solid #cbd5e1',
+                                        backgroundColor: page === safeParamPage ? '#8b5cf6' : '#ffffff',
+                                        color: page === safeParamPage ? '#ffffff' : '#334155',
+                                        fontWeight: page === safeParamPage ? 700 : 500,
+                                        cursor: 'pointer',
+                                        fontSize: '0.8rem',
+                                        minWidth: '28px'
+                                      }}
+                                    >
+                                      {page}
+                                    </button>
+                                  </React.Fragment>
+                                );
+                              })}
+
+                            <button
+                              type="button"
+                              onClick={() => setParamPage(p => Math.min(totalParamPages, p + 1))}
+                              disabled={safeParamPage >= totalParamPages}
+                              style={{
+                                padding: '0.35rem 0.65rem',
+                                borderRadius: '6px',
+                                border: '1px solid #cbd5e1',
+                                backgroundColor: safeParamPage >= totalParamPages ? '#f1f5f9' : '#ffffff',
+                                color: safeParamPage >= totalParamPages ? '#94a3b8' : '#334155',
+                                cursor: safeParamPage >= totalParamPages ? 'not-allowed' : 'pointer',
+                                fontWeight: 600,
+                                fontSize: '0.8rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.3rem'
+                              }}
+                            >
+                              Next <FaChevronRight size={10} />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  );
-                })
-              )}
-            </div>
 
-            {/* Total Footer */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '1.25rem 1.5rem',
-              background: 'linear-gradient(135deg, #1e293b, #0f172a)',
-              borderRadius: '12px',
-              color: '#ffffff',
-              flexWrap: 'wrap',
-              gap: '1rem'
-            }}>
-              <div>
-                <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>
-                  Total Testing Locations: <strong style={{ color: '#ffffff' }}>{overallGroupStats.totalGroups}</strong>
-                </div>
-                <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#f8fafc', marginTop: '2px' }}>
-                  Total Testing Parameters: <strong style={{ color: '#38bdf8' }}>{overallGroupStats.totalParamCount}</strong>
-                </div>
-              </div>
-
-              <div style={{ textAlign: 'right' }}>
-                <span style={{ fontSize: '0.78rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block' }}>Grand Total</span>
-                <span style={{ fontSize: '1.4rem', fontWeight: 800, color: '#4ade80' }}>
-                  ₹{overallGroupStats.totalPrice.toFixed(2)}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Facility & Technical Feasibility Card */}
-          <div className="test-request-form-card" style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc', flexWrap: 'wrap', gap: '0.75rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div style={{ width: '12px', height: '24px', background: 'linear-gradient(to bottom, #f59e0b, #fbbf24)', borderRadius: '6px' }}></div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Facility & Feasibility</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setFormData(prev => ({
-                    ...prev,
-                    equipmentAvailability: 'Available',
-                    referenceStandardAvailability: 'Available',
-                    sampleAdequacy: 'Adequate',
-                    testMethodAvailability: 'Available',
-                    trainedPersonAvailability: 'Available'
-                  }));
-                }}
-                style={{ background: '#ecfdf5', color: '#15803d', border: '1px solid #a7f3d0', padding: '0.4rem 0.85rem', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-              >
-                ✓ Quick Set All Available
-              </button>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.75rem' }}>
-
-              {/* Availability of Equipments */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Availability of Equipments</label>
-                <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center', background: '#f8fafc', padding: '0.65rem 0.85rem', border: '1px solid #e2e8f0', borderRadius: '8px', minHeight: '42px', boxSizing: 'border-box' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: (formData.equipmentAvailability || 'Available') === 'Available' ? '#166534' : '#475569' }}>
-                    <input type="radio" name="equipmentAvailability" value="Available" checked={(formData.equipmentAvailability || 'Available') === 'Available'} onChange={handleChange} style={{ width: '1.05rem', height: '1.05rem', accentColor: '#22c55e' }} />
-                    Available
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: formData.equipmentAvailability === 'Not Available' ? '#991b1b' : '#475569' }}>
-                    <input type="radio" name="equipmentAvailability" value="Not Available" checked={formData.equipmentAvailability === 'Not Available'} onChange={handleChange} style={{ width: '1.05rem', height: '1.05rem', accentColor: '#ef4444' }} />
-                    Not Available
-                  </label>
-                </div>
-              </div>
-
-              {/* Availability of Reference Standards */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Availability of Reference Standards</label>
-                <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center', background: '#f8fafc', padding: '0.65rem 0.85rem', border: '1px solid #e2e8f0', borderRadius: '8px', minHeight: '42px', boxSizing: 'border-box' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: (formData.referenceStandardAvailability || 'Available') === 'Available' ? '#166534' : '#475569' }}>
-                    <input type="radio" name="referenceStandardAvailability" value="Available" checked={(formData.referenceStandardAvailability || 'Available') === 'Available'} onChange={handleChange} style={{ width: '1.05rem', height: '1.05rem', accentColor: '#22c55e' }} />
-                    Available
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: formData.referenceStandardAvailability === 'Not Available' ? '#991b1b' : '#475569' }}>
-                    <input type="radio" name="referenceStandardAvailability" value="Not Available" checked={formData.referenceStandardAvailability === 'Not Available'} onChange={handleChange} style={{ width: '1.05rem', height: '1.05rem', accentColor: '#ef4444' }} />
-                    Not Available
-                  </label>
-                </div>
-              </div>
-
-              {/* Adequacy of Sample Quantity */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Adequacy of Sample Quantity</label>
-                <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center', background: '#f8fafc', padding: '0.65rem 0.85rem', border: '1px solid #e2e8f0', borderRadius: '8px', minHeight: '42px', boxSizing: 'border-box' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: (formData.sampleAdequacy || 'Adequate') === 'Adequate' ? '#166534' : '#475569' }}>
-                    <input type="radio" name="sampleAdequacy" value="Adequate" checked={(formData.sampleAdequacy || 'Adequate') === 'Adequate'} onChange={handleChange} style={{ width: '1.05rem', height: '1.05rem', accentColor: '#22c55e' }} />
-                    Adequate
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: formData.sampleAdequacy === 'Not Adequate' ? '#991b1b' : '#475569' }}>
-                    <input type="radio" name="sampleAdequacy" value="Not Adequate" checked={formData.sampleAdequacy === 'Not Adequate'} onChange={handleChange} style={{ width: '1.05rem', height: '1.05rem', accentColor: '#ef4444' }} />
-                    Not Adequate
-                  </label>
-                </div>
-              </div>
-
-              {/* Availability of Test Method */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Availability of Test Method</label>
-                <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center', background: '#f8fafc', padding: '0.65rem 0.85rem', border: '1px solid #e2e8f0', borderRadius: '8px', minHeight: '42px', boxSizing: 'border-box' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: (formData.testMethodAvailability || 'Available') === 'Available' ? '#166534' : '#475569' }}>
-                    <input type="radio" name="testMethodAvailability" value="Available" checked={(formData.testMethodAvailability || 'Available') === 'Available'} onChange={handleChange} style={{ width: '1.05rem', height: '1.05rem', accentColor: '#22c55e' }} />
-                    Available
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: formData.testMethodAvailability === 'Not Available' ? '#991b1b' : '#475569' }}>
-                    <input type="radio" name="testMethodAvailability" value="Not Available" checked={formData.testMethodAvailability === 'Not Available'} onChange={handleChange} style={{ width: '1.05rem', height: '1.05rem', accentColor: '#ef4444' }} />
-                    Not Available
-                  </label>
-                </div>
-              </div>
-
-              {/* Availability of Trained Person */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Availability of Trained Person</label>
-                <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center', background: '#f8fafc', padding: '0.65rem 0.85rem', border: '1px solid #e2e8f0', borderRadius: '8px', minHeight: '42px', boxSizing: 'border-box' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: (formData.trainedPersonAvailability || 'Available') === 'Available' ? '#166534' : '#475569' }}>
-                    <input type="radio" name="trainedPersonAvailability" value="Available" checked={(formData.trainedPersonAvailability || 'Available') === 'Available'} onChange={handleChange} style={{ width: '1.05rem', height: '1.05rem', accentColor: '#22c55e' }} />
-                    Available
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: formData.trainedPersonAvailability === 'Not Available' ? '#991b1b' : '#475569' }}>
-                    <input type="radio" name="trainedPersonAvailability" value="Not Available" checked={formData.trainedPersonAvailability === 'Not Available'} onChange={handleChange} style={{ width: '1.05rem', height: '1.05rem', accentColor: '#ef4444' }} />
-                    Not Available
-                  </label>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Tentative Days of Issuing Report</label>
-                <input type="text" name="tentativeDays" value={formData.tentativeDays} onChange={handleChange} className="premium-input" placeholder="e.g. 15-20 Days" />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', gridColumn: '1 / -1' }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Sample Testing Facility Reviewed By</label>
-                <input type="text" name="sampleTestingFacilityReviewedBy" value={formData.sampleTestingFacilityReviewedBy} onChange={handleChange} className="premium-input" placeholder="Quality Manager /Technical Manager" />
-              </div>
-            </div>
-          </div>
-
-          {/* Signatures & Adoption Card */}
-          <div className="test-request-form-card" style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc' }}>
-              <div style={{ width: '12px', height: '24px', background: 'linear-gradient(to bottom, #ec4899, #f472b6)', borderRadius: '6px' }}></div>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Signatures & Adoption</h3>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.75rem' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Name & Designation of Customer Representative</label>
-                <input type="text" name="customerRepresentativeName" value={formData.customerRepresentativeName} onChange={handleChange} className="premium-input" placeholder="Enter representative name..." />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Name & Designation of Sample Receiver</label>
-                <input type="text" name="sampleReceiverName" value={formData.sampleReceiverName} onChange={handleChange} className="premium-input" placeholder="Enter receiver name..." />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', gridColumn: '1 / -1' }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Test Protocol / Method to be Adopted</label>
-                <textarea name="testProtocol" value={formData.testProtocol} onChange={handleChange} className="premium-input" rows={3} placeholder="Ground Water/Surface Water/Drinking Water: APHA..."></textarea>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', gridColumn: '1 / -1' }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Remarks / Additional Notes</label>
-                <textarea name="remarks" value={formData.remarks} onChange={handleChange} className="premium-input" rows={3} placeholder="Enter any extra remarks..."></textarea>
-              </div>
-            </div>
-          </div>
-
-
-
-          {/* HIDE MULTIPLE QUOTATIONS FUNCTIONALITY (DISABLED) */}
-          {false && (
-            <>
-              {formData.quotationRequired === 'Yes' && formData.quotationType === 'Audit' && (
-                <div style={{ marginTop: '2rem' }}>
-                  {/* Card 1: Basic details */}
-                  <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
-                      <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
-                      <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Basic Quotation Details</h3>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Quotation Reference Number</label>
-                        <input type="text" name="quotationNumber" value={quotationData.quotationNumber} onChange={handleQuotationChange} className="premium-input" />
+                    {/* Location-Wise Summary & Grand Total Banner */}
+                    <div style={{
+                      background: 'linear-gradient(135deg, #1e293b, #0f172a)',
+                      color: '#ffffff',
+                      borderRadius: '14px',
+                      padding: '1.25rem 1.5rem',
+                      boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.15)'
+                    }}>
+                      <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.75rem' }}>
+                        Location-Wise Parameter Breakdown
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Quotation Date</label>
-                        <input type="text" name="quotationDate" placeholder="dd/mm/yyyy" value={quotationData.quotationDate} onChange={handleQuotationChange} className="premium-input" />
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+                        {locationBreakdowns.map(b => (
+                          <div key={b.location} style={{
+                            background: 'rgba(255, 255, 255, 0.06)',
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            borderRadius: '10px',
+                            padding: '0.75rem 1rem'
+                          }}>
+                            <div style={{ fontWeight: 600, color: '#60a5fa', fontSize: '0.95rem' }}>{b.location}</div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.35rem', fontSize: '0.85rem', color: '#cbd5e1' }}>
+                              <span>Parameters: <strong style={{ color: '#fff' }}>{b.count}</strong></span>
+                              <span>Amount: <strong style={{ color: '#4ade80' }}>₹{b.subtotal.toFixed(2)}</strong></span>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Revised Date (Optional)</label>
-                        <input type="text" name="revisedDate" placeholder="dd/mm/yyyy" value={quotationData.revisedDate} onChange={handleQuotationChange} className="premium-input" />
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Financial Year / Year</label>
-                        <input type="text" name="financialYear" value={quotationData.financialYear} onChange={handleQuotationChange} className="premium-input" />
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', gridColumn: '1 / -1' }}>
-                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Audit Reference</label>
-                        <input type="text" name="reference" value={quotationData.reference} onChange={handleQuotationChange} className="premium-input" />
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', gridColumn: '1 / -1' }}>
-                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Subject Heading</label>
-                        <textarea name="subject" value={quotationData.subject} onChange={handleQuotationChange} className="premium-input" rows={2}></textarea>
+
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        borderTop: '1px solid rgba(255, 255, 255, 0.15)',
+                        paddingTop: '0.85rem',
+                        flexWrap: 'wrap',
+                        gap: '1rem'
+                      }}>
+                        <div style={{ fontSize: '0.95rem', color: '#cbd5e1' }}>
+                          Total Parameters Across All Locations: <strong style={{ color: '#ffffff', fontSize: '1.1rem' }}>{totalParamsCount}</strong>
+                        </div>
+                        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                          <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#4ade80', background: 'rgba(34, 197, 94, 0.15)', padding: '0.35rem 0.85rem', borderRadius: '8px', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
+                            Total Amount: ₹{totalSubtotalAmount.toFixed(2)}
+                          </div>
+                        </div>
                       </div>
                     </div>
+
                   </div>
+                );
+              })()}
+            </div>
 
-                  {/* Card 2: Letter Content */}
-                  <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
-                      <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
-                      <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Page 1 - Letter Content</h3>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Introductory & Accreditation Paragraphs</label>
-                      <textarea name="introText" value={quotationData.introText} onChange={handleQuotationChange} className="premium-input" rows={6} style={{ fontSize: '0.85rem' }}></textarea>
-                    </div>
+            {/* Testing Locations & Parameters Summary Section */}
+            <div className="test-request-form-card" style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc', flexWrap: 'wrap', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div style={{ width: '12px', height: '24px', background: 'linear-gradient(to bottom, #10b981, #059669)', borderRadius: '6px' }}></div>
+                  <div>
+                    <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Testing Locations &amp; Parameters Summary</h3>
+                    <span style={{ fontSize: '0.78rem', color: '#64748b' }}>Consolidated testing groups, parameter counts, and pricing for this TRF</span>
                   </div>
+                </div>
+              </div>
 
-                  {/* Card 3: Scope of Work */}
-                  <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
-                      <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
-                      <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Page 2 - Scope of Work</h3>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Scope Points Text</label>
-                      <textarea name="scopeText" value={quotationData.scopeText} onChange={handleQuotationChange} className="premium-input" rows={5} style={{ fontSize: '0.85rem' }}></textarea>
-                    </div>
+              {/* Breakdown List of Location Groups */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                {overallGroupStats.groupBreakdown.length === 0 ? (
+                  <div style={{ padding: '1.5rem', textAlign: 'center', color: '#94a3b8', background: '#f8fafc', borderRadius: '10px', border: '1px dashed #cbd5e1' }}>
+                    No testing parameters selected yet. Select a location and check parameters above.
                   </div>
+                ) : (
+                  overallGroupStats.groupBreakdown.map((grp, idx) => {
+                    const isEditingThis = idx === activeGroupIndex;
+                    return (
+                      <div
+                        key={`quotation_summary_g${idx}_${grp.groupId || grp.id || 'grp'}`}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '1rem 1.25rem',
+                          background: isEditingThis ? '#f0fdf4' : '#f8fafc',
+                          borderRadius: '10px',
+                          border: isEditingThis ? '1.5px solid #86efac' : '1px solid #e2e8f0',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#1e293b' }}>
+                              {grp.location || grp.title || `Location ${idx + 1}`}
+                            </span>
+                            <span style={{
+                              fontSize: '0.72rem',
+                              background: isEditingThis ? '#dcfce7' : '#eff6ff',
+                              color: isEditingThis ? '#15803d' : '#1d4ed8',
+                              border: isEditingThis ? '1px solid #bbf7d0' : '1px solid #bfdbfe',
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              fontWeight: 600
+                            }}>
+                              {isEditingThis ? 'Currently Editing' : grp.location}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                            {grp.departmentName || 'Dept'} • {grp.disciplineName || 'Discipline'}{grp.subCategoryName ? ` • ${grp.subCategoryName}` : ''}
+                          </div>
+                        </div>
 
-                  {/* Card 4: Charges Table */}
-                  <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+                          <div style={{ textAlign: 'right' }}>
+                            <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#475569', background: '#ffffff', border: '1px solid #cbd5e1', padding: '0.2rem 0.6rem', borderRadius: '6px' }}>
+                              {grp.paramCount} Parameter{grp.paramCount !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                          <div style={{ minWidth: '95px', textAlign: 'right' }}>
+                            <span style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>
+                              ₹{grp.subtotal.toFixed(2)}
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            {!isEditingThis ? (
+                              <button
+                                type="button"
+                                onClick={() => handleSwitchActiveGroup(idx)}
+                                style={{
+                                  background: '#ffffff',
+                                  border: '1px solid #cbd5e1',
+                                  borderRadius: '6px',
+                                  padding: '0.3rem 0.65rem',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 600,
+                                  color: '#0284c7',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                ✏️ Edit
+                              </button>
+                            ) : (
+                              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#16a34a', padding: '0.3rem 0.5rem' }}>
+                                ✓ Active
+                              </span>
+                            )}
+                            {sampleGroups.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={(e) => handleRemoveSampleGroup(idx, e)}
+                                title="Delete location"
+                                style={{
+                                  background: '#ffffff',
+                                  border: '1px solid #fecaca',
+                                  borderRadius: '6px',
+                                  padding: '0.3rem 0.5rem',
+                                  fontSize: '0.75rem',
+                                  color: '#dc2626',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                🗑️
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Total Footer */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '1.25rem 1.5rem',
+                background: 'linear-gradient(135deg, #1e293b, #0f172a)',
+                borderRadius: '12px',
+                color: '#ffffff',
+                flexWrap: 'wrap',
+                gap: '1rem'
+              }}>
+                <div>
+                  <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>
+                    Total Testing Locations: <strong style={{ color: '#ffffff' }}>{overallGroupStats.totalGroups}</strong>
+                  </div>
+                  <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#f8fafc', marginTop: '2px' }}>
+                    Total Testing Parameters: <strong style={{ color: '#38bdf8' }}>{overallGroupStats.totalParamCount}</strong>
+                  </div>
+                </div>
+
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{ fontSize: '0.78rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block' }}>Grand Total</span>
+                  <span style={{ fontSize: '1.4rem', fontWeight: 800, color: '#4ade80' }}>
+                    ₹{overallGroupStats.totalPrice.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Facility & Technical Feasibility Card */}
+            <div className="test-request-form-card" style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc', flexWrap: 'wrap', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div style={{ width: '12px', height: '24px', background: 'linear-gradient(to bottom, #f59e0b, #fbbf24)', borderRadius: '6px' }}></div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Facility & Feasibility</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormData(prev => ({
+                      ...prev,
+                      equipmentAvailability: 'Available',
+                      referenceStandardAvailability: 'Available',
+                      sampleAdequacy: 'Adequate',
+                      testMethodAvailability: 'Available',
+                      trainedPersonAvailability: 'Available'
+                    }));
+                  }}
+                  style={{ background: '#ecfdf5', color: '#15803d', border: '1px solid #a7f3d0', padding: '0.4rem 0.85rem', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                >
+                  ✓ Quick Set All Available
+                </button>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.75rem' }}>
+
+                {/* Availability of Equipments */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                  <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Availability of Equipments</label>
+                  <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center', background: '#f8fafc', padding: '0.65rem 0.85rem', border: '1px solid #e2e8f0', borderRadius: '8px', minHeight: '42px', boxSizing: 'border-box' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: (formData.equipmentAvailability || 'Available') === 'Available' ? '#166534' : '#475569' }}>
+                      <input type="radio" name="equipmentAvailability" value="Available" checked={(formData.equipmentAvailability || 'Available') === 'Available'} onChange={handleChange} style={{ width: '1.05rem', height: '1.05rem', accentColor: '#22c55e' }} />
+                      Available
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: formData.equipmentAvailability === 'Not Available' ? '#991b1b' : '#475569' }}>
+                      <input type="radio" name="equipmentAvailability" value="Not Available" checked={formData.equipmentAvailability === 'Not Available'} onChange={handleChange} style={{ width: '1.05rem', height: '1.05rem', accentColor: '#ef4444' }} />
+                      Not Available
+                    </label>
+                  </div>
+                </div>
+
+                {/* Availability of Reference Standards */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                  <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Availability of Reference Standards</label>
+                  <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center', background: '#f8fafc', padding: '0.65rem 0.85rem', border: '1px solid #e2e8f0', borderRadius: '8px', minHeight: '42px', boxSizing: 'border-box' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: (formData.referenceStandardAvailability || 'Available') === 'Available' ? '#166534' : '#475569' }}>
+                      <input type="radio" name="referenceStandardAvailability" value="Available" checked={(formData.referenceStandardAvailability || 'Available') === 'Available'} onChange={handleChange} style={{ width: '1.05rem', height: '1.05rem', accentColor: '#22c55e' }} />
+                      Available
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: formData.referenceStandardAvailability === 'Not Available' ? '#991b1b' : '#475569' }}>
+                      <input type="radio" name="referenceStandardAvailability" value="Not Available" checked={formData.referenceStandardAvailability === 'Not Available'} onChange={handleChange} style={{ width: '1.05rem', height: '1.05rem', accentColor: '#ef4444' }} />
+                      Not Available
+                    </label>
+                  </div>
+                </div>
+
+                {/* Adequacy of Sample Quantity */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                  <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Adequacy of Sample Quantity</label>
+                  <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center', background: '#f8fafc', padding: '0.65rem 0.85rem', border: '1px solid #e2e8f0', borderRadius: '8px', minHeight: '42px', boxSizing: 'border-box' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: (formData.sampleAdequacy || 'Adequate') === 'Adequate' ? '#166534' : '#475569' }}>
+                      <input type="radio" name="sampleAdequacy" value="Adequate" checked={(formData.sampleAdequacy || 'Adequate') === 'Adequate'} onChange={handleChange} style={{ width: '1.05rem', height: '1.05rem', accentColor: '#22c55e' }} />
+                      Adequate
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: formData.sampleAdequacy === 'Not Adequate' ? '#991b1b' : '#475569' }}>
+                      <input type="radio" name="sampleAdequacy" value="Not Adequate" checked={formData.sampleAdequacy === 'Not Adequate'} onChange={handleChange} style={{ width: '1.05rem', height: '1.05rem', accentColor: '#ef4444' }} />
+                      Not Adequate
+                    </label>
+                  </div>
+                </div>
+
+                {/* Availability of Test Method */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                  <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Availability of Test Method</label>
+                  <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center', background: '#f8fafc', padding: '0.65rem 0.85rem', border: '1px solid #e2e8f0', borderRadius: '8px', minHeight: '42px', boxSizing: 'border-box' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: (formData.testMethodAvailability || 'Available') === 'Available' ? '#166534' : '#475569' }}>
+                      <input type="radio" name="testMethodAvailability" value="Available" checked={(formData.testMethodAvailability || 'Available') === 'Available'} onChange={handleChange} style={{ width: '1.05rem', height: '1.05rem', accentColor: '#22c55e' }} />
+                      Available
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: formData.testMethodAvailability === 'Not Available' ? '#991b1b' : '#475569' }}>
+                      <input type="radio" name="testMethodAvailability" value="Not Available" checked={formData.testMethodAvailability === 'Not Available'} onChange={handleChange} style={{ width: '1.05rem', height: '1.05rem', accentColor: '#ef4444' }} />
+                      Not Available
+                    </label>
+                  </div>
+                </div>
+
+                {/* Availability of Trained Person */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                  <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Availability of Trained Person</label>
+                  <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center', background: '#f8fafc', padding: '0.65rem 0.85rem', border: '1px solid #e2e8f0', borderRadius: '8px', minHeight: '42px', boxSizing: 'border-box' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: (formData.trainedPersonAvailability || 'Available') === 'Available' ? '#166534' : '#475569' }}>
+                      <input type="radio" name="trainedPersonAvailability" value="Available" checked={(formData.trainedPersonAvailability || 'Available') === 'Available'} onChange={handleChange} style={{ width: '1.05rem', height: '1.05rem', accentColor: '#22c55e' }} />
+                      Available
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, color: formData.trainedPersonAvailability === 'Not Available' ? '#991b1b' : '#475569' }}>
+                      <input type="radio" name="trainedPersonAvailability" value="Not Available" checked={formData.trainedPersonAvailability === 'Not Available'} onChange={handleChange} style={{ width: '1.05rem', height: '1.05rem', accentColor: '#ef4444' }} />
+                      Not Available
+                    </label>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                  <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Tentative Days of Issuing Report</label>
+                  <input type="text" name="tentativeDays" value={formData.tentativeDays} onChange={handleChange} className="premium-input" placeholder="e.g. 15-20 Days" />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', gridColumn: '1 / -1' }}>
+                  <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Sample Testing Facility Reviewed By</label>
+                  <input type="text" name="sampleTestingFacilityReviewedBy" value={formData.sampleTestingFacilityReviewedBy} onChange={handleChange} className="premium-input" placeholder="Quality Manager /Technical Manager" />
+                </div>
+              </div>
+            </div>
+
+            {/* Signatures & Adoption Card */}
+            <div className="test-request-form-card" style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc' }}>
+                <div style={{ width: '12px', height: '24px', background: 'linear-gradient(to bottom, #ec4899, #f472b6)', borderRadius: '6px' }}></div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Signatures & Adoption</h3>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.75rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                  <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Name & Designation of Customer Representative</label>
+                  <input type="text" name="customerRepresentativeName" value={formData.customerRepresentativeName} onChange={handleChange} className="premium-input" placeholder="Enter representative name..." />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                  <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Name & Designation of Sample Receiver</label>
+                  <input type="text" name="sampleReceiverName" value={formData.sampleReceiverName} onChange={handleChange} className="premium-input" placeholder="Enter receiver name..." />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', gridColumn: '1 / -1' }}>
+                  <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Test Protocol / Method to be Adopted</label>
+                  <textarea name="testProtocol" value={formData.testProtocol} onChange={handleChange} className="premium-input" rows={3} placeholder="Ground Water/Surface Water/Drinking Water: APHA..."></textarea>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', gridColumn: '1 / -1' }}>
+                  <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Remarks / Additional Notes</label>
+                  <textarea name="remarks" value={formData.remarks} onChange={handleChange} className="premium-input" rows={3} placeholder="Enter any extra remarks..."></textarea>
+                </div>
+              </div>
+            </div>
+
+
+
+            {/* HIDE MULTIPLE QUOTATIONS FUNCTIONALITY (DISABLED) */}
+            {false && (
+              <>
+                {formData.quotationRequired === 'Yes' && formData.quotationType === 'Audit' && (
+                  <div style={{ marginTop: '2rem' }}>
+                    {/* Card 1: Basic details */}
+                    <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
                         <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
-                        <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Page 2 - Detail of Charges</h3>
+                        <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Basic Quotation Details</h3>
                       </div>
-                      <button type="button" onClick={addQuotationChargeRow} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', backgroundColor: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.4rem 0.8rem', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }}>
-                        <FaPlus /> Add Row
-                      </button>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                      {quotationData.charges?.map((item, index) => (
-                        <div key={index} style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '1rem', background: '#f8fafc' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                            <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#475569' }}>Row #{item.srNo}</span>
-                            <button type="button" onClick={() => removeQuotationChargeRow(index)} style={{ border: 'none', background: 'transparent', color: '#ef4444', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
-                              <FaTrash size={12} /> Remove
-                            </button>
-                          </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                            <div>
-                              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Description of Work</label>
-                              <input type="text" value={item.description} onChange={(e) => handleQuotationChargeRowChange(index, 'description', e.target.value)} className="premium-input" style={{ fontSize: '0.85rem', height: '36px' }} />
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem' }}>
-                              <div>
-                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Qty</label>
-                                <input type="number" value={item.qty} onChange={(e) => handleQuotationChargeRowChange(index, 'qty', e.target.value)} className="premium-input" style={{ fontSize: '0.85rem', height: '36px' }} />
-                              </div>
-                              <div>
-                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Unit</label>
-                                <input type="text" value={item.unit} onChange={(e) => handleQuotationChargeRowChange(index, 'unit', e.target.value)} className="premium-input" style={{ fontSize: '0.85rem', height: '36px' }} />
-                              </div>
-                              <div>
-                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Rate (Rs.)</label>
-                                <input type="number" value={item.rate} onChange={(e) => handleQuotationChargeRowChange(index, 'rate', e.target.value)} className="premium-input" style={{ fontSize: '0.85rem', height: '36px' }} />
-                              </div>
-                              <div>
-                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Amount (Rs.)</label>
-                                <input type="number" value={item.amount} onChange={(e) => handleQuotationChargeRowChange(index, 'amount', e.target.value)} className="premium-input" style={{ fontSize: '0.85rem', height: '36px' }} />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Card 5: Terms and Conditions */}
-                  <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
-                      <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
-                      <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Page 3 - Terms & Conditions</h3>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                      <div>
-                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Terms text list</label>
-                        <textarea name="termsText" value={quotationData.termsText} onChange={handleQuotationChange} className="premium-input" rows={6} style={{ fontSize: '0.85rem' }}></textarea>
-                      </div>
-                      <div>
-                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Contact Person Details</label>
-                        <input type="text" name="contactPerson" value={quotationData.contactPerson} onChange={handleQuotationChange} className="premium-input" />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Card 6: Signatory details */}
-                  <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
-                      <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
-                      <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Signatory & Stamp Configuration</h3>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                          <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Signatory Name</label>
-                          <input type="text" name="signatoryName" value={quotationData.signatoryName} onChange={handleQuotationChange} className="premium-input" />
+                          <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Quotation Reference Number</label>
+                          <input type="text" name="quotationNumber" value={quotationData.quotationNumber} onChange={handleQuotationChange} className="premium-input" />
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                          <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Signatory Designation</label>
-                          <input type="text" name="signatoryDesignation" value={quotationData.signatoryDesignation} onChange={handleQuotationChange} className="premium-input" />
+                          <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Quotation Date</label>
+                          <input type="text" name="quotationDate" placeholder="dd/mm/yyyy" value={quotationData.quotationDate} onChange={handleQuotationChange} className="premium-input" />
                         </div>
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '0.5rem' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                          <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Authorized Digital Signature</label>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                            <input type="file" ref={signatureInputRef} onChange={(e) => handleQuotationFileUpload(e, 'signatorySignature')} accept="image/*" style={{ display: 'none' }} />
-                            <button type="button" onClick={() => signatureInputRef.current.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 1rem', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }}>
-                              <FaUpload /> Upload Signature
-                            </button>
-                            {quotationData.signatorySignature && (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <img src={quotationData.signatorySignature} alt="Signature Preview" style={{ maxHeight: '36px', border: '1px solid #e2e8f0', borderRadius: '4px' }} />
-                                <button type="button" onClick={() => removeQuotationImage('signatorySignature')} style={{ color: '#ef4444', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '0.8rem' }}>Delete</button>
-                              </div>
-                            )}
-                          </div>
+                          <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Revised Date (Optional)</label>
+                          <input type="text" name="revisedDate" placeholder="dd/mm/yyyy" value={quotationData.revisedDate} onChange={handleQuotationChange} className="premium-input" />
                         </div>
-
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                          <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Company Round Stamp</label>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                            <input type="file" ref={stampInputRef} onChange={(e) => handleQuotationFileUpload(e, 'stampImage')} accept="image/*" style={{ display: 'none' }} />
-                            <button type="button" onClick={() => stampInputRef.current.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 1rem', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }}>
-                              <FaUpload /> Upload Stamp
-                            </button>
-                            {quotationData.stampImage && (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <img src={quotationData.stampImage} alt="Stamp Preview" style={{ maxHeight: '36px', border: '1px solid #e2e8f0', borderRadius: '4px' }} />
-                                <button type="button" onClick={() => removeQuotationImage('stampImage')} style={{ color: '#ef4444', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '0.8rem' }}>Delete</button>
-                              </div>
-                            )}
-                          </div>
+                          <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Financial Year / Year</label>
+                          <input type="text" name="financialYear" value={quotationData.financialYear} onChange={handleQuotationChange} className="premium-input" />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', gridColumn: '1 / -1' }}>
+                          <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Audit Reference</label>
+                          <input type="text" name="reference" value={quotationData.reference} onChange={handleQuotationChange} className="premium-input" />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', gridColumn: '1 / -1' }}>
+                          <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Subject Heading</label>
+                          <textarea name="subject" value={quotationData.subject} onChange={handleQuotationChange} className="premium-input" rows={2}></textarea>
                         </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Card 7: Annexure Rates */}
-                  <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', marginBottom: '2rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
-                      <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
-                      <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Annexure-B Rates Editor</h3>
+                    {/* Card 2: Letter Content */}
+                    <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
+                        <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
+                        <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Page 1 - Letter Content</h3>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Introductory & Accreditation Paragraphs</label>
+                        <textarea name="introText" value={quotationData.introText} onChange={handleQuotationChange} className="premium-input" rows={6} style={{ fontSize: '0.85rem' }}></textarea>
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '500px', overflowY: 'auto', paddingRight: '0.5rem' }}>
-                      {quotationData.annexure?.map((item, index) => (
-                        <div key={index} style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', marginBottom: '0.4rem' }}>
-                            <span>{item.category}</span>
+
+                    {/* Card 3: Scope of Work */}
+                    <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
+                        <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
+                        <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Page 2 - Scope of Work</h3>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Scope Points Text</label>
+                        <textarea name="scopeText" value={quotationData.scopeText} onChange={handleQuotationChange} className="premium-input" rows={5} style={{ fontSize: '0.85rem' }}></textarea>
+                      </div>
+                    </div>
+
+                    {/* Card 4: Charges Table */}
+                    <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
+                          <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Page 2 - Detail of Charges</h3>
+                        </div>
+                        <button type="button" onClick={addQuotationChargeRow} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', backgroundColor: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.4rem 0.8rem', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }}>
+                          <FaPlus /> Add Row
+                        </button>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        {quotationData.charges?.map((item, index) => (
+                          <div key={index} style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '1rem', background: '#f8fafc' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                              <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#475569' }}>Row #{item.srNo}</span>
+                              <button type="button" onClick={() => removeQuotationChargeRow(index)} style={{ border: 'none', background: 'transparent', color: '#ef4444', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
+                                <FaTrash size={12} /> Remove
+                              </button>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                              <div>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Description of Work</label>
+                                <input type="text" value={item.description} onChange={(e) => handleQuotationChargeRowChange(index, 'description', e.target.value)} className="premium-input" style={{ fontSize: '0.85rem', height: '36px' }} />
+                              </div>
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem' }}>
+                                <div>
+                                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Qty</label>
+                                  <input type="number" value={item.qty} onChange={(e) => handleQuotationChargeRowChange(index, 'qty', e.target.value)} className="premium-input" style={{ fontSize: '0.85rem', height: '36px' }} />
+                                </div>
+                                <div>
+                                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Unit</label>
+                                  <input type="text" value={item.unit} onChange={(e) => handleQuotationChargeRowChange(index, 'unit', e.target.value)} className="premium-input" style={{ fontSize: '0.85rem', height: '36px' }} />
+                                </div>
+                                <div>
+                                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Rate (Rs.)</label>
+                                  <input type="number" value={item.rate} onChange={(e) => handleQuotationChargeRowChange(index, 'rate', e.target.value)} className="premium-input" style={{ fontSize: '0.85rem', height: '36px' }} />
+                                </div>
+                                <div>
+                                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Amount (Rs.)</label>
+                                  <input type="number" value={item.amount} onChange={(e) => handleQuotationChargeRowChange(index, 'amount', e.target.value)} className="premium-input" style={{ fontSize: '0.85rem', height: '36px' }} />
+                                </div>
+                              </div>
+                            </div>
                           </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0.5rem' }}>
-                            <div>
-                              <label style={{ fontSize: '0.75rem', color: '#475569' }}>Description</label>
-                              <input type="text" value={item.description} onChange={(e) => handleQuotationAnnexureRowChange(index, 'description', e.target.value)} className="premium-input" style={{ fontSize: '0.8rem', height: '32px' }} />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Card 5: Terms and Conditions */}
+                    <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
+                        <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
+                        <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Page 3 - Terms & Conditions</h3>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        <div>
+                          <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Terms text list</label>
+                          <textarea name="termsText" value={quotationData.termsText} onChange={handleQuotationChange} className="premium-input" rows={6} style={{ fontSize: '0.85rem' }}></textarea>
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Contact Person Details</label>
+                          <input type="text" name="contactPerson" value={quotationData.contactPerson} onChange={handleQuotationChange} className="premium-input" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Card 6: Signatory details */}
+                    <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
+                        <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
+                        <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Signatory & Stamp Configuration</h3>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Signatory Name</label>
+                            <input type="text" name="signatoryName" value={quotationData.signatoryName} onChange={handleQuotationChange} className="premium-input" />
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Signatory Designation</label>
+                            <input type="text" name="signatoryDesignation" value={quotationData.signatoryDesignation} onChange={handleQuotationChange} className="premium-input" />
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '0.5rem' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Authorized Digital Signature</label>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                              <input type="file" ref={signatureInputRef} onChange={(e) => handleQuotationFileUpload(e, 'signatorySignature')} accept="image/*" style={{ display: 'none' }} />
+                              <button type="button" onClick={() => signatureInputRef.current.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 1rem', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }}>
+                                <FaUpload /> Upload Signature
+                              </button>
+                              {quotationData.signatorySignature && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  <img src={quotationData.signatorySignature} alt="Signature Preview" style={{ maxHeight: '36px', border: '1px solid #e2e8f0', borderRadius: '4px' }} />
+                                  <button type="button" onClick={() => removeQuotationImage('signatorySignature')} style={{ color: '#ef4444', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '0.8rem' }}>Delete</button>
+                                </div>
+                              )}
                             </div>
-                            <div>
-                              <label style={{ fontSize: '0.75rem', color: '#475569' }}>Rate/Sample</label>
-                              <input type="number" value={item.ratePerSample} onChange={(e) => handleQuotationAnnexureRowChange(index, 'ratePerSample', e.target.value)} className="premium-input" style={{ fontSize: '0.8rem', height: '32px' }} />
-                            </div>
-                            <div>
-                              <label style={{ fontSize: '0.75rem', color: '#475569' }}>Sample/Visit</label>
-                              <input type="number" value={item.samplePerVisit} onChange={(e) => handleQuotationAnnexureRowChange(index, 'samplePerVisit', e.target.value)} className="premium-input" style={{ fontSize: '0.8rem', height: '32px' }} />
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Company Round Stamp</label>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                              <input type="file" ref={stampInputRef} onChange={(e) => handleQuotationFileUpload(e, 'stampImage')} accept="image/*" style={{ display: 'none' }} />
+                              <button type="button" onClick={() => stampInputRef.current.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 1rem', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }}>
+                                <FaUpload /> Upload Stamp
+                              </button>
+                              {quotationData.stampImage && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  <img src={quotationData.stampImage} alt="Stamp Preview" style={{ maxHeight: '36px', border: '1px solid #e2e8f0', borderRadius: '4px' }} />
+                                  <button type="button" onClick={() => removeQuotationImage('stampImage')} style={{ color: '#ef4444', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '0.8rem' }}>Delete</button>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
-                      ))}
+                      </div>
+                    </div>
+
+                    {/* Card 7: Annexure Rates */}
+                    <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', marginBottom: '2rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
+                        <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
+                        <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Annexure-B Rates Editor</h3>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '500px', overflowY: 'auto', paddingRight: '0.5rem' }}>
+                        {quotationData.annexure?.map((item, index) => (
+                          <div key={index} style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', marginBottom: '0.4rem' }}>
+                              <span>{item.category}</span>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0.5rem' }}>
+                              <div>
+                                <label style={{ fontSize: '0.75rem', color: '#475569' }}>Description</label>
+                                <input type="text" value={item.description} onChange={(e) => handleQuotationAnnexureRowChange(index, 'description', e.target.value)} className="premium-input" style={{ fontSize: '0.8rem', height: '32px' }} />
+                              </div>
+                              <div>
+                                <label style={{ fontSize: '0.75rem', color: '#475569' }}>Rate/Sample</label>
+                                <input type="number" value={item.ratePerSample} onChange={(e) => handleQuotationAnnexureRowChange(index, 'ratePerSample', e.target.value)} className="premium-input" style={{ fontSize: '0.8rem', height: '32px' }} />
+                              </div>
+                              <div>
+                                <label style={{ fontSize: '0.75rem', color: '#475569' }}>Sample/Visit</label>
+                                <input type="number" value={item.samplePerVisit} onChange={(e) => handleQuotationAnnexureRowChange(index, 'samplePerVisit', e.target.value)} className="premium-input" style={{ fontSize: '0.8rem', height: '32px' }} />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
-            </>
-          )}
+                )}
+              </>
+            )}
 
-          {/* Bottom Action Bar */}
-          <div className="test-request-bottom-actions hide-on-print" style={{
-            display: 'flex',
-            justifyContent: 'flex-end',
-            alignItems: 'center',
-            gap: '0.75rem',
-            background: '#ffffff',
-            borderRadius: '16px',
-            padding: '1.25rem 2rem',
-            boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
-            border: '1px solid #f1f5f9',
-            flexWrap: 'wrap'
-          }}>
-            <button
-              type="button"
-              onClick={() => setShowLivePreview(!showLivePreview)}
-              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#ffffff', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.6rem 1.25rem', fontWeight: 600, cursor: 'pointer' }}
-            >
-              {showLivePreview ? <FaEyeSlash /> : <FaEye />}
-              <span>{showLivePreview ? 'Hide Preview' : 'Live Preview'}</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleSaveAndNavigate}
-              disabled={submitting}
-              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.6rem 1.25rem', fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer' }}
-            >
-              <FaSave />
-              <span>{submitting ? 'Saving...' : 'Save'}</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleSaveAndPrint}
-              disabled={submitting}
-              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.6rem 1.25rem', fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer' }}
-            >
-              <FaPrint />
-              <span>Save &amp; TRF PDF</span>
-            </button>
-            {formData.quotationRequired === 'Yes' && (
+            {/* Bottom Action Bar */}
+            <div className="test-request-bottom-actions hide-on-print" style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              alignItems: 'center',
+              gap: '0.75rem',
+              background: '#ffffff',
+              borderRadius: '16px',
+              padding: '1.25rem 2rem',
+              boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
+              border: '1px solid #f1f5f9',
+              flexWrap: 'wrap'
+            }}>
               <button
                 type="button"
-                onClick={handleSaveAndQuotation}
-                disabled={submitting}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.6rem 1.25rem', fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer' }}
+                onClick={() => setShowLivePreview(!showLivePreview)}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#ffffff', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.6rem 1.25rem', fontWeight: 600, cursor: 'pointer' }}
               >
-                <FaFilePdf />
-                <span>Generate Quotation</span>
+                {showLivePreview ? <FaEyeSlash /> : <FaEye />}
+                <span>{showLivePreview ? 'Hide Preview' : 'Live Preview'}</span>
               </button>
-            )}
-          </div>
-        </div>
-
-        {/* Right Column: Sticky Live Preview Simulator */}
-        {showLivePreview && (
-          <div className="live-preview-container hide-on-mobile" style={{
-            width: '460px',
-            flexShrink: 0,
-            position: 'sticky',
-            top: '24px',
-            maxHeight: 'calc(100vh - 120px)',
-            overflowY: 'auto',
-            background: '#f8fafc',
-            borderRadius: '16px',
-            padding: '1rem',
-            border: '1px solid #e2e8f0',
-            boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', paddingBottom: '0.5rem', borderBottom: '1px solid #cbd5e1' }}>
-              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Live Document Preview</span>
-              <span style={{ fontSize: '0.75rem', color: '#22c55e', background: '#e8fdf0', padding: '0.2rem 0.5rem', borderRadius: '6px', border: '1px solid #b8ffd0', fontWeight: 'bold' }}>A4 Format</span>
+              <button
+                type="button"
+                onClick={handleSaveAndNavigate}
+                disabled={submitting}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.6rem 1.25rem', fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer' }}
+              >
+                <FaSave />
+                <span>{submitting ? 'Saving...' : 'Save'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveAndPrint}
+                disabled={submitting}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.6rem 1.25rem', fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer' }}
+              >
+                <FaPrint />
+                <span>Save &amp; TRF PDF</span>
+              </button>
             </div>
+          </div>
 
-            {/* HIDE MULTIPLE QUOTATIONS FUNCTIONALITY (DISABLED)
+          {/* Right Column: Sticky Live Preview Simulator */}
+          {showLivePreview && (
+            <div className="live-preview-container hide-on-mobile" style={{
+              width: '460px',
+              flexShrink: 0,
+              position: 'sticky',
+              top: '24px',
+              maxHeight: 'calc(100vh - 120px)',
+              overflowY: 'auto',
+              background: '#f8fafc',
+              borderRadius: '16px',
+              padding: '1rem',
+              border: '1px solid #e2e8f0',
+              boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', paddingBottom: '0.5rem', borderBottom: '1px solid #cbd5e1' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Live Document Preview</span>
+                <span style={{ fontSize: '0.75rem', color: '#22c55e', background: '#e8fdf0', padding: '0.2rem 0.5rem', borderRadius: '6px', border: '1px solid #b8ffd0', fontWeight: 'bold' }}>A4 Format</span>
+              </div>
+
+              {/* HIDE MULTIPLE QUOTATIONS FUNCTIONALITY (DISABLED)
             formData.quotationRequired === 'Yes' && formData.quotationType === 'Audit' && (
               <div style={{ display: 'flex', gap: '4px', marginBottom: '12px', background: '#e2e8f0', padding: '2px', borderRadius: '6px' }}>
                 <button
@@ -3250,100 +3435,226 @@ const TestRequestForm = () => {
               </div>
             )*/}
 
-            {activePreviewTab === 'Quotation' && formData.quotationRequired === 'Yes' && formData.quotationType === 'Audit' ? (
-              // Audit Quotation Preview
-              (() => {
-                const getQuotationLogoUrl = () => {
-                  const logoPath = selCompany.quotationLogo || selCompany.quotation_logo || selCompany.logo;
-                  if (!logoPath) return '/Images/Navbar_Logo.png';
-                  const cleanPath = logoPath.replace(/\\/g, '/');
-                  const idx = cleanPath.lastIndexOf('uploads/');
-                  if (idx !== -1) {
-                    return `${BACKEND_ROOT_URL}/${cleanPath.substring(idx)}`;
-                  }
-                  return logoPath;
-                };
+              {activePreviewTab === 'Quotation' && formData.quotationRequired === 'Yes' && formData.quotationType === 'Audit' ? (
+                // Audit Quotation Preview
+                (() => {
+                  const getQuotationLogoUrl = () => {
+                    const logoPath = selCompany.quotationLogo || selCompany.quotation_logo || selCompany.logo;
+                    if (!logoPath) return '/Images/Navbar_Logo.png';
+                    const cleanPath = logoPath.replace(/\\/g, '/');
+                    const idx = cleanPath.lastIndexOf('uploads/');
+                    if (idx !== -1) {
+                      return `${BACKEND_ROOT_URL}/${cleanPath.substring(idx)}`;
+                    }
+                    return logoPath;
+                  };
 
-                const pageStyle = {
-                  background: '#ffffff',
-                  border: '1px solid #cbd5e1',
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
-                  padding: '1.25rem',
-                  fontSize: '9px',
-                  fontFamily: '"Plus Jakarta Sans", "Inter", sans-serif',
-                  color: '#000000',
-                  lineHeight: '1.4',
-                  width: '100%',
-                  boxSizing: 'border-box',
-                  marginBottom: '1.5rem',
-                  position: 'relative',
-                  minHeight: '580px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between'
-                };
+                  const pageStyle = {
+                    background: '#ffffff',
+                    border: '1px solid #cbd5e1',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+                    padding: '1.25rem',
+                    fontSize: '9px',
+                    fontFamily: '"Plus Jakarta Sans", "Inter", sans-serif',
+                    color: '#000000',
+                    lineHeight: '1.4',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    marginBottom: '1.5rem',
+                    position: 'relative',
+                    minHeight: '580px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between'
+                  };
 
-                const tableStyle = {
-                  width: '100%',
-                  borderCollapse: 'collapse',
-                  border: '1px solid #000000',
-                  fontSize: '8px',
-                  marginBottom: '10px'
-                };
+                  const tableStyle = {
+                    width: '100%',
+                    borderCollapse: 'collapse',
+                    border: '1px solid #000000',
+                    fontSize: '8px',
+                    marginBottom: '10px'
+                  };
 
-                const thTdStyle = {
-                  border: '1px solid #000000',
-                  padding: '3px 4px',
-                  verticalAlign: 'middle'
-                };
+                  const thTdStyle = {
+                    border: '1px solid #000000',
+                    padding: '3px 4px',
+                    verticalAlign: 'middle'
+                  };
 
-                const companyLogo = getQuotationLogoUrl();
-                const quotationSubtotal = (quotationData.charges || []).reduce((sum, item) => {
-                  const amt = parseFloat(item.amount);
-                  return sum + (isNaN(amt) ? 0 : amt);
-                }, 0);
-                const quotationGst = Math.round(quotationSubtotal * 0.18);
-                const quotationGrandTotal = quotationSubtotal + quotationGst;
+                  const companyLogo = getQuotationLogoUrl();
+                  const quotationSubtotal = (quotationData.charges || []).reduce((sum, item) => {
+                    const amt = parseFloat(item.amount);
+                    return sum + (isNaN(amt) ? 0 : amt);
+                  }, 0);
+                  const quotationGst = Math.round(quotationSubtotal * 0.18);
+                  const quotationGrandTotal = quotationSubtotal + quotationGst;
 
-                const quotationGroupedAnnexure = (quotationData.annexure || []).reduce((acc, item) => {
-                  if (!acc[item.category]) acc[item.category] = [];
-                  acc[item.category].push(item);
-                  return acc;
-                }, {});
+                  const quotationGroupedAnnexure = (quotationData.annexure || []).reduce((acc, item) => {
+                    if (!acc[item.category]) acc[item.category] = [];
+                    acc[item.category].push(item);
+                    return acc;
+                  }, {});
 
-                return (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    {/* Page 1 */}
-                    <div style={pageStyle}>
-                      <div>
-                        <div style={{ textAlign: 'center', marginBottom: '8px' }}>
-                          <img src={companyLogo} alt="Logo" style={{ maxHeight: '45px', objectFit: 'contain' }} />
-                          <hr style={{ border: 'none', borderTop: '1px solid #000000', margin: '4px 0 8px 0' }} />
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', fontWeight: 'bold', fontSize: '8px', marginBottom: '10px' }}>
-                          Date: {quotationData.quotationDate}
-                        </div>
-                        <div style={{ marginBottom: '12px', fontSize: '9px' }}>
-                          <div style={{ fontWeight: 'bold' }}>To,</div>
-                          <div style={{ fontWeight: 'bold' }}>M/s. {selClient.companyName || selClient.clientName || 'CLIENT NAME'}</div>
-                          <div style={{ whiteSpace: 'pre-line', marginTop: '2px', color: '#334155' }}>
-                            {selClient.plantAddress || selClient.officeAddress || selClient.address || 'Plant Address'}
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      {/* Page 1 */}
+                      <div style={pageStyle}>
+                        <div>
+                          <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+                            <img src={companyLogo} alt="Logo" style={{ maxHeight: '45px', objectFit: 'contain' }} />
+                            <hr style={{ border: 'none', borderTop: '1px solid #000000', margin: '4px 0 8px 0' }} />
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', fontWeight: 'bold', fontSize: '8px', marginBottom: '10px' }}>
+                            Date: {quotationData.quotationDate}
+                          </div>
+                          <div style={{ marginBottom: '12px', fontSize: '9px' }}>
+                            <div style={{ fontWeight: 'bold' }}>To,</div>
+                            <div style={{ fontWeight: 'bold' }}>M/s. {selClient.companyName || selClient.clientName || 'CLIENT NAME'}</div>
+                            <div style={{ whiteSpace: 'pre-line', marginTop: '2px', color: '#334155' }}>
+                              {selClient.plantAddress || selClient.officeAddress || selClient.address || 'Plant Address'}
+                            </div>
+                          </div>
+                          <div style={{ marginBottom: '12px', fontWeight: 'bold', textTransform: 'uppercase', fontSize: '8px' }}>
+                            SUBJECT: - <span style={{ textDecoration: 'underline' }}>{quotationData.subject}</span>
+                          </div>
+                          <div style={{ marginBottom: '8px', fontWeight: 'bold' }}>Dear Sir,</div>
+                          <div style={{ textAlign: 'justify', whiteSpace: 'pre-line', fontSize: '8px', color: '#1e293b', marginBottom: '12px' }}>
+                            {quotationData.introText}
+                          </div>
+                          <div style={{ marginBottom: '12px' }}>
+                            <div>Thanking you</div>
+                            <div style={{ fontWeight: 'bold' }}>Authorized Signatory</div>
+                          </div>
+                          <div style={{ position: 'relative' }}>
+                            <div>For, {selCompany.companyName?.toUpperCase() || selCompany.company_name?.toUpperCase() || 'JAGNATH LAB TECHNOLOGIES'}.</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '6px 0' }}>
+                              {quotationData.signatorySignature && (
+                                <img src={quotationData.signatorySignature} alt="Signature" style={{ maxHeight: '35px', objectFit: 'contain' }} />
+                              )}
+                              {quotationData.stampImage && (
+                                <img src={quotationData.stampImage} alt="Stamp" style={{ maxHeight: '45px', objectFit: 'contain' }} />
+                              )}
+                            </div>
+                            <div style={{ fontWeight: 'bold', textDecoration: 'underline' }}>{quotationData.signatoryName || 'Purvin Raiyani'}</div>
+                            <div>({quotationData.signatoryDesignation || 'Proprietor'})</div>
                           </div>
                         </div>
-                        <div style={{ marginBottom: '12px', fontWeight: 'bold', textTransform: 'uppercase', fontSize: '8px' }}>
-                          SUBJECT: - <span style={{ textDecoration: 'underline' }}>{quotationData.subject}</span>
+                        <div style={{ borderTop: '1px solid #cbd5e1', paddingTop: '4px', textAlign: 'center', fontSize: '6px', color: '#64748b', marginTop: '12px' }}>
+                          <div style={{ fontWeight: 'bold', fontStyle: 'italic', color: '#0f172a' }}>"NURTURING THE NATURE FOR HUMAN RACE"</div>
+                          <div>5-6/B, Nayan Jyot Chamber, First Floor, Opp. Vachhera Vada, Gondal – 360 311, Dist.- Rajkot (GUJ.) +91 81405 55515</div>
+                          <div>Email: jagnathtechnologies@yahoo.com / www.jagnathlabtechnologies.com</div>
                         </div>
-                        <div style={{ marginBottom: '8px', fontWeight: 'bold' }}>Dear Sir,</div>
-                        <div style={{ textAlign: 'justify', whiteSpace: 'pre-line', fontSize: '8px', color: '#1e293b', marginBottom: '12px' }}>
-                          {quotationData.introText}
+                      </div>
+
+                      {/* Page 2 */}
+                      <div style={pageStyle}>
+                        <div>
+                          <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+                            <img src={companyLogo} alt="Logo" style={{ maxHeight: '45px', objectFit: 'contain' }} />
+                            <hr style={{ border: 'none', borderTop: '1px solid #000000', margin: '4px 0 8px 0' }} />
+                          </div>
+                          <div style={{ textAlign: 'center', marginBottom: '10px' }}>
+                            <h3 style={{ textDecoration: 'underline', fontWeight: 'bold', fontSize: '10px', margin: 0 }}>PROVISIONAL ESTIMATED QUOTE</h3>
+                          </div>
+                          <table style={{ ...tableStyle, border: '1px solid #000000', width: '100%', marginBottom: '12px' }}>
+                            <tbody>
+                              <tr>
+                                <td style={{ ...thTdStyle, width: '50%', fontWeight: 'bold' }}>CLIENT NAME:- <span style={{ fontWeight: 'normal' }}>M/s. {selClient.companyName || selClient.clientName || 'CLIENT NAME'}</span></td>
+                                <td style={{ ...thTdStyle, width: '50%', fontWeight: 'bold' }}>REFERENCE:- <span style={{ fontWeight: 'normal' }}>{quotationData.reference}</span></td>
+                              </tr>
+                              <tr>
+                                <td style={{ ...thTdStyle, fontWeight: 'bold' }}>ADDRESS:- <span style={{ fontWeight: 'normal' }}>{selClient.plantAddress || selClient.officeAddress || selClient.address || 'Address'}</span></td>
+                                <td style={{ ...thTdStyle, fontWeight: 'bold' }}>APPROVED BY:- <span style={{ fontWeight: 'normal' }}>{quotationData.signatoryName || 'Mr. Purvin Patel'}</span></td>
+                              </tr>
+                              <tr>
+                                <td style={{ ...thTdStyle, fontWeight: 'bold' }}>Q-P.I :- <span style={{ fontWeight: 'normal' }}>{quotationData.quotationNumber}</span></td>
+                                <td style={{ ...thTdStyle, fontWeight: 'bold' }}>
+                                  DATE:- <span style={{ fontWeight: 'normal' }}>{quotationData.quotationDate}</span>
+                                  {quotationData.revisedDate && <div>REVISED DATE:- <span style={{ fontWeight: 'normal' }}>{quotationData.revisedDate}</span></div>}
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+
+                          <div style={{ marginBottom: '10px' }}>
+                            <h4 style={{ textDecoration: 'underline', fontWeight: 'bold', margin: '0 0 4px 0', fontSize: '9px' }}>SCOPE OF WORK</h4>
+                            <div style={{ whiteSpace: 'pre-line', fontSize: '7.5px', lineHeight: '1.3', textAlign: 'justify' }}>
+                              {quotationData.scopeText}
+                            </div>
+                          </div>
+
+                          <div>
+                            <h4 style={{ textDecoration: 'underline', fontWeight: 'bold', margin: '0 0 6px 0', fontSize: '9px' }}>Detail of Charges:</h4>
+                            <table style={tableStyle}>
+                              <thead>
+                                <tr style={{ backgroundColor: '#f1f5f9' }}>
+                                  <th style={{ ...thTdStyle, width: '8%', textAlign: 'center' }}>Sr. No.</th>
+                                  <th style={{ ...thTdStyle, width: '47%', textAlign: 'left' }}>Description of work</th>
+                                  <th style={{ ...thTdStyle, width: '10%', textAlign: 'center' }}>Qty.</th>
+                                  <th style={{ ...thTdStyle, width: '10%', textAlign: 'center' }}>Unit</th>
+                                  <th style={{ ...thTdStyle, width: '12%', textAlign: 'right' }}>Rate</th>
+                                  <th style={{ ...thTdStyle, width: '13%', textAlign: 'right' }}>Amount Rs.</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {quotationData.charges?.map((item, index) => (
+                                  <tr key={index}>
+                                    <td style={{ ...thTdStyle, textAlign: 'center' }}>{item.srNo || index + 1}</td>
+                                    <td style={thTdStyle}>{item.description}</td>
+                                    <td style={{ ...thTdStyle, textAlign: 'center' }}>{item.qty}</td>
+                                    <td style={{ ...thTdStyle, textAlign: 'center' }}>{item.unit}</td>
+                                    <td style={{ ...thTdStyle, textAlign: 'right' }}>{parseFloat(item.rate || 0).toLocaleString('en-IN')}/-</td>
+                                    <td style={{ ...thTdStyle, textAlign: 'right' }}>{parseFloat(item.amount || 0).toLocaleString('en-IN')}/-</td>
+                                  </tr>
+                                ))}
+                                <tr style={{ fontWeight: 'bold', backgroundColor: '#f8fafc' }}>
+                                  <td colSpan={5} style={{ ...thTdStyle, textAlign: 'right' }}>Total Subtotal:</td>
+                                  <td style={{ ...thTdStyle, textAlign: 'right' }}>{quotationSubtotal.toLocaleString('en-IN')}/-</td>
+                                </tr>
+                                <tr style={{ fontWeight: 'bold', backgroundColor: '#f8fafc' }}>
+                                  <td colSpan={5} style={{ ...thTdStyle, textAlign: 'right' }}>GST (18%):</td>
+                                  <td style={{ ...thTdStyle, textAlign: 'right' }}>{quotationGst.toLocaleString('en-IN')}/-</td>
+                                </tr>
+                                <tr style={{ fontWeight: 'bold', backgroundColor: '#e2e8f0', fontSize: '9px' }}>
+                                  <td colSpan={5} style={{ ...thTdStyle, textAlign: 'right' }}>Grand Total (Rs.):</td>
+                                  <td style={{ ...thTdStyle, textAlign: 'right' }}>{quotationGrandTotal.toLocaleString('en-IN')}/-</td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                          <div style={{ fontSize: '7px', fontStyle: 'italic' }}>
+                            Note: - Tax will be paid extra (GST 18%) apart from above rate/amount.
+                          </div>
                         </div>
-                        <div style={{ marginBottom: '12px' }}>
-                          <div>Thanking you</div>
-                          <div style={{ fontWeight: 'bold' }}>Authorized Signatory</div>
+                        <div style={{ borderTop: '1px solid #cbd5e1', paddingTop: '4px', display: 'flex', justifyContent: 'space-between', fontSize: '6px', color: '#64748b' }}>
+                          <span style={{ fontWeight: 'bold' }}>Page 2</span>
+                          <span style={{ fontWeight: 'bold', fontStyle: 'italic', color: '#0f172a' }}>"NURTURING THE NATURE FOR HUMAN RACE"</span>
+                          <span style={{ width: '20px' }}></span>
                         </div>
-                        <div style={{ position: 'relative' }}>
-                          <div>For, {selCompany.companyName?.toUpperCase() || selCompany.company_name?.toUpperCase() || 'JAGNATH LAB TECHNOLOGIES'}.</div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '6px 0' }}>
+                      </div>
+
+                      {/* Page 3 */}
+                      <div style={pageStyle}>
+                        <div>
+                          <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+                            <img src={companyLogo} alt="Logo" style={{ maxHeight: '45px', objectFit: 'contain' }} />
+                            <hr style={{ border: 'none', borderTop: '1px solid #000000', margin: '4px 0 8px 0' }} />
+                          </div>
+                          <div style={{ marginBottom: '10px' }}>
+                            <h4 style={{ textDecoration: 'underline', fontWeight: 'bold', margin: '0 0 6px 0', fontSize: '10px' }}>Terms and conditions:</h4>
+                            <div style={{ whiteSpace: 'pre-line', fontSize: '7.5px', lineHeight: '1.4', textAlign: 'justify' }}>
+                              {quotationData.termsText}
+                            </div>
+                          </div>
+                          <div style={{ fontSize: '7px', fontStyle: 'italic', marginBottom: '12px', background: '#f8fafc', padding: '6px', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
+                            (Note: - We have briefly studied all your scope of work and accordingly we are tied and committed to uphold highest standards of honesty & integrity for accuracy to the work order.)
+                          </div>
+                          <div style={{ marginBottom: '12px' }}>
+                            <div>Thanking you in anticipation!</div>
+                            <div style={{ fontWeight: 'bold' }}>For, {selCompany.companyName?.toUpperCase() || selCompany.company_name?.toUpperCase() || 'JAGNATH LAB TECHNOLOGIES'}</div>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '8px 0' }}>
                             {quotationData.signatorySignature && (
                               <img src={quotationData.signatorySignature} alt="Signature" style={{ maxHeight: '35px', objectFit: 'contain' }} />
                             )}
@@ -3351,504 +3662,354 @@ const TestRequestForm = () => {
                               <img src={quotationData.stampImage} alt="Stamp" style={{ maxHeight: '45px', objectFit: 'contain' }} />
                             )}
                           </div>
-                          <div style={{ fontWeight: 'bold', textDecoration: 'underline' }}>{quotationData.signatoryName || 'Purvin Raiyani'}</div>
-                          <div>({quotationData.signatoryDesignation || 'Proprietor'})</div>
-                        </div>
-                      </div>
-                      <div style={{ borderTop: '1px solid #cbd5e1', paddingTop: '4px', textAlign: 'center', fontSize: '6px', color: '#64748b', marginTop: '12px' }}>
-                        <div style={{ fontWeight: 'bold', fontStyle: 'italic', color: '#0f172a' }}>"NURTURING THE NATURE FOR HUMAN RACE"</div>
-                        <div>5-6/B, Nayan Jyot Chamber, First Floor, Opp. Vachhera Vada, Gondal – 360 311, Dist.- Rajkot (GUJ.) +91 81405 55515</div>
-                        <div>Email: jagnathtechnologies@yahoo.com / www.jagnathlabtechnologies.com</div>
-                      </div>
-                    </div>
-
-                    {/* Page 2 */}
-                    <div style={pageStyle}>
-                      <div>
-                        <div style={{ textAlign: 'center', marginBottom: '8px' }}>
-                          <img src={companyLogo} alt="Logo" style={{ maxHeight: '45px', objectFit: 'contain' }} />
-                          <hr style={{ border: 'none', borderTop: '1px solid #000000', margin: '4px 0 8px 0' }} />
-                        </div>
-                        <div style={{ textAlign: 'center', marginBottom: '10px' }}>
-                          <h3 style={{ textDecoration: 'underline', fontWeight: 'bold', fontSize: '10px', margin: 0 }}>PROVISIONAL ESTIMATED QUOTE</h3>
-                        </div>
-                        <table style={{ ...tableStyle, border: '1px solid #000000', width: '100%', marginBottom: '12px' }}>
-                          <tbody>
-                            <tr>
-                              <td style={{ ...thTdStyle, width: '50%', fontWeight: 'bold' }}>CLIENT NAME:- <span style={{ fontWeight: 'normal' }}>M/s. {selClient.companyName || selClient.clientName || 'CLIENT NAME'}</span></td>
-                              <td style={{ ...thTdStyle, width: '50%', fontWeight: 'bold' }}>REFERENCE:- <span style={{ fontWeight: 'normal' }}>{quotationData.reference}</span></td>
-                            </tr>
-                            <tr>
-                              <td style={{ ...thTdStyle, fontWeight: 'bold' }}>ADDRESS:- <span style={{ fontWeight: 'normal' }}>{selClient.plantAddress || selClient.officeAddress || selClient.address || 'Address'}</span></td>
-                              <td style={{ ...thTdStyle, fontWeight: 'bold' }}>APPROVED BY:- <span style={{ fontWeight: 'normal' }}>{quotationData.signatoryName || 'Mr. Purvin Patel'}</span></td>
-                            </tr>
-                            <tr>
-                              <td style={{ ...thTdStyle, fontWeight: 'bold' }}>Q-P.I :- <span style={{ fontWeight: 'normal' }}>{quotationData.quotationNumber}</span></td>
-                              <td style={{ ...thTdStyle, fontWeight: 'bold' }}>
-                                DATE:- <span style={{ fontWeight: 'normal' }}>{quotationData.quotationDate}</span>
-                                {quotationData.revisedDate && <div>REVISED DATE:- <span style={{ fontWeight: 'normal' }}>{quotationData.revisedDate}</span></div>}
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-
-                        <div style={{ marginBottom: '10px' }}>
-                          <h4 style={{ textDecoration: 'underline', fontWeight: 'bold', margin: '0 0 4px 0', fontSize: '9px' }}>SCOPE OF WORK</h4>
-                          <div style={{ whiteSpace: 'pre-line', fontSize: '7.5px', lineHeight: '1.3', textAlign: 'justify' }}>
-                            {quotationData.scopeText}
+                          <div style={{ fontWeight: 'bold' }}>Authorized Signatory</div>
+                          <div style={{ marginTop: '10px', fontSize: '8px', fontWeight: 'bold' }}>
+                            Contact Person: - {quotationData.contactPerson}
                           </div>
                         </div>
+                        <div style={{ borderTop: '1px solid #cbd5e1', paddingTop: '4px', display: 'flex', justifyContent: 'space-between', fontSize: '6px', color: '#64748b' }}>
+                          <span style={{ fontWeight: 'bold' }}>Page 3</span>
+                          <span style={{ fontWeight: 'bold', fontStyle: 'italic', color: '#0f172a' }}>"NURTURING THE NATURE FOR HUMAN RACE"</span>
+                          <span style={{ width: '20px' }}></span>
+                        </div>
+                      </div>
 
+                      {/* Page 4 */}
+                      <div style={pageStyle}>
                         <div>
-                          <h4 style={{ textDecoration: 'underline', fontWeight: 'bold', margin: '0 0 6px 0', fontSize: '9px' }}>Detail of Charges:</h4>
-                          <table style={tableStyle}>
+                          <div style={{ textAlign: 'center', marginBottom: '4px' }}>
+                            <img src={companyLogo} alt="Logo" style={{ maxHeight: '40px', objectFit: 'contain' }} />
+                            <hr style={{ border: 'none', borderTop: '1px solid #000000', margin: '2px 0 4px 0' }} />
+                          </div>
+                          <div style={{ textAlign: 'center', marginBottom: '6px' }}>
+                            <h3 style={{ textDecoration: 'underline', fontWeight: 'bold', fontSize: '9px', margin: 0 }}>Annexure - B</h3>
+                          </div>
+                          <table style={{ ...tableStyle, fontSize: '6.5px', marginBottom: '8px' }}>
                             <thead>
                               <tr style={{ backgroundColor: '#f1f5f9' }}>
-                                <th style={{ ...thTdStyle, width: '8%', textAlign: 'center' }}>Sr. No.</th>
-                                <th style={{ ...thTdStyle, width: '47%', textAlign: 'left' }}>Description of work</th>
-                                <th style={{ ...thTdStyle, width: '10%', textAlign: 'center' }}>Qty.</th>
-                                <th style={{ ...thTdStyle, width: '10%', textAlign: 'center' }}>Unit</th>
-                                <th style={{ ...thTdStyle, width: '12%', textAlign: 'right' }}>Rate</th>
-                                <th style={{ ...thTdStyle, width: '13%', textAlign: 'right' }}>Amount Rs.</th>
+                                <th style={{ ...thTdStyle, width: '6%', padding: '2px' }}>Sr. No.</th>
+                                <th style={{ ...thTdStyle, width: '36%', padding: '2px', textAlign: 'left' }}>DESCRIPTIONS</th>
+                                <th style={{ ...thTdStyle, width: '13%', padding: '2px' }}>Rate per sample</th>
+                                <th style={{ ...thTdStyle, width: '13%', padding: '2px' }}>Sample per visit</th>
+                                <th style={{ ...thTdStyle, width: '16%', padding: '2px' }}>Charges per visit / order</th>
+                                <th style={{ ...thTdStyle, width: '16%', padding: '2px' }}>Total (3 visit)</th>
                               </tr>
                             </thead>
                             <tbody>
-                              {quotationData.charges?.map((item, index) => (
-                                <tr key={index}>
-                                  <td style={{ ...thTdStyle, textAlign: 'center' }}>{item.srNo || index + 1}</td>
-                                  <td style={thTdStyle}>{item.description}</td>
-                                  <td style={{ ...thTdStyle, textAlign: 'center' }}>{item.qty}</td>
-                                  <td style={{ ...thTdStyle, textAlign: 'center' }}>{item.unit}</td>
-                                  <td style={{ ...thTdStyle, textAlign: 'right' }}>{parseFloat(item.rate || 0).toLocaleString('en-IN')}/-</td>
-                                  <td style={{ ...thTdStyle, textAlign: 'right' }}>{parseFloat(item.amount || 0).toLocaleString('en-IN')}/-</td>
-                                </tr>
-                              ))}
-                              <tr style={{ fontWeight: 'bold', backgroundColor: '#f8fafc' }}>
-                                <td colSpan={5} style={{ ...thTdStyle, textAlign: 'right' }}>Total Subtotal:</td>
-                                <td style={{ ...thTdStyle, textAlign: 'right' }}>{quotationSubtotal.toLocaleString('en-IN')}/-</td>
-                              </tr>
-                              <tr style={{ fontWeight: 'bold', backgroundColor: '#f8fafc' }}>
-                                <td colSpan={5} style={{ ...thTdStyle, textAlign: 'right' }}>GST (18%):</td>
-                                <td style={{ ...thTdStyle, textAlign: 'right' }}>{quotationGst.toLocaleString('en-IN')}/-</td>
-                              </tr>
-                              <tr style={{ fontWeight: 'bold', backgroundColor: '#e2e8f0', fontSize: '9px' }}>
-                                <td colSpan={5} style={{ ...thTdStyle, textAlign: 'right' }}>Grand Total (Rs.):</td>
-                                <td style={{ ...thTdStyle, textAlign: 'right' }}>{quotationGrandTotal.toLocaleString('en-IN')}/-</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
-                        <div style={{ fontSize: '7px', fontStyle: 'italic' }}>
-                          Note: - Tax will be paid extra (GST 18%) apart from above rate/amount.
-                        </div>
-                      </div>
-                      <div style={{ borderTop: '1px solid #cbd5e1', paddingTop: '4px', display: 'flex', justifyContent: 'space-between', fontSize: '6px', color: '#64748b' }}>
-                        <span style={{ fontWeight: 'bold' }}>Page 2</span>
-                        <span style={{ fontWeight: 'bold', fontStyle: 'italic', color: '#0f172a' }}>"NURTURING THE NATURE FOR HUMAN RACE"</span>
-                        <span style={{ width: '20px' }}></span>
-                      </div>
-                    </div>
-
-                    {/* Page 3 */}
-                    <div style={pageStyle}>
-                      <div>
-                        <div style={{ textAlign: 'center', marginBottom: '8px' }}>
-                          <img src={companyLogo} alt="Logo" style={{ maxHeight: '45px', objectFit: 'contain' }} />
-                          <hr style={{ border: 'none', borderTop: '1px solid #000000', margin: '4px 0 8px 0' }} />
-                        </div>
-                        <div style={{ marginBottom: '10px' }}>
-                          <h4 style={{ textDecoration: 'underline', fontWeight: 'bold', margin: '0 0 6px 0', fontSize: '10px' }}>Terms and conditions:</h4>
-                          <div style={{ whiteSpace: 'pre-line', fontSize: '7.5px', lineHeight: '1.4', textAlign: 'justify' }}>
-                            {quotationData.termsText}
-                          </div>
-                        </div>
-                        <div style={{ fontSize: '7px', fontStyle: 'italic', marginBottom: '12px', background: '#f8fafc', padding: '6px', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
-                          (Note: - We have briefly studied all your scope of work and accordingly we are tied and committed to uphold highest standards of honesty & integrity for accuracy to the work order.)
-                        </div>
-                        <div style={{ marginBottom: '12px' }}>
-                          <div>Thanking you in anticipation!</div>
-                          <div style={{ fontWeight: 'bold' }}>For, {selCompany.companyName?.toUpperCase() || selCompany.company_name?.toUpperCase() || 'JAGNATH LAB TECHNOLOGIES'}</div>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '8px 0' }}>
-                          {quotationData.signatorySignature && (
-                            <img src={quotationData.signatorySignature} alt="Signature" style={{ maxHeight: '35px', objectFit: 'contain' }} />
-                          )}
-                          {quotationData.stampImage && (
-                            <img src={quotationData.stampImage} alt="Stamp" style={{ maxHeight: '45px', objectFit: 'contain' }} />
-                          )}
-                        </div>
-                        <div style={{ fontWeight: 'bold' }}>Authorized Signatory</div>
-                        <div style={{ marginTop: '10px', fontSize: '8px', fontWeight: 'bold' }}>
-                          Contact Person: - {quotationData.contactPerson}
-                        </div>
-                      </div>
-                      <div style={{ borderTop: '1px solid #cbd5e1', paddingTop: '4px', display: 'flex', justifyContent: 'space-between', fontSize: '6px', color: '#64748b' }}>
-                        <span style={{ fontWeight: 'bold' }}>Page 3</span>
-                        <span style={{ fontWeight: 'bold', fontStyle: 'italic', color: '#0f172a' }}>"NURTURING THE NATURE FOR HUMAN RACE"</span>
-                        <span style={{ width: '20px' }}></span>
-                      </div>
-                    </div>
-
-                    {/* Page 4 */}
-                    <div style={pageStyle}>
-                      <div>
-                        <div style={{ textAlign: 'center', marginBottom: '4px' }}>
-                          <img src={companyLogo} alt="Logo" style={{ maxHeight: '40px', objectFit: 'contain' }} />
-                          <hr style={{ border: 'none', borderTop: '1px solid #000000', margin: '2px 0 4px 0' }} />
-                        </div>
-                        <div style={{ textAlign: 'center', marginBottom: '6px' }}>
-                          <h3 style={{ textDecoration: 'underline', fontWeight: 'bold', fontSize: '9px', margin: 0 }}>Annexure - B</h3>
-                        </div>
-                        <table style={{ ...tableStyle, fontSize: '6.5px', marginBottom: '8px' }}>
-                          <thead>
-                            <tr style={{ backgroundColor: '#f1f5f9' }}>
-                              <th style={{ ...thTdStyle, width: '6%', padding: '2px' }}>Sr. No.</th>
-                              <th style={{ ...thTdStyle, width: '36%', padding: '2px', textAlign: 'left' }}>DESCRIPTIONS</th>
-                              <th style={{ ...thTdStyle, width: '13%', padding: '2px' }}>Rate per sample</th>
-                              <th style={{ ...thTdStyle, width: '13%', padding: '2px' }}>Sample per visit</th>
-                              <th style={{ ...thTdStyle, width: '16%', padding: '2px' }}>Charges per visit / order</th>
-                              <th style={{ ...thTdStyle, width: '16%', padding: '2px' }}>Total (3 visit)</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {Object.keys(quotationGroupedAnnexure).map((catName, catIdx) => {
-                              const items = quotationGroupedAnnexure[catName];
-                              return (
-                                <React.Fragment key={catIdx}>
-                                  <tr style={{ fontWeight: 'bold', backgroundColor: '#e2e8f0' }}>
-                                    <td style={{ ...thTdStyle, textAlign: 'center', padding: '2px' }}>{catIdx + 1}</td>
-                                    <td colSpan={5} style={{ ...thTdStyle, padding: '2px', textTransform: 'uppercase' }}>{catName}</td>
-                                  </tr>
-                                  {items.map((item, itemIdx) => (
-                                    <tr key={itemIdx}>
-                                      <td style={thTdStyle}></td>
-                                      <td style={{ ...thTdStyle, padding: '2px 4px' }}>{item.description}</td>
-                                      <td style={{ ...thTdStyle, textAlign: 'center', padding: '2px' }}>{parseFloat(item.ratePerSample || 0).toLocaleString('en-IN')}/-</td>
-                                      <td style={{ ...thTdStyle, textAlign: 'center', padding: '2px' }}>{item.samplePerVisit}</td>
-                                      <td style={{ ...thTdStyle, textAlign: 'right', padding: '2px' }}>{parseFloat(item.chargesPerVisit || 0).toLocaleString('en-IN')}/-</td>
-                                      <td style={{ ...thTdStyle, textAlign: 'right', padding: '2px', fontWeight: 'bold' }}>{parseFloat(item.total || 0).toLocaleString('en-IN')}/-</td>
+                              {Object.keys(quotationGroupedAnnexure).map((catName, catIdx) => {
+                                const items = quotationGroupedAnnexure[catName];
+                                return (
+                                  <React.Fragment key={catIdx}>
+                                    <tr style={{ fontWeight: 'bold', backgroundColor: '#e2e8f0' }}>
+                                      <td style={{ ...thTdStyle, textAlign: 'center', padding: '2px' }}>{catIdx + 1}</td>
+                                      <td colSpan={5} style={{ ...thTdStyle, padding: '2px', textTransform: 'uppercase' }}>{catName}</td>
                                     </tr>
-                                  ))}
-                                </React.Fragment>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                        <div style={{ fontSize: '6.5px', fontStyle: 'italic', background: '#f8fafc', padding: '4px', border: '1px solid #cbd5e1', borderRadius: '4px' }}>
-                          Note: At the time of visit if any extra stack found then extra charges will be included in invoice and if any parameters found to be added for testing then their charges are to be included at the time of reporting and invoice.
+                                    {items.map((item, itemIdx) => (
+                                      <tr key={itemIdx}>
+                                        <td style={thTdStyle}></td>
+                                        <td style={{ ...thTdStyle, padding: '2px 4px' }}>{item.description}</td>
+                                        <td style={{ ...thTdStyle, textAlign: 'center', padding: '2px' }}>{parseFloat(item.ratePerSample || 0).toLocaleString('en-IN')}/-</td>
+                                        <td style={{ ...thTdStyle, textAlign: 'center', padding: '2px' }}>{item.samplePerVisit}</td>
+                                        <td style={{ ...thTdStyle, textAlign: 'right', padding: '2px' }}>{parseFloat(item.chargesPerVisit || 0).toLocaleString('en-IN')}/-</td>
+                                        <td style={{ ...thTdStyle, textAlign: 'right', padding: '2px', fontWeight: 'bold' }}>{parseFloat(item.total || 0).toLocaleString('en-IN')}/-</td>
+                                      </tr>
+                                    ))}
+                                  </React.Fragment>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                          <div style={{ fontSize: '6.5px', fontStyle: 'italic', background: '#f8fafc', padding: '4px', border: '1px solid #cbd5e1', borderRadius: '4px' }}>
+                            Note: At the time of visit if any extra stack found then extra charges will be included in invoice and if any parameters found to be added for testing then their charges are to be included at the time of reporting and invoice.
+                          </div>
+                        </div>
+                        <div style={{ borderTop: '1px solid #cbd5e1', paddingTop: '4px', display: 'flex', justifyContent: 'space-between', fontSize: '6px', color: '#64748b' }}>
+                          <span style={{ fontWeight: 'bold' }}>Page 4</span>
+                          <span style={{ fontWeight: 'bold', fontStyle: 'italic', color: '#0f172a' }}>"NURTURING THE NATURE FOR HUMAN RACE"</span>
+                          <span style={{ width: '20px' }}></span>
                         </div>
                       </div>
-                      <div style={{ borderTop: '1px solid #cbd5e1', paddingTop: '4px', display: 'flex', justifyContent: 'space-between', fontSize: '6px', color: '#64748b' }}>
-                        <span style={{ fontWeight: 'bold' }}>Page 4</span>
-                        <span style={{ fontWeight: 'bold', fontStyle: 'italic', color: '#0f172a' }}>"NURTURING THE NATURE FOR HUMAN RACE"</span>
-                        <span style={{ width: '20px' }}></span>
-                      </div>
                     </div>
-                  </div>
-                );
-              })()
-            ) : (
-              // Original TRF Preview
-              <>
-                <div style={{
-                  background: '#ffffff',
-                  border: '1px solid #000000',
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
-                  padding: '1.25rem',
-                  fontSize: '10px',
-                  fontFamily: '"Plus Jakarta Sans", "Inter", sans-serif',
-                  color: '#000000',
-                  lineHeight: '1.3'
-                }}>
-                  {/* Header block */}
-                  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', marginBottom: '8px' }}>
-                    <tbody>
-                      <tr>
-                        <td style={{ width: '45%', border: '1px solid #000000', padding: '0px', verticalAlign: 'middle', textAlign: 'center' }}>
-                          <img src={getSelectedCompanyLogo()} alt="Logo" style={{ height: '75px', width: '100%', objectFit: 'cover', display: 'block', margin: '0 auto' }} />
-                        </td>
-                        <td style={{ width: '25%', border: '1px solid #000000', padding: '4px', textAlign: 'center', fontWeight: 'bold', fontSize: '10px' }}>
-                          FORMATS
-                        </td>
-                        <td style={{ width: '30%', border: '1px solid #000000', padding: '0' }}>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '7px' }}>
-                            <tbody>
-                              <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Amendment No.</td><td style={{ padding: '2px 3px' }}>00</td></tr>
-                              <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Amendment Date</td><td style={{ padding: '2px 3px' }}>--</td></tr>
-                              <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Issue No.</td><td style={{ padding: '2px 3px' }}>01</td></tr>
-                              <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Issue Date</td><td style={{ padding: '2px 3px' }}>01/09/2018</td></tr>
-                              <tr><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Format No.</td><td style={{ padding: '2px 3px' }}>7.1 F-01</td></tr>
-                            </tbody>
-                          </table>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
+                  );
+                })()
+              ) : (
+                // Original TRF Preview
+                <>
+                  <div style={{
+                    background: '#ffffff',
+                    border: '1px solid #000000',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+                    padding: '1.25rem',
+                    fontSize: '10px',
+                    fontFamily: '"Plus Jakarta Sans", "Inter", sans-serif',
+                    color: '#000000',
+                    lineHeight: '1.3'
+                  }}>
+                    {/* Header block */}
+                    <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', marginBottom: '8px' }}>
+                      <tbody>
+                        <tr>
+                          <td style={{ width: '45%', border: '1px solid #000000', padding: '0px', verticalAlign: 'middle', textAlign: 'center' }}>
+                            <img src={getSelectedCompanyLogo()} alt="Logo" style={{ height: '75px', width: '100%', objectFit: 'cover', display: 'block', margin: '0 auto' }} />
+                          </td>
+                          <td style={{ width: '25%', border: '1px solid #000000', padding: '4px', textAlign: 'center', fontWeight: 'bold', fontSize: '10px' }}>
+                            FORMATS
+                          </td>
+                          <td style={{ width: '30%', border: '1px solid #000000', padding: '0' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '7px' }}>
+                              <tbody>
+                                <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Amendment No.</td><td style={{ padding: '2px 3px' }}>00</td></tr>
+                                <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Amendment Date</td><td style={{ padding: '2px 3px' }}>--</td></tr>
+                                <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Issue No.</td><td style={{ padding: '2px 3px' }}>01</td></tr>
+                                <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Issue Date</td><td style={{ padding: '2px 3px' }}>01/09/2018</td></tr>
+                                <tr><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Format No.</td><td style={{ padding: '2px 3px' }}>7.1 F-01</td></tr>
+                              </tbody>
+                            </table>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
 
-                  {/* Document Title */}
-                  <div style={{ border: '1px solid #000000', borderTop: 'none', background: '#f8fafc', padding: '3px', textAlign: 'center', fontWeight: 'bold', fontSize: '8px', marginBottom: '8px' }}>
-                    TEST REQUEST FORM FOR {formData.formTitle || 'WATER & WASTE WATER'}
-                  </div>
+                    {/* Document Title */}
+                    <div style={{ border: '1px solid #000000', borderTop: 'none', background: '#f8fafc', padding: '3px', textAlign: 'center', fontWeight: 'bold', fontSize: '8px', marginBottom: '8px' }}>
+                      TEST REQUEST FORM FOR {formData.formTitle || 'WATER & WASTE WATER'}
+                    </div>
 
-                  {/* Form Fields Table */}
-                  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '8px' }}>
-                    <tbody>
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ width: '32%', padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Name of Company / Customer</td>
-                        <td style={{ padding: '3px 4px' }}>{selCompany.companyName || selCompany.company_name || '(Select Company)'} {selClient.clientName ? `- ${selClient.clientName}` : ''}</td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Address for Communication</td>
-                        <td style={{ padding: '3px 4px' }}>{formData.address || 'N/A'}</td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Email ID</td>
-                        <td style={{ padding: '3px 4px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span>{formData.email || 'N/A'}</span>
-                            <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Location of Sample</span>
-                            <span style={{ paddingLeft: '6px' }}>{formData.locationOfSample || 'N/A'}</span>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Contact Person</td>
-                        <td style={{ padding: '3px 4px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span>{formData.contactPerson || 'N/A'}</span>
-                            <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Contact No.</span>
-                            <span style={{ paddingLeft: '6px' }}>{formData.contactNumber || 'N/A'}</span>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Date of Collection</td>
-                        <td style={{ padding: '3px 4px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span>{formData.dateOfCollection || 'N/A'}</span>
-                            <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Date of Receipt</span>
-                            <span style={{ paddingLeft: '6px' }}>{formData.dateOfReceipt || 'N/A'}</span>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Sample Collected By</td>
-                        <td style={{ padding: '3px 4px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span>{formData.sampleCollectedBy || 'N/A'}</span>
-                            <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Sample Quantity</span>
-                            <span style={{ paddingLeft: '6px' }}>{formData.sampleQuantity || 'N/A'}</span>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Field Data Sheet</td>
-                        <td style={{ padding: '3px 4px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span>{formData.fieldDataSheet}</span>
-                            <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px' }}>Packing details</span>
-                            <span>{formData.packingDetails || 'N/A'}</span>
-                            <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Form Type</span>
-                            <span style={{ paddingLeft: '6px' }}>{formData.formType || 'Regular'}</span>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Sample ID No.</td>
-                        <td style={{ padding: '3px 4px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span>{formData.sampleIdNumber || 'N/A'}</span>
-                            <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Report No.</span>
-                            <span style={{ paddingLeft: '6px' }}>{formData.reportNumber || 'N/A'}</span>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Sample Particular</td>
-                        <td style={{ padding: '3px 4px', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{formData.sampleParticular || selCategory.name || 'N/A'}</td>
-                      </tr>
+                    {/* Form Fields Table */}
+                    <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '8px' }}>
+                      <tbody>
+                        <tr style={{ borderBottom: '1px solid #000000' }}>
+                          <td style={{ width: '32%', padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Name of Company / Customer</td>
+                          <td style={{ padding: '3px 4px' }}>{selCompany.companyName || selCompany.company_name || '(Select Company)'} {selClient.clientName ? `- ${selClient.clientName}` : ''}</td>
+                        </tr>
+                        <tr style={{ borderBottom: '1px solid #000000' }}>
+                          <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Address for Communication</td>
+                          <td style={{ padding: '3px 4px' }}>{formData.address || 'N/A'}</td>
+                        </tr>
+                        <tr style={{ borderBottom: '1px solid #000000' }}>
+                          <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Email ID</td>
+                          <td style={{ padding: '3px 4px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span>{formData.email || 'N/A'}</span>
+                              <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Location of Sample</span>
+                              <span style={{ paddingLeft: '6px' }}>{formData.locationOfSample || 'N/A'}</span>
+                            </div>
+                          </td>
+                        </tr>
+                        <tr style={{ borderBottom: '1px solid #000000' }}>
+                          <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Contact Person</td>
+                          <td style={{ padding: '3px 4px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span>{formData.contactPerson || 'N/A'}</span>
+                              <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Contact No.</span>
+                              <span style={{ paddingLeft: '6px' }}>{formData.contactNumber || 'N/A'}</span>
+                            </div>
+                          </td>
+                        </tr>
+                        <tr style={{ borderBottom: '1px solid #000000' }}>
+                          <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Date of Collection</td>
+                          <td style={{ padding: '3px 4px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span>{formData.dateOfCollection || 'N/A'}</span>
+                              <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Date of Receipt</span>
+                              <span style={{ paddingLeft: '6px' }}>{formData.dateOfReceipt || 'N/A'}</span>
+                            </div>
+                          </td>
+                        </tr>
+                        <tr style={{ borderBottom: '1px solid #000000' }}>
+                          <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Sample Collected By</td>
+                          <td style={{ padding: '3px 4px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span>{formData.sampleCollectedBy || 'N/A'}</span>
+                              <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Sample Quantity</span>
+                              <span style={{ paddingLeft: '6px' }}>{formData.sampleQuantity || 'N/A'}</span>
+                            </div>
+                          </td>
+                        </tr>
+                        <tr style={{ borderBottom: '1px solid #000000' }}>
+                          <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Field Data Sheet</td>
+                          <td style={{ padding: '3px 4px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span>{formData.fieldDataSheet}</span>
+                              <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px' }}>Packing details</span>
+                              <span>{formData.packingDetails || 'N/A'}</span>
+                              <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Form Type</span>
+                              <span style={{ paddingLeft: '6px' }}>{formData.formType || 'Regular'}</span>
+                            </div>
+                          </td>
+                        </tr>
+                        <tr style={{ borderBottom: '1px solid #000000' }}>
+                          <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Sample ID No.</td>
+                          <td style={{ padding: '3px 4px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span>{formData.sampleIdNumber || 'N/A'}</span>
+                              <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Report No.</span>
+                              <span style={{ paddingLeft: '6px' }}>{formData.reportNumber || 'N/A'}</span>
+                            </div>
+                          </td>
+                        </tr>
+                        <tr style={{ borderBottom: '1px solid #000000' }}>
+                          <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Sample Particular</td>
+                          <td style={{ padding: '3px 4px', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{formData.sampleParticular || selCategory.name || 'N/A'}</td>
+                        </tr>
 
-                      {/* Feasibility table inner block */}
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ padding: '0', fontWeight: '600' }} colSpan={2}>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '7.5px' }}>
-                            <tbody>
-                              <tr style={{ borderBottom: '1px solid #000000' }}>
-                                <td style={{ width: '25%', padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Availability of Equip.</td>
-                                <td style={{ width: '25%', padding: '2px 3px', borderRight: '1px solid #000000' }}>{formData.equipmentAvailability}</td>
-                                <td style={{ width: '25%', padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Availability of Ref Std.</td>
-                                <td style={{ width: '25%', padding: '2px 3px' }}>{formData.referenceStandardAvailability}</td>
-                              </tr>
-                              <tr style={{ borderBottom: '1px solid #000000' }}>
-                                <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Availability of Test Method</td>
-                                <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>{formData.testMethodAvailability}</td>
-                                <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Availability of Trained Person</td>
-                                <td style={{ padding: '2px 3px' }}>{formData.trainedPersonAvailability}</td>
-                              </tr>
-                              <tr>
-                                <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Adequacy of sample qty</td>
-                                <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>{formData.sampleAdequacy}</td>
-                                <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Tentative Report Days</td>
-                                <td style={{ padding: '2px 3px' }}>{formData.tentativeDays}</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </td>
-                      </tr>
+                        {/* Feasibility table inner block */}
+                        <tr style={{ borderBottom: '1px solid #000000' }}>
+                          <td style={{ padding: '0', fontWeight: '600' }} colSpan={2}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '7.5px' }}>
+                              <tbody>
+                                <tr style={{ borderBottom: '1px solid #000000' }}>
+                                  <td style={{ width: '25%', padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Availability of Equip.</td>
+                                  <td style={{ width: '25%', padding: '2px 3px', borderRight: '1px solid #000000' }}>{formData.equipmentAvailability}</td>
+                                  <td style={{ width: '25%', padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Availability of Ref Std.</td>
+                                  <td style={{ width: '25%', padding: '2px 3px' }}>{formData.referenceStandardAvailability}</td>
+                                </tr>
+                                <tr style={{ borderBottom: '1px solid #000000' }}>
+                                  <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Availability of Test Method</td>
+                                  <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>{formData.testMethodAvailability}</td>
+                                  <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Availability of Trained Person</td>
+                                  <td style={{ padding: '2px 3px' }}>{formData.trainedPersonAvailability}</td>
+                                </tr>
+                                <tr>
+                                  <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Adequacy of sample qty</td>
+                                  <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>{formData.sampleAdequacy}</td>
+                                  <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Tentative Report Days</td>
+                                  <td style={{ padding: '2px 3px' }}>{formData.tentativeDays}</td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </td>
+                        </tr>
 
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Facility reviewed by</td>
-                        <td style={{ padding: '3px 4px' }}>{formData.sampleTestingFacilityReviewedBy}</td>
-                      </tr>
+                        <tr style={{ borderBottom: '1px solid #000000' }}>
+                          <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Facility reviewed by</td>
+                          <td style={{ padding: '3px 4px' }}>{formData.sampleTestingFacilityReviewedBy}</td>
+                        </tr>
 
-                      {/* Signatures space */}
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ padding: '0', fontWeight: '600' }} colSpan={2}>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '7.5px' }}>
-                            <tbody>
-                              <tr style={{ borderBottom: '1px solid #000000', height: '20px' }}>
-                                <td style={{ width: '50%', padding: '2px 3px', borderRight: '1px solid #000000', verticalAlign: 'top', fontWeight: 'bold' }}>Signature of Customer Representative:</td>
-                                <td style={{ width: '50%', padding: '2px 3px', verticalAlign: 'top', fontWeight: 'bold' }}>Signature of Sample Received By:</td>
-                              </tr>
-                              <tr>
-                                <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>
-                                  Name & Designation: <span style={{ fontWeight: 'normal' }}>{formData.customerRepresentativeName || 'N/A'}</span>
-                                </td>
-                                <td style={{ padding: '2px 3px', fontWeight: 'bold' }}>
-                                  Name & Designation: <span style={{ fontWeight: 'normal' }}>{formData.sampleReceiverName || 'N/A'}</span>
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </td>
-                      </tr>
+                        {/* Signatures space */}
+                        <tr style={{ borderBottom: '1px solid #000000' }}>
+                          <td style={{ padding: '0', fontWeight: '600' }} colSpan={2}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '7.5px' }}>
+                              <tbody>
+                                <tr style={{ borderBottom: '1px solid #000000', height: '20px' }}>
+                                  <td style={{ width: '50%', padding: '2px 3px', borderRight: '1px solid #000000', verticalAlign: 'top', fontWeight: 'bold' }}>Signature of Customer Representative:</td>
+                                  <td style={{ width: '50%', padding: '2px 3px', verticalAlign: 'top', fontWeight: 'bold' }}>Signature of Sample Received By:</td>
+                                </tr>
+                                <tr>
+                                  <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>
+                                    Name & Designation: <span style={{ fontWeight: 'normal' }}>{formData.customerRepresentativeName || 'N/A'}</span>
+                                  </td>
+                                  <td style={{ padding: '2px 3px', fontWeight: 'bold' }}>
+                                    Name & Designation: <span style={{ fontWeight: 'normal' }}>{formData.sampleReceiverName || 'N/A'}</span>
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </td>
+                        </tr>
 
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000', verticalAlign: 'top' }}>Test Protocol adopted</td>
-                        <td style={{ padding: '3px 4px', whiteSpace: 'pre-wrap' }}>{formData.testProtocol}</td>
-                      </tr>
+                        <tr style={{ borderBottom: '1px solid #000000' }}>
+                          <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000', verticalAlign: 'top' }}>Test Protocol adopted</td>
+                          <td style={{ padding: '3px 4px', whiteSpace: 'pre-wrap' }}>{formData.testProtocol}</td>
+                        </tr>
 
-                      <tr>
-                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000', verticalAlign: 'top' }}>Remarks / Notes</td>
-                        <td style={{ padding: '3px 4px', whiteSpace: 'pre-wrap' }}>
-                          <ol style={{ margin: 0, paddingLeft: '1rem', fontSize: '7px' }}>
-                            <li>Please mention specific tests to be applied</li>
-                            <li>All the test procedures are followed as per National & International Standards.</li>
-                            <li>In case of sampling conducted by JLT, sampling plan is followed as per National & International Standards.</li>
-                            <li>If due to any unavoidable condition, testing will be sub-contracted only to NABL-complying competent agencies.</li>
-                          </ol>
-                          {formData.remarks && <div style={{ marginTop: '3px', borderTop: '1px dashed #cbd5e1', paddingTop: '3px' }}><strong>Additional:</strong> {formData.remarks}</div>}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
+                        <tr>
+                          <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000', verticalAlign: 'top' }}>Remarks / Notes</td>
+                          <td style={{ padding: '3px 4px', whiteSpace: 'pre-wrap' }}>
+                            <ol style={{ margin: 0, paddingLeft: '1rem', fontSize: '7px' }}>
+                              <li>Please mention specific tests to be applied</li>
+                              <li>All the test procedures are followed as per National & International Standards.</li>
+                              <li>In case of sampling conducted by JLT, sampling plan is followed as per National & International Standards.</li>
+                              <li>If due to any unavoidable condition, testing will be sub-contracted only to NABL-complying competent agencies.</li>
+                            </ol>
+                            {formData.remarks && <div style={{ marginTop: '3px', borderTop: '1px dashed #cbd5e1', paddingTop: '3px' }}><strong>Additional:</strong> {formData.remarks}</div>}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
 
-                  {/* Footer Page 1 */}
-                  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '7px', marginTop: 'auto' }}>
-                    <tbody>
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}>Doc No: JLT/ 7.1 F-01</td>
-                        <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}></td>
-                        <td style={{ width: '33.33%', padding: '2px 3px', textAlign: 'right' }}>Page 1 of 2</td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Format No. 7.1 F-01</td>
-                        <td colSpan={2} style={{ padding: '2px 3px' }}>Format: Test Request Form (Water & Waste Water)</td>
-                      </tr>
-                      <tr>
-                        <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Prepared By: TM</td>
-                        <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Approved By: QM</td>
-                        <td style={{ padding: '2px 3px' }}>Issue By/Reviewed By: TM</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* PAGE BREAK / SPACER */}
-                <div style={{ margin: '2rem 0', borderTop: '2px dashed #cbd5e1', position: 'relative' }}>
-                  <span style={{ position: 'absolute', top: '-10px', left: '50%', transform: 'translateX(-50%)', background: '#f8fafc', padding: '0 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Page 2 Preview</span>
-                </div>
-
-                {/* PAGE 2 */}
-                <div style={{
-                  background: '#ffffff',
-                  border: '1px solid #000000',
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
-                  padding: '1.25rem',
-                  fontSize: '10px',
-                  fontFamily: '"Plus Jakarta Sans", "Inter", sans-serif',
-                  color: '#000000',
-                  lineHeight: '1.3',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  minHeight: '297mm',
-                  boxSizing: 'border-box'
-                }}>
-                  {/* Header block (repeated from Page 1) */}
-                  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', marginBottom: '8px' }}>
-                    <tbody>
-                      <tr>
-                        <td style={{ width: '45%', border: '1px solid #000000', padding: '0px', verticalAlign: 'middle', textAlign: 'center' }}>
-                          <img src={getSelectedCompanyLogo()} alt="Logo" style={{ height: '75px', width: '100%', objectFit: 'cover', display: 'block', margin: '0 auto' }} />
-                        </td>
-                        <td style={{ width: '25%', border: '1px solid #000000', padding: '4px', textAlign: 'center', fontWeight: 'bold', fontSize: '10px' }}>
-                          FORMATS
-                        </td>
-                        <td style={{ width: '30%', border: '1px solid #000000', padding: '0' }}>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '7px' }}>
-                            <tbody>
-                              <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Amendment No.</td><td style={{ padding: '2px 3px' }}>00</td></tr>
-                              <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Amendment Date</td><td style={{ padding: '2px 3px' }}>--</td></tr>
-                              <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Issue No.</td><td style={{ padding: '2px 3px' }}>01</td></tr>
-                              <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Issue Date</td><td style={{ padding: '2px 3px' }}>01/09/2018</td></tr>
-                              <tr><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Format No.</td><td style={{ padding: '2px 3px' }}>7.1 F-01</td></tr>
-                            </tbody>
-                          </table>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-
-                  <div style={{ fontWeight: 'bold', fontSize: '8px', marginBottom: '8px', border: '1px solid #000000', borderTop: 'none', background: '#f8fafc', padding: '3px', textAlign: 'center' }}>
-                    Test Parameters to Be Analyzed ({overallGroupStats.totalGroups} Testing Location{overallGroupStats.totalGroups > 1 ? 's' : ''}, {overallGroupStats.totalParamCount} Parameter{overallGroupStats.totalParamCount !== 1 ? 's' : ''})
+                    {/* Footer Page 1 */}
+                    <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '7px', marginTop: 'auto' }}>
+                      <tbody>
+                        <tr style={{ borderBottom: '1px solid #000000' }}>
+                          <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}>Doc No: JLT/ 7.1 F-01</td>
+                          <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}></td>
+                          <td style={{ width: '33.33%', padding: '2px 3px', textAlign: 'right' }}>Page 1 of 2</td>
+                        </tr>
+                        <tr style={{ borderBottom: '1px solid #000000' }}>
+                          <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Format No. 7.1 F-01</td>
+                          <td colSpan={2} style={{ padding: '2px 3px' }}>Format: Test Request Form (Water & Waste Water)</td>
+                        </tr>
+                        <tr>
+                          <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Prepared By: TM</td>
+                          <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Approved By: QM</td>
+                          <td style={{ padding: '2px 3px' }}>Issue By/Reviewed By: TM</td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
 
-                  {/* Parameters Grid */}
-                  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '8px', marginBottom: '8px' }}>
-                    <thead>
-                      <tr style={{ background: '#f8fafc', borderBottom: '1px solid #000000' }}>
-                        <th style={{ width: '8%', padding: '3px', borderRight: '1px solid #000000', textAlign: 'center' }}>Sr. No.</th>
-                        <th style={{ width: '42%', padding: '3px', borderRight: '1px solid #000000', textAlign: 'left' }}>Test Parameters</th>
-                        <th style={{ width: '10%', padding: '3px', borderRight: '1px solid #000000', textAlign: 'center' }}>Tick √</th>
-                        <th style={{ width: '40%', padding: '3px', textAlign: 'center' }}>Test Method</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {overallGroupStats.totalParamCount > 0 ? (
-                        overallGroupStats.groupBreakdown.flatMap((grp, gIdx) => {
-                          const grpRows = grp.parameters.map((p, pIdx) => (
-                            <tr key={`row_g${gIdx}_${grp.groupId || grp.id || 'grp'}_p${pIdx}_${p.id || 'param'}`} style={{ borderBottom: '1px solid #000000' }}>
-                              <td style={{ padding: '2px', borderRight: '1px solid #000000', textAlign: 'center' }}>{pIdx + 1}.</td>
-                              <td style={{ padding: '2px 4px', borderRight: '1px solid #000000', textAlign: 'left' }}>{p.parameterName || p.name}</td>
-                              <td style={{ padding: '2px', borderRight: '1px solid #000000', textAlign: 'center', fontWeight: 'bold', color: '#15803d' }}>√</td>
-                              <td style={{ padding: '2px 4px', textAlign: 'left' }}>{p.testMethod || ''}</td>
-                            </tr>
-                          ));
+                  {/* PAGE BREAK / SPACER */}
+                  <div style={{ margin: '2rem 0', borderTop: '2px dashed #cbd5e1', position: 'relative' }}>
+                    <span style={{ position: 'absolute', top: '-10px', left: '50%', transform: 'translateX(-50%)', background: '#f8fafc', padding: '0 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Page 2 Preview</span>
+                  </div>
 
-                          if (overallGroupStats.totalGroups > 1) {
-                            return [
-                              <tr key={`hdr_g${gIdx}_${grp.groupId || grp.id || 'grp'}`} style={{ background: '#f1f5f9', borderBottom: '1px solid #000000', fontWeight: 'bold' }}>
-                                <td colSpan={4} style={{ padding: '3px 6px', fontSize: '7.5px', color: '#0f172a' }}>
-                                  📍 {grp.title || `${gIdx + 1}. ${grp.location}`} {grp.departmentName ? `(${grp.departmentName} - ${grp.disciplineName || ''})` : ''}
-                                </td>
-                              </tr>,
-                              ...grpRows
-                            ];
-                          }
-                          return grpRows;
-                        })
-                      ) : (
-                        Array.from({ length: Math.max(20, parameters.length) }).map((_, i) => {
+                  {/* PAGE 2 */}
+                  <div style={{
+                    background: '#ffffff',
+                    border: '1px solid #000000',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+                    padding: '1.25rem',
+                    fontSize: '10px',
+                    fontFamily: '"Plus Jakarta Sans", "Inter", sans-serif',
+                    color: '#000000',
+                    lineHeight: '1.3',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    minHeight: '297mm',
+                    boxSizing: 'border-box'
+                  }}>
+                    {/* Header block (repeated from Page 1) */}
+                    <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', marginBottom: '8px' }}>
+                      <tbody>
+                        <tr>
+                          <td style={{ width: '45%', border: '1px solid #000000', padding: '0px', verticalAlign: 'middle', textAlign: 'center' }}>
+                            <img src={getSelectedCompanyLogo()} alt="Logo" style={{ height: '75px', width: '100%', objectFit: 'cover', display: 'block', margin: '0 auto' }} />
+                          </td>
+                          <td style={{ width: '25%', border: '1px solid #000000', padding: '4px', textAlign: 'center', fontWeight: 'bold', fontSize: '10px' }}>
+                            FORMATS
+                          </td>
+                          <td style={{ width: '30%', border: '1px solid #000000', padding: '0' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '7px' }}>
+                              <tbody>
+                                <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Amendment No.</td><td style={{ padding: '2px 3px' }}>00</td></tr>
+                                <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Amendment Date</td><td style={{ padding: '2px 3px' }}>--</td></tr>
+                                <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Issue No.</td><td style={{ padding: '2px 3px' }}>01</td></tr>
+                                <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Issue Date</td><td style={{ padding: '2px 3px' }}>01/09/2018</td></tr>
+                                <tr><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Format No.</td><td style={{ padding: '2px 3px' }}>7.1 F-01</td></tr>
+                              </tbody>
+                            </table>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                    <div style={{ fontWeight: 'bold', fontSize: '8px', marginBottom: '8px', border: '1px solid #000000', borderTop: 'none', background: '#f8fafc', padding: '3px', textAlign: 'center' }}>
+                      Test Parameter to Be Analyzed: - {selCategory.name || 'WATER & WASTE WATER'}
+                    </div>
+
+                    {/* Parameters Grid */}
+                    <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '8px', marginBottom: '8px' }}>
+                      <thead>
+                        <tr style={{ background: '#f8fafc', borderBottom: '1px solid #000000' }}>
+                          <th style={{ width: '8%', padding: '3px', borderRight: '1px solid #000000', textAlign: 'center' }}>Sr. No.</th>
+                          <th style={{ width: '42%', padding: '3px', borderRight: '1px solid #000000', textAlign: 'left' }}>Test Parameters</th>
+                          <th style={{ width: '10%', padding: '3px', borderRight: '1px solid #000000', textAlign: 'center' }}>Tick √</th>
+                          <th style={{ width: '40%', padding: '3px', textAlign: 'center' }}>Test Method</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Array.from({ length: Math.max(20, parameters.length) }).map((_, i) => {
                           const param = parameters[i];
                           const isChecked = param ? !!checkedParameters[param.id] : false;
                           return (
@@ -3859,92 +4020,92 @@ const TestRequestForm = () => {
                               <td style={{ padding: '2px 4px', textAlign: 'left' }}>{param ? (param.testMethod || '') : ''}</td>
                             </tr>
                           );
-                        })
-                      )}
-                    </tbody>
-                  </table>
+                        })}
+                      </tbody>
+                    </table>
 
-                  {/* Approved By Technical Manager */}
-                  <div style={{ textAlign: 'right', marginTop: '1.5rem', fontWeight: 'bold', fontSize: '8px', paddingRight: '1.5rem' }}>
-                    Approved By<br />
-                    Technical Manager
+                    {/* Approved By Technical Manager */}
+                    <div style={{ textAlign: 'right', marginTop: '1.5rem', fontWeight: 'bold', fontSize: '8px', paddingRight: '1.5rem' }}>
+                      Approved By<br />
+                      Technical Manager
+                    </div>
+
+                    {/* Footer Page 2 */}
+                    <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '7px', marginTop: 'auto' }}>
+                      <tbody>
+                        <tr style={{ borderBottom: '1px solid #000000' }}>
+                          <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}>Doc No: JLT/ 7.1 F-01</td>
+                          <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}></td>
+                          <td style={{ width: '33.33%', padding: '2px 3px', textAlign: 'right' }}>Page 2 of 2</td>
+                        </tr>
+                        <tr style={{ borderBottom: '1px solid #000000' }}>
+                          <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Format No. 7.1 F-01</td>
+                          <td colSpan={2} style={{ padding: '2px 3px' }}>Format: Test Request Form (Water & Waste Water)</td>
+                        </tr>
+                        <tr>
+                          <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Prepared By: TM</td>
+                          <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Approved By: QM</td>
+                          <td style={{ padding: '2px 3px' }}>Issue By/Reviewed By: TM</td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
+                </>
+              )}
+            </div>
+          )}
 
-                  {/* Footer Page 2 */}
-                  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '7px', marginTop: 'auto' }}>
-                    <tbody>
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}>Doc No: JLT/ 7.1 F-01</td>
-                        <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}></td>
-                        <td style={{ width: '33.33%', padding: '2px 3px', textAlign: 'right' }}>Page 2 of 2</td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Format No. 7.1 F-01</td>
-                        <td colSpan={2} style={{ padding: '2px 3px' }}>Format: Test Request Form (Water & Waste Water)</td>
-                      </tr>
-                      <tr>
-                        <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Prepared By: TM</td>
-                        <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Approved By: QM</td>
-                        <td style={{ padding: '2px 3px' }}>Issue By/Reviewed By: TM</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* Inline Master Creation Modal */}
-        <InlineMasterModal
-          isOpen={inlineModal.isOpen}
-          onClose={() => setInlineModal({ isOpen: false, type: null, parentData: {} })}
-          masterType={inlineModal.type}
-          parentData={inlineModal.parentData}
-          onSuccess={(createdItem) => {
-            if (inlineModal.type === 'category') {
-              fetchCategories();
-              if (createdItem?.id) {
-                setFormData(prev => ({ ...prev, categoryId: createdItem.id, subCategoryId: '' }));
-                setSelectedSubCategory('');
-                fetchSubCategoriesForCategory(createdItem.id);
-                fetchParameters('', createdItem.id);
+          {/* Inline Master Creation Modal */}
+          <InlineMasterModal
+            isOpen={inlineModal.isOpen}
+            onClose={() => setInlineModal({ isOpen: false, type: null, parentData: {} })}
+            masterType={inlineModal.type}
+            parentData={inlineModal.parentData}
+            onSuccess={(createdItem) => {
+              if (inlineModal.type === 'category') {
+                fetchCategories();
+                if (createdItem?.id) {
+                  setFormData(prev => ({ ...prev, categoryId: createdItem.id, subCategoryId: '' }));
+                  setSelectedSubCategory('');
+                  fetchSubCategoriesForCategory(createdItem.id);
+                  fetchParameters('', createdItem.id);
+                }
+              } else if (inlineModal.type === 'subCategory') {
+                const catId = inlineModal.parentData?.categoryId || formData.categoryId;
+                if (catId) {
+                  fetchSubCategoriesForCategory(catId);
+                }
+                if (createdItem?.id) {
+                  setSelectedSubCategory(createdItem.id);
+                  setFormData(prev => ({ ...prev, subCategoryId: createdItem.id }));
+                  fetchParameters(createdItem.id);
+                }
+              } else if (inlineModal.type === 'locationSample') {
+                fetchLocationSamples();
+                if (createdItem?.id) {
+                  setSelectedParamLocation(createdItem.id);
+                  setFormData(prev => ({ ...prev, locationOfSample: createdItem.name || prev.locationOfSample }));
+                }
+              } else if (inlineModal.type === 'client') {
+                fetchClients();
+                if (createdItem?.id) {
+                  setFormData(prev => ({
+                    ...prev,
+                    clientId: createdItem.id,
+                    address: createdItem.plantAddress || createdItem.plant_address || createdItem.officeAddress || createdItem.office_address || createdItem.address || prev.address,
+                    email: createdItem.email || prev.email,
+                    contactNumber: createdItem.contactNumber || prev.contactNumber
+                  }));
+                }
+              } else if (inlineModal.type === 'caution') {
+                fetchCautions();
+                if (createdItem?.id) {
+                  setFormData(prev => ({ ...prev, includeCaution: true, cautionId: createdItem.id }));
+                }
               }
-            } else if (inlineModal.type === 'subCategory') {
-              const catId = inlineModal.parentData?.categoryId || formData.categoryId;
-              if (catId) {
-                fetchSubCategoriesForCategory(catId);
-              }
-              if (createdItem?.id) {
-                setSelectedSubCategory(createdItem.id);
-                setFormData(prev => ({ ...prev, subCategoryId: createdItem.id }));
-                fetchParameters(createdItem.id);
-              }
-            } else if (inlineModal.type === 'locationSample') {
-              fetchLocationSamples();
-              if (createdItem?.id) {
-                setSelectedParamLocation(createdItem.id);
-                setFormData(prev => ({ ...prev, locationOfSample: createdItem.name || prev.locationOfSample }));
-              }
-            } else if (inlineModal.type === 'client') {
-              fetchClients();
-              if (createdItem?.id) {
-                setFormData(prev => ({
-                  ...prev,
-                  clientId: createdItem.id,
-                  address: createdItem.plantAddress || createdItem.plant_address || createdItem.officeAddress || createdItem.office_address || createdItem.address || prev.address,
-                  email: createdItem.email || prev.email,
-                  contactNumber: createdItem.contactNumber || prev.contactNumber
-                }));
-              }
-            } else if (inlineModal.type === 'caution') {
-              fetchCautions();
-              if (createdItem?.id) {
-                setFormData(prev => ({ ...prev, includeCaution: true, cautionId: createdItem.id }));
-              }
-            }
-          }}
-        />
+            }}
+          />
+        </div>
       </div>
     </div>
   );

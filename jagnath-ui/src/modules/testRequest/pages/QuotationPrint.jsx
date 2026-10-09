@@ -80,11 +80,18 @@ const QuotationPrint = () => {
 
       const matchingComp = cList.find(c => c.id === tr.companyId || (c.companyName || c.company_name) === tr.companyName) || tr.company || {};
       const matchingClient = clList.find(c => c.id === tr.clientId || c.clientName === tr.clientName) || tr.client || {};
-      const matchingCat = catList.find(c => c.id === tr.sampleParticular || c.name === tr.sampleParticularName) || {};
+      const matchingCat = catList.find(c =>
+        c.id === tr.categoryId ||
+        c.id === tr.category_id ||
+        c.id === tr.sampleParticular ||
+        c.id === tr.sample_particular ||
+        c.name?.toLowerCase() === tr.sampleParticularName?.toLowerCase() ||
+        c.name?.toLowerCase() === tr.sampleParticular?.toLowerCase()
+      ) || tr.category || {};
 
       setSelCompany(matchingComp);
       setSelClient(matchingClient);
-      if (matchingCat.id) setSelCategory(matchingCat);
+      if (matchingCat.id || matchingCat.name) setSelCategory(matchingCat);
 
       const pMap = {};
       pList.forEach(pm => {
@@ -133,10 +140,10 @@ const QuotationPrint = () => {
               ...(catParam || {}),
               id: pId,
               parameterName: trp.parameterName || trp.parameter?.parameterName || catParam?.parameterName || catParam?.name || 'Parameter',
+              locationOfSample: trp.locationOfSample || trp.location_of_sample || tr.locationOfSample || 'General',
               testMethod: trp.testMethod || trp.test_method || catParam?.testMethod || catParam?.defaultTestMethod || '',
               price: pPrice,
               groupId: trp.groupId || trp.group_id,
-              locationOfSample: trp.locationOfSample || trp.location_of_sample,
               departmentId: trp.departmentId || trp.department_id,
               categoryId: trp.categoryId || trp.category_id,
               subCategoryId: trp.subCategoryId || trp.sub_category_id
@@ -181,12 +188,42 @@ const QuotationPrint = () => {
             subtotal: groupSubtotal
           });
         });
+      } else {
+        // Auto-group by distinct locationOfSample if present
+        const locMap = {};
+        selectedList.forEach(p => {
+          const loc = (p.locationOfSample || '').trim();
+          if (loc && loc.toLowerCase() !== 'general') {
+            if (!locMap[loc]) locMap[loc] = [];
+            locMap[loc].push(p);
+          }
+        });
+
+        const locKeys = Object.keys(locMap);
+        if (locKeys.length > 1) {
+          locKeys.forEach((loc, gIdx) => {
+            const grpParams = locMap[loc];
+            const groupSubtotal = grpParams.reduce((sum, p) => sum + (parseFloat(p.price) || 0), 0);
+            computedGroups.push({
+              groupIndex: gIdx,
+              id: `loc_${gIdx}`,
+              title: `${gIdx + 1}. Location: ${loc}`,
+              location: loc,
+              departmentName: tr.departmentName || 'WATER TESTING',
+              disciplineName: 'SAMPLE ANALYSIS',
+              parameters: grpParams,
+              subtotal: groupSubtotal
+            });
+          });
+        }
       }
 
       setLocationGroups(computedGroups);
 
       setTimeout(() => {
-        window.print();
+        if (window.self === window.top) {
+          window.print();
+        }
       }, 500);
 
     } catch (err) {
@@ -201,10 +238,14 @@ const QuotationPrint = () => {
     if (!selCompany) return '/Images/Navbar_Logo.png';
     const logoPath = selCompany.quotation_logo || selCompany.quotationLogo || selCompany.logo;
     if (!logoPath) return '/Images/Navbar_Logo.png';
-    const cleanPath = logoPath.replace(/\\/g, '/');
-    const idx = cleanPath.lastIndexOf('uploads/');
+    const cleanPath = String(logoPath).replace(/\\/g, '/');
+    const lower = cleanPath.toLowerCase();
+    const idx = lower.lastIndexOf('uploads/');
     if (idx !== -1) {
       return `${BACKEND_ROOT_URL}/${cleanPath.substring(idx)}`;
+    }
+    if (cleanPath.startsWith('file:') || /^[a-zA-Z]:\//.test(cleanPath)) {
+      return '/Images/Navbar_Logo.png';
     }
     return logoPath;
   };
@@ -226,9 +267,9 @@ const QuotationPrint = () => {
   const rawSubtotal = hasMultiGroups
     ? locationGroups.reduce((sum, g) => sum + g.subtotal, 0)
     : parameters.reduce((sum, item) => {
-        const val = parseFloat(item.price);
-        return sum + (isNaN(val) ? 0 : val);
-      }, 0);
+      const val = parseFloat(item.price);
+      return sum + (isNaN(val) ? 0 : val);
+    }, 0);
 
   const subtotal = isNaN(rawSubtotal) ? 0 : rawSubtotal;
   const gstAmount = subtotal * 0.18;
@@ -242,33 +283,63 @@ const QuotationPrint = () => {
   };
 
   const quoRefNo = `JLT/EM/${formData.reportNumber || formData.sampleIdNumber || '06-25/449'}`;
-  const clientDisplayName = selClient.clientName || selCompany.companyName || selCompany.company_name || 'JINDAL SAW LTD.';
-  const clientLocation = formData.address || selClient.address || 'MUNDRA Kutchh.';
-  const sampleParticularName = selCategory.name || 'DISTILLED WATER';
-  const paramNamesList = parameters.map(p => p.parameterName || p.name).join(', ') || 'pH, Electric Conductivity, Total Dissolved Solids, Chloride, Sodium';
+  const clientDisplayName = selClient.clientName || selClient.companyName || formData.clientName || selCompany.companyName || selCompany.company_name || 'CLIENT';
+  const clientLocation = formData.address || selClient.plantAddress || selClient.officeAddress || selClient.address || 'Address';
+  const sampleParticularName = (
+    formData.formTitle ||
+    formData.form_title ||
+    (formData.sampleParticular && formData.sampleParticular.length !== 36 ? formData.sampleParticular : null) ||
+    formData.sampleParticularName ||
+    formData.sampleMatrix ||
+    formData.sample_matrix ||
+    selCategory.name ||
+    formData.category?.name ||
+    formData.sampleName ||
+    formData.sample_name ||
+    'WATER & WASTE WATER'
+  );
+  const paramNamesList = parameters.map(p => p.parameterName || p.name).join(', ') || '';
 
   return (
     <div className="paper-quotation-container" style={{
       width: '100%',
       maxWidth: '210mm',
-      minHeight: 'auto',
+      minHeight: '297mm',
       margin: '0 auto',
-      padding: '10mm 15mm 15mm 15mm',
+      padding: '10mm 15mm',
       boxSizing: 'border-box',
       backgroundColor: '#ffffff',
-      fontFamily: '"Times New Roman", Times, serif, Arial',
-      fontSize: '10.5pt',
+      fontFamily: '"Times New Roman", Times, "Liberation Serif", serif',
+      fontSize: '9.5pt',
       color: '#000000',
       lineHeight: '1.35',
       position: 'relative',
       wordBreak: 'break-word',
-      overflowWrap: 'break-word'
+      overflowWrap: 'break-word',
+      display: 'flex',
+      flexDirection: 'column'
     }}>
       <style>{`
+        body {
+          margin: 0;
+          padding: 0;
+          background: #e2e8f0;
+          overflow-x: hidden;
+        }
+        * {
+          box-sizing: border-box;
+        }
+        @media screen {
+          .paper-quotation-container {
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            border-radius: 4px;
+            margin: 12px auto;
+          }
+        }
         @media print {
           @page {
             size: A4 portrait;
-            margin: 8mm 10mm;
+            margin: 8mm 12mm 8mm 12mm;
           }
           html, body {
             width: 100% !important;
@@ -285,53 +356,63 @@ const QuotationPrint = () => {
             padding: 0 !important;
             margin: 0 !important;
             box-shadow: none !important;
+            border: none !important;
+            font-size: 9.5pt !important;
+            min-height: auto !important;
+            height: auto !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            overflow: visible !important;
           }
         }
       `}</style>
 
-      <div style={{ textAlign: 'center', marginBottom: '8px' }}>
-        <img src={getLogoUrl()} alt="Company Logo" style={{ height: '110px', maxWidth: '100%', objectFit: 'contain' }} />
+      {/* Header Logo */}
+      <div style={{ textAlign: 'center', marginBottom: '6px' }}>
+        <img src={getLogoUrl()} alt="Company Logo" style={{ height: '65px', maxHeight: '65px', maxWidth: '320px', objectFit: 'contain' }} />
       </div>
-      <div style={{ borderBottom: '1.5px solid #000000', marginBottom: '15px' }}></div>
+      <div style={{ borderBottom: '1.5px solid #000000', marginBottom: '10px' }}></div>
 
       {/* Date & Ref No (Right Aligned) */}
-      <div style={{ textAlign: 'right', fontSize: '9.5pt', marginBottom: '12px' }}>
+      <div style={{ textAlign: 'right', fontSize: '9pt', marginBottom: '10px' }}>
         <div>{formatDateLong(formData.created_at || formData.createdAt)}</div>
-        <div style={{ textDecoration: 'underline', fontWeight: 'bold', marginTop: '3px' }}>{quoRefNo}</div>
+        <div style={{ textDecoration: 'underline', fontWeight: 'bold', marginTop: '2px' }}>{quoRefNo}</div>
       </div>
 
       {/* To Address */}
-      <div style={{ marginBottom: '15px' }}>
+      <div style={{ marginBottom: '10px' }}>
         <div style={{ fontWeight: 'bold' }}>To</div>
-        <div style={{ fontWeight: 'bold', fontSize: '11pt' }}>M/s. {clientDisplayName.toUpperCase()},</div>
+        <div style={{ fontWeight: 'bold', fontSize: '10.5pt' }}>M/s. {clientDisplayName.toUpperCase()},</div>
         <div>{clientLocation}</div>
       </div>
 
       {/* Subject */}
-      <div style={{ marginBottom: '15px', fontWeight: 'bold' }}>
-        SUBJECT: - <span style={{ textDecoration: 'underline' }}>{(formData.quotationType || 'QUOTATION').toUpperCase()} FOR {sampleParticularName.toUpperCase()} SAMPLE ANALYSIS.</span>
+      <div style={{ marginBottom: '10px', fontWeight: 'bold' }}>
+        SUBJECT: - <span style={{ textDecoration: 'underline' }}>
+          {(formData.quotationType || 'QUOTATION').toUpperCase()} FOR {sampleParticularName.toUpperCase()}{/analysis|consulting|work|audit/i.test(sampleParticularName) ? '' : ' SAMPLE ANALYSIS'}.
+        </span>
       </div>
 
       {/* Salutation & Intro Paragraphs */}
-      <div style={{ marginBottom: '12px', textAlign: 'justify' }}>
+      <div style={{ marginBottom: '8px', textAlign: 'justify' }}>
         Dear Sir/Mam,
       </div>
 
-      <div style={{ marginBottom: '10px', textIndent: '20px', textAlign: 'justify' }}>
+      <div style={{ marginBottom: '8px', textIndent: '18px', textAlign: 'justify' }}>
         JLTs - A state of art laboratory facility and an independent company offering high quality technical services in the environment, chemical and biological sciences. Services are provided in the disciplines of environmental/agriculture/food consulting, Water and Waste water treatment, field sampling and monitoring with various analysis and R&D work.
       </div>
 
-      <div style={{ marginBottom: '15px', textIndent: '20px', textAlign: 'justify' }}>
+      <div style={{ marginBottom: '10px', textIndent: '18px', textAlign: 'justify' }}>
         Also It is our proud privilege to inform you that— <strong>We are NABL accredited as per ISO/IEC 17025:2017 laboratory and also recognized by Gujarat Pollution Control Board, Government of Gujarat - Gandhinagar, along with the recognition as Schedule - II Environmental Auditors wide letter no. GPCB/EA-330/493289 under the Honorable High Court; Gujarat orders.</strong>
       </div>
 
       {/* SCOPE OF WORK */}
-      <div style={{ marginBottom: '15px' }}>
-        <div style={{ fontWeight: 'bold', textDecoration: 'underline', marginBottom: '4px' }}>SCOPE OF WORK:</div>
-        <div style={{ fontWeight: 'bold', paddingLeft: '15px', marginBottom: '3px' }}>
+      <div style={{ marginBottom: '10px' }}>
+        <div style={{ fontWeight: 'bold', textDecoration: 'underline', marginBottom: '3px' }}>SCOPE OF WORK:</div>
+        <div style={{ fontWeight: 'bold', paddingLeft: '12px', marginBottom: '2px' }}>
           (1) Method of analysis must be approved / recognized by ISO 17025:2017, GPCB / CPCB / MoEF&CC.
         </div>
-        <div style={{ paddingLeft: '30px', fontSize: '10pt', lineHeight: '1.4' }}>
+        <div style={{ paddingLeft: '24px', fontSize: '9pt', lineHeight: '1.35' }}>
           <div>✓ Analysis of sample and preservation of sample be made as per <strong>ISO 17025:2017</strong>, GPCB/CPCB or IS/APHA guidelines.</div>
           <div>✓ Analysis of collected water samples as per the guidelines of <strong>ISO 17025:2017</strong>, GPCB / CPCB or / IS/APHA</div>
           <div>✓ Timely submission of water Analysis Report(s) to the authorized person of the industry.</div>
@@ -339,20 +420,20 @@ const QuotationPrint = () => {
       </div>
 
       {/* Detail of Charges Table Title */}
-      <div style={{ textAlign: 'center', fontWeight: 'bold', textDecoration: 'underline', marginBottom: '8px', fontSize: '11pt' }}>
-        Detail of Charges for carrying out {sampleParticularName} Analysis
+      <div style={{ textAlign: 'center', fontWeight: 'bold', textDecoration: 'underline', marginBottom: '6px', fontSize: '10pt' }}>
+        Detail of Charges for carrying out {sampleParticularName}{/analysis|consulting|work|audit/i.test(sampleParticularName) ? '' : ' Analysis'}
       </div>
 
       {/* Charges Table */}
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '15px', border: '1.5px solid #000000', fontSize: '9.5pt' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '10px', border: '1.5px solid #000000', fontSize: '9pt' }}>
         <thead>
           <tr style={{ borderBottom: '1.5px solid #000000', background: '#f8fafc' }}>
-            <th style={{ borderRight: '1px solid #000000', padding: '5px', width: '8%', textAlign: 'center' }}>SR. NO.</th>
-            <th style={{ borderRight: '1px solid #000000', padding: '5px', width: '52%', textAlign: 'center' }}>DESCRIPTION OF WORK / LOCATION</th>
-            <th style={{ borderRight: '1px solid #000000', padding: '5px', width: '8%', textAlign: 'center' }}>QTY.</th>
-            <th style={{ borderRight: '1px solid #000000', padding: '5px', width: '8%', textAlign: 'center' }}>UNIT</th>
-            <th style={{ borderRight: '1px solid #000000', padding: '5px', width: '12%', textAlign: 'center' }}>RATE/QTY</th>
-            <th style={{ padding: '5px', width: '12%', textAlign: 'center' }}>AMOUNT RS.</th>
+            <th style={{ borderRight: '1px solid #000000', padding: '4px 5px', width: '8%', textAlign: 'center' }}>SR. NO.</th>
+            <th style={{ borderRight: '1px solid #000000', padding: '4px 5px', width: '52%', textAlign: 'center' }}>DESCRIPTION OF WORK / LOCATION</th>
+            <th style={{ borderRight: '1px solid #000000', padding: '4px 5px', width: '8%', textAlign: 'center' }}>QTY.</th>
+            <th style={{ borderRight: '1px solid #000000', padding: '4px 5px', width: '8%', textAlign: 'center' }}>UNIT</th>
+            <th style={{ borderRight: '1px solid #000000', padding: '4px 5px', width: '12%', textAlign: 'center' }}>RATE/QTY</th>
+            <th style={{ padding: '4px 5px', width: '12%', textAlign: 'center' }}>AMOUNT RS.</th>
           </tr>
         </thead>
         <tbody>
@@ -361,68 +442,68 @@ const QuotationPrint = () => {
               const grpParamsList = (grp.parameters || []).map(p => `${p.parameterName} (₹${p.price})`).join(', ');
               return (
                 <tr key={grp.id || gIdx} style={{ borderBottom: '1px solid #000000', verticalAlign: 'top' }}>
-                  <td style={{ borderRight: '1px solid #000000', padding: '6px', textAlign: 'center', fontWeight: 'bold' }}>
+                  <td style={{ borderRight: '1px solid #000000', padding: '5px', textAlign: 'center', fontWeight: 'bold' }}>
                     {gIdx + 1}
                   </td>
-                  <td style={{ borderRight: '1px solid #000000', padding: '6px' }}>
-                    <div style={{ fontWeight: 'bold', fontSize: '10pt', color: '#0f172a' }}>
+                  <td style={{ borderRight: '1px solid #000000', padding: '5px' }}>
+                    <div style={{ fontWeight: 'bold', fontSize: '9.5pt', color: '#0f172a' }}>
                       {grp.title || `${gIdx + 1}. Location: ${grp.location}`}
                     </div>
-                    <div style={{ fontSize: '8.5pt', color: '#475569', margin: '2px 0 4px 0' }}>
+                    <div style={{ fontSize: '8pt', color: '#475569', margin: '1px 0 3px 0' }}>
                       <strong>Dept:</strong> {grp.departmentName} | <strong>Discipline:</strong> {grp.disciplineName}
                     </div>
                     {grp.parameters && grp.parameters.length > 0 && (
-                      <div style={{ fontSize: '8.5pt', color: '#334155', background: '#f8fafc', padding: '4px 6px', border: '1px solid #e2e8f0', borderRadius: '4px', marginTop: '4px' }}>
+                      <div style={{ fontSize: '8pt', color: '#334155', background: '#f8fafc', padding: '3px 5px', border: '1px solid #e2e8f0', borderRadius: '3px', marginTop: '3px' }}>
                         <strong>Testing Parameters ({grp.parameters.length}):</strong><br />
                         {grpParamsList}
                       </div>
                     )}
                   </td>
-                  <td style={{ borderRight: '1px solid #000000', padding: '6px', textAlign: 'center' }}>1</td>
-                  <td style={{ borderRight: '1px solid #000000', padding: '6px', textAlign: 'center' }}>Group</td>
-                  <td style={{ borderRight: '1px solid #000000', padding: '6px', textAlign: 'center' }}>{grp.subtotal}/-</td>
-                  <td style={{ padding: '6px', textAlign: 'center', fontWeight: 'bold' }}>{grp.subtotal}/-</td>
+                  <td style={{ borderRight: '1px solid #000000', padding: '5px', textAlign: 'center' }}>1</td>
+                  <td style={{ borderRight: '1px solid #000000', padding: '5px', textAlign: 'center' }}>Group</td>
+                  <td style={{ borderRight: '1px solid #000000', padding: '5px', textAlign: 'center' }}>{grp.subtotal}/-</td>
+                  <td style={{ padding: '5px', textAlign: 'center', fontWeight: 'bold' }}>{grp.subtotal}/-</td>
                 </tr>
               );
             })
           ) : (
             <tr style={{ borderBottom: '1px solid #000000', verticalAlign: 'top' }}>
-              <td style={{ borderRight: '1px solid #000000', padding: '6px', textAlign: 'center', fontWeight: 'bold' }}>1</td>
-              <td style={{ borderRight: '1px solid #000000', padding: '6px' }}>
+              <td style={{ borderRight: '1px solid #000000', padding: '5px', textAlign: 'center', fontWeight: 'bold' }}>1</td>
+              <td style={{ borderRight: '1px solid #000000', padding: '5px' }}>
                 <div>Charges for {sampleParticularName} analysis of {clientDisplayName}.</div>
-                <div style={{ fontSize: '9pt', color: '#222', marginTop: '3px' }}>
+                <div style={{ fontSize: '8.5pt', color: '#222', marginTop: '2px' }}>
                   ({paramNamesList})
                 </div>
               </td>
-              <td style={{ borderRight: '1px solid #000000', padding: '6px', textAlign: 'center' }}>1</td>
-              <td style={{ borderRight: '1px solid #000000', padding: '6px', textAlign: 'center' }}>No.</td>
-              <td style={{ borderRight: '1px solid #000000', padding: '6px', textAlign: 'center' }}>{subtotal}/-</td>
-              <td style={{ padding: '6px', textAlign: 'center' }}>{subtotal}/-</td>
+              <td style={{ borderRight: '1px solid #000000', padding: '5px', textAlign: 'center' }}>1</td>
+              <td style={{ borderRight: '1px solid #000000', padding: '5px', textAlign: 'center' }}>No.</td>
+              <td style={{ borderRight: '1px solid #000000', padding: '5px', textAlign: 'center' }}>{subtotal}/-</td>
+              <td style={{ padding: '5px', textAlign: 'center' }}>{subtotal}/-</td>
             </tr>
           )}
 
           <tr style={{ borderBottom: '1px solid #000000' }}>
-            <td style={{ borderRight: '1px solid #000000', padding: '6px', textAlign: 'center', fontWeight: 'bold' }}>
+            <td style={{ borderRight: '1px solid #000000', padding: '5px', textAlign: 'center', fontWeight: 'bold' }}>
               {hasMultiGroups ? locationGroups.length + 1 : 2}
             </td>
-            <td style={{ borderRight: '1px solid #000000', padding: '6px' }}>Rates Total With Tax Details</td>
-            <td colSpan="4" style={{ padding: '6px', textAlign: 'center' }}>
+            <td style={{ borderRight: '1px solid #000000', padding: '5px' }}>Rates Total With Tax Details</td>
+            <td colSpan="4" style={{ padding: '5px', textAlign: 'center' }}>
               <div>As actual as per GPCB rates</div>
-              <div style={{ fontWeight: 'bold', fontSize: '9pt' }}>({subtotal}/- + GST 18 %)</div>
+              <div style={{ fontWeight: 'bold', fontSize: '8.5pt' }}>({subtotal}/- + GST 18 %)</div>
             </td>
           </tr>
 
           <tr style={{ fontWeight: 'bold', borderTop: '1.5px solid #000000', background: '#f8fafc' }}>
-            <td colSpan="5" style={{ padding: '6px', textAlign: 'right', borderRight: '1px solid #000000' }}>Total (Including GST)</td>
-            <td style={{ padding: '6px', textAlign: 'center' }}>{grandTotal}/-</td>
+            <td colSpan="5" style={{ padding: '5px', textAlign: 'right', borderRight: '1px solid #000000' }}>Total (Including GST)</td>
+            <td style={{ padding: '5px', textAlign: 'center' }}>{grandTotal}/-</td>
           </tr>
         </tbody>
       </table>
 
       {/* Terms and Conditions */}
-      <div style={{ marginBottom: '12px', fontSize: '8.5pt', lineHeight: '1.35' }}>
-        <div style={{ fontWeight: 'bold', marginBottom: '3px' }}>Terms and conditions:</div>
-        <ol style={{ margin: 0, paddingLeft: '18px' }}>
+      <div style={{ marginBottom: '10px', fontSize: '8pt', lineHeight: '1.3' }}>
+        <div style={{ fontWeight: 'bold', marginBottom: '2px' }}>Terms and conditions:</div>
+        <ol style={{ margin: 0, paddingLeft: '16px' }}>
           <li>Purchase/Work Order is must before starting the work.</li>
           <li>For future requirement of any urgent report for said work the payment condition is advance with the work order.</li>
           <li>Charges for sampling & analysis of various samples including water, wastewater, air, stack, hazardous waste, solid waste & noise level etc. will be paid extra as actual as per GPCB guidelines if there is any requirement/addition in parameters by you.</li>
@@ -434,39 +515,39 @@ const QuotationPrint = () => {
       {(formData.includeCaution || formData.include_caution) && selCaution && (
         <div style={{
           border: '1px solid #000000',
-          padding: '6px 10px',
-          marginBottom: '12px',
-          fontSize: '8.5pt',
+          padding: '5px 8px',
+          marginBottom: '10px',
+          fontSize: '8pt',
           background: '#fff'
         }}>
-          <div style={{ fontWeight: 'bold', textDecoration: 'underline', marginBottom: '3px' }}>
+          <div style={{ fontWeight: 'bold', textDecoration: 'underline', marginBottom: '2px' }}>
             QUOTATION: {selCaution.title}
           </div>
-          <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.3' }}>
+          <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.25' }}>
             {selCaution.description}
           </div>
         </div>
       )}
 
       {/* Signatory & Closing */}
-      <div style={{ marginBottom: '20px', fontSize: '9.5pt' }}>
+      <div style={{ marginBottom: '12px', fontSize: '9pt' }}>
         <div>Thanking you in anticipation!</div>
         <div style={{ fontWeight: 'bold', marginTop: '2px' }}>For, Jagnath Lab Technologies</div>
-        
+
         {/* Stamp / Signature placeholder space */}
-        <div style={{ height: '40px', margin: '4px 0' }}></div>
+        <div style={{ height: '32px', margin: '2px 0' }}></div>
 
         <div style={{ fontWeight: 'bold' }}>Authorized Signatory</div>
         <div style={{ fontWeight: 'bold' }}>Contact Person: - Mr Purvin Raiyani (+91 8140555515)</div>
       </div>
 
       {/* Footer Banner */}
-      <div style={{ marginTop: 'auto', paddingTop: '10px', textAlign: 'center' }}>
-        <div style={{ color: '#15803d', fontWeight: 'bold', fontSize: '10pt', letterSpacing: '0.5px', marginBottom: '4px' }}>
+      <div style={{ marginTop: 'auto', paddingTop: '6px', textAlign: 'center' }}>
+        <div style={{ color: '#15803d', fontWeight: 'bold', fontSize: '9.5pt', letterSpacing: '0.5px', marginBottom: '3px' }}>
           “NURTURING THE NATURE FOR HUMAN RACE”
         </div>
-        <div style={{ borderBottom: '2px solid #15803d', marginBottom: '6px' }}></div>
-        <div style={{ fontSize: '7.5pt', color: '#1e3a8a', lineHeight: '1.3' }}>
+        <div style={{ borderBottom: '2px solid #15803d', marginBottom: '5px' }}></div>
+        <div style={{ fontSize: '7.5pt', color: '#1e3a8a', lineHeight: '1.25' }}>
           5-6/B, Nayanjyot chamber, First Floor, Opp. Vachhera Vada, Gondal – 360 311, Dist. – Rajkot (Guj.) +91 8140-555515 Email:<br />
           <span style={{ color: '#2563eb' }}>jagnathtechnologies@yahoo.com</span> // <span style={{ color: '#2563eb', textDecoration: 'underline' }}>www.jagnath.com</span> // <span style={{ color: '#2563eb' }}>purvin@jagnath.com</span>
         </div>

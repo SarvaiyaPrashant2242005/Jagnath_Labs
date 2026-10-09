@@ -17,6 +17,7 @@ import {
 
 import { apiService } from '../../../../shared/services/apiService';
 import { TEST_REQUEST_ENDPOINTS, TEST_REQUEST_PARAMETER_ENDPOINTS } from '../../../../shared/services/apiEndpoints';
+import SearchableSelect from '../../../../shared/components/Select/SearchableSelect';
 
 import {
   fetchMasterData,
@@ -140,12 +141,13 @@ const getLogoUrl = (comp = {}) => {
   const logoPath = comp.quotationLogo || comp.quotation_logo || comp.logo;
   if (!logoPath) return '/Images/Navbar_Logo.png';
   const cleanPath = String(logoPath).replace(/\\/g, '/');
-  const idx = cleanPath.lastIndexOf('uploads/');
+  const lower = cleanPath.toLowerCase();
+  const idx = lower.lastIndexOf('uploads/');
   if (idx !== -1) {
     const backendRoot = import.meta.env.VITE_BACKEND_ROOT_URL || 'http://localhost:5000';
     return `${backendRoot}/${cleanPath.substring(idx)}`;
   }
-  if (cleanPath.startsWith('file:') || cleanPath.startsWith('C:') || cleanPath.startsWith('D:')) {
+  if (cleanPath.startsWith('file:') || /^[a-zA-Z]:\//.test(cleanPath)) {
     return '/Images/Navbar_Logo.png';
   }
   return logoPath;
@@ -304,16 +306,12 @@ const ProvisionalQuotationForm = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
-  const [quotationCategoryType, setQuotationCategoryType] = useState(
-    searchParams.get('type') === 'general_testing'
-      ? 'general_testing'
-      : (searchParams.get('type') === 'regular' ? 'regular' : 'provisional')
-  ); // 'provisional' | 'regular' | 'general_testing'
-  const [isMasterTermsOpen, setIsMasterTermsOpen] = useState(false);
-  const [gtActivePageTab, setGtActivePageTab] = useState('all'); // 'all' | '1' | '2' | '3'
-  const [paramSearchTerms, setParamSearchTerms] = useState({});
-  const [expandedAnnexureBInAct, setExpandedAnnexureBInAct] = useState({ 0: true, 1: true });
+  const [quotationCategoryType, setQuotationCategoryType] = useState(searchParams.get('type') === 'regular' ? 'regular' : 'provisional'); // 'provisional' | 'regular'
   const [previewZoom, setPreviewZoom] = useState(1);
+  const [isMasterTermsOpen, setIsMasterTermsOpen] = useState(false);
+  const [paramSearchTerms, setParamSearchTerms] = useState({});
+  const [expandedAnnexureBInAct, setExpandedAnnexureBInAct] = useState({});
+  const [gtActivePageTab, setGtActivePageTab] = useState('all');
 
   // Master Data
   const [masters, setMasters] = useState({
@@ -472,32 +470,30 @@ const ProvisionalQuotationForm = () => {
     let selectedTR = (masters.testRequests || []).find(r => r.id === trId);
     let trParams = [];
 
-    // Fetch full TR details by ID to get nested relations & testRequestParameters
+    // Fetch full TR details by ID to get nested relations
     try {
       const fullRes = await apiService.get(TEST_REQUEST_ENDPOINTS.GET_BY_ID(trId));
       if (fullRes?.data) {
         selectedTR = fullRes.data;
-        if (Array.isArray(fullRes.data.testRequestParameters)) {
-          trParams = fullRes.data.testRequestParameters;
-        } else if (Array.isArray(fullRes.data.parameters)) {
-          trParams = fullRes.data.parameters;
-        }
       }
     } catch (e) {
       console.log('Using cached TRF object or fallback', e);
     }
 
-    // Fallback: If trParams is not directly in TR, fetch matching transaction records
-    if (!trParams.length) {
-      try {
-        const trpRes = await apiService.get(TEST_REQUEST_PARAMETER_ENDPOINTS.GET_ALL);
-        if (trpRes?.data) {
-          const allTrps = Array.isArray(trpRes.data) ? trpRes.data : (trpRes.data?.rows || []);
-          trParams = allTrps.filter(t => t.testRequestId === trId || t.test_request_id === trId);
+    // Always fetch latest transaction parameters with exact price and locationOfSample
+    try {
+      const trpRes = await apiService.get(TEST_REQUEST_PARAMETER_ENDPOINTS.GET_ALL);
+      if (trpRes?.data) {
+        const allTrps = Array.isArray(trpRes.data) ? trpRes.data : (trpRes.data?.rows || []);
+        const matching = allTrps.filter(t => t.testRequestId === trId || t.test_request_id === trId);
+        if (matching.length > 0) {
+          trParams = matching;
+        } else if (Array.isArray(selectedTR?.testRequestParameters)) {
+          trParams = selectedTR.testRequestParameters;
         }
-      } catch (e) {
-        console.log('Error fetching TR transaction parameters', e);
       }
+    } catch (e) {
+      console.log('Error fetching TR transaction parameters', e);
     }
 
     if (!selectedTR) return;
@@ -750,6 +746,12 @@ const ProvisionalQuotationForm = () => {
       const updatedAnnexureI = { ...(prev.annexureI || {}) };
       let newAnnexureAVisits = prev.annexureAVisits;
 
+      if (field === 'auditFee') {
+        const feeVal = parseFloat(rawVal) || 0;
+        updatedAnnexureI.auditFee = feeVal;
+        updatedP2.auditFee = feeVal;
+      }
+
       if (field === 'visits' || field === 'daysPerVisit') {
         const v = parseInt(field === 'visits' ? rawVal : (updatedP2.visits ?? updatedAnnexureI.visits ?? 3), 10) || 3;
         const d = parseInt(field === 'daysPerVisit' ? rawVal : (updatedP2.daysPerVisit ?? updatedAnnexureI.daysPerVisit ?? 4), 10) || 4;
@@ -758,6 +760,12 @@ const ProvisionalQuotationForm = () => {
 
         updatedP2.daDaysPerYear = tot;
         updatedP2.transportDaysText = word ? `${word} days` : `${tot} days`;
+
+        if (field === 'visits') {
+          updatedP2.transportQty = v;
+          updatedP2.daQty = v;
+          updatedP2.accomQty = v;
+        }
 
         // Auto update transport rate & total if dynamic calculation
         const jltRate = Number(updatedP2.jltVehicleRatePerDay ?? updatedAnnexureI.jltVehicleRatePerDay ?? 5000);
@@ -779,7 +787,7 @@ const ProvisionalQuotationForm = () => {
       if (field === 'jltVehicleRatePerDay') {
         updatedAnnexureI.jltVehicleRatePerDay = rawVal;
         const d = parseInt(updatedP2.daysPerVisit ?? updatedAnnexureI.daysPerVisit ?? 4, 10) || 4;
-        const v = parseInt(updatedP2.visits ?? updatedAnnexureI.visits ?? 3, 10) || 3;
+        const v = parseInt(updatedP2.transportQty ?? updatedP2.visits ?? updatedAnnexureI.visits ?? 3, 10) || 3;
         const autoPerVisit = (parseFloat(rawVal) || 0) * d;
         const autoTotal = autoPerVisit * v;
         updatedP2.transportRatePerVisit = autoPerVisit;
@@ -788,25 +796,40 @@ const ProvisionalQuotationForm = () => {
         updatedAnnexureI.transportTotalAmount = autoTotal;
       }
 
-      if (field === 'daRatePerPerson' || field === 'daPersons' || field === 'daDaysPerYear') {
+      if (field === 'transportRatePerVisit') {
+        const v = parseInt(updatedP2.transportQty ?? updatedP2.visits ?? updatedAnnexureI.visits ?? 3, 10) || 3;
+        const autoTotal = (parseFloat(rawVal) || 0) * v;
+        updatedP2.transportTotalAmount = autoTotal;
+        updatedAnnexureI.transportRatePerVisit = parseFloat(rawVal) || 0;
+        updatedAnnexureI.transportTotalAmount = autoTotal;
+      }
+
+      if (field === 'transportQty') {
+        const q = parseFloat(rawVal) || 0;
+        const r = parseFloat(updatedP2.transportRatePerVisit ?? updatedAnnexureI.transportRatePerVisit ?? 20000) || 0;
+        updatedP2.transportTotalAmount = r * q;
+        updatedAnnexureI.transportTotalAmount = r * q;
+      }
+
+      if (field === 'daRatePerPerson' || field === 'daPersons' || field === 'daDaysPerYear' || field === 'daQty') {
         const rate = parseFloat(field === 'daRatePerPerson' ? rawVal : (updatedP2.daRatePerPerson ?? 520)) || 0;
         const persons = parseFloat(field === 'daPersons' ? rawVal : (updatedP2.daPersons ?? 4)) || 0;
         const days = parseFloat(field === 'daDaysPerYear' ? rawVal : (updatedP2.daDaysPerYear ?? 12)) || 0;
-        const v = parseInt(updatedP2.visits ?? updatedAnnexureI.visits ?? 3, 10) || 3;
+        const q = parseFloat(field === 'daQty' ? rawVal : (updatedP2.daQty ?? updatedP2.visits ?? 3)) || 3;
         const amount = Math.round(rate * persons * days);
-        const ratePerVisit = v > 0 ? Math.round(amount / v) : amount;
+        const ratePerVisit = q > 0 ? Math.round(amount / q) : amount;
         updatedP2.daTotalAmount = amount;
         updatedP2.daRatePerVisit = ratePerVisit;
       }
 
-      if (field === 'hotelRoomRate' || field === 'hotelRoomsCount' || field === 'hotelNightsPerVisit') {
+      if (field === 'hotelRoomRate' || field === 'hotelRoomsCount' || field === 'hotelNightsPerVisit' || field === 'accomQty') {
         const rRate = parseFloat(field === 'hotelRoomRate' ? rawVal : (updatedP2.hotelRoomRate ?? 3000)) || 0;
         const rCount = parseFloat(field === 'hotelRoomsCount' ? rawVal : (updatedP2.hotelRoomsCount ?? 2)) || 0;
         const nights = parseFloat(field === 'hotelNightsPerVisit' ? rawVal : (updatedP2.hotelNightsPerVisit ?? 2)) || 0;
-        const v = parseInt(updatedP2.visits ?? updatedAnnexureI.visits ?? 3, 10) || 3;
+        const q = parseFloat(field === 'accomQty' ? rawVal : (updatedP2.accomQty ?? updatedP2.visits ?? 3)) || 3;
         const dailyCost = rRate * rCount;
         const ratePerVisit = dailyCost * nights;
-        const accomTotal = ratePerVisit * v;
+        const accomTotal = ratePerVisit * q;
         updatedP2.accomRatePerVisit = ratePerVisit;
         updatedP2.accomTotalAmount = accomTotal;
       }
@@ -877,24 +900,16 @@ const ProvisionalQuotationForm = () => {
   const handleUpdateActivity = (index, field, val) => {
     setFormData(prev => {
       const activities = [...(prev.activities || [])];
-      const annexureB = [...(prev.annexureB || [])];
       if (!activities[index]) return prev;
 
       const act = { ...activities[index] };
 
       if (field === 'description') {
         act.description = val;
-        if (annexureB[index]) {
-          annexureB[index] = { ...annexureB[index], category: val };
-        }
       } else if (field === 'parametersMonitored') {
         act.parametersMonitored = val;
       } else if (field === 'srNo') {
         act.srNo = val;
-        act.parametersMonitored = `As per annexure- B, Sr. No. ${val}`;
-        if (annexureB[index]) {
-          annexureB[index] = { ...annexureB[index], srNo: val };
-        }
       } else if (field === 'visits') {
         act.visits = parseInt(val, 10) || 1;
       } else if (field === 'sampleQuarter') {
@@ -910,31 +925,33 @@ const ProvisionalQuotationForm = () => {
           }
         }
       } else if (field === 'sampleQty') {
+        act.sampleQty = val === '' ? '' : (parseFloat(val) || 0);
         const qty = parseFloat(val) || 0;
-        act.sampleQty = qty;
         const isLoc = (act.sampleQuarter || '').toLowerCase().includes('loc') || (act.description || '').toLowerCase().includes('air') || (act.description || '').toLowerCase().includes('noise') || (act.description || '').toLowerCase().includes('stack');
         const unit = isLoc ? 'Locations' : 'Sample';
-        act.sampleQuarter = `${String(qty).padStart(2, '0')} ${unit}`;
+        if (val !== '') {
+          act.sampleQuarter = `${String(qty).padStart(2, '0')} ${unit}`;
+        }
         if (!act.isChargeOverridden) {
-          act.chargePerVisit = Math.round((parseFloat(act.ratePerSample) || 0) * qty);
+          act.chargePerVisit = act.ratePerSample === '' ? '' : Math.round((parseFloat(act.ratePerSample) || 0) * qty);
         }
       } else if (field === 'ratePerSample') {
-        const rate = parseFloat(val) || 0;
+        const rate = val === '' ? '' : (parseFloat(val) || 0);
         act.ratePerSample = rate;
         act.isRateOverridden = true;
         if (!act.isChargeOverridden) {
-          act.chargePerVisit = Math.round(rate * (parseFloat(act.sampleQty !== undefined ? act.sampleQty : 1) || 1));
+          act.chargePerVisit = rate === '' ? '' : Math.round(Number(rate) * (parseFloat(act.sampleQty !== undefined && act.sampleQty !== '' ? act.sampleQty : 1) || 1));
         }
       } else if (field === 'chargePerVisit') {
-        act.chargePerVisit = parseFloat(val) || 0;
+        act.chargePerVisit = val === '' ? '' : (parseFloat(val) || 0);
         act.isChargeOverridden = true;
       } else if (field === 'resetOverride') {
         act.isChargeOverridden = false;
-        act.chargePerVisit = Math.round((parseFloat(act.ratePerSample) || 0) * (parseFloat(act.sampleQty !== undefined ? act.sampleQty : 1) || 1));
+        act.chargePerVisit = act.ratePerSample === '' ? '' : Math.round((parseFloat(act.ratePerSample) || 0) * (parseFloat(act.sampleQty !== undefined && act.sampleQty !== '' ? act.sampleQty : 1) || 1));
       }
 
       activities[index] = act;
-      return { ...prev, activities, annexureB };
+      return { ...prev, activities };
     });
   };
 
@@ -942,7 +959,6 @@ const ProvisionalQuotationForm = () => {
     const newIdx = formData.activities?.length || 0;
     setFormData(prev => {
       const activities = [...(prev.activities || [])];
-      const annexureB = [...(prev.annexureB || [])];
       const newSr = String(activities.length + 1);
       const visits = prev.annexureAVisits || 3;
       const grpId = 'grp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
@@ -964,25 +980,17 @@ const ProvisionalQuotationForm = () => {
         id: actId,
         groupId: grpId,
         srNo: newSr,
-        description: categoryName,
+        description: 'New Sampling / Monitoring Activity',
         parametersMonitored: `As per annexure- B, Sr. No. ${newSr}`,
-        ratePerSample: ratePerSample,
+        ratePerSample: 0,
         isRateOverridden: false,
         visits: visits,
-        sampleQuarter: sampleQuarter,
+        sampleQuarter: '01 Sample',
         sampleQty: 1,
-        chargePerVisit: ratePerSample,
+        chargePerVisit: 0,
         isChargeOverridden: false,
       });
-
-      annexureB.push({
-        id: grpId,
-        srNo: newSr,
-        category: categoryName,
-        parameters: parameters
-      });
-
-      return { ...prev, activities, annexureB };
+      return { ...prev, activities };
     });
     setExpandedAnnexureBInAct(prev => ({ ...prev, [newIdx]: true }));
     triggerToast('Added new Activity & Annexure-B parameters group!', 'success');
@@ -991,21 +999,8 @@ const ProvisionalQuotationForm = () => {
   const handleDeleteActivity = (index) => {
     setFormData(prev => {
       const activities = [...(prev.activities || [])];
-      const annexureB = [...(prev.annexureB || [])];
       activities.splice(index, 1);
-      if (annexureB[index]) {
-        annexureB.splice(index, 1);
-      }
-      const updatedActivities = activities.map((act, i) => ({
-        ...act,
-        srNo: String(i + 1),
-        parametersMonitored: `As per annexure- B, Sr. No. ${i + 1}`
-      }));
-      const updatedAnnexureB = annexureB.map((grp, i) => ({
-        ...grp,
-        srNo: String(i + 1)
-      }));
-      return { ...prev, activities: updatedActivities, annexureB: updatedAnnexureB };
+      return { ...prev, activities };
     });
     triggerToast('Removed activity and Annexure-B group', 'info');
   };
@@ -1018,26 +1013,6 @@ const ProvisionalQuotationForm = () => {
     });
   };
 
-  const handleSyncActivityRateWithBGroup = (index) => {
-    setFormData(prev => {
-      const activities = [...(prev.activities || [])];
-      const annexureB = [...(prev.annexureB || [])];
-      const act = activities[index];
-      const grp = annexureB[index];
-      if (act && grp) {
-        const groupSum = (grp.parameters || []).reduce((sum, p) => sum + (parseFloat(p.rate) || 0), 0);
-        const qty = parseFloat(act.sampleQty !== undefined ? act.sampleQty : 1) || 1;
-        activities[index] = {
-          ...act,
-          ratePerSample: groupSum,
-          isRateOverridden: false,
-          chargePerVisit: act.isChargeOverridden ? act.chargePerVisit : Math.round(groupSum * qty)
-        };
-      }
-      return { ...prev, activities, annexureB };
-    });
-    triggerToast('Synced Rate / Sample with Annexure-B parameter sum!', 'success');
-  };
 
   // Annexure-B Rate Override Handlers
   const handleRateOverride = (uniqueKey, rateVal) => {
@@ -1056,45 +1031,20 @@ const ProvisionalQuotationForm = () => {
       const groups = [...(prev.annexureB || [])];
       const activities = [...(prev.activities || [])];
       const newSr = String(groups.length + 1);
-      const visits = prev.annexureAVisits || 3;
-      const grpId = 'grp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
-      const actId = 'act_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
-
-      let categoryName = presetGroup?.category || `Discipline Group ${newSr}`;
-      let parameters = presetGroup?.parameters ? JSON.parse(JSON.stringify(presetGroup.parameters)) : [
-        { id: 'p_' + Date.now() + '_1', description: 'pH', rate: 110 },
-        { id: 'p_' + Date.now() + '_2', description: 'Total Suspended Solids', rate: 180 },
-        { id: 'p_' + Date.now() + '_3', description: 'COD', rate: 620 },
-        { id: 'p_' + Date.now() + '_4', description: 'BOD, 3-day at 27°C', rate: 1050 }
-      ];
-      let groupRate = parameters.reduce((sum, p) => sum + (parseFloat(p.rate) || 0), 0);
-
-      const isLoc = categoryName.toLowerCase().includes('air') || categoryName.toLowerCase().includes('noise') || categoryName.toLowerCase().includes('stack');
-      const sampleQuarter = isLoc ? '01 Locations' : '01 Sample';
-
-      groups.push({
-        id: grpId,
-        srNo: newSr,
-        category: categoryName,
-        parameters: parameters
-      });
-
-      activities.push({
-        id: actId,
-        groupId: grpId,
-        srNo: newSr,
-        description: categoryName,
-        parametersMonitored: `As per annexure- B, Sr. No. ${newSr}`,
-        ratePerSample: groupRate,
-        isRateOverridden: false,
-        visits: visits,
-        sampleQuarter: sampleQuarter,
-        sampleQty: 1,
-        chargePerVisit: groupRate,
-        isChargeOverridden: false,
-      });
-
-      return { ...prev, annexureB: groups, activities };
+      return {
+        ...prev,
+        annexureB: [
+          ...groups,
+          {
+            id: 'grp_' + Date.now(),
+            srNo: newSr,
+            category: 'New Discipline Group',
+            parameters: [
+              { id: 'p_' + Date.now(), description: 'Sample Parameter', rate: 1000 }
+            ]
+          }
+        ]
+      };
     });
   };
 
@@ -1104,17 +1054,8 @@ const ProvisionalQuotationForm = () => {
       const activities = [...(prev.activities || [])];
       if (groups[groupIdx]) {
         groups[groupIdx] = { ...groups[groupIdx], [field]: val };
-        if (field === 'category' && activities[groupIdx]) {
-          activities[groupIdx] = { ...activities[groupIdx], description: val };
-        } else if (field === 'srNo' && activities[groupIdx]) {
-          activities[groupIdx] = {
-            ...activities[groupIdx],
-            srNo: val,
-            parametersMonitored: `As per annexure- B, Sr. No. ${val}`
-          };
-        }
       }
-      return { ...prev, annexureB: groups, activities };
+      return { ...prev, annexureB: groups };
     });
   };
 
@@ -1123,98 +1064,24 @@ const ProvisionalQuotationForm = () => {
       const groups = [...(prev.annexureB || [])];
       const activities = [...(prev.activities || [])];
       groups.splice(groupIdx, 1);
-      if (activities[groupIdx]) {
-        activities.splice(groupIdx, 1);
-      }
-      const updatedActivities = activities.map((act, i) => ({
-        ...act,
-        srNo: String(i + 1),
-        parametersMonitored: `As per annexure- B, Sr. No. ${i + 1}`
-      }));
-      const updatedAnnexureB = groups.map((grp, i) => ({
-        ...grp,
-        srNo: String(i + 1)
-      }));
-      return { ...prev, annexureB: updatedAnnexureB, activities: updatedActivities };
+      return { ...prev, annexureB: groups };
     });
     triggerToast('Removed Discipline Group', 'info');
   };
 
-  const handleApplyPresetToGroup = (groupIdx, preset) => {
-    if (!preset) return;
+  const handleAddAnnexureBParam = (groupIdx) => {
     setFormData(prev => {
       const groups = [...(prev.annexureB || [])];
-      const activities = [...(prev.activities || [])];
-      if (!groups[groupIdx]) {
-        const act = activities[groupIdx];
-        groups[groupIdx] = {
-          id: act?.groupId || ('grp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4)),
-          srNo: act?.srNo || String(groupIdx + 1),
-          category: preset.category || act?.description || `Discipline Group ${groupIdx + 1}`,
-          parameters: []
-        };
+      if (groups[groupIdx]) {
+        const params = [...(groups[groupIdx].parameters || [])];
+        params.push({
+          id: 'p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+          description: '',
+          rate: 0
+        });
+        groups[groupIdx] = { ...groups[groupIdx], parameters: params };
       }
-
-      const clonedParams = JSON.parse(JSON.stringify(preset.parameters || []));
-      groups[groupIdx] = {
-        ...groups[groupIdx],
-        category: preset.category || groups[groupIdx].category,
-        parameters: clonedParams
-      };
-      const groupSum = clonedParams.reduce((sum, p) => sum + (parseFloat(p.rate) || 0), 0);
-      if (activities[groupIdx]) {
-        const qty = parseFloat(activities[groupIdx].sampleQty !== undefined ? activities[groupIdx].sampleQty : 1) || 1;
-        activities[groupIdx] = {
-          ...activities[groupIdx],
-          description: preset.category || activities[groupIdx].description,
-          ratePerSample: groupSum,
-          isRateOverridden: false,
-          chargePerVisit: Math.round(groupSum * qty),
-          isChargeOverridden: false,
-        };
-      }
-      return { ...prev, annexureB: groups, activities };
-    });
-    triggerToast(`Applied "${preset.category}" preset with ${preset.parameters?.length || 0} parameters!`, 'success');
-  };
-
-  const handleAddAnnexureBParam = (groupIdx, paramData = null) => {
-    setFormData(prev => {
-      const groups = [...(prev.annexureB || [])];
-      const activities = [...(prev.activities || [])];
-      if (!groups[groupIdx]) {
-        const act = activities[groupIdx];
-        groups[groupIdx] = {
-          id: act?.groupId || ('grp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4)),
-          srNo: act?.srNo || String(groupIdx + 1),
-          category: act?.description || `Discipline Group ${groupIdx + 1}`,
-          parameters: []
-        };
-      }
-
-      const params = [...(groups[groupIdx].parameters || [])];
-      const newRate = paramData?.rate !== undefined
-        ? parseFloat(paramData.rate)
-        : (paramData?.price !== undefined ? parseFloat(paramData.price) : 500);
-
-      params.push({
-        id: 'p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
-        description: paramData?.parameterName || paramData?.name || paramData?.description || 'New Parameter',
-        rate: isNaN(newRate) ? 0 : newRate
-      });
-      groups[groupIdx] = { ...groups[groupIdx], parameters: params };
-
-      // Recalculate group sum and auto-update activity rate if not overridden
-      const newSum = params.reduce((sum, p) => sum + (parseFloat(p.rate) || 0), 0);
-      if (activities[groupIdx] && !activities[groupIdx].isRateOverridden) {
-        const qty = parseFloat(activities[groupIdx].sampleQty !== undefined ? activities[groupIdx].sampleQty : 1) || 1;
-        activities[groupIdx] = {
-          ...activities[groupIdx],
-          ratePerSample: newSum,
-          chargePerVisit: activities[groupIdx].isChargeOverridden ? activities[groupIdx].chargePerVisit : Math.round(newSum * qty)
-        };
-      }
-      return { ...prev, annexureB: groups, activities };
+      return { ...prev, annexureB: groups };
     });
   };
 
@@ -1227,18 +1094,6 @@ const ProvisionalQuotationForm = () => {
         if (params[pIdx]) {
           params[pIdx] = { ...params[pIdx], [field]: field === 'rate' ? (parseFloat(val) || 0) : val };
           groups[groupIdx] = { ...groups[groupIdx], parameters: params };
-
-          if (field === 'rate') {
-            const newSum = params.reduce((sum, p) => sum + (parseFloat(p.rate) || 0), 0);
-            if (activities[groupIdx] && !activities[groupIdx].isRateOverridden) {
-              const qty = parseFloat(activities[groupIdx].sampleQty !== undefined ? activities[groupIdx].sampleQty : 1) || 1;
-              activities[groupIdx] = {
-                ...activities[groupIdx],
-                ratePerSample: newSum,
-                chargePerVisit: activities[groupIdx].isChargeOverridden ? activities[groupIdx].chargePerVisit : Math.round(newSum * qty)
-              };
-            }
-          }
         }
       }
       return { ...prev, annexureB: groups, activities };
@@ -1253,16 +1108,6 @@ const ProvisionalQuotationForm = () => {
         const params = [...(groups[groupIdx].parameters || [])];
         params.splice(pIdx, 1);
         groups[groupIdx] = { ...groups[groupIdx], parameters: params };
-
-        const newSum = params.reduce((sum, p) => sum + (parseFloat(p.rate) || 0), 0);
-        if (activities[groupIdx] && !activities[groupIdx].isRateOverridden) {
-          const qty = parseFloat(activities[groupIdx].sampleQty !== undefined ? activities[groupIdx].sampleQty : 1) || 1;
-          activities[groupIdx] = {
-            ...activities[groupIdx],
-            ratePerSample: newSum,
-            chargePerVisit: activities[groupIdx].isChargeOverridden ? activities[groupIdx].chargePerVisit : Math.round(newSum * qty)
-          };
-        }
       }
       return { ...prev, annexureB: groups, activities };
     });
@@ -3029,7 +2874,347 @@ const ProvisionalQuotationForm = () => {
                 </div>
               </div>
 
-              {/* 5. TERMS & CONDITIONS (PAGE 3) */}
+              {/* 5. DEDICATED DETAIL OF CHARGES TABLE SETTINGS (PAGE 2 TABLE) */}
+              <div
+                id="form-page-2-charges"
+                onFocusCapture={() => scrollToPreview('preview-page-2-charges')}
+                onClick={() => scrollToPreview('preview-page-2-charges')}
+                style={{ background: '#f8fafc', border: '1.5px solid #cbd5e1', borderRadius: '10px', padding: '1.1rem', boxShadow: '0 2px 6px rgba(0,0,0,0.03)', cursor: 'default' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.4rem' }}>
+                  <h4 style={{ fontSize: '0.92rem', fontWeight: 800, margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                    <span>📊</span> 5. Detail of Charges Table Settings (Page 2 Table)
+                  </h4>
+                  <span style={{ fontSize: '0.72rem', background: '#e0f2fe', color: '#0369a1', padding: '0.15rem 0.5rem', borderRadius: '4px', fontWeight: 700 }}>
+                    Separate Row Controls
+                  </span>
+                </div>
+
+                {/* ROW 1: AUDIT REPORT CHARGES */}
+                <div style={{ background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.75rem 0.85rem', marginBottom: '0.75rem' }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.45rem' }}>
+                    1. Environment Audit Report Charges (Row 1)
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '0.7fr 0.8fr 1.1fr 1.1fr', gap: '0.5rem' }}>
+                    <div className="form-group mb-0">
+                      <label className="form-label font-bold mb-1" style={{ color: '#475569', fontSize: '0.72rem' }}>Qty</label>
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={formData.page2Charges?.row1Qty !== undefined ? formData.page2Charges.row1Qty : 1}
+                        onChange={(e) => handleP2FieldChange('row1Qty', e.target.value)}
+                        className="form-control font-bold"
+                        style={{ height: '34px', fontSize: '0.82rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label font-bold mb-1" style={{ color: '#475569', fontSize: '0.72rem' }}>Unit</label>
+                      <input
+                        type="text"
+                        value={formData.page2Charges?.row1Unit !== undefined ? formData.page2Charges.row1Unit : 'No.'}
+                        onChange={(e) => handleP2FieldChange('row1Unit', e.target.value)}
+                        className="form-control font-semibold"
+                        style={{ height: '34px', fontSize: '0.82rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label font-bold mb-1" style={{ color: '#475569', fontSize: '0.72rem' }}>Rate (₹ / Fee)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={formData.page2Charges?.auditFee !== undefined ? formData.page2Charges.auditFee : (formData.annexureI?.auditFee !== undefined ? formData.annexureI.auditFee : 25000)}
+                        onChange={(e) => handleP2FieldChange('auditFee', e.target.value)}
+                        className="form-control font-bold text-primary"
+                        style={{ height: '34px', fontSize: '0.82rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label font-bold mb-1" style={{ color: '#475569', fontSize: '0.72rem' }}>Total Amount (₹)</label>
+                      <input
+                        type="number"
+                        readOnly
+                        value={Math.round((parseFloat(formData.page2Charges?.row1Qty !== undefined ? formData.page2Charges.row1Qty : 1) || 1) * (parseFloat(formData.page2Charges?.auditFee !== undefined ? formData.page2Charges.auditFee : (formData.annexureI?.auditFee ?? 25000)) || 0))}
+                        className="form-control font-bold"
+                        style={{ height: '34px', fontSize: '0.82rem', backgroundColor: '#f1f5f9', color: '#0f172a' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* ROW 2.1: TRANSPORTATION CHARGES */}
+                <div style={{ background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.75rem 0.85rem', marginBottom: '0.75rem' }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.45rem' }}>
+                    2.1 Transportation Charges (Instruments &amp; Material)
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '0.7fr 0.8fr 1.1fr 1.1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <div className="form-group mb-0">
+                      <label className="form-label font-bold mb-1" style={{ color: '#475569', fontSize: '0.72rem' }}>Qty</label>
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={formData.page2Charges?.transportQty !== undefined ? formData.page2Charges.transportQty : (formData.page2Charges?.visits ?? formData.annexureI?.visits ?? 3)}
+                        onChange={(e) => handleP2FieldChange('transportQty', e.target.value)}
+                        className="form-control font-bold"
+                        style={{ height: '34px', fontSize: '0.82rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label font-bold mb-1" style={{ color: '#475569', fontSize: '0.72rem' }}>Unit</label>
+                      <input
+                        type="text"
+                        value={formData.page2Charges?.transportUnit !== undefined ? formData.page2Charges.transportUnit : 'Visit'}
+                        onChange={(e) => handleP2FieldChange('transportUnit', e.target.value)}
+                        className="form-control font-semibold"
+                        style={{ height: '34px', fontSize: '0.82rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label font-bold mb-1" style={{ color: '#475569', fontSize: '0.72rem' }}>Rate / Visit (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={formData.page2Charges?.transportRatePerVisit !== undefined ? formData.page2Charges.transportRatePerVisit : ((formData.page2Charges?.jltVehicleRatePerDay ?? 5000) * (formData.page2Charges?.daysPerVisit ?? 4))}
+                        onChange={(e) => handleP2FieldChange('transportRatePerVisit', e.target.value)}
+                        className="form-control font-bold"
+                        style={{ height: '34px', fontSize: '0.82rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label font-bold mb-1" style={{ color: '#475569', fontSize: '0.72rem' }}>Total Amount (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={formData.page2Charges?.transportTotalAmount !== undefined ? formData.page2Charges.transportTotalAmount : (((formData.page2Charges?.jltVehicleRatePerDay ?? 5000) * (formData.page2Charges?.daysPerVisit ?? 4)) * (formData.page2Charges?.transportQty ?? 3))}
+                        onChange={(e) => handleP2FieldChange('transportTotalAmount', e.target.value)}
+                        className="form-control font-bold text-primary"
+                        style={{ height: '34px', fontSize: '0.82rem' }}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', background: '#f8fafc', padding: '6px 8px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                    <div className="form-group mb-0">
+                      <label className="form-label mb-0" style={{ color: '#64748b', fontSize: '0.68rem', fontWeight: 600 }}>Days / Visit</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={formData.page2Charges?.daysPerVisit !== undefined ? formData.page2Charges.daysPerVisit : (formData.annexureI?.daysPerVisit ?? 4)}
+                        onChange={(e) => handleP2FieldChange('daysPerVisit', e.target.value)}
+                        className="form-control"
+                        style={{ height: '28px', fontSize: '0.76rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label mb-0" style={{ color: '#64748b', fontSize: '0.68rem', fontWeight: 600 }}>Vehicle Rate / Day (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.page2Charges?.jltVehicleRatePerDay !== undefined ? formData.page2Charges.jltVehicleRatePerDay : (formData.annexureI?.jltVehicleRatePerDay ?? 5000)}
+                        onChange={(e) => handleP2FieldChange('jltVehicleRatePerDay', e.target.value)}
+                        className="form-control"
+                        style={{ height: '28px', fontSize: '0.76rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label mb-0" style={{ color: '#64748b', fontSize: '0.68rem', fontWeight: 600 }}>Days Text in Description</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. twelve days"
+                        value={formData.page2Charges?.transportDaysText !== undefined ? formData.page2Charges.transportDaysText : ''}
+                        onChange={(e) => handleP2FieldChange('transportDaysText', e.target.value)}
+                        className="form-control"
+                        style={{ height: '28px', fontSize: '0.76rem' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* ROW 2.2: DEARNESS ALLOWANCE (DA) */}
+                <div style={{ background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.75rem 0.85rem', marginBottom: '0.75rem' }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.45rem' }}>
+                    2.2 Dearness Allowance (DA)
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '0.7fr 0.8fr 1.1fr 1.1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <div className="form-group mb-0">
+                      <label className="form-label font-bold mb-1" style={{ color: '#475569', fontSize: '0.72rem' }}>Qty</label>
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={formData.page2Charges?.daQty !== undefined ? formData.page2Charges.daQty : (formData.page2Charges?.visits ?? formData.annexureI?.visits ?? 3)}
+                        onChange={(e) => handleP2FieldChange('daQty', e.target.value)}
+                        className="form-control font-bold"
+                        style={{ height: '34px', fontSize: '0.82rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label font-bold mb-1" style={{ color: '#475569', fontSize: '0.72rem' }}>Unit</label>
+                      <input
+                        type="text"
+                        value={formData.page2Charges?.daUnit !== undefined ? formData.page2Charges.daUnit : 'Visit'}
+                        onChange={(e) => handleP2FieldChange('daUnit', e.target.value)}
+                        className="form-control font-semibold"
+                        style={{ height: '34px', fontSize: '0.82rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label font-bold mb-1" style={{ color: '#475569', fontSize: '0.72rem' }}>Rate / Visit (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={formData.page2Charges?.daRatePerVisit !== undefined ? formData.page2Charges.daRatePerVisit : 8320}
+                        onChange={(e) => handleP2FieldChange('daRatePerVisit', e.target.value)}
+                        className="form-control font-bold"
+                        style={{ height: '34px', fontSize: '0.82rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label font-bold mb-1" style={{ color: '#475569', fontSize: '0.72rem' }}>Total Amount (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={formData.page2Charges?.daTotalAmount !== undefined ? formData.page2Charges.daTotalAmount : 24960}
+                        onChange={(e) => handleP2FieldChange('daTotalAmount', e.target.value)}
+                        className="form-control font-bold text-primary"
+                        style={{ height: '34px', fontSize: '0.82rem' }}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', background: '#f8fafc', padding: '6px 8px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                    <div className="form-group mb-0">
+                      <label className="form-label mb-0" style={{ color: '#64748b', fontSize: '0.68rem', fontWeight: 600 }}>Rate / Person / Day (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.page2Charges?.daRatePerPerson !== undefined ? formData.page2Charges.daRatePerPerson : 520}
+                        onChange={(e) => handleP2FieldChange('daRatePerPerson', e.target.value)}
+                        className="form-control"
+                        style={{ height: '28px', fontSize: '0.76rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label mb-0" style={{ color: '#64748b', fontSize: '0.68rem', fontWeight: 600 }}>Persons / Day</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={formData.page2Charges?.daPersons !== undefined ? formData.page2Charges.daPersons : 4}
+                        onChange={(e) => handleP2FieldChange('daPersons', e.target.value)}
+                        className="form-control"
+                        style={{ height: '28px', fontSize: '0.76rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label mb-0" style={{ color: '#64748b', fontSize: '0.68rem', fontWeight: 600 }}>Total Days / Year</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={formData.page2Charges?.daDaysPerYear !== undefined ? formData.page2Charges.daDaysPerYear : 12}
+                        onChange={(e) => handleP2FieldChange('daDaysPerYear', e.target.value)}
+                        className="form-control"
+                        style={{ height: '28px', fontSize: '0.76rem' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* ROW 2.3: ACCOMMODATION FOR AUDITORS */}
+                <div style={{ background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.75rem 0.85rem', marginBottom: '0.4rem' }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.45rem' }}>
+                    2.3 Accommodation For Auditors
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '0.7fr 0.8fr 1.1fr 1.1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <div className="form-group mb-0">
+                      <label className="form-label font-bold mb-1" style={{ color: '#475569', fontSize: '0.72rem' }}>Qty</label>
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={formData.page2Charges?.accomQty !== undefined ? formData.page2Charges.accomQty : (formData.page2Charges?.visits ?? formData.annexureI?.visits ?? 3)}
+                        onChange={(e) => handleP2FieldChange('accomQty', e.target.value)}
+                        className="form-control font-bold"
+                        style={{ height: '34px', fontSize: '0.82rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label font-bold mb-1" style={{ color: '#475569', fontSize: '0.72rem' }}>Unit</label>
+                      <input
+                        type="text"
+                        value={formData.page2Charges?.accomUnit !== undefined ? formData.page2Charges.accomUnit : 'Visit'}
+                        onChange={(e) => handleP2FieldChange('accomUnit', e.target.value)}
+                        className="form-control font-semibold"
+                        style={{ height: '34px', fontSize: '0.82rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label font-bold mb-1" style={{ color: '#475569', fontSize: '0.72rem' }}>Rate / Visit (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={formData.page2Charges?.accomRatePerVisit !== undefined ? formData.page2Charges.accomRatePerVisit : 12000}
+                        onChange={(e) => handleP2FieldChange('accomRatePerVisit', e.target.value)}
+                        className="form-control font-bold"
+                        style={{ height: '34px', fontSize: '0.82rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label font-bold mb-1" style={{ color: '#475569', fontSize: '0.72rem' }}>Total Amount (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={formData.page2Charges?.accomTotalAmount !== undefined ? formData.page2Charges.accomTotalAmount : 36000}
+                        onChange={(e) => handleP2FieldChange('accomTotalAmount', e.target.value)}
+                        className="form-control font-bold text-primary"
+                        style={{ height: '34px', fontSize: '0.82rem' }}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', background: '#f8fafc', padding: '6px 8px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                    <div className="form-group mb-0">
+                      <label className="form-label mb-0" style={{ color: '#64748b', fontSize: '0.68rem', fontWeight: 600 }}>Hotel Room Rate (₹ / Day)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.page2Charges?.hotelRoomRate !== undefined ? formData.page2Charges.hotelRoomRate : 3000}
+                        onChange={(e) => handleP2FieldChange('hotelRoomRate', e.target.value)}
+                        className="form-control"
+                        style={{ height: '28px', fontSize: '0.76rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label mb-0" style={{ color: '#64748b', fontSize: '0.68rem', fontWeight: 600 }}>Rooms Count</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={formData.page2Charges?.hotelRoomsCount !== undefined ? formData.page2Charges.hotelRoomsCount : 2}
+                        onChange={(e) => handleP2FieldChange('hotelRoomsCount', e.target.value)}
+                        className="form-control"
+                        style={{ height: '28px', fontSize: '0.76rem' }}
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label mb-0" style={{ color: '#64748b', fontSize: '0.68rem', fontWeight: 600 }}>Nights / Visit</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={formData.page2Charges?.hotelNightsPerVisit !== undefined ? formData.page2Charges.hotelNightsPerVisit : 2}
+                        onChange={(e) => handleP2FieldChange('hotelNightsPerVisit', e.target.value)}
+                        className="form-control"
+                        style={{ height: '28px', fontSize: '0.76rem' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 6. TERMS & CONDITIONS (PAGE 3) */}
               <div
                 onFocusCapture={() => scrollToPreview('preview-page-3')}
                 onClick={() => scrollToPreview('preview-page-3')}
@@ -3037,7 +3222,7 @@ const ProvisionalQuotationForm = () => {
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.4rem' }}>
                   <h4 style={{ fontSize: '0.92rem', fontWeight: 800, margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                    <span>📜</span> 5. Terms &amp; Conditions (Page 3)
+                    <span>📜</span> 6. Terms &amp; Conditions (Page 3)
                   </h4>
                 </div>
 
@@ -3079,7 +3264,7 @@ const ProvisionalQuotationForm = () => {
                 </div>
               </div>
 
-              {/* 6. ANNEXURE - I LOGISTICS & RATES (PAGE 4 - TOP) */}
+              {/* 7. ANNEXURE - I LOGISTICS & RATES (PAGE 4 - TOP) */}
               <div
                 onFocusCapture={() => scrollToPreview('preview-annexure-1')}
                 onClick={() => scrollToPreview('preview-annexure-1')}
@@ -3087,7 +3272,7 @@ const ProvisionalQuotationForm = () => {
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.4rem' }}>
                   <h4 style={{ fontSize: '0.92rem', fontWeight: 800, margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                    <span>💰</span> 6. Annexure - I Rates &amp; Logistics (Page 4 - Top)
+                    <span>💰</span> 7. Annexure - I Rates &amp; Logistics (Page 4 - Top)
                   </h4>
                 </div>
 
@@ -3427,7 +3612,7 @@ const ProvisionalQuotationForm = () => {
                 </div>
               </div>
 
-              {/* 7. ANNEXURE - A SAMPLING & MONITORING ACTIVITIES (PAGE 4 - BOTTOM) */}
+              {/* 8. ANNEXURE - A SAMPLING & MONITORING ACTIVITIES (PAGE 4 - BOTTOM) */}
               <div
                 onFocusCapture={() => scrollToPreview('preview-annexure-a')}
                 onClick={() => scrollToPreview('preview-annexure-a')}
@@ -3435,7 +3620,7 @@ const ProvisionalQuotationForm = () => {
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.4rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                   <h4 style={{ fontSize: '0.92rem', fontWeight: 800, margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                    <span>📊</span> 7. Annexure - A: Sampling Activities Matrix (Page 4 - Bottom)
+                    <span>📊</span> 8. Annexure - A: Sampling Activities Matrix (Page 4 - Bottom)
                   </h4>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                     <button
@@ -3930,276 +4115,6 @@ const ProvisionalQuotationForm = () => {
                   </div>
                 </div>
               </div>
-
-              {/* 8. ANNEXURE - B TESTING PARAMETERS & DISCIPLINE GROUPS (PAGE 5) */}
-              <div
-                onFocusCapture={() => scrollToPreview('preview-annexure-b')}
-                onClick={() => scrollToPreview('preview-annexure-b')}
-                style={{ background: '#f8fafc', border: '1.5px solid #cbd5e1', borderRadius: '10px', padding: '1.1rem', boxShadow: '0 2px 6px rgba(0,0,0,0.03)', cursor: 'default', marginBottom: '1.25rem' }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.4rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-                  <div>
-                    <h4 style={{ fontSize: '0.92rem', fontWeight: 800, margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                      <span>🔬</span> 8. Annexure - B: Discipline Groups &amp; Testing Parameters (Page 5)
-                    </h4>
-                    <span style={{ fontSize: '0.68rem', color: '#64748b' }}>
-                      Add or edit parameter breakdown per location/discipline. Changing rates updates Annexure-A automatically.
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                    {/* Quick Preset Dropdown for Annexure-B */}
-                    <div className="dropdown d-inline-block">
-                      <select
-                        className="form-select form-select-sm"
-                        style={{ fontSize: '0.72rem', height: '28px', padding: '2px 24px 2px 6px', borderColor: '#2563eb', background: '#eff6ff', fontWeight: 700, color: '#1d4ed8' }}
-                        onChange={(e) => {
-                          const idx = parseInt(e.target.value, 10);
-                          if (!isNaN(idx) && ANNEXURE_B_PRESETS[idx]) {
-                            handleAddAnnexureBGroup(ANNEXURE_B_PRESETS[idx]);
-                            e.target.value = '';
-                          }
-                        }}
-                        defaultValue=""
-                      >
-                        <option value="" disabled>+ Add Preset Group...</option>
-                        {ANNEXURE_B_PRESETS.map((p, idx) => (
-                          <option key={idx} value={idx}>{p.category}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <button
-                      type="button"
-                      className="btn btn-primary btn-xs font-semibold"
-                      onClick={() => handleAddAnnexureBGroup()}
-                      style={{ fontSize: '0.72rem', padding: '3px 10px', display: 'flex', alignItems: 'center', gap: '4px' }}
-                    >
-                      <FaPlus /> Add Discipline Group
-                    </button>
-                  </div>
-                </div>
-
-                {/* Groups List */}
-                {(formData.annexureB || []).length === 0 ? (
-                  <div style={{ background: '#ffffff', border: '1.5px dashed #cbd5e1', borderRadius: '8px', padding: '16px', textAlign: 'center', color: '#64748b', marginBottom: '10px' }}>
-                    <p style={{ margin: '0 0 6px 0', fontSize: '0.82rem', fontWeight: 700, color: '#334155' }}>No Annexure-B Discipline Groups configured.</p>
-                    <span style={{ fontSize: '0.74rem' }}>Click "+ Add Preset Group" or "+ Add Discipline Group" above to add testing parameters for Annexure-B.</span>
-                  </div>
-                ) : (
-                  (formData.annexureB || []).map((group, gIdx) => {
-                    const groupTotal = calculateGroupTotal(group);
-                    const searchTerm = (paramSearchTerms[gIdx] || '').trim().toLowerCase();
-                    const filteredParams = searchTerm
-                      ? (masters.parameters || []).filter(p => (p.name || p.parameterName || '').toLowerCase().includes(searchTerm)).slice(0, 10)
-                      : [];
-
-                    return (
-                      <div
-                        key={group.id || gIdx}
-                        id={`annexure-b-group-${gIdx}`}
-                        style={{
-                          background: '#ffffff',
-                          border: '1.5px solid #cbd5e1',
-                          borderRadius: '8px',
-                          padding: '10px 12px',
-                          marginBottom: '12px',
-                          boxShadow: '0 1px 4px rgba(0,0,0,0.04)'
-                        }}
-                      >
-                        {/* Group Header: Sr, Title, Total & Actions */}
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap' }}>
-                          <div style={{ width: '50px' }}>
-                            <label style={{ fontSize: '0.65rem', fontWeight: 700, color: '#64748b', display: 'block', marginBottom: '1px' }}>
-                              Sr.
-                            </label>
-                            <input
-                              type="text"
-                              value={group.srNo || ''}
-                              onChange={(e) => handleUpdateAnnexureBGroup(gIdx, 'srNo', e.target.value)}
-                              className="form-control font-bold text-center"
-                              style={{ height: '28px', fontSize: '0.78rem' }}
-                            />
-                          </div>
-                          <div style={{ flexGrow: 1, minWidth: '180px' }}>
-                            <label style={{ fontSize: '0.65rem', fontWeight: 700, color: '#64748b', display: 'block', marginBottom: '1px' }}>
-                              Discipline Group / Sample Location Category
-                            </label>
-                            <input
-                              type="text"
-                              value={group.category || ''}
-                              onChange={(e) => handleUpdateAnnexureBGroup(gIdx, 'category', e.target.value)}
-                              className="form-control font-bold"
-                              style={{ height: '28px', fontSize: '0.8rem', color: '#0f172a' }}
-                            />
-                          </div>
-                          <div style={{ background: '#ecfdf5', border: '1px solid #10b981', borderRadius: '6px', padding: '3px 10px', textAlign: 'right' }}>
-                            <div style={{ fontSize: '0.6rem', color: '#047857', fontWeight: 700 }}>GROUP TOTAL</div>
-                            <div style={{ fontSize: '0.84rem', fontWeight: 800, color: '#065f46' }}>₹{Number(groupTotal).toLocaleString('en-IN')}/-</div>
-                          </div>
-                          <button
-                            type="button"
-                            className="btn btn-outline-danger btn-xs"
-                            onClick={() => handleDeleteAnnexureBGroup(gIdx)}
-                            title="Delete this Discipline Group"
-                            style={{ height: '28px', padding: '0 8px', display: 'flex', alignItems: 'center' }}
-                          >
-                            <FaTrash style={{ fontSize: '0.72rem' }} />
-                          </button>
-                        </div>
-
-                        {/* Quick Parameter Search & Add from Master */}
-                        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 8px', marginBottom: '8px' }}>
-                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                            <div style={{ position: 'relative', flexGrow: 1 }}>
-                              <input
-                                type="text"
-                                placeholder="🔍 Search & quick-add master parameter (e.g. pH, BOD, COD, SO2, Noise)..."
-                                value={paramSearchTerms[gIdx] || ''}
-                                onChange={(e) => setParamSearchTerms(prev => ({ ...prev, [gIdx]: e.target.value }))}
-                                className="form-control form-control-sm"
-                                style={{ fontSize: '0.74rem', height: '28px', paddingLeft: '8px' }}
-                              />
-                              {searchTerm && filteredParams.length > 0 && (
-                                <div style={{
-                                  position: 'absolute',
-                                  top: '30px',
-                                  left: 0,
-                                  right: 0,
-                                  background: '#ffffff',
-                                  border: '1.5px solid #3b82f6',
-                                  borderRadius: '6px',
-                                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                                  zIndex: 50,
-                                  maxHeight: '180px',
-                                  overflowY: 'auto'
-                                }}>
-                                  {filteredParams.map(param => {
-                                    const paramPrice = getMasterParamPrice(param, masters);
-                                    return (
-                                      <div
-                                        key={param.id}
-                                        onClick={() => {
-                                          handleAddAnnexureBParam(gIdx, {
-                                            parameterName: param.name || param.parameterName,
-                                            rate: paramPrice
-                                          });
-                                          setParamSearchTerms(prev => ({ ...prev, [gIdx]: '' }));
-                                        }}
-                                        style={{
-                                          padding: '5px 10px',
-                                          fontSize: '0.74rem',
-                                          cursor: 'pointer',
-                                          display: 'flex',
-                                          justifyContent: 'space-between',
-                                          alignItems: 'center',
-                                          borderBottom: '1px solid #f1f5f9'
-                                        }}
-                                        className="hover:bg-blue-50"
-                                      >
-                                        <span style={{ fontWeight: 600, color: '#0f172a' }}>{param.name || param.parameterName}</span>
-                                        <span style={{ fontWeight: 700, color: '#059669' }}>₹{paramPrice}/-</span>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </div>
-                            {/* Preset Dropdown */}
-                            <select
-                              className="form-select form-select-sm"
-                              style={{ fontSize: '0.72rem', height: '28px', width: 'auto', borderColor: '#3b82f6', color: '#1e40af', fontWeight: 700, background: '#eff6ff' }}
-                              onChange={(e) => {
-                                const pIdx = parseInt(e.target.value, 10);
-                                if (!isNaN(pIdx) && ANNEXURE_B_PRESETS[pIdx]) {
-                                  handleApplyPresetToGroup(gIdx, ANNEXURE_B_PRESETS[pIdx]);
-                                  e.target.value = '';
-                                }
-                              }}
-                              defaultValue=""
-                            >
-                              <option value="" disabled>⚡ Apply Preset...</option>
-                              {ANNEXURE_B_PRESETS.map((p, pIdx) => (
-                                <option key={pIdx} value={pIdx}>{p.category}</option>
-                              ))}
-                            </select>
-
-                            <button
-                              type="button"
-                              className="btn btn-outline-success btn-xs font-semibold"
-                              onClick={() => handleAddAnnexureBParam(gIdx)}
-                              style={{ fontSize: '0.7rem', height: '28px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}
-                            >
-                              <FaPlus /> Add Custom Param
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Parameters Table */}
-                        <div style={{ border: '1px solid #e2e8f0', borderRadius: '6px', overflow: 'hidden' }}>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.74rem' }}>
-                            <thead>
-                              <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #cbd5e1' }}>
-                                <th style={{ width: '30px', padding: '4px 6px', textAlign: 'center', fontWeight: 700 }}>#</th>
-                                <th style={{ padding: '4px 8px', textAlign: 'left', fontWeight: 700 }}>Parameter Description</th>
-                                <th style={{ width: '110px', padding: '4px 8px', textAlign: 'right', fontWeight: 700 }}>Rate (₹)</th>
-                                <th style={{ width: '36px', padding: '4px 4px', textAlign: 'center' }}></th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {(group.parameters || []).map((param, pIdx) => (
-                                <tr key={param.id || pIdx} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                  <td style={{ textAlign: 'center', color: '#64748b', fontWeight: 600, padding: '3px 4px' }}>
-                                    {pIdx + 1}
-                                  </td>
-                                  <td style={{ padding: '3px 6px' }}>
-                                    <input
-                                      type="text"
-                                      value={param.description || ''}
-                                      onChange={(e) => handleUpdateAnnexureBParam(gIdx, pIdx, 'description', e.target.value)}
-                                      placeholder="Parameter Name / Test Method"
-                                      className="form-control form-control-sm"
-                                      style={{ height: '26px', fontSize: '0.74rem' }}
-                                    />
-                                  </td>
-                                  <td style={{ padding: '3px 6px' }}>
-                                    <input
-                                      type="number"
-                                      value={param.rate !== undefined ? param.rate : ''}
-                                      onChange={(e) => handleUpdateAnnexureBParam(gIdx, pIdx, 'rate', e.target.value)}
-                                      className="form-control form-control-sm font-bold text-right"
-                                      style={{ height: '26px', fontSize: '0.76rem', color: '#0f172a' }}
-                                    />
-                                  </td>
-                                  <td style={{ textAlign: 'center', padding: '3px 4px' }}>
-                                    <button
-                                      type="button"
-                                      className="btn btn-link p-0 text-danger"
-                                      onClick={() => handleDeleteAnnexureBParam(gIdx, pIdx)}
-                                      title="Remove Parameter"
-                                      style={{ fontSize: '0.72rem' }}
-                                    >
-                                      <FaTrash />
-                                    </button>
-                                  </td>
-                                </tr>
-                              ))}
-                              {/* Subtotal row */}
-                              <tr style={{ background: '#f8fafc', fontWeight: 700 }}>
-                                <td colSpan={2} style={{ padding: '4px 8px', textAlign: 'right', color: '#334155' }}>
-                                  Total ({group.category || 'Group'}):
-                                </td>
-                                <td style={{ padding: '4px 8px', textAlign: 'right', color: '#065f46', fontWeight: 800 }}>
-                                  ₹{Number(groupTotal).toLocaleString('en-IN')}/-
-                                </td>
-                                <td></td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
             </>
           )}
 
@@ -4268,920 +4183,935 @@ const ProvisionalQuotationForm = () => {
               alignItems: 'center'
             }}>
 
-            {!formData.testRequestId ? (
-              <div style={{
-                background: '#ffffff',
-                borderRadius: '12px',
-                padding: '3.5rem 2rem',
-                textAlign: 'center',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
-                margin: 'auto 0',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minHeight: '450px',
-                border: '2px dashed #94a3b8'
-              }}>
+              {!formData.testRequestId ? (
                 <div style={{
-                  width: '74px',
-                  height: '74px',
-                  borderRadius: '50%',
-                  background: '#f0fdf4',
-                  border: '2px solid #86efac',
-                  color: '#16a34a',
+                  background: '#ffffff',
+                  borderRadius: '12px',
+                  padding: '3.5rem 2rem',
+                  textAlign: 'center',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+                  margin: 'auto 0',
                   display: 'flex',
+                  flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '2rem',
-                  marginBottom: '1.25rem'
+                  minHeight: '450px',
+                  border: '2px dashed #94a3b8'
                 }}>
-                  <FaClipboardList />
+                  <div style={{
+                    width: '74px',
+                    height: '74px',
+                    borderRadius: '50%',
+                    background: '#f0fdf4',
+                    border: '2px solid #86efac',
+                    color: '#16a34a',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '2rem',
+                    marginBottom: '1.25rem'
+                  }}>
+                    <FaClipboardList />
+                  </div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.5rem' }}>
+                    Please Select a TRF for Preview
+                  </h3>
+                  <p style={{ fontSize: '0.85rem', color: '#64748b', maxWidth: '420px', lineHeight: 1.5, marginBottom: '1.5rem' }}>
+                    Please select a Test Request (TRF) number from <strong>Section 1</strong> on the left side form to auto-load customer data, sampling activities, and live A4 print preview.
+                  </p>
+                  <div style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    background: '#f1f5f9',
+                    color: '#334155',
+                    padding: '0.5rem 1rem',
+                    borderRadius: '20px',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    border: '1px solid #cbd5e1'
+                  }}>
+                    👈 Select TRF from the dropdown in Section 1
+                  </div>
                 </div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.5rem' }}>
-                  Please Select a TRF for Preview
-                </h3>
-                <p style={{ fontSize: '0.85rem', color: '#64748b', maxWidth: '420px', lineHeight: 1.5, marginBottom: '1.5rem' }}>
-                  Please select a Test Request (TRF) number from <strong>Section 1</strong> on the left side form to auto-load customer data, sampling activities, and live A4 print preview.
-                </p>
-                <div style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  background: '#f1f5f9',
-                  color: '#334155',
-                  padding: '0.5rem 1rem',
-                  borderRadius: '20px',
-                  fontSize: '0.78rem',
-                  fontWeight: 700,
-                  border: '1px solid #cbd5e1'
-                }}>
-                  👈 Select TRF from the dropdown in Section 1
-                </div>
-              </div>
-            ) : quotationCategoryType === 'general_testing' ? (
-              <GeneralTestingDocument
-                data={formData}
-                logoUrl={getLogoUrl(masters.company)}
-                isPrintMode={false}
-              />
-            ) : quotationCategoryType === 'regular' ? (
-              <div style={{
-                background: '#ffffff',
-                borderRadius: '8px',
-                overflow: 'hidden',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-                minHeight: '850px',
-                display: 'flex',
-                flexDirection: 'column',
-                position: 'relative'
-              }}>
-                <iframe
-                  src={`#/test-requests/quotation/${formData.testRequestId}`}
-                  title="Regular Quotation Print Preview"
-                  style={{
-                    width: '100%',
-                    height: '920px',
-                    border: 'none',
-                    background: '#ffffff'
-                  }}
+              ) : quotationCategoryType === 'general_testing' ? (
+                <GeneralTestingDocument
+                  data={formData}
+                  logoUrl={getLogoUrl(masters.company)}
+                  isPrintMode={false}
                 />
-              </div>
-            ) : (
-              <>
-                {/* PAGE 1: COVERING LETTER */}
-                <div id="preview-page-1" className="a4-sheet" style={{ width: '100%', minHeight: 'auto', padding: '12mm 15mm 10mm 15mm', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: '11px', background: '#ffffff', borderRadius: '4px', position: 'relative', display: 'flex', flexDirection: 'column' }}>
-                  {/* TOP HEADER: LOGO */}
-                  <div style={{ textAlign: 'center', marginBottom: '8px' }}>
-                    <img
-                      src={getLogoUrl(masters.company)}
-                      alt="Company Logo"
-                      style={{ maxHeight: '85px', maxWidth: '280px', objectFit: 'contain', margin: '0 auto', display: 'block' }}
-                      onError={(e) => { e.target.src = '/Images/Navbar_Logo.png'; }}
-                    />
-                  </div>
-
-                  <div style={{ borderBottom: '1.5px solid #0f172a', marginBottom: '12px' }}></div>
-
-                  {/* META INFO ROW: REF & DATE */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px', fontSize: '11px' }}>
-                    <div style={{ fontWeight: 700, color: '#0f172a' }}>
-                      Ref No.: <span style={{ fontWeight: 800 }}>{cleanQuotationNumber(formData.quotationNumber)}</span>
-                    </div>
-                    <div style={{ fontWeight: 700, color: '#0f172a' }}>
-                      Date: <span style={{ fontWeight: 800 }}>{formatDate(formData.quotationDate || new Date())}</span>
-                    </div>
-                  </div>
-
-                  {/* TO SECTION */}
-                  <div style={{ marginBottom: '14px', lineHeight: '1.45', color: '#0f172a' }}>
-                    <div style={{ fontWeight: 700 }}>To,</div>
-                    <div style={{ fontWeight: 800, fontSize: '11.5px' }}>{formData.clientName || 'M/s. Valued Client'}</div>
-                    <div style={{ whiteSpace: 'pre-line', color: '#334155' }}>
-                      {formData.plantAddress || formData.registeredAddress || 'Plant Site Address'}
-                    </div>
-                  </div>
-
-                  {/* REFERENCE BAR */}
-                  <div style={{ marginBottom: '12px', fontSize: '10.5px', color: '#0f172a', lineHeight: 1.4 }}>
-                    <span style={{ fontWeight: 700 }}>REFERENCE: - </span>
-                    <span>
-                      {formData.referenceHeader || `GPCB - ${formData.auditDepartment || 'ENVIRONMENTAL'} AUDIT CELL (As per order of Hon'ble High Court of Gujarat)`}
-                    </span>
-                  </div>
-
-                  {/* SUBJECT BAR */}
-                  <div style={{ marginBottom: '14px', fontSize: '11px', color: '#0f172a', lineHeight: 1.45 }}>
-                    <span style={{ fontWeight: 700, textDecoration: 'underline' }}>SUBJECT: -</span>{' '}
-                    <span style={{ fontWeight: 700 }}>
-                      {formData.subject || buildSubject(formData.auditDepartment || 'ENVIRONMENTAL', formData.pcbId, formData.financialYear)}
-                    </span>
-                  </div>
-
-                  {/* SALUTATION */}
-                  <div style={{ fontWeight: 700, marginBottom: '8px', color: '#0f172a' }}>
-                    Dear Sir,
-                  </div>
-
-                  {/* COVERING LETTER BODY */}
-                  <div className="covering-letter-body" style={{ color: '#0f172a', lineHeight: 1.5, fontSize: '11px', marginBottom: '12px' }}>
-                    {renderRichContent(formData.introText || DEFAULT_INTRO_TEXT)}
-                  </div>
-
-                  {/* SIGNATORY BLOCK */}
-                  <div style={{ marginTop: 'auto', paddingTop: '8px', fontSize: '11px', color: '#0f172a' }}>
-                    <div style={{ fontWeight: 700, marginBottom: '4px' }}>Thanking you.</div>
-                    <div style={{ fontWeight: 700, marginBottom: '4px' }}>For, Jagnath Lab Technologies</div>
-
-                    {/* SIGNATURE & STAMP ROW */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '20px', minHeight: '48px', margin: '4px 0' }}>
-                      {formData.signatorySignature && (
-                        <img src={formData.signatorySignature} alt="Signature" style={{ maxHeight: '48px', maxWidth: '120px', objectFit: 'contain' }} />
-                      )}
-                      {formData.stampImage && (
-                        <img src={formData.stampImage} alt="Round Stamp" style={{ maxHeight: '55px', maxWidth: '90px', objectFit: 'contain' }} />
-                      )}
-                      {formData.stampImage2 && (
-                        <img src={formData.stampImage2} alt="Address Stamp" style={{ maxHeight: '55px', maxWidth: '140px', objectFit: 'contain' }} />
-                      )}
-                    </div>
-
-                    <div style={{ fontWeight: 700 }}>{formData.signatoryName || 'Purvin Raiyani'}</div>
-                    <div style={{ fontWeight: 600 }}>{formData.signatoryDesignation || '(Proprietor)'}</div>
-                  </div>
-
-                  {renderStandardPageFooter(1)}
+              ) : quotationCategoryType === 'regular' ? (
+                <div style={{
+                  width: '100%',
+                  maxWidth: '210mm',
+                  minHeight: '297mm',
+                  background: '#ffffff',
+                  borderRadius: '6px',
+                  overflow: 'hidden',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  position: 'relative'
+                }}>
+                  <iframe
+                    src={`#/test-requests/quotation/${formData.testRequestId}`}
+                    title="Regular Quotation Print Preview"
+                    style={{
+                      width: '100%',
+                      minHeight: '1120px',
+                      height: '1120px',
+                      border: 'none',
+                      background: '#ffffff',
+                      display: 'block'
+                    }}
+                  />
                 </div>
+              ) : (
+                <>
+                  {/* PAGE 1: COVERING LETTER */}
+                  <div id="preview-page-1" className="a4-sheet" style={{ width: '100%', minHeight: 'auto', padding: '12mm 15mm 10mm 15mm', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: '11px', background: '#ffffff', borderRadius: '4px', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+                    {/* TOP HEADER: LOGO */}
+                    <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+                      <img
+                        src={getLogoUrl(masters.company)}
+                        alt="Company Logo"
+                        style={{ maxHeight: '85px', maxWidth: '280px', objectFit: 'contain', margin: '0 auto', display: 'block' }}
+                        onError={(e) => { e.target.src = '/Images/Navbar_Logo.png'; }}
+                      />
+                    </div>
 
-                {/* PAGE 2: SCOPE OF WORK */}
-                <div id="preview-page-2" className="a4-sheet" style={{ width: '100%', minHeight: 'auto', padding: '12mm 15mm 10mm 15mm', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: '11px', background: '#ffffff', borderRadius: '4px', position: 'relative', display: 'flex', flexDirection: 'column' }}>
-                  {/* TOP HEADER: LOGO */}
-                  <div style={{ textAlign: 'center', marginBottom: '10px' }}>
-                    <img
-                      src={getLogoUrl(masters.company)}
-                      alt="Company Logo"
-                      style={{ maxHeight: '85px', maxWidth: '280px', objectFit: 'contain', margin: '0 auto', display: 'block' }}
-                      onError={(e) => { e.target.src = '/Images/Navbar_Logo.png'; }}
-                    />
+                    <div style={{ borderBottom: '1.5px solid #0f172a', marginBottom: '12px' }}></div>
+
+                    {/* META INFO ROW: REF & DATE */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px', fontSize: '11px' }}>
+                      <div style={{ fontWeight: 700, color: '#0f172a' }}>
+                        Ref No.: <span style={{ fontWeight: 800 }}>{cleanQuotationNumber(formData.quotationNumber)}</span>
+                      </div>
+                      <div style={{ fontWeight: 700, color: '#0f172a' }}>
+                        Date: <span style={{ fontWeight: 800 }}>{formatDate(formData.quotationDate || new Date())}</span>
+                      </div>
+                    </div>
+
+                    {/* TO SECTION */}
+                    <div style={{ marginBottom: '14px', lineHeight: '1.45', color: '#0f172a' }}>
+                      <div style={{ fontWeight: 700 }}>To,</div>
+                      <div style={{ fontWeight: 800, fontSize: '11.5px' }}>{formData.clientName || 'M/s. Valued Client'}</div>
+                      <div style={{ whiteSpace: 'pre-line', color: '#334155' }}>
+                        {formData.plantAddress || formData.registeredAddress || 'Plant Site Address'}
+                      </div>
+                    </div>
+
+                    {/* REFERENCE BAR */}
+                    <div style={{ marginBottom: '12px', fontSize: '10.5px', color: '#0f172a', lineHeight: 1.4 }}>
+                      <span style={{ fontWeight: 700 }}>REFERENCE: - </span>
+                      <span>
+                        {formData.referenceHeader || `GPCB - ${formData.auditDepartment || 'ENVIRONMENTAL'} AUDIT CELL (As per order of Hon'ble High Court of Gujarat)`}
+                      </span>
+                    </div>
+
+                    {/* SUBJECT BAR */}
+                    <div style={{ marginBottom: '14px', fontSize: '11px', color: '#0f172a', lineHeight: 1.45 }}>
+                      <span style={{ fontWeight: 700, textDecoration: 'underline' }}>SUBJECT: -</span>{' '}
+                      <span style={{ fontWeight: 700 }}>
+                        {formData.subject || buildSubject(formData.auditDepartment || 'ENVIRONMENTAL', formData.pcbId, formData.financialYear)}
+                      </span>
+                    </div>
+
+                    {/* SALUTATION */}
+                    <div style={{ fontWeight: 700, marginBottom: '8px', color: '#0f172a' }}>
+                      Dear Sir,
+                    </div>
+
+                    {/* COVERING LETTER BODY */}
+                    <div className="covering-letter-body" style={{ color: '#0f172a', lineHeight: 1.5, fontSize: '11px', marginBottom: '12px' }}>
+                      {renderRichContent(formData.introText || DEFAULT_INTRO_TEXT)}
+                    </div>
+
+                    {/* SIGNATORY BLOCK */}
+                    <div style={{ marginTop: 'auto', paddingTop: '8px', fontSize: '11px', color: '#0f172a' }}>
+                      <div style={{ fontWeight: 700, marginBottom: '4px' }}>Thanking you.</div>
+                      <div style={{ fontWeight: 700, marginBottom: '4px' }}>For, Jagnath Lab Technologies</div>
+
+                      {/* SIGNATURE & STAMP ROW */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '20px', minHeight: '48px', margin: '4px 0' }}>
+                        {formData.signatorySignature && (
+                          <img src={formData.signatorySignature} alt="Signature" style={{ maxHeight: '48px', maxWidth: '120px', objectFit: 'contain' }} />
+                        )}
+                        {formData.stampImage && (
+                          <img src={formData.stampImage} alt="Round Stamp" style={{ maxHeight: '55px', maxWidth: '90px', objectFit: 'contain' }} />
+                        )}
+                        {formData.stampImage2 && (
+                          <img src={formData.stampImage2} alt="Address Stamp" style={{ maxHeight: '55px', maxWidth: '140px', objectFit: 'contain' }} />
+                        )}
+                      </div>
+
+                      <div style={{ fontWeight: 700 }}>{formData.signatoryName || 'Purvin Raiyani'}</div>
+                      <div style={{ fontWeight: 600 }}>{formData.signatoryDesignation || '(Proprietor)'}</div>
+                    </div>
+
+                    {renderStandardPageFooter(1)}
                   </div>
-                  <div style={{ borderBottom: '1.5px solid #0f172a', marginBottom: '16px' }}></div>
 
-                  {/* PAGE 2 TITLE */}
-                  <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-                    <h2 style={{ fontSize: '15px', fontWeight: 800, margin: 0, textDecoration: 'underline', letterSpacing: '0.04em', color: '#0f172a' }}>
-                      PROVISIONAL ESTIMATED QUOTE
-                    </h2>
-                  </div>
+                  {/* PAGE 2: SCOPE OF WORK */}
+                  <div id="preview-page-2" className="a4-sheet" style={{ width: '100%', minHeight: 'auto', padding: '12mm 15mm 10mm 15mm', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: '11px', background: '#ffffff', borderRadius: '4px', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+                    {/* TOP HEADER: LOGO */}
+                    <div style={{ textAlign: 'center', marginBottom: '10px' }}>
+                      <img
+                        src={getLogoUrl(masters.company)}
+                        alt="Company Logo"
+                        style={{ maxHeight: '85px', maxWidth: '280px', objectFit: 'contain', margin: '0 auto', display: 'block' }}
+                        onError={(e) => { e.target.src = '/Images/Navbar_Logo.png'; }}
+                      />
+                    </div>
+                    <div style={{ borderBottom: '1.5px solid #0f172a', marginBottom: '16px' }}></div>
 
-                  {/* 3-COLUMN METADATA TABLE */}
-                  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1.5px solid #0f172a', marginBottom: '22px', fontSize: '11px', color: '#0f172a' }}>
-                    <tbody>
-                      <tr>
-                        {/* COLUMN 1: ENTIRE CLIENT SECTION BOLD */}
-                        <td style={{ width: '33.33%', border: '1px solid #0f172a', padding: '10px 12px', verticalAlign: 'top', fontWeight: 700 }}>
-                          <p style={{ margin: '0 0 4px 0', fontWeight: 700 }}>CLIENT NAME:-</p>
-                          <p style={{ margin: '0 0 12px 0', fontWeight: 700 }}>M/s. {formData.clientName || 'Client Name'}</p>
+                    {/* PAGE 2 TITLE */}
+                    <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+                      <h2 style={{ fontSize: '15px', fontWeight: 800, margin: 0, textDecoration: 'underline', letterSpacing: '0.04em', color: '#0f172a' }}>
+                        PROVISIONAL ESTIMATED QUOTE
+                      </h2>
+                    </div>
 
-                          <p style={{ margin: '0 0 4px 0', fontWeight: 700 }}>ADDRES:</p>
-                          <div className="whitespace-pre-line" style={{ lineHeight: 1.45, fontWeight: 700 }}>
-                            {formData.plantAddress || formData.registeredAddress || 'Plant Address'}
-                          </div>
-                        </td>
+                    {/* 3-COLUMN METADATA TABLE */}
+                    <table style={{ width: '100%', borderCollapse: 'collapse', border: '1.5px solid #0f172a', marginBottom: '22px', fontSize: '11px', color: '#0f172a' }}>
+                      <tbody>
+                        <tr>
+                          {/* COLUMN 1: ENTIRE CLIENT SECTION BOLD */}
+                          <td style={{ width: '33.33%', border: '1px solid #0f172a', padding: '10px 12px', verticalAlign: 'top', fontWeight: 700 }}>
+                            <p style={{ margin: '0 0 4px 0', fontWeight: 700 }}>CLIENT NAME:-</p>
+                            <p style={{ margin: '0 0 12px 0', fontWeight: 700 }}>M/s. {formData.clientName || 'Client Name'}</p>
 
-                        {/* COLUMN 2: REFERENCE & APPROVED BY (LABELS BOLD) */}
-                        <td style={{ width: '33.33%', border: '1px solid #0f172a', padding: '10px 12px', verticalAlign: 'top' }}>
-                          {(() => {
-                            const refStr = formData.referenceHeader || `REFERENCE:- GPCB - ${formData.auditDepartment || 'ENVIRONMENTAL'} AUDIT CELL (As per order of Hon'ble High Court of Gujarat)`;
-                            if (refStr.startsWith('REFERENCE:-') || refStr.startsWith('REFERENCE:')) {
-                              const rest = refStr.replace(/^REFERENCE:-\s*|^REFERENCE:\s*/, '');
+                            <p style={{ margin: '0 0 4px 0', fontWeight: 700 }}>ADDRES:</p>
+                            <div className="whitespace-pre-line" style={{ lineHeight: 1.45, fontWeight: 700 }}>
+                              {formData.plantAddress || formData.registeredAddress || 'Plant Address'}
+                            </div>
+                          </td>
+
+                          {/* COLUMN 2: REFERENCE & APPROVED BY (LABELS BOLD) */}
+                          <td style={{ width: '33.33%', border: '1px solid #0f172a', padding: '10px 12px', verticalAlign: 'top' }}>
+                            {(() => {
+                              const refStr = formData.referenceHeader || `REFERENCE:- GPCB - ${formData.auditDepartment || 'ENVIRONMENTAL'} AUDIT CELL (As per order of Hon'ble High Court of Gujarat)`;
+                              if (refStr.startsWith('REFERENCE:-') || refStr.startsWith('REFERENCE:')) {
+                                const rest = refStr.replace(/^REFERENCE:-\s*|^REFERENCE:\s*/, '');
+                                return (
+                                  <p style={{ margin: '0 0 4px 0', fontWeight: 'normal', lineHeight: 1.45 }}>
+                                    <strong>REFERENCE:-</strong> {rest}
+                                  </p>
+                                );
+                              }
                               return (
                                 <p style={{ margin: '0 0 4px 0', fontWeight: 'normal', lineHeight: 1.45 }}>
-                                  <strong>REFERENCE:-</strong> {rest}
+                                  {refStr}
                                 </p>
                               );
-                            }
-                            return (
-                              <p style={{ margin: '0 0 4px 0', fontWeight: 'normal', lineHeight: 1.45 }}>
-                                {refStr}
+                            })()}
+
+                            <div style={{ marginTop: '24px' }}>
+                              <p style={{ margin: '0 0 4px 0', fontWeight: 700 }}>APPROVED BY:-</p>
+                              <p style={{ margin: 0, fontWeight: 'normal' }}>
+                                {formData.signatoryName ? (formData.signatoryName.startsWith('Mr.') || formData.signatoryName.startsWith('Dr.') ? formData.signatoryName : `Mr. ${formData.signatoryName}`) : 'Mr. Purvin Raiyani'}
                               </p>
-                            );
-                          })()}
+                            </div>
+                          </td>
 
-                          <div style={{ marginTop: '24px' }}>
-                            <p style={{ margin: '0 0 4px 0', fontWeight: 700 }}>APPROVED BY:-</p>
-                            <p style={{ margin: 0, fontWeight: 'normal' }}>
-                              {formData.signatoryName ? (formData.signatoryName.startsWith('Mr.') || formData.signatoryName.startsWith('Dr.') ? formData.signatoryName : `Mr. ${formData.signatoryName}`) : 'Mr. Purvin Raiyani'}
+                          {/* COLUMN 3: Q-P.I & DATES (LABELS BOLD) */}
+                          <td style={{ width: '33.33%', border: '1px solid #0f172a', padding: '10px 12px', verticalAlign: 'top' }}>
+                            <p style={{ margin: '0 0 24px 0', fontWeight: 'normal' }}>
+                              <strong>Q-P.I :-</strong> {cleanQuotationNumber(formData.quotationNumber) || generateQuotationNumber(formData.auditDepartment, formData.quotationDate)}
                             </p>
+
+                            <p style={{ margin: '0 0 4px 0', fontWeight: 'normal' }}>
+                              <strong>DATE:-</strong> {formatDDMMYYYY(formData.quotationDate)}
+                            </p>
+                            {formData.hasRevisedDate && formData.revisedDate && (
+                              <p style={{ margin: 0, fontWeight: 'normal', color: '#334155' }}>
+                                <strong>Revised –</strong> {formatDDMMYYYY(formData.revisedDate)}
+                              </p>
+                            )}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                    {/* SCOPE OF WORK HEADING & CONTENT */}
+                    <div id="preview-page-2-scope" style={{ textAlign: 'center', marginTop: '6px', marginBottom: '14px' }}>
+                      <h3 style={{ fontSize: '15px', fontWeight: 800, margin: 0, textDecoration: 'underline', letterSpacing: '0.04em', color: '#0f172a' }}>
+                        SCOPE OF WORK
+                      </h3>
+                    </div>
+
+                    <p style={{ fontWeight: 700, textDecoration: 'underline', fontSize: '11px', marginBottom: '8px', color: '#0f172a', lineHeight: 1.35 }}>
+                      Visit, Collection &amp; analysis of the sample as {(formData.auditDepartment || 'environment').toLowerCase().replace(/environmental/i, 'environment')} audit of your unit will be conducted as per below details:
+                    </p>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '10px', color: '#0f172a', lineHeight: 1.35, marginBottom: '10px' }}>
+                      {/* Point 1 */}
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+                        <span style={{ color: '#e11d48', fontSize: '12px', lineHeight: 1.1, flexShrink: 0 }}>✦</span>
+                        <span style={{ fontWeight: 700 }}>
+                          Method of collection and analysis must be approved / recognized by {formData.scopeMethodRecognition || 'GPCB / CPCB / MoEF&CC.'}
+                        </span>
+                      </div>
+
+                      {/* Point 2 */}
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+                        <span style={{ color: '#0f172a', fontSize: '11px', lineHeight: 1.1, flexShrink: 0, fontWeight: 700 }}>✓</span>
+                        <span style={{ fontWeight: 'normal' }}>
+                          Collection of sample and preservation of sample be made as per {formData.scopePreservationGuidelines || 'GPCB/CPCB or IS/APHA'} guidelines.
+                        </span>
+                      </div>
+
+                      {/* Point 3 */}
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+                        <span style={{ color: '#e11d48', fontSize: '12px', lineHeight: 1.1, flexShrink: 0 }}>✦</span>
+                        <span style={{ fontWeight: 700 }}>
+                          Mode of Transportation for instruments and Dearness Allowance for Audit Officers to your Unit.
+                        </span>
+                      </div>
+
+                      {/* Point 4 */}
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+                        <span style={{ color: '#0f172a', fontSize: '11px', lineHeight: 1.1, flexShrink: 0, fontWeight: 700 }}>✓</span>
+                        <span style={{ fontWeight: 'normal' }}>
+                          If any one of above is provided by you to the auditors, which are arranged by you then charges for same as mentioned below is not to be considered.
+                        </span>
+                      </div>
+
+                      {/* Point 5 */}
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+                        <span style={{ color: '#e11d48', fontSize: '12px', lineHeight: 1.1, flexShrink: 0 }}>✦</span>
+                        <span style={{ fontWeight: 700 }}>
+                          For the audit fee, Rs. 15,000/- for small scale, Rs. 20,000/- for medium scale and Rs. 25,000/- for large scale shall be considered.
+                        </span>
+                      </div>
+
+                      {/* Point 6 */}
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+                        <span style={{ color: '#e11d48', fontSize: '12px', lineHeight: 1.1, flexShrink: 0 }}>✦</span>
+                        <span style={{ fontWeight: 700 }}>
+                          Final Quote is to be submitted at a time after our first visit to your UNIT, Below Quote is just a Provisional Estimated Quote that is made as per your units Consent by {formData.scopeConsentAuthority || 'GPCB.'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* ================= PAGE 2: DETAIL OF CHARGES SUMMARY TABLE ================= */}
+                    {(() => {
+                      const p2Calc = calculatePage2Charges(formData, annexureATotals.totalAnnualCharge);
+                      return (
+                        <div id="preview-page-2-charges" style={{ marginTop: '8px', marginBottom: '8px' }}>
+                          {/* Title */}
+                          <div style={{ textAlign: 'center', marginBottom: '6px' }}>
+                            <h3 style={{ fontSize: '11.5px', fontWeight: 800, margin: 0, textDecoration: 'underline', letterSpacing: '0.02em', color: '#0f172a' }}>
+                              {getPage2TableTitle(formData.auditDepartment)}
+                            </h3>
                           </div>
-                        </td>
 
-                        {/* COLUMN 3: Q-P.I & DATES (LABELS BOLD) */}
-                        <td style={{ width: '33.33%', border: '1px solid #0f172a', padding: '10px 12px', verticalAlign: 'top' }}>
-                          <p style={{ margin: '0 0 24px 0', fontWeight: 'normal' }}>
-                            <strong>Q-P.I :-</strong> {cleanQuotationNumber(formData.quotationNumber) || generateQuotationNumber(formData.auditDepartment, formData.quotationDate)}
-                          </p>
+                          {/* 6-Column Table */}
+                          <table style={{ width: '100%', borderCollapse: 'collapse', border: '1.5px solid #0f172a', fontSize: '9px', color: '#0f172a', lineHeight: 1.28, marginBottom: '6px' }}>
+                            <thead>
+                              <tr style={{ background: '#ffffff', borderBottom: '1.5px solid #0f172a' }}>
+                                <th style={{ width: '6%', border: '1px solid #0f172a', padding: '4px 3px', textAlign: 'center', fontWeight: 800 }}>
+                                  Sr.<br />No.
+                                </th>
+                                <th style={{ width: '51%', border: '1px solid #0f172a', padding: '4px 6px', textAlign: 'center', fontWeight: 800 }}>
+                                  Description of work
+                                </th>
+                                <th style={{ width: '7%', border: '1px solid #0f172a', padding: '4px 3px', textAlign: 'center', fontWeight: 800 }}>
+                                  Qty.
+                                </th>
+                                <th style={{ width: '7%', border: '1px solid #0f172a', padding: '4px 3px', textAlign: 'center', fontWeight: 800 }}>
+                                  Unit
+                                </th>
+                                <th style={{ width: '14%', border: '1px solid #0f172a', padding: '4px 4px', textAlign: 'center', fontWeight: 800 }}>
+                                  Rate
+                                </th>
+                                <th style={{ width: '15%', border: '1px solid #0f172a', padding: '4px 4px', textAlign: 'center', fontWeight: 800 }}>
+                                  Amount<br />Rs.
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {/* ROW 1: AUDIT REPORT CHARGES */}
+                              <tr>
+                                <td style={{ border: '1px solid #0f172a', padding: '4px 3px', textAlign: 'center', fontWeight: 800 }}>
+                                  1
+                                </td>
+                                <td style={{ border: '1px solid #0f172a', padding: '4px 6px', fontWeight: 700 }}>
+                                  {formData.page2Charges?.row1Description || `${getAuditReportTitle(formData.auditDepartment)} (As per GPCB Guidelines)`}
+                                </td>
+                                <td style={{ border: '1px solid #0f172a', padding: '4px 3px', textAlign: 'center', fontWeight: 700 }}>
+                                  {p2Calc.row1Qty}
+                                </td>
+                                <td style={{ border: '1px solid #0f172a', padding: '4px 3px', textAlign: 'center', fontWeight: 700 }}>
+                                  {p2Calc.row1Unit}
+                                </td>
+                                <td style={{ border: '1px solid #0f172a', padding: '4px 4px', textAlign: 'center', fontWeight: 800 }}>
+                                  {Number(p2Calc.auditFee).toLocaleString('en-IN')}/-
+                                </td>
+                                <td style={{ border: '1px solid #0f172a', padding: '4px 4px', textAlign: 'center', fontWeight: 800 }}>
+                                  {Number(p2Calc.row1Amount).toLocaleString('en-IN')}/-
+                                </td>
+                              </tr>
 
-                          <p style={{ margin: '0 0 4px 0', fontWeight: 'normal' }}>
-                            <strong>DATE:-</strong> {formatDDMMYYYY(formData.quotationDate)}
-                          </p>
-                          {formData.hasRevisedDate && formData.revisedDate && (
-                            <p style={{ margin: 0, fontWeight: 'normal', color: '#334155' }}>
-                              <strong>Revised –</strong> {formatDDMMYYYY(formData.revisedDate)}
-                            </p>
-                          )}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
+                              {/* ROW 2.1: TRANSPORTATION CHARGES */}
+                              <tr>
+                                <td rowSpan={3} style={{ border: '1px solid #0f172a', padding: '4px 3px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
+                                  2
+                                </td>
+                                <td style={{ border: '1px solid #0f172a', padding: '4px 6px', verticalAlign: 'middle' }}>
+                                  <div>
+                                    Transportation charges for monitoring instrument/material for {p2Calc.transportDaysText || 'twelve days'}. [{p2Calc.visits} visits per year ({p2Calc.visits} X {p2Calc.daysPerVisit} Days/Visit)]. <span style={{ fontWeight: 700, fontSize: '8.5px' }}>(See Annexure I)</span>
+                                  </div>
+                                </td>
+                                <td style={{ border: '1px solid #0f172a', padding: '4px 3px', textAlign: 'center', fontWeight: 700, verticalAlign: 'middle' }}>
+                                  {p2Calc.transportQty}
+                                </td>
+                                <td style={{ border: '1px solid #0f172a', padding: '4px 3px', textAlign: 'center', fontWeight: 700, verticalAlign: 'middle' }}>
+                                  {p2Calc.transportUnit}
+                                </td>
+                                <td style={{ border: '1px solid #0f172a', padding: '4px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
+                                  {Number(p2Calc.transportRatePerVisit).toLocaleString('en-IN')}/-
+                                </td>
+                                <td style={{ border: '1px solid #0f172a', padding: '4px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
+                                  {Number(p2Calc.transportTotal).toLocaleString('en-IN')}/-
+                                </td>
+                              </tr>
 
-                  {/* SCOPE OF WORK HEADING & CONTENT */}
-                  <div id="preview-page-2-scope" style={{ textAlign: 'center', marginTop: '6px', marginBottom: '14px' }}>
-                    <h3 style={{ fontSize: '15px', fontWeight: 800, margin: 0, textDecoration: 'underline', letterSpacing: '0.04em', color: '#0f172a' }}>
-                      SCOPE OF WORK
+                              {/* ROW 2.2: DEARNESS ALLOWANCE (DA) */}
+                              <tr>
+                                <td style={{ border: '1px solid #0f172a', padding: '4px 6px', verticalAlign: 'middle' }}>
+                                  <div>
+                                    Dearness allowance for audit team members. ({p2Calc.daPersons} persons per day X {p2Calc.daDaysPerYear} days per year). <span style={{ fontWeight: 700, fontSize: '8.5px' }}>({p2Calc.daRatePerPerson} rate per person per day).</span>
+                                  </div>
+                                </td>
+                                <td style={{ border: '1px solid #0f172a', padding: '4px 3px', textAlign: 'center', fontWeight: 700, verticalAlign: 'middle' }}>
+                                  {p2Calc.daQty}
+                                </td>
+                                <td style={{ border: '1px solid #0f172a', padding: '4px 3px', textAlign: 'center', fontWeight: 700, verticalAlign: 'middle' }}>
+                                  {p2Calc.daUnit}
+                                </td>
+                                <td style={{ border: '1px solid #0f172a', padding: '4px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
+                                  {Number(p2Calc.daRatePerVisit).toLocaleString('en-IN')}/-
+                                </td>
+                                <td style={{ border: '1px solid #0f172a', padding: '4px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
+                                  {Number(p2Calc.daTotal).toLocaleString('en-IN')}/-
+                                </td>
+                              </tr>
+
+                              {/* ROW 2.3: ACCOMMODATION FOR AUDITORS */}
+                              <tr>
+                                <td style={{ border: '1px solid #0f172a', padding: '4px 6px', verticalAlign: 'middle' }}>
+                                  <div>
+                                    Accommodation For Auditors ({p2Calc.daPersons} persons per day X {p2Calc.daDaysPerYear} days per year). <span style={{ fontWeight: 700, fontSize: '8.5px' }}>(Stay in Hotel as {p2Calc.hotelRoomRate}/- x {p2Calc.hotelRoomsCount} Rooms per day = {p2Calc.dailyRoomCost}*{p2Calc.hotelNightsPerVisit}Nights i.e. {p2Calc.accomRatePerVisit} Per Visit)</span>
+                                  </div>
+                                </td>
+                                <td style={{ border: '1px solid #0f172a', padding: '4px 3px', textAlign: 'center', fontWeight: 700, verticalAlign: 'middle' }}>
+                                  {p2Calc.accomQty}
+                                </td>
+                                <td style={{ border: '1px solid #0f172a', padding: '4px 3px', textAlign: 'center', fontWeight: 700, verticalAlign: 'middle' }}>
+                                  {p2Calc.accomUnit}
+                                </td>
+                                <td style={{ border: '1px solid #0f172a', padding: '4px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
+                                  {Number(p2Calc.accomRatePerVisit).toLocaleString('en-IN')}/-
+                                </td>
+                                <td style={{ border: '1px solid #0f172a', padding: '4px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
+                                  {Number(p2Calc.accomTotal).toLocaleString('en-IN')}/-
+                                </td>
+                              </tr>
+
+                              {/* ROW 3: CHARGES FOR SAMPLING & ANALYSIS (ANNEXURE-A) */}
+                              <tr>
+                                <td style={{ border: '1px solid #0f172a', padding: '4px 3px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
+                                  3
+                                </td>
+                                <td style={{ border: '1px solid #0f172a', padding: '4px 6px', verticalAlign: 'middle' }}>
+                                  <div>
+                                    {formData.page2Charges?.samplingDescription || 'Charges for sampling & analysis of various samples including Water, Wastewater, Stack Emission, and Ambient air quality, Solid waste & Noise level etc. (See Annexure A)'}
+                                  </div>
+                                </td>
+                                <td colSpan={4} style={{ border: '1px solid #0f172a', padding: '4px 6px', textAlign: 'center', verticalAlign: 'middle' }}>
+                                  <div style={{ fontWeight: 600 }}>As actual as per GPCB rates</div>
+                                  <div style={{ fontWeight: 800, marginTop: '2px' }}>
+                                    ({Number(p2Calc.samplingTotal).toLocaleString('en-IN')}/- ) (See Annexure)
+                                  </div>
+                                </td>
+                              </tr>
+
+                              {/* SUMMARY / TOTAL ROW */}
+                              <tr style={{ borderTop: '1.5px solid #0f172a', background: '#ffffff', fontWeight: 800 }}>
+                                <td colSpan={2} style={{ border: '1px solid #0f172a', padding: '4px 8px', textAlign: 'center', fontWeight: 800, fontSize: '9px' }}>
+                                  Total (for Sr. no. 1 , 2 &amp; 3) Rs.
+                                </td>
+                                <td colSpan={4} style={{ border: '1px solid #0f172a', padding: '4px 8px', textAlign: 'center', fontWeight: 700, fontSize: '9px' }}>
+                                  ({Number(p2Calc.taxableTotal).toLocaleString('en-IN')}/- + GST {p2Calc.gstPercentage} %) = <span style={{ fontWeight: 800, textDecoration: 'underline' }}>{Number(p2Calc.grandTotal).toLocaleString('en-IN')}/-</span>
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+
+                          {/* Note below Table */}
+                          <div style={{ textAlign: 'center', marginTop: '4px', fontWeight: 800, fontSize: '9px', textDecoration: 'underline', color: '#0f172a' }}>
+                            {formData.page2Charges?.bottomNoteText || 'Note: - Tax will be paid extra (GST 18%) apart from above rate / amount.'}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {renderStandardPageFooter(2)}
+                  </div>
+
+                  {/* PAGE 3: TERMS & CONDITIONS */}
+                  <div id="preview-page-3" className="a4-sheet" style={{ width: '100%', minHeight: 'auto', padding: '12mm 15mm 10mm 15mm', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: '11px', background: '#ffffff', borderRadius: '4px', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+                    {/* CENTERED LOGO & DIVIDER */}
+                    <div style={{ textAlign: 'center', marginBottom: '10px' }}>
+                      <img
+                        src={getLogoUrl(masters.company)}
+                        alt="Company Logo"
+                        style={{ maxHeight: '85px', maxWidth: '280px', objectFit: 'contain', margin: '0 auto', display: 'block' }}
+                        onError={(e) => { e.target.src = '/Images/Navbar_Logo.png'; }}
+                      />
+                    </div>
+                    <div style={{ borderBottom: '1.5px solid #0f172a', marginBottom: '16px' }}></div>
+
+                    {/* TERMS & CONDITIONS HEADING */}
+                    <h3 style={{ fontSize: '13px', fontWeight: 800, textDecoration: 'underline', color: '#0f172a', margin: '0 0 14px 0' }}>
+                      Terms and conditions:
                     </h3>
+
+                    {/* TERMS BODY (RICH TEXT CONTENT) */}
+                    <div className="terms-conditions-body" style={{ color: '#0f172a', lineHeight: 1.5, fontSize: '11px' }}>
+                      {renderRichContent(formData.termsText !== undefined ? formData.termsText : DEFAULT_TERMS_TEXT)}
+                    </div>
+
+                    {/* SIGNATORY & CONTACT PERSON BLOCK */}
+                    <div style={{ marginTop: '16px', fontSize: '11.5px', color: '#0f172a', marginBottom: '10px' }}>
+                      <p style={{ fontWeight: 700, margin: '0 0 4px 0' }}>Thanking you in anticipation!</p>
+                      <p style={{ fontWeight: 700, margin: '0 0 8px 0' }}>For, Jagnath Lab Technologies</p>
+
+                      {/* SIGNATURE & STAMP ROW (PAGE 3) */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '20px', minHeight: '48px', margin: '4px 0' }}>
+                        {formData.signatorySignature && (
+                          <img src={formData.signatorySignature} alt="Signature" style={{ maxHeight: '48px', maxWidth: '120px', objectFit: 'contain' }} />
+                        )}
+                        {formData.stampImage && (
+                          <img src={formData.stampImage} alt="Round Stamp" style={{ maxHeight: '55px', maxWidth: '90px', objectFit: 'contain' }} />
+                        )}
+                        {formData.stampImage2 && (
+                          <img src={formData.stampImage2} alt="Address Stamp" style={{ maxHeight: '55px', maxWidth: '140px', objectFit: 'contain' }} />
+                        )}
+                      </div>
+
+                      <p style={{ fontWeight: 700, margin: '4px 0 14px 0' }}>Authorized Signatory</p>
+
+                      <p style={{ fontWeight: 700, margin: '0 0 14px 0' }}>
+                        Contact Person: - {formData.contactPerson || 'Ankit Mistry (+91 7226-0579-78)'}
+                      </p>
+                    </div>
+
+                    {renderStandardPageFooter(3)}
                   </div>
 
-                  <p style={{ fontWeight: 700, textDecoration: 'underline', fontSize: '11px', marginBottom: '8px', color: '#0f172a', lineHeight: 1.35 }}>
-                    Visit, Collection &amp; analysis of the sample as {(formData.auditDepartment || 'environment').toLowerCase().replace(/environmental/i, 'environment')} audit of your unit will be conducted as per below details:
-                  </p>
+                  {/* ================= PAGE 4: ANNEXURE - I & ANNEXURE - A (Combined Same Page) ================= */}
+                  <div id="preview-page-4" className="a4-sheet" style={{ width: '100%', minHeight: 'auto', padding: '10mm 14mm 8mm 14mm', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: '10.5px', background: '#ffffff', borderRadius: '4px', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+                    {/* TOP HEADER: LOGO */}
+                    <div style={{ textAlign: 'center', marginBottom: '6px' }}>
+                      <img
+                        src={getLogoUrl(masters.company)}
+                        alt="Company Logo"
+                        style={{ maxHeight: '70px', maxWidth: '240px', objectFit: 'contain', margin: '0 auto', display: 'block' }}
+                        onError={(e) => { e.target.src = '/Images/Navbar_Logo.png'; }}
+                      />
+                    </div>
+                    <div style={{ borderBottom: '1.5px solid #0f172a', marginBottom: '10px' }}></div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '10px', color: '#0f172a', lineHeight: 1.35, marginBottom: '10px' }}>
-                    {/* Point 1 */}
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
-                      <span style={{ color: '#e11d48', fontSize: '12px', lineHeight: 1.1, flexShrink: 0 }}>✦</span>
-                      <span style={{ fontWeight: 700 }}>
-                        Method of collection and analysis must be approved / recognized by {formData.scopeMethodRecognition || 'GPCB / CPCB / MoEF&CC.'}
-                      </span>
+                    {/* 1. TITLE: ANNEXURE - I */}
+                    <div id="preview-annexure-1" style={{ textAlign: 'center', marginBottom: '8px' }}>
+                      <h2 style={{ fontSize: '14px', fontWeight: 800, margin: 0, textDecoration: 'underline', letterSpacing: '0.06em', color: '#0f172a' }}>
+                        ANNEXURE - I
+                      </h2>
                     </div>
 
-                    {/* Point 2 */}
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
-                      <span style={{ color: '#0f172a', fontSize: '11px', lineHeight: 1.1, flexShrink: 0, fontWeight: 700 }}>✓</span>
-                      <span style={{ fontWeight: 'normal' }}>
-                        Collection of sample and preservation of sample be made as per {formData.scopePreservationGuidelines || 'GPCB/CPCB or IS/APHA'} guidelines.
-                      </span>
+                    {/* ANNEXURE - I GRID TABLE */}
+                    <table style={{ width: '100%', borderCollapse: 'collapse', border: '1.5px solid #0f172a', fontSize: '9.5px', color: '#0f172a', marginBottom: '12px' }}>
+                      <tbody>
+                        {/* ROW 1: AUDIT REPORT CHARGES */}
+                        <tr>
+                          <td style={{ width: '30px', border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
+                            1
+                          </td>
+                          <td style={{ border: '1px solid #0f172a', padding: '6px 8px', fontWeight: 700, verticalAlign: 'middle' }}>
+                            {getAuditReportTitle(formData.auditDepartment)}
+                          </td>
+                          <td style={{ width: '95px', border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
+                            {Number(formData.annexureI?.auditFee || 25000).toLocaleString('en-IN')}
+                          </td>
+                          <td style={{ width: '105px', border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
+                            {Number(formData.annexureI?.auditFee || 25000).toLocaleString('en-IN')}/-
+                          </td>
+                          <td style={{ width: '115px', border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
+                            {Number(formData.annexureI?.auditFee || 25000).toLocaleString('en-IN')}/-
+                          </td>
+                        </tr>
+
+                        {/* ROW 2: MAIN TRANSPORTATION CHARGES (JLTs Vehicle) */}
+                        {(() => {
+                          const daysPerVisit = parseInt(formData.annexureI?.daysPerVisit ?? formData.page2Charges?.daysPerVisit, 10) || 4;
+                          const visits = parseInt(formData.annexureI?.visits ?? formData.page2Charges?.visits, 10) || 3;
+                          const totalDays = daysPerVisit * visits;
+                          const jltRate = Number(formData.annexureI?.jltVehicleRatePerDay ?? formData.page2Charges?.jltVehicleRatePerDay ?? 5000);
+                          const ratePerVisit = Number(formData.annexureI?.transportRatePerVisit !== undefined ? formData.annexureI.transportRatePerVisit : (formData.page2Charges?.transportRatePerVisit !== undefined ? formData.page2Charges.transportRatePerVisit : (jltRate * daysPerVisit)));
+                          const transportTotal = Number(formData.annexureI?.transportTotalAmount !== undefined ? formData.annexureI.transportTotalAmount : (formData.page2Charges?.transportTotalAmount !== undefined ? formData.page2Charges.transportTotalAmount : (ratePerVisit * visits)));
+                          const row2Text = (formData.annexureI?.row2Title || 'Transportation charges for monitoring instrument/material. (per day) + Total {totalDays} Days. (For JLTs Vehicle)').replace('{totalDays}', totalDays);
+
+                          return (
+                            <tr>
+                              <td style={{ border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
+                                2
+                              </td>
+                              <td style={{ border: '1px solid #0f172a', padding: '6px 8px', verticalAlign: 'middle', lineHeight: 1.35 }}>
+                                <div style={{ fontWeight: 700 }}>
+                                  {row2Text}
+                                </div>
+                              </td>
+                              <td style={{ border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', verticalAlign: 'middle' }}>
+                                <div style={{ fontWeight: 700, fontSize: '9px' }}>FOR PER DAY</div>
+                                <div style={{ fontWeight: 800 }}>{Number(jltRate).toLocaleString('en-IN')}/-</div>
+                              </td>
+                              <td style={{ border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', verticalAlign: 'middle' }}>
+                                <div style={{ fontWeight: 700, fontSize: '9px' }}>FOR {daysPerVisit} DAYS</div>
+                                <div style={{ fontWeight: 800 }}>{Number(ratePerVisit).toLocaleString('en-IN')}/-</div>
+                              </td>
+                              <td style={{ border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', verticalAlign: 'middle' }}>
+                                <div style={{ fontWeight: 700, fontSize: '9px' }}>FOR {visits} VISITS</div>
+                                <div style={{ fontWeight: 800 }}>{Number(transportTotal).toLocaleString('en-IN')}/-</div>
+                              </td>
+                            </tr>
+                          );
+                        })()}
+
+                        {/* ROW 2A: OPTION 1 (CLIENT PROVIDED) */}
+                        {(() => {
+                          const opt1Text = (formData.annexureI?.option1Title || 'In Option 1 if transportation for both instruments and officers are provided by M/s. {clientName} then NILL charges.').replace('{clientName}', formData.clientName || 'Valued Client');
+                          const opt1Sub = formData.annexureI?.option1Subtext || '(As per govt. norms TWO different vehicles are to be hired by the unit in this case, i.e. one for instruments and other vehicle for auditors/engineers/officers.)';
+
+                          return (
+                            <tr>
+                              <td style={{ border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
+                                <div style={{ marginBottom: '2px' }}>2</div>
+                                <div>A</div>
+                              </td>
+                              <td style={{ border: '1px solid #0f172a', padding: '6px 8px', verticalAlign: 'top', lineHeight: 1.35 }}>
+                                <div style={{ fontWeight: 700, marginBottom: '3px' }}>
+                                  {opt1Text}
+                                </div>
+                                <div style={{ fontSize: '9px', color: '#334155' }}>
+                                  {opt1Sub}
+                                </div>
+                              </td>
+                              <td style={{ border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
+                                -
+                              </td>
+                              <td style={{ border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
+                                -
+                              </td>
+                              <td style={{ border: '1px solid #0f172a', padding: '6px 6px', textAlign: 'left', fontSize: '8.8px', lineHeight: 1.35, color: '#1e293b', verticalAlign: 'top' }}>
+                                {formData.annexureI?.decisionNote || 'It is to be decided by the Company. If Option 1 or Option 2 for TA is chosen, then JLTs Vehicle transportation would be removed. And actual DA billing is to be added at the time of billing.'}
+                              </td>
+                            </tr>
+                          );
+                        })()}
+
+                        {/* ROW 2B: OPTION 2 (AGENCY CHARGES) */}
+                        {(() => {
+                          const opt2Text = formData.annexureI?.option2Title || 'In Option 2 if transportation for both instruments and officers are provided by JLTs then it may increase as per charges of agency.';
+                          const opt2Sub = formData.annexureI?.option2Subtext || '(As per govt. norms TWO different vehicles are to be hired by the unit in this case, i.e. one for instruments and other vehicle for auditors/engineers/officers.)';
+                          const instLbl = formData.annexureI?.instrumentLabel || 'For Instruments,';
+                          const audLbl = formData.annexureI?.auditorLabel || 'For Auditors,';
+
+                          const instRate = Number(formData.annexureI?.instrumentKmRate !== undefined ? formData.annexureI.instrumentKmRate : 12);
+                          const instKm = Number(formData.annexureI?.instrumentKmPerDay !== undefined ? formData.annexureI.instrumentKmPerDay : 300);
+                          const instDaily = instRate * instKm;
+
+                          const audRate = Number(formData.annexureI?.auditorKmRate !== undefined ? formData.annexureI.auditorKmRate : 15);
+                          const audKm = Number(formData.annexureI?.auditorKmPerDay !== undefined ? formData.annexureI.auditorKmPerDay : 300);
+                          const audDaily = audRate * audKm;
+
+                          const combDaily = instDaily + audDaily;
+                          const dPerVisit = parseInt(formData.annexureI?.daysPerVisit ?? formData.page2Charges?.daysPerVisit, 10) || 4;
+                          const vCount = parseInt(formData.annexureI?.visits ?? formData.page2Charges?.visits, 10) || 3;
+                          const combDays = combDaily * dPerVisit;
+                          const combVisits = combDays * vCount;
+
+                          return (
+                            <tr>
+                              <td style={{ border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
+                                <div style={{ marginBottom: '2px' }}>2</div>
+                                <div>B</div>
+                              </td>
+                              <td style={{ border: '1px solid #0f172a', padding: '6px 8px', verticalAlign: 'top', lineHeight: 1.35 }}>
+                                <div style={{ fontWeight: 700, marginBottom: '3px' }}>
+                                  {opt2Text}
+                                </div>
+                                <div style={{ fontSize: '9px', color: '#334155', marginBottom: '4px' }}>
+                                  {opt2Sub}
+                                </div>
+                                <div style={{ fontWeight: 700, fontSize: '9.2px', color: '#0f172a' }}>
+                                  <div>{instLbl} <span style={{ fontWeight: 600 }}>INR {instRate} for {instKm} kms/day = {Number(instDaily).toLocaleString('en-IN')}/-</span></div>
+                                  <div style={{ marginTop: '2px' }}>{audLbl} <span style={{ fontWeight: 600 }}>INR {audRate} for {audKm} kms/day = {Number(audDaily).toLocaleString('en-IN')}/-</span></div>
+                                </div>
+                              </td>
+                              <td style={{ border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', verticalAlign: 'middle' }}>
+                                <div style={{ fontWeight: 700, fontSize: '9px', marginBottom: '2px' }}>FOR PER DAY</div>
+                                <div style={{ fontWeight: 800 }}>{Number(combDaily).toLocaleString('en-IN')}/-</div>
+                              </td>
+                              <td style={{ border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', verticalAlign: 'middle' }}>
+                                <div style={{ fontWeight: 700, fontSize: '9px', marginBottom: '2px' }}>FOR {dPerVisit} DAYS</div>
+                                <div style={{ fontWeight: 800 }}>{Number(combDays).toLocaleString('en-IN')}/-</div>
+                              </td>
+                              <td style={{ border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', verticalAlign: 'middle' }}>
+                                <div style={{ fontWeight: 700, fontSize: '9px', marginBottom: '2px' }}>FOR {vCount} VISITS</div>
+                                <div style={{ fontWeight: 800 }}>{Number(combVisits).toLocaleString('en-IN')}/-</div>
+                              </td>
+                            </tr>
+                          );
+                        })()}
+                      </tbody>
+                    </table>
+
+                    {/* 2. TITLE: ANNEXURE -A (BELOW ANNEXURE-I) */}
+                    <div id="preview-annexure-a" style={{ textAlign: 'center', margin: '6px 0 8px 0' }}>
+                      <h2 style={{ fontSize: '14px', fontWeight: 800, margin: 0, textDecoration: 'underline', letterSpacing: '0.04em', color: '#0f172a' }}>
+                        ANNEXURE - A
+                      </h2>
                     </div>
 
-                    {/* Point 3 */}
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
-                      <span style={{ color: '#e11d48', fontSize: '12px', lineHeight: 1.1, flexShrink: 0 }}>✦</span>
-                      <span style={{ fontWeight: 700 }}>
-                        Mode of Transportation for instruments and Dearness Allowance for Audit Officers to your Unit.
-                      </span>
+                    {/* ANNEXURE - A 7-COLUMN TABLE */}
+                    <table style={{ width: '100%', borderCollapse: 'collapse', border: '1.5px solid #0f172a', fontSize: '9.5px', color: '#0f172a', marginBottom: '10px' }}>
+                      <thead>
+                        <tr style={{ background: '#ffffff', borderBottom: '1.5px solid #0f172a' }}>
+                          <th style={{ width: '22%', border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 800, fontSize: '9.5px', verticalAlign: 'middle' }}>
+                            DESCRIPTIONS
+                          </th>
+                          <th style={{ width: '18%', border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 800, fontSize: '9.5px', verticalAlign: 'middle' }}>
+                            PARAMETERS TO BE MONITORED
+                          </th>
+                          <th style={{ width: '13%', border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 800, fontSize: '9.5px', verticalAlign: 'middle' }}>
+                            RATE PER SAMPLE
+                          </th>
+                          <th style={{ width: '8%', border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 800, fontSize: '9.5px', verticalAlign: 'middle' }}>
+                            VISITS
+                          </th>
+                          <th style={{ width: '15%', border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 800, fontSize: '9.5px', verticalAlign: 'middle' }}>
+                            NO. OF SAMPLE/QUARTER
+                          </th>
+                          <th style={{ width: '12%', border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 800, fontSize: '9.5px', verticalAlign: 'middle' }}>
+                            CHARGE PER VISIT/QUARTER
+                          </th>
+                          <th style={{ width: '12%', border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 800, fontSize: '9.5px', verticalAlign: 'middle' }}>
+                            CHARGE
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(formData.activities || []).length === 0 ? (
+                          <tr>
+                            <td colSpan={7} style={{ border: '1px solid #0f172a', padding: '14px 8px', textAlign: 'center', color: '#64748b', fontStyle: 'italic', background: '#f8fafc', fontSize: '10px' }}>
+                              No sampling activities / parameters loaded. Please select a Test Request (TRF) above to auto-populate.
+                            </td>
+                          </tr>
+                        ) : (
+                          <>
+                            {(formData.activities || []).map((act, aIdx) => {
+                              const rowCalc = calculateAnnexureARowCharge(act, globalVisits);
+                              return (
+                                <tr key={act.id || aIdx}>
+                                  {/* 1. DESCRIPTIONS */}
+                                  <td style={{ border: '1px solid #0f172a', padding: '5px 5px', fontWeight: 600, verticalAlign: 'middle', lineHeight: 1.3 }}>
+                                    {act.description}
+                                  </td>
+                                  {/* 2. PARAMETERS TO BE MONITORED */}
+                                  <td style={{ border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', verticalAlign: 'middle', lineHeight: 1.3 }}>
+                                    {act.parametersMonitored || `As per annexure- B, Sr. No. ${act.srNo || aIdx + 1}`}
+                                  </td>
+                                  {/* 3. RATE PER SAMPLE */}
+                                  <td style={{ border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 700, verticalAlign: 'middle' }}>
+                                    {Number(rowCalc.rate).toLocaleString('en-IN')}/-
+                                  </td>
+                                  {/* 4. VISITS (Vertically centered spanning all rows) */}
+                                  {aIdx === 0 ? (
+                                    <td
+                                      rowSpan={(formData.activities || []).length}
+                                      style={{
+                                        border: '1px solid #0f172a',
+                                        padding: '5px 4px',
+                                        textAlign: 'center',
+                                        fontWeight: 700,
+                                        fontSize: '12px',
+                                        verticalAlign: 'middle',
+                                        backgroundColor: '#ffffff'
+                                      }}
+                                    >
+                                      {globalVisits}
+                                    </td>
+                                  ) : null}
+                                  {/* 5. NO. OF SAMPLE/QUARTER */}
+                                  <td style={{ border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 600, verticalAlign: 'middle' }}>
+                                    {act.sampleQuarter || `${String(act.sampleQty || 1).padStart(2, '0')} Sample`}
+                                  </td>
+                                  {/* 6. CHARGE PER VISIT/QUARTER */}
+                                  <td style={{ border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 700, verticalAlign: 'middle' }}>
+                                    {Number(rowCalc.chargePerVisit).toLocaleString('en-IN')}/-
+                                  </td>
+                                  {/* 7. CHARGE */}
+                                  <td style={{ border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
+                                    {Number(rowCalc.totalCharge).toLocaleString('en-IN')}/-
+                                  </td>
+                                </tr>
+                              );
+                            })}
+
+                            {/* TOTAL ROW */}
+                            <tr style={{ borderTop: '1.5px solid #0f172a', background: '#ffffff', fontWeight: 800 }}>
+                              <td style={{ border: '1px solid #0f172a', padding: '5px 5px', fontWeight: 800, textAlign: 'center' }}>
+                                Total
+                              </td>
+                              <td style={{ border: '1px solid #0f172a', padding: '5px 4px' }}></td>
+                              <td style={{ border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 800 }}>
+                                {Number(annexureATotals.totalRate).toLocaleString('en-IN')}/-
+                              </td>
+                              <td style={{ border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center' }}>
+                                -
+                              </td>
+                              <td style={{ border: '1px solid #0f172a', padding: '5px 4px' }}></td>
+                              <td style={{ border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 800 }}>
+                                {Number(annexureATotals.totalChargePerVisit).toLocaleString('en-IN')}/-
+                              </td>
+                              <td style={{ border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 800 }}>
+                                {Number(annexureATotals.totalAnnualCharge).toLocaleString('en-IN')}/-
+                              </td>
+                            </tr>
+                          </>
+                        )}
+                      </tbody>
+                    </table>
+
+                    {/* BREAK-UP OF ALL ANALYSIS CHARGES NOTE */}
+                    <div style={{ marginTop: '14px', marginBottom: '14px' }}>
+                      <div style={{ textAlign: 'center', fontWeight: 800, fontSize: '11px', textDecoration: 'underline', letterSpacing: '0.04em', color: '#0f172a', marginBottom: '8px' }}>
+                        {formData.annexureANoteTitle || `BREAK-UP OF ALL ANALYSIS CHARGES FOR AUDIT ${(formData.financialYear || '2024-2025').replace(/^YEAR\s*/i, '')}`}
+                      </div>
+                      <p style={{ fontSize: '9.5px', lineHeight: 1.45, color: '#0f172a', margin: '0', textAlign: 'left', fontWeight: 500 }}>
+                        {formData.annexureANoteText || 'The rates are indicative and may vary as per actual visits/work undertaken: Nos. of Days spent on site: Sampling and testing requirements: revision of rates from GPCB and any additional visit undertaken for additional data collection.'}
+                      </p>
                     </div>
 
-                    {/* Point 4 */}
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
-                      <span style={{ color: '#0f172a', fontSize: '11px', lineHeight: 1.1, flexShrink: 0, fontWeight: 700 }}>✓</span>
-                      <span style={{ fontWeight: 'normal' }}>
-                        If any one of above is provided by you to the auditors, which are arranged by you then charges for same as mentioned below is not to be considered.
-                      </span>
-                    </div>
-
-                    {/* Point 5 */}
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
-                      <span style={{ color: '#e11d48', fontSize: '12px', lineHeight: 1.1, flexShrink: 0 }}>✦</span>
-                      <span style={{ fontWeight: 700 }}>
-                        For the audit fee, Rs. 15,000/- for small scale, Rs. 20,000/- for medium scale and Rs. 25,000/- for large scale shall be considered.
-                      </span>
-                    </div>
-
-                    {/* Point 6 */}
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
-                      <span style={{ color: '#e11d48', fontSize: '12px', lineHeight: 1.1, flexShrink: 0 }}>✦</span>
-                      <span style={{ fontWeight: 700 }}>
-                        Final Quote is to be submitted at a time after our first visit to your UNIT, Below Quote is just a Provisional Estimated Quote that is made as per your units Consent by {formData.scopeConsentAuthority || 'GPCB.'}
-                      </span>
-                    </div>
+                    {renderStandardPageFooter(4)}
                   </div>
 
-                  {/* ================= PAGE 2: DETAIL OF CHARGES SUMMARY TABLE ================= */}
+                  {/* ================= PAGE 5: ANNEXURE - B (Discipline Groups & Parameters) ================= */}
                   {(() => {
-                    const p2Calc = calculatePage2Charges(formData, annexureATotals.totalAnnualCharge);
+                    const allGroups = formData.annexureB || [];
+                    if (!allGroups.length) return null;
+
                     return (
-                      <div style={{ marginTop: '8px', marginBottom: '8px' }}>
-                        {/* Title */}
-                        <div style={{ textAlign: 'center', marginBottom: '6px' }}>
-                          <h3 style={{ fontSize: '11.5px', fontWeight: 800, margin: 0, textDecoration: 'underline', letterSpacing: '0.02em', color: '#0f172a' }}>
-                            {getPage2TableTitle(formData.auditDepartment)}
-                          </h3>
+                      <div id="preview-annexure-b" className="a4-sheet" style={{ width: '100%', minHeight: 'auto', padding: '8mm 12mm 4mm 12mm', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: '10.5px', background: '#ffffff', borderRadius: '4px', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+                        {/* TOP HEADER: LOGO */}
+                        <div style={{ textAlign: 'center', marginBottom: '4px' }}>
+                          <img
+                            src={getLogoUrl(masters.company)}
+                            alt="Company Logo"
+                            style={{ maxHeight: '60px', maxWidth: '240px', objectFit: 'contain', margin: '0 auto', display: 'block' }}
+                            onError={(e) => { e.target.src = '/Images/Navbar_Logo.png'; }}
+                          />
+                        </div>
+                        <div style={{ borderBottom: '1.2px solid #0f172a', marginBottom: '8px' }}></div>
+
+                        {/* TITLE: Annexure -B */}
+                        <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+                          <h2 style={{ fontSize: '14px', fontWeight: 800, margin: 0, textDecoration: 'underline', fontStyle: 'italic', letterSpacing: '0.04em', color: '#0f172a' }}>
+                            Annexure -B
+                          </h2>
                         </div>
 
-                        {/* 6-Column Table */}
-                        <table style={{ width: '100%', borderCollapse: 'collapse', border: '1.5px solid #0f172a', fontSize: '9px', color: '#0f172a', lineHeight: 1.28, marginBottom: '6px' }}>
+                        {/* ANNEXURE - B TABLE */}
+                        <table style={{ width: '100%', borderCollapse: 'collapse', border: '1.5px solid #0f172a', fontSize: '10px', color: '#0f172a', marginBottom: '8px' }}>
                           <thead>
                             <tr style={{ background: '#ffffff', borderBottom: '1.5px solid #0f172a' }}>
-                              <th style={{ width: '6%', border: '1px solid #0f172a', padding: '4px 3px', textAlign: 'center', fontWeight: 800 }}>
-                                Sr.<br />No.
+                              <th style={{ width: '8%', border: '1px solid #0f172a', padding: '4px 4px', textAlign: 'center', fontWeight: 800, fontSize: '10px' }}>
+                                Sr. No.
                               </th>
-                              <th style={{ width: '51%', border: '1px solid #0f172a', padding: '4px 6px', textAlign: 'center', fontWeight: 800 }}>
-                                Description of work
+                              <th style={{ width: '74%', border: '1px solid #0f172a', padding: '4px 6px', textAlign: 'center', fontWeight: 800, fontSize: '10px' }}>
+                                DESCRIPTIONS
                               </th>
-                              <th style={{ width: '7%', border: '1px solid #0f172a', padding: '4px 3px', textAlign: 'center', fontWeight: 800 }}>
-                                Qty.
-                              </th>
-                              <th style={{ width: '7%', border: '1px solid #0f172a', padding: '4px 3px', textAlign: 'center', fontWeight: 800 }}>
-                                Unit
-                              </th>
-                              <th style={{ width: '14%', border: '1px solid #0f172a', padding: '4px 4px', textAlign: 'center', fontWeight: 800 }}>
-                                Rate
-                              </th>
-                              <th style={{ width: '15%', border: '1px solid #0f172a', padding: '4px 4px', textAlign: 'center', fontWeight: 800 }}>
-                                Amount<br />Rs.
+                              <th style={{ width: '18%', border: '1px solid #0f172a', padding: '4px 6px', textAlign: 'center', fontWeight: 800, fontSize: '10px' }}>
+                                RATE
                               </th>
                             </tr>
                           </thead>
                           <tbody>
-                            {/* ROW 1: AUDIT REPORT CHARGES */}
-                            <tr>
-                              <td style={{ border: '1px solid #0f172a', padding: '4px 3px', textAlign: 'center', fontWeight: 800 }}>
-                                1
-                              </td>
-                              <td style={{ border: '1px solid #0f172a', padding: '4px 6px', fontWeight: 700 }}>
-                                {formData.page2Charges?.row1Description || `${getAuditReportTitle(formData.auditDepartment)} (As per GPCB Guidelines)`}
-                              </td>
-                              <td style={{ border: '1px solid #0f172a', padding: '4px 3px', textAlign: 'center', fontWeight: 700 }}>
-                                {p2Calc.row1Qty}
-                              </td>
-                              <td style={{ border: '1px solid #0f172a', padding: '4px 3px', textAlign: 'center', fontWeight: 700 }}>
-                                {p2Calc.row1Unit}
-                              </td>
-                              <td style={{ border: '1px solid #0f172a', padding: '4px 4px', textAlign: 'center', fontWeight: 800 }}>
-                                {Number(p2Calc.auditFee).toLocaleString('en-IN')}/-
-                              </td>
-                              <td style={{ border: '1px solid #0f172a', padding: '4px 4px', textAlign: 'center', fontWeight: 800 }}>
-                                {Number(p2Calc.row1Amount).toLocaleString('en-IN')}/-
-                              </td>
-                            </tr>
+                            {allGroups.map((group, gIdx) => {
+                              const groupTotal = calculateGroupTotal(group);
+                              return (
+                                <React.Fragment key={group.id || gIdx}>
+                                  {/* Group Header Row */}
+                                  <tr style={{ background: '#f8fafc', fontWeight: 800 }}>
+                                    <td style={{ border: '1px solid #0f172a', padding: '4px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
+                                      {group.srNo}
+                                    </td>
+                                    <td style={{ border: '1px solid #0f172a', padding: '4px 6px', fontWeight: 800, color: '#0f172a' }}>
+                                      {group.category}
+                                    </td>
+                                    <td style={{ border: '1px solid #0f172a', padding: '4px 6px', textAlign: 'right', fontWeight: 800 }}>
+                                    </td>
+                                  </tr>
 
-                            {/* ROW 2.1: TRANSPORTATION CHARGES */}
-                            <tr>
-                              <td rowSpan={3} style={{ border: '1px solid #0f172a', padding: '4px 3px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
-                                2
-                              </td>
-                              <td style={{ border: '1px solid #0f172a', padding: '4px 6px', verticalAlign: 'middle' }}>
-                                <div>
-                                  Transportation charges for monitoring instrument/material for {p2Calc.transportDaysText || 'twelve days'}. [{p2Calc.visits} visits per year ({p2Calc.visits} X {p2Calc.daysPerVisit} Days/Visit)]. <span style={{ fontWeight: 700, fontSize: '8.5px' }}>(See Annexure I)</span>
-                                </div>
-                              </td>
-                              <td style={{ border: '1px solid #0f172a', padding: '4px 3px', textAlign: 'center', fontWeight: 700, verticalAlign: 'middle' }}>
-                                {p2Calc.transportQty}
-                              </td>
-                              <td style={{ border: '1px solid #0f172a', padding: '4px 3px', textAlign: 'center', fontWeight: 700, verticalAlign: 'middle' }}>
-                                {p2Calc.transportUnit}
-                              </td>
-                              <td style={{ border: '1px solid #0f172a', padding: '4px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
-                                {Number(p2Calc.transportRatePerVisit).toLocaleString('en-IN')}/-
-                              </td>
-                              <td style={{ border: '1px solid #0f172a', padding: '4px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
-                                {Number(p2Calc.transportTotal).toLocaleString('en-IN')}/-
-                              </td>
-                            </tr>
+                                  {/* Parameter Rows */}
+                                  {(group.parameters || []).map((param, pIdx) => (
+                                    <tr key={param.id || pIdx}>
+                                      <td style={{ border: '1px solid #0f172a', padding: '2.5px 4px', textAlign: 'center' }}></td>
+                                      <td style={{ border: '1px solid #0f172a', padding: '2.5px 6px 2.5px 14px', color: '#1e293b' }}>
+                                        {param.description}
+                                      </td>
+                                      <td style={{ border: '1px solid #0f172a', padding: '2.5px 6px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
+                                        {Number(param.rate || 0).toLocaleString('en-IN')}
+                                      </td>
+                                    </tr>
+                                  ))}
 
-                            {/* ROW 2.2: DEARNESS ALLOWANCE (DA) */}
-                            <tr>
-                              <td style={{ border: '1px solid #0f172a', padding: '4px 6px', verticalAlign: 'middle' }}>
-                                <div>
-                                  Dearness allowance for audit team members. ({p2Calc.daPersons} persons per day X {p2Calc.daDaysPerYear} days per year). <span style={{ fontWeight: 700, fontSize: '8.5px' }}>({p2Calc.daRatePerPerson} rate per person per day).</span>
-                                </div>
-                              </td>
-                              <td style={{ border: '1px solid #0f172a', padding: '4px 3px', textAlign: 'center', fontWeight: 700, verticalAlign: 'middle' }}>
-                                {p2Calc.daQty}
-                              </td>
-                              <td style={{ border: '1px solid #0f172a', padding: '4px 3px', textAlign: 'center', fontWeight: 700, verticalAlign: 'middle' }}>
-                                {p2Calc.daUnit}
-                              </td>
-                              <td style={{ border: '1px solid #0f172a', padding: '4px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
-                                {Number(p2Calc.daRatePerVisit).toLocaleString('en-IN')}/-
-                              </td>
-                              <td style={{ border: '1px solid #0f172a', padding: '4px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
-                                {Number(p2Calc.daTotal).toLocaleString('en-IN')}/-
-                              </td>
-                            </tr>
+                                  {/* Subtotal Row */}
+                                  <tr style={{ background: '#f1f5f9', fontWeight: 800 }}>
+                                    <td style={{ border: '1px solid #0f172a', padding: '4px 4px', textAlign: 'center' }}></td>
+                                    <td style={{ border: '1px solid #0f172a', padding: '4px 6px', textAlign: 'right', fontWeight: 800, color: '#0f172a' }}>
+                                      Total ({group.category}):
+                                    </td>
+                                    <td style={{ border: '1px solid #0f172a', padding: '4px 6px', textAlign: 'right', fontWeight: 800, color: '#0f172a' }}>
+                                      {Number(groupTotal).toLocaleString('en-IN')}/-
+                                    </td>
+                                  </tr>
+                                </React.Fragment>
+                              );
+                            })}
 
-                            {/* ROW 2.3: ACCOMMODATION FOR AUDITORS */}
-                            <tr>
-                              <td style={{ border: '1px solid #0f172a', padding: '4px 6px', verticalAlign: 'middle' }}>
-                                <div>
-                                  Accommodation For Auditors ({p2Calc.daPersons} persons per day X {p2Calc.daDaysPerYear} days per year). <span style={{ fontWeight: 700, fontSize: '8.5px' }}>(Stay in Hotel as {p2Calc.hotelRoomRate}/- x {p2Calc.hotelRoomsCount} Rooms per day = {p2Calc.dailyRoomCost}*{p2Calc.hotelNightsPerVisit}Nights i.e. {p2Calc.accomRatePerVisit} Per Visit)</span>
-                                </div>
+                            {/* Final Grand Total Row */}
+                            <tr style={{ background: '#e2e8f0', fontWeight: 900, borderTop: '2px solid #0f172a' }}>
+                              <td style={{ border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 900 }}></td>
+                              <td style={{ border: '1px solid #0f172a', padding: '5px 6px', textAlign: 'right', fontWeight: 900, color: '#0f172a', fontSize: '10.5px', textTransform: 'uppercase' }}>
+                                Grand Total (Annexure - B):
                               </td>
-                              <td style={{ border: '1px solid #0f172a', padding: '4px 3px', textAlign: 'center', fontWeight: 700, verticalAlign: 'middle' }}>
-                                {p2Calc.accomQty}
-                              </td>
-                              <td style={{ border: '1px solid #0f172a', padding: '4px 3px', textAlign: 'center', fontWeight: 700, verticalAlign: 'middle' }}>
-                                {p2Calc.accomUnit}
-                              </td>
-                              <td style={{ border: '1px solid #0f172a', padding: '4px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
-                                {Number(p2Calc.accomRatePerVisit).toLocaleString('en-IN')}/-
-                              </td>
-                              <td style={{ border: '1px solid #0f172a', padding: '4px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
-                                {Number(p2Calc.accomTotal).toLocaleString('en-IN')}/-
-                              </td>
-                            </tr>
-
-                            {/* ROW 3: CHARGES FOR SAMPLING & ANALYSIS (ANNEXURE-A) */}
-                            <tr>
-                              <td style={{ border: '1px solid #0f172a', padding: '4px 3px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
-                                3
-                              </td>
-                              <td style={{ border: '1px solid #0f172a', padding: '4px 6px', verticalAlign: 'middle' }}>
-                                <div>
-                                  {formData.page2Charges?.samplingDescription || 'Charges for sampling & analysis of various samples including Water, Wastewater, Stack Emission, and Ambient air quality, Solid waste & Noise level etc. (See Annexure A)'}
-                                </div>
-                              </td>
-                              <td colSpan={4} style={{ border: '1px solid #0f172a', padding: '4px 6px', textAlign: 'center', verticalAlign: 'middle' }}>
-                                <div style={{ fontWeight: 600 }}>As actual as per GPCB rates</div>
-                                <div style={{ fontWeight: 800, marginTop: '2px' }}>
-                                  ({Number(p2Calc.samplingTotal).toLocaleString('en-IN')}/- ) (See Annexure)
-                                </div>
-                              </td>
-                            </tr>
-
-                            {/* SUMMARY / TOTAL ROW */}
-                            <tr style={{ borderTop: '1.5px solid #0f172a', background: '#ffffff', fontWeight: 800 }}>
-                              <td colSpan={2} style={{ border: '1px solid #0f172a', padding: '4px 8px', textAlign: 'center', fontWeight: 800, fontSize: '9px' }}>
-                                Total (for Sr. no. 1 , 2 &amp; 3) Rs.
-                              </td>
-                              <td colSpan={4} style={{ border: '1px solid #0f172a', padding: '4px 8px', textAlign: 'center', fontWeight: 700, fontSize: '9px' }}>
-                                ({Number(p2Calc.taxableTotal).toLocaleString('en-IN')}/- + GST {p2Calc.gstPercentage} %) = <span style={{ fontWeight: 800, textDecoration: 'underline' }}>{Number(p2Calc.grandTotal).toLocaleString('en-IN')}/-</span>
+                              <td style={{ border: '1px solid #0f172a', padding: '5px 6px', textAlign: 'right', fontWeight: 900, color: '#0f172a', fontSize: '10.5px' }}>
+                                {Number(calculateAnnexureBTotal(allGroups)).toLocaleString('en-IN')}/-
                               </td>
                             </tr>
                           </tbody>
                         </table>
 
-                        {/* Note below Table */}
-                        <div style={{ textAlign: 'center', marginTop: '4px', fontWeight: 800, fontSize: '9px', textDecoration: 'underline', color: '#0f172a' }}>
-                          {formData.page2Charges?.bottomNoteText || 'Note: - Tax will be paid extra (GST 18%) apart from above rate / amount.'}
-                        </div>
+                        {renderStandardPageFooter(5)}
                       </div>
                     );
                   })()}
 
-                  {renderStandardPageFooter(2)}
-                </div>
-
-                {/* PAGE 3: TERMS & CONDITIONS */}
-                <div id="preview-page-3" className="a4-sheet" style={{ width: '100%', minHeight: 'auto', padding: '12mm 15mm 10mm 15mm', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: '11px', background: '#ffffff', borderRadius: '4px', position: 'relative', display: 'flex', flexDirection: 'column' }}>
-                  {/* CENTERED LOGO & DIVIDER */}
-                  <div style={{ textAlign: 'center', marginBottom: '10px' }}>
-                    <img
-                      src={getLogoUrl(masters.company)}
-                      alt="Company Logo"
-                      style={{ maxHeight: '85px', maxWidth: '280px', objectFit: 'contain', margin: '0 auto', display: 'block' }}
-                      onError={(e) => { e.target.src = '/Images/Navbar_Logo.png'; }}
-                    />
-                  </div>
-                  <div style={{ borderBottom: '1.5px solid #0f172a', marginBottom: '16px' }}></div>
-
-                  {/* TERMS & CONDITIONS HEADING */}
-                  <h3 style={{ fontSize: '13px', fontWeight: 800, textDecoration: 'underline', color: '#0f172a', margin: '0 0 14px 0' }}>
-                    Terms and conditions:
-                  </h3>
-
-                  {/* TERMS BODY (RICH TEXT CONTENT) */}
-                  <div className="terms-conditions-body" style={{ color: '#0f172a', lineHeight: 1.5, fontSize: '11px' }}>
-                    {renderRichContent(formData.termsText !== undefined ? formData.termsText : DEFAULT_TERMS_TEXT)}
-                  </div>
-
-                  {/* SIGNATORY & CONTACT PERSON BLOCK */}
-                  <div style={{ marginTop: '16px', fontSize: '11.5px', color: '#0f172a', marginBottom: '10px' }}>
-                    <p style={{ fontWeight: 700, margin: '0 0 4px 0' }}>Thanking you in anticipation!</p>
-                    <p style={{ fontWeight: 700, margin: '0 0 8px 0' }}>For, Jagnath Lab Technologies</p>
-
-                    {/* SIGNATURE & STAMP ROW (PAGE 3) */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '20px', minHeight: '48px', margin: '4px 0' }}>
-                      {formData.signatorySignature && (
-                        <img src={formData.signatorySignature} alt="Signature" style={{ maxHeight: '48px', maxWidth: '120px', objectFit: 'contain' }} />
-                      )}
-                      {formData.stampImage && (
-                        <img src={formData.stampImage} alt="Round Stamp" style={{ maxHeight: '55px', maxWidth: '90px', objectFit: 'contain' }} />
-                      )}
-                      {formData.stampImage2 && (
-                        <img src={formData.stampImage2} alt="Address Stamp" style={{ maxHeight: '55px', maxWidth: '140px', objectFit: 'contain' }} />
-                      )}
-                    </div>
-
-                    <p style={{ fontWeight: 700, margin: '4px 0 14px 0' }}>Authorized Signatory</p>
-
-                    <p style={{ fontWeight: 700, margin: '0 0 14px 0' }}>
-                      Contact Person: - {formData.contactPerson || 'Ankit Mistry (+91 7226-0579-78)'}
-                    </p>
-                  </div>
-
-                  {renderStandardPageFooter(3)}
-                </div>
-
-                {/* ================= PAGE 4: ANNEXURE - I & ANNEXURE - A (Combined Same Page) ================= */}
-                <div id="preview-page-4" className="a4-sheet" style={{ width: '100%', minHeight: 'auto', padding: '10mm 14mm 8mm 14mm', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: '10.5px', background: '#ffffff', borderRadius: '4px', position: 'relative', display: 'flex', flexDirection: 'column' }}>
-                  {/* TOP HEADER: LOGO */}
-                  <div style={{ textAlign: 'center', marginBottom: '6px' }}>
-                    <img
-                      src={getLogoUrl(masters.company)}
-                      alt="Company Logo"
-                      style={{ maxHeight: '70px', maxWidth: '240px', objectFit: 'contain', margin: '0 auto', display: 'block' }}
-                      onError={(e) => { e.target.src = '/Images/Navbar_Logo.png'; }}
-                    />
-                  </div>
-                  <div style={{ borderBottom: '1.5px solid #0f172a', marginBottom: '10px' }}></div>
-
-                  {/* 1. TITLE: ANNEXURE - I */}
-                  <div id="preview-annexure-1" style={{ textAlign: 'center', marginBottom: '8px' }}>
-                    <h2 style={{ fontSize: '14px', fontWeight: 800, margin: 0, textDecoration: 'underline', letterSpacing: '0.06em', color: '#0f172a' }}>
-                      ANNEXURE - I
-                    </h2>
-                  </div>
-
-                  {/* ANNEXURE - I GRID TABLE */}
-                  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1.5px solid #0f172a', fontSize: '9.5px', color: '#0f172a', marginBottom: '12px' }}>
-                    <tbody>
-                      {/* ROW 1: AUDIT REPORT CHARGES */}
-                      <tr>
-                        <td style={{ width: '30px', border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
-                          1
-                        </td>
-                        <td style={{ border: '1px solid #0f172a', padding: '6px 8px', fontWeight: 700, verticalAlign: 'middle' }}>
-                          {getAuditReportTitle(formData.auditDepartment)}
-                        </td>
-                        <td style={{ width: '95px', border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
-                          {Number(formData.annexureI?.auditFee || 25000).toLocaleString('en-IN')}
-                        </td>
-                        <td style={{ width: '105px', border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
-                          {Number(formData.annexureI?.auditFee || 25000).toLocaleString('en-IN')}/-
-                        </td>
-                        <td style={{ width: '115px', border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
-                          {Number(formData.annexureI?.auditFee || 25000).toLocaleString('en-IN')}/-
-                        </td>
-                      </tr>
-
-                      {/* ROW 2: MAIN TRANSPORTATION CHARGES (JLTs Vehicle) */}
-                      {(() => {
-                        const daysPerVisit = parseInt(formData.annexureI?.daysPerVisit ?? formData.page2Charges?.daysPerVisit, 10) || 4;
-                        const visits = parseInt(formData.annexureI?.visits ?? formData.page2Charges?.visits, 10) || 3;
-                        const totalDays = daysPerVisit * visits;
-                        const jltRate = Number(formData.annexureI?.jltVehicleRatePerDay ?? formData.page2Charges?.jltVehicleRatePerDay ?? 5000);
-                        const ratePerVisit = Number(formData.annexureI?.transportRatePerVisit !== undefined ? formData.annexureI.transportRatePerVisit : (formData.page2Charges?.transportRatePerVisit !== undefined ? formData.page2Charges.transportRatePerVisit : (jltRate * daysPerVisit)));
-                        const transportTotal = Number(formData.annexureI?.transportTotalAmount !== undefined ? formData.annexureI.transportTotalAmount : (formData.page2Charges?.transportTotalAmount !== undefined ? formData.page2Charges.transportTotalAmount : (ratePerVisit * visits)));
-                        const row2Text = (formData.annexureI?.row2Title || 'Transportation charges for monitoring instrument/material. (per day) + Total {totalDays} Days. (For JLTs Vehicle)').replace('{totalDays}', totalDays);
-
-                        return (
-                          <tr>
-                            <td style={{ border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
-                              2
-                            </td>
-                            <td style={{ border: '1px solid #0f172a', padding: '6px 8px', verticalAlign: 'middle', lineHeight: 1.35 }}>
-                              <div style={{ fontWeight: 700 }}>
-                                {row2Text}
-                              </div>
-                            </td>
-                            <td style={{ border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', verticalAlign: 'middle' }}>
-                              <div style={{ fontWeight: 700, fontSize: '9px' }}>FOR PER DAY</div>
-                              <div style={{ fontWeight: 800 }}>{Number(jltRate).toLocaleString('en-IN')}/-</div>
-                            </td>
-                            <td style={{ border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', verticalAlign: 'middle' }}>
-                              <div style={{ fontWeight: 700, fontSize: '9px' }}>FOR {daysPerVisit} DAYS</div>
-                              <div style={{ fontWeight: 800 }}>{Number(ratePerVisit).toLocaleString('en-IN')}/-</div>
-                            </td>
-                            <td style={{ border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', verticalAlign: 'middle' }}>
-                              <div style={{ fontWeight: 700, fontSize: '9px' }}>FOR {visits} VISITS</div>
-                              <div style={{ fontWeight: 800 }}>{Number(transportTotal).toLocaleString('en-IN')}/-</div>
-                            </td>
-                          </tr>
-                        );
-                      })()}
-
-                      {/* ROW 2A: OPTION 1 (CLIENT PROVIDED) */}
-                      {(() => {
-                        const opt1Text = (formData.annexureI?.option1Title || 'In Option 1 if transportation for both instruments and officers are provided by M/s. {clientName} then NILL charges.').replace('{clientName}', formData.clientName || 'Valued Client');
-                        const opt1Sub = formData.annexureI?.option1Subtext || '(As per govt. norms TWO different vehicles are to be hired by the unit in this case, i.e. one for instruments and other vehicle for auditors/engineers/officers.)';
-
-                        return (
-                          <tr>
-                            <td style={{ border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
-                              <div style={{ marginBottom: '2px' }}>2</div>
-                              <div>A</div>
-                            </td>
-                            <td style={{ border: '1px solid #0f172a', padding: '6px 8px', verticalAlign: 'top', lineHeight: 1.35 }}>
-                              <div style={{ fontWeight: 700, marginBottom: '3px' }}>
-                                {opt1Text}
-                              </div>
-                              <div style={{ fontSize: '9px', color: '#334155' }}>
-                                {opt1Sub}
-                              </div>
-                            </td>
-                            <td style={{ border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
-                              -
-                            </td>
-                            <td style={{ border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
-                              -
-                            </td>
-                            <td style={{ border: '1px solid #0f172a', padding: '6px 6px', textAlign: 'left', fontSize: '8.8px', lineHeight: 1.35, color: '#1e293b', verticalAlign: 'top' }}>
-                              {formData.annexureI?.decisionNote || 'It is to be decided by the Company. If Option 1 or Option 2 for TA is chosen, then JLTs Vehicle transportation would be removed. And actual DA billing is to be added at the time of billing.'}
-                            </td>
-                          </tr>
-                        );
-                      })()}
-
-                      {/* ROW 2B: OPTION 2 (AGENCY CHARGES) */}
-                      {(() => {
-                        const opt2Text = formData.annexureI?.option2Title || 'In Option 2 if transportation for both instruments and officers are provided by JLTs then it may increase as per charges of agency.';
-                        const opt2Sub = formData.annexureI?.option2Subtext || '(As per govt. norms TWO different vehicles are to be hired by the unit in this case, i.e. one for instruments and other vehicle for auditors/engineers/officers.)';
-                        const instLbl = formData.annexureI?.instrumentLabel || 'For Instruments,';
-                        const audLbl = formData.annexureI?.auditorLabel || 'For Auditors,';
-
-                        const instRate = Number(formData.annexureI?.instrumentKmRate !== undefined ? formData.annexureI.instrumentKmRate : 12);
-                        const instKm = Number(formData.annexureI?.instrumentKmPerDay !== undefined ? formData.annexureI.instrumentKmPerDay : 300);
-                        const instDaily = instRate * instKm;
-
-                        const audRate = Number(formData.annexureI?.auditorKmRate !== undefined ? formData.annexureI.auditorKmRate : 15);
-                        const audKm = Number(formData.annexureI?.auditorKmPerDay !== undefined ? formData.annexureI.auditorKmPerDay : 300);
-                        const audDaily = audRate * audKm;
-
-                        const combDaily = instDaily + audDaily;
-                        const dPerVisit = parseInt(formData.annexureI?.daysPerVisit ?? formData.page2Charges?.daysPerVisit, 10) || 4;
-                        const vCount = parseInt(formData.annexureI?.visits ?? formData.page2Charges?.visits, 10) || 3;
-                        const combDays = combDaily * dPerVisit;
-                        const combVisits = combDays * vCount;
-
-                        return (
-                          <tr>
-                            <td style={{ border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
-                              <div style={{ marginBottom: '2px' }}>2</div>
-                              <div>B</div>
-                            </td>
-                            <td style={{ border: '1px solid #0f172a', padding: '6px 8px', verticalAlign: 'top', lineHeight: 1.35 }}>
-                              <div style={{ fontWeight: 700, marginBottom: '3px' }}>
-                                {opt2Text}
-                              </div>
-                              <div style={{ fontSize: '9px', color: '#334155', marginBottom: '4px' }}>
-                                {opt2Sub}
-                              </div>
-                              <div style={{ fontWeight: 700, fontSize: '9.2px', color: '#0f172a' }}>
-                                <div>{instLbl} <span style={{ fontWeight: 600 }}>INR {instRate} for {instKm} kms/day = {Number(instDaily).toLocaleString('en-IN')}/-</span></div>
-                                <div style={{ marginTop: '2px' }}>{audLbl} <span style={{ fontWeight: 600 }}>INR {audRate} for {audKm} kms/day = {Number(audDaily).toLocaleString('en-IN')}/-</span></div>
-                              </div>
-                            </td>
-                            <td style={{ border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', verticalAlign: 'middle' }}>
-                              <div style={{ fontWeight: 700, fontSize: '9px', marginBottom: '2px' }}>FOR PER DAY</div>
-                              <div style={{ fontWeight: 800 }}>{Number(combDaily).toLocaleString('en-IN')}/-</div>
-                            </td>
-                            <td style={{ border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', verticalAlign: 'middle' }}>
-                              <div style={{ fontWeight: 700, fontSize: '9px', marginBottom: '2px' }}>FOR {dPerVisit} DAYS</div>
-                              <div style={{ fontWeight: 800 }}>{Number(combDays).toLocaleString('en-IN')}/-</div>
-                            </td>
-                            <td style={{ border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', verticalAlign: 'middle' }}>
-                              <div style={{ fontWeight: 700, fontSize: '9px', marginBottom: '2px' }}>FOR {vCount} VISITS</div>
-                              <div style={{ fontWeight: 800 }}>{Number(combVisits).toLocaleString('en-IN')}/-</div>
-                            </td>
-                          </tr>
-                        );
-                      })()}
-                    </tbody>
-                  </table>
-
-                  {/* 2. TITLE: ANNEXURE -A (BELOW ANNEXURE-I) */}
-                  <div id="preview-annexure-a" style={{ textAlign: 'center', margin: '6px 0 8px 0' }}>
-                    <h2 style={{ fontSize: '14px', fontWeight: 800, margin: 0, textDecoration: 'underline', letterSpacing: '0.04em', color: '#0f172a' }}>
-                      ANNEXURE - A
-                    </h2>
-                  </div>
-
-                  {/* ANNEXURE - A 7-COLUMN TABLE */}
-                  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1.5px solid #0f172a', fontSize: '9.5px', color: '#0f172a', marginBottom: '10px' }}>
-                    <thead>
-                      <tr style={{ background: '#ffffff', borderBottom: '1.5px solid #0f172a' }}>
-                        <th style={{ width: '22%', border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 800, fontSize: '9.5px', verticalAlign: 'middle' }}>
-                          DESCRIPTIONS
-                        </th>
-                        <th style={{ width: '18%', border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 800, fontSize: '9.5px', verticalAlign: 'middle' }}>
-                          PARAMETERS TO BE MONITORED
-                        </th>
-                        <th style={{ width: '13%', border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 800, fontSize: '9.5px', verticalAlign: 'middle' }}>
-                          RATE PER SAMPLE
-                        </th>
-                        <th style={{ width: '8%', border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 800, fontSize: '9.5px', verticalAlign: 'middle' }}>
-                          VISITS
-                        </th>
-                        <th style={{ width: '15%', border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 800, fontSize: '9.5px', verticalAlign: 'middle' }}>
-                          NO. OF SAMPLE/QUARTER
-                        </th>
-                        <th style={{ width: '12%', border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 800, fontSize: '9.5px', verticalAlign: 'middle' }}>
-                          CHARGE PER VISIT/QUARTER
-                        </th>
-                        <th style={{ width: '12%', border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 800, fontSize: '9.5px', verticalAlign: 'middle' }}>
-                          CHARGE
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(formData.activities || []).length === 0 ? (
-                        <tr>
-                          <td colSpan={7} style={{ border: '1px solid #0f172a', padding: '14px 8px', textAlign: 'center', color: '#64748b', fontStyle: 'italic', background: '#f8fafc', fontSize: '10px' }}>
-                            No sampling activities / parameters loaded. Please select a Test Request (TRF) above to auto-populate.
-                          </td>
-                        </tr>
-                      ) : (
-                        <>
-                          {(formData.activities || []).map((act, aIdx) => {
-                            const rowCalc = calculateAnnexureARowCharge(act, globalVisits);
-                            return (
-                              <tr key={act.id || aIdx}>
-                                {/* 1. DESCRIPTIONS */}
-                                <td style={{ border: '1px solid #0f172a', padding: '5px 5px', fontWeight: 600, verticalAlign: 'middle', lineHeight: 1.3 }}>
-                                  {act.description}
-                                </td>
-                                {/* 2. PARAMETERS TO BE MONITORED */}
-                                <td style={{ border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', verticalAlign: 'middle', lineHeight: 1.3 }}>
-                                  {act.parametersMonitored || `As per annexure- B, Sr. No. ${act.srNo || aIdx + 1}`}
-                                </td>
-                                {/* 3. RATE PER SAMPLE */}
-                                <td style={{ border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 700, verticalAlign: 'middle' }}>
-                                  {Number(rowCalc.rate).toLocaleString('en-IN')}/-
-                                </td>
-                                {/* 4. VISITS (Vertically centered spanning all rows) */}
-                                {aIdx === 0 ? (
-                                  <td
-                                    rowSpan={(formData.activities || []).length}
-                                    style={{
-                                      border: '1px solid #0f172a',
-                                      padding: '5px 4px',
-                                      textAlign: 'center',
-                                      fontWeight: 700,
-                                      fontSize: '12px',
-                                      verticalAlign: 'middle',
-                                      backgroundColor: '#ffffff'
-                                    }}
-                                  >
-                                    {globalVisits}
-                                  </td>
-                                ) : null}
-                                {/* 5. NO. OF SAMPLE/QUARTER */}
-                                <td style={{ border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 600, verticalAlign: 'middle' }}>
-                                  {act.sampleQuarter || `${String(act.sampleQty || 1).padStart(2, '0')} Sample`}
-                                </td>
-                                {/* 6. CHARGE PER VISIT/QUARTER */}
-                                <td style={{ border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 700, verticalAlign: 'middle' }}>
-                                  {Number(rowCalc.chargePerVisit).toLocaleString('en-IN')}/-
-                                </td>
-                                {/* 7. CHARGE */}
-                                <td style={{ border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
-                                  {Number(rowCalc.totalCharge).toLocaleString('en-IN')}/-
-                                </td>
-                              </tr>
-                            );
-                          })}
-
-                          {/* TOTAL ROW */}
-                          <tr style={{ borderTop: '1.5px solid #0f172a', background: '#ffffff', fontWeight: 800 }}>
-                            <td style={{ border: '1px solid #0f172a', padding: '5px 5px', fontWeight: 800, textAlign: 'center' }}>
-                              Total
-                            </td>
-                            <td style={{ border: '1px solid #0f172a', padding: '5px 4px' }}></td>
-                            <td style={{ border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 800 }}>
-                              {Number(annexureATotals.totalRate).toLocaleString('en-IN')}/-
-                            </td>
-                            <td style={{ border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center' }}>
-                              -
-                            </td>
-                            <td style={{ border: '1px solid #0f172a', padding: '5px 4px' }}></td>
-                            <td style={{ border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 800 }}>
-                              {Number(annexureATotals.totalChargePerVisit).toLocaleString('en-IN')}/-
-                            </td>
-                            <td style={{ border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 800 }}>
-                              {Number(annexureATotals.totalAnnualCharge).toLocaleString('en-IN')}/-
-                            </td>
-                          </tr>
-                        </>
-                      )}
-                    </tbody>
-                  </table>
-
-                  {/* BREAK-UP OF ALL ANALYSIS CHARGES NOTE */}
-                  <div style={{ marginTop: '14px', marginBottom: '14px' }}>
-                    <div style={{ textAlign: 'center', fontWeight: 800, fontSize: '11px', textDecoration: 'underline', letterSpacing: '0.04em', color: '#0f172a', marginBottom: '8px' }}>
-                      {formData.annexureANoteTitle || `BREAK-UP OF ALL ANALYSIS CHARGES FOR AUDIT ${(formData.financialYear || '2024-2025').replace(/^YEAR\s*/i, '')}`}
-                    </div>
-                    <p style={{ fontSize: '9.5px', lineHeight: 1.45, color: '#0f172a', margin: '0', textAlign: 'left', fontWeight: 500 }}>
-                      {formData.annexureANoteText || 'The rates are indicative and may vary as per actual visits/work undertaken: Nos. of Days spent on site: Sampling and testing requirements: revision of rates from GPCB and any additional visit undertaken for additional data collection.'}
-                    </p>
-                  </div>
-
-                  {renderStandardPageFooter(4)}
-                </div>
-
-                {/* ================= PAGE 5: ANNEXURE - B (Discipline Groups & Parameters) ================= */}
-                {(() => {
-                  const allGroups = formData.annexureB || [];
-                  if (!allGroups.length) return null;
-
-                  return (
-                    <div id="preview-annexure-b" className="a4-sheet" style={{ width: '100%', minHeight: 'auto', padding: '8mm 12mm 4mm 12mm', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: '10.5px', background: '#ffffff', borderRadius: '4px', position: 'relative', display: 'flex', flexDirection: 'column' }}>
-                      {/* TOP HEADER: LOGO */}
-                      <div style={{ textAlign: 'center', marginBottom: '4px' }}>
-                        <img
-                          src={getLogoUrl(masters.company)}
-                          alt="Company Logo"
-                          style={{ maxHeight: '60px', maxWidth: '240px', objectFit: 'contain', margin: '0 auto', display: 'block' }}
-                          onError={(e) => { e.target.src = '/Images/Navbar_Logo.png'; }}
-                        />
-                      </div>
-                      <div style={{ borderBottom: '1.2px solid #0f172a', marginBottom: '8px' }}></div>
-
-                      {/* TITLE: Annexure -B */}
-                      <div style={{ textAlign: 'center', marginBottom: '8px' }}>
-                        <h2 style={{ fontSize: '14px', fontWeight: 800, margin: 0, textDecoration: 'underline', fontStyle: 'italic', letterSpacing: '0.04em', color: '#0f172a' }}>
-                          Annexure -B
-                        </h2>
-                      </div>
-
-                      {/* ANNEXURE - B TABLE */}
-                      <table style={{ width: '100%', borderCollapse: 'collapse', border: '1.5px solid #0f172a', fontSize: '10px', color: '#0f172a', marginBottom: '8px' }}>
-                        <thead>
-                          <tr style={{ background: '#ffffff', borderBottom: '1.5px solid #0f172a' }}>
-                            <th style={{ width: '8%', border: '1px solid #0f172a', padding: '4px 4px', textAlign: 'center', fontWeight: 800, fontSize: '10px' }}>
-                              Sr. No.
-                            </th>
-                            <th style={{ width: '74%', border: '1px solid #0f172a', padding: '4px 6px', textAlign: 'center', fontWeight: 800, fontSize: '10px' }}>
-                              DESCRIPTIONS
-                            </th>
-                            <th style={{ width: '18%', border: '1px solid #0f172a', padding: '4px 6px', textAlign: 'center', fontWeight: 800, fontSize: '10px' }}>
-                              RATE
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {allGroups.map((group, gIdx) => {
-                            const groupTotal = calculateGroupTotal(group);
-                            return (
-                              <React.Fragment key={group.id || gIdx}>
-                                {/* Group Header Row */}
-                                <tr style={{ background: '#f8fafc', fontWeight: 800 }}>
-                                  <td style={{ border: '1px solid #0f172a', padding: '4px 4px', textAlign: 'center', fontWeight: 800, verticalAlign: 'middle' }}>
-                                    {group.srNo}
-                                  </td>
-                                  <td style={{ border: '1px solid #0f172a', padding: '4px 6px', fontWeight: 800, color: '#0f172a' }}>
-                                    {group.category}
-                                  </td>
-                                  <td style={{ border: '1px solid #0f172a', padding: '4px 6px', textAlign: 'right', fontWeight: 800 }}>
-                                  </td>
-                                </tr>
-
-                                {/* Parameter Rows */}
-                                {(group.parameters || []).map((param, pIdx) => (
-                                  <tr key={param.id || pIdx}>
-                                    <td style={{ border: '1px solid #0f172a', padding: '2.5px 4px', textAlign: 'center' }}></td>
-                                    <td style={{ border: '1px solid #0f172a', padding: '2.5px 6px 2.5px 14px', color: '#1e293b' }}>
-                                      {param.description}
-                                    </td>
-                                    <td style={{ border: '1px solid #0f172a', padding: '2.5px 6px', textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
-                                      {Number(param.rate || 0).toLocaleString('en-IN')}
-                                    </td>
-                                  </tr>
-                                ))}
-
-                                {/* Subtotal Row */}
-                                <tr style={{ background: '#f1f5f9', fontWeight: 800 }}>
-                                  <td style={{ border: '1px solid #0f172a', padding: '4px 4px', textAlign: 'center' }}></td>
-                                  <td style={{ border: '1px solid #0f172a', padding: '4px 6px', textAlign: 'right', fontWeight: 800, color: '#0f172a' }}>
-                                    Total ({group.category}):
-                                  </td>
-                                  <td style={{ border: '1px solid #0f172a', padding: '4px 6px', textAlign: 'right', fontWeight: 800, color: '#0f172a' }}>
-                                    {Number(groupTotal).toLocaleString('en-IN')}/-
-                                  </td>
-                                </tr>
-                              </React.Fragment>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-
-                      {renderStandardPageFooter(5)}
-                    </div>
-                  );
-                })()}
-
-              </>
-            )}
+                </>
+              )}
 
             </div>
           </div>

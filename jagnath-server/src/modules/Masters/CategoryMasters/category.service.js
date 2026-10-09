@@ -350,7 +350,12 @@ const getCategoriesByCompany = async (companyId, options = {}) => {
         };
 
         if (options.departmentId) {
-            queryOptions.where.departmentId = options.departmentId;
+            const deptIds = Array.isArray(options.departmentId)
+                ? options.departmentId
+                : (typeof options.departmentId === 'string' && options.departmentId.includes(',')
+                    ? options.departmentId.split(',').map(s => s.trim()).filter(Boolean)
+                    : [options.departmentId]);
+            queryOptions.where.departmentId = { [Op.in]: deptIds };
         }
 
         if (options.gpcbOnly === true || options.gpcbOnly === 'true' || options.isGpcb === 'true' || options.isGpcb === true) {

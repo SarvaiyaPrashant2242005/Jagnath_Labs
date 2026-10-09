@@ -16,6 +16,7 @@ const updateLogPath = path.join(__dirname, "../../../../logs/TestRequestParamete
 const deleteLogPath = path.join(__dirname, "../../../../logs/TestRequestParameter/Delete.txt");
 
 const fieldLabels = {
+    locationOfSample: "Location of Sample",
     testMethod: "Test Method",
     unit: "Unit",
     result: "Result",

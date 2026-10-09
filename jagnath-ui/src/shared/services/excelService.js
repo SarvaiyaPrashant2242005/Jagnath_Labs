@@ -532,12 +532,17 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
       const nMethod = normalizeString(normalizedData.testMethod);
       const nRefStd = normalizeString(normalizedData.referenceStandard);
       const nCatName = normalizeString(normalizedData.categoryName);
-      const paramSignature = `${nName}___${nSub}___${nMethod}___${nRefStd}___${nCatName}`;
-      if (nName && seenNamesInFile.has(paramSignature)) {
-        isDuplicateInFile = true;
-        fileDuplicateMessage = `Duplicate parameter name under same sub category, test method, reference standard, and discipline group in uploaded file (first found at row ${seenNamesInFile.get(paramSignature)}). This row will update the record.`;
-      } else if (nName) {
-        seenNamesInFile.set(paramSignature, validRowNum);
+      const nIsGpcb = normalizeString(normalizedData.isGpcb || 'no');
+
+      // Only check for file duplicates if BOTH testMethod and referenceStandard are provided
+      if (nName && nMethod && nRefStd) {
+        const paramSignature = `${nName}___${nSub}___${nMethod}___${nRefStd}___${nCatName}___${nIsGpcb}`;
+        if (seenNamesInFile.has(paramSignature)) {
+          isDuplicateInFile = true;
+          fileDuplicateMessage = `Duplicate parameter name under same sub category, test method, reference standard, discipline group, and GPCB type in uploaded file (first found at row ${seenNamesInFile.get(paramSignature)}). This row will update the record.`;
+        } else {
+          seenNamesInFile.set(paramSignature, validRowNum);
+        }
       }
     } else if (masterType === 'pricelist') {
       const nCatName = normalizeString(normalizedData.categoryName);
@@ -602,16 +607,22 @@ export const validateMasterRows = (masterType, rawRows, existingDbRecords = []) 
         const nMethod = normalizeString(normalizedData.testMethod);
         const nRefStd = normalizeString(normalizedData.referenceStandard);
         const nCatName = normalizeString(normalizedData.categoryName);
-        const dbParam = existingDbRecords.find(p => 
-          normalizeString(p.parameterName || p.name) === nParamName &&
-          normalizeString(p.subCategoryName) === nSub &&
-          normalizeString(p.testMethod) === nMethod &&
-          normalizeString(p.referenceStandard || p.reference_standard) === nRefStd &&
-          normalizeString(p.categoryName) === nCatName
-        );
-        if (dbParam) {
-          isDbMatch = true;
-          matchingDbId = dbParam.id;
+        const nIsGpcb = normalizeString(normalizedData.isGpcb || 'no');
+
+        // Only match against database for update if BOTH testMethod and referenceStandard are provided
+        if (nParamName && nMethod && nRefStd) {
+          const dbParam = existingDbRecords.find(p => 
+            normalizeString(p.parameterName || p.name) === nParamName &&
+            normalizeString(p.subCategoryName) === nSub &&
+            normalizeString(p.testMethod) === nMethod &&
+            normalizeString(p.referenceStandard || p.reference_standard) === nRefStd &&
+            normalizeString(p.categoryName) === nCatName &&
+            (p.isGpcb ? 'yes' : 'no') === nIsGpcb
+          );
+          if (dbParam) {
+            isDbMatch = true;
+            matchingDbId = dbParam.id;
+          }
         }
       } else if (masterType === 'pricelist') {
         const nCatName = normalizeString(normalizedData.categoryName);

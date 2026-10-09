@@ -117,7 +117,8 @@ const TestRequestPrint = () => {
             selectedList.push({
               id: pId,
               parameterName: t.parameterName || t.parameter?.parameterName || (catParam ? (catParam.parameterName || catParam.name) : 'Parameter'),
-              testMethod: t.testMethod || t.test_method || (catParam ? (catParam.testMethod || catParam.defaultTestMethod) : '')
+              testMethod: t.testMethod || t.test_method || (catParam ? (catParam.testMethod || catParam.defaultTestMethod) : ''),
+              locationOfSample: t.locationOfSample || t.location_of_sample || ''
             });
           });
 
@@ -126,7 +127,7 @@ const TestRequestPrint = () => {
 
           let rawGroups = tr.sampleGroups || tr.sample_groups;
           if (typeof rawGroups === 'string') {
-            try { rawGroups = JSON.parse(rawGroups); } catch(e) {}
+            try { rawGroups = JSON.parse(rawGroups); } catch (e) { }
           }
           if (Array.isArray(rawGroups) && rawGroups.length > 0) {
             const builtGroups = rawGroups.map((g, gIdx) => {
@@ -188,6 +189,9 @@ const TestRequestPrint = () => {
     return <div style={{ padding: '2rem', textAlign: 'center', color: 'red' }}>Error loading data.</div>;
   }
 
+  const distinctLocations = Array.from(new Set(parameters.map(p => p.locationOfSample).filter(Boolean)));
+  const displayLocations = distinctLocations.length > 0 ? distinctLocations.join(', ') : (formData.locationOfSample || '');
+
   return (
     <div className="print-container">
       {/* ======================= PAGE 1 ======================= */}
@@ -248,7 +252,7 @@ const TestRequestPrint = () => {
               <td className="label-col">Email ID</td><td className="colon-col">:</td>
               <td colSpan={4} className="val-col">{formData.email}</td>
               <td className="label-col">Location of Sample</td><td className="colon-col">:</td>
-              <td className="val-col">{formData.locationOfSample}</td>
+              <td className="val-col">{displayLocations}</td>
             </tr>
             <tr>
               <td className="label-col">Contact Person</td><td className="colon-col">:</td>
@@ -410,47 +414,21 @@ const TestRequestPrint = () => {
             </tr>
           </thead>
           <tbody>
-            {parsedGroups.length > 1 ? (
-              parsedGroups.flatMap((grp, gIdx) => {
-                const headerRow = (
-                  <tr key={`hdr_${gIdx}`} style={{ background: '#f1f5f9', fontWeight: 'bold' }}>
-                    <td colSpan={4} style={{ textAlign: 'left', padding: '4px 8px', fontSize: '0.8rem', background: '#e2e8f0', color: '#0f172a' }}>
-                      📍 {grp.title || `${gIdx + 1}. ${grp.locationOfSample}`}
-                    </td>
-                  </tr>
-                );
-                const rows = (grp.parameters && grp.parameters.length > 0) ? (
-                  grp.parameters.map((param, pIdx) => (
-                    <tr key={`p_${gIdx}_${param.id || pIdx}`}>
-                      <td style={{ textAlign: 'center' }}>{pIdx + 1}.</td>
-                      <td style={{ textAlign: 'left', paddingLeft: '8px' }}>{param.parameterName}</td>
-                      <td style={{ textAlign: 'center', fontWeight: 'bold', color: '#15803d' }}>√</td>
-                      <td style={{ textAlign: 'center' }}>{param.testMethod || ''}</td>
-                    </tr>
-                  ))
-                ) : [
-                  <tr key={`empty_${gIdx}`}>
-                    <td style={{ textAlign: 'center' }}>-</td>
-                    <td colSpan={3} style={{ textAlign: 'left', paddingLeft: '8px', color: '#64748b', fontStyle: 'italic' }}>No parameters selected for this group</td>
-                  </tr>
-                ];
-                return [headerRow, ...rows];
-              })
-            ) : (
-              Array.from({ length: Math.max(20, parameters.length) }).map((_, i) => {
-                const param = parameters[i];
-                const pName = param ? (param.parameterName || param.name || param.parameter?.parameterName || '') : '';
-                const pMethod = param ? (param.testMethod || param.defaultTestMethod || param.test_method || '') : '';
-                return (
-                  <tr key={i}>
-                    <td style={{ textAlign: 'center' }}>{i + 1}.</td>
-                    <td style={{ textAlign: 'left', paddingLeft: '8px' }}>{pName}</td>
-                    <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{param && pName ? '√' : ''}</td>
-                    <td style={{ textAlign: 'center' }}>{pMethod}</td>
-                  </tr>
-                );
-              })
-            )}
+            {Array.from({ length: Math.max(20, parameters.length) }).map((_, i) => {
+              const param = parameters[i];
+              const pName = param ? (param.parameterName || param.name || param.parameter?.parameterName || '') : '';
+              const pLoc = param?.locationOfSample ? ` [${param.locationOfSample}]` : '';
+              const displayName = pName ? `${pName}${pLoc}` : '';
+              const pMethod = param ? (param.testMethod || param.defaultTestMethod || param.test_method || '') : '';
+              return (
+                <tr key={i}>
+                  <td style={{ textAlign: 'center' }}>{i + 1}.</td>
+                  <td style={{ textAlign: 'left', paddingLeft: '8px' }}>{displayName}</td>
+                  <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{param && pName ? '√' : ''}</td>
+                  <td style={{ textAlign: 'center' }}>{pMethod}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
 

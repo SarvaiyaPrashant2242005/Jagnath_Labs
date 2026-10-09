@@ -15,6 +15,7 @@ const createTransactionSchema = Joi.object({
         "string.guid": "Parameter ID must be a valid UUIDv4.",
         "string.empty": "Parameter ID must not be empty."
     }),
+    locationOfSample: Joi.string().optional().allow("", null),
     testMethod: Joi.string().optional().allow("", null),
     price: Joi.number().optional().allow(null),
     sequence: Joi.number().integer().optional().allow(null),
@@ -33,6 +34,7 @@ const updateTransactionSchema = Joi.object({
     parameterId: Joi.string().guid({ version: 'uuidv4' }).optional().messages({
         "string.guid": "Parameter ID must be a valid UUIDv4."
     }),
+    locationOfSample: Joi.string().optional().allow("", null),
     testMethod: Joi.string().optional().allow("", null),
     price: Joi.number().optional().allow(null),
     sequence: Joi.number().integer().optional().allow(null),

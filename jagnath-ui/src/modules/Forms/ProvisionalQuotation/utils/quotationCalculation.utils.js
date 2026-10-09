@@ -327,18 +327,12 @@ export const mapTRFAnnexureToGroups = (annexureItems) => {
 };
 
 /**
- * Builds Annexure-B containing ONLY parameters selected in the chosen TRF, grouped by Discipline Group.
+ * Builds Annexure-B containing ONLY parameters selected in the chosen TRF, grouped by Location of Sample or Discipline Group.
  */
 export const buildAnnexureBFromTRF = (selectedTR, trParams = [], masters = {}) => {
   if (!selectedTR) return [];
 
-  // 1. If TR has explicit annexure items saved from TRF Audit Quotation
-  if (Array.isArray(selectedTR.annexure) && selectedTR.annexure.length > 0) {
-    const mapped = mapTRFAnnexureToGroups(selectedTR.annexure);
-    if (mapped && mapped.length > 0) return mapped;
-  }
-
-  // 2. If TR has test request parameters (checked in TRF)
+  // 1. If TR has test request parameters (checked in TRF)
   const paramList = Array.isArray(trParams) && trParams.length > 0 
     ? trParams 
     : (Array.isArray(selectedTR.testRequestParameters) ? selectedTR.testRequestParameters : (Array.isArray(selectedTR.parameters) ? selectedTR.parameters : []));
@@ -355,8 +349,12 @@ export const buildAnnexureBFromTRF = (selectedTR, trParams = [], masters = {}) =
       const pId = trp.parameterId || trp.parameter_id || (typeof trp.parameter === 'object' ? trp.parameter?.id : trp.id);
       const paramObj = (typeof trp.parameter === 'object' && trp.parameter) ? trp.parameter : allParams.find(p => p.id === pId);
 
-      const desc = (paramObj?.parameterName || paramObj?.name || trp.description || trp.name || `Parameter #${idx + 1}`).trim();
+      const desc = (trp.parameterName || paramObj?.parameterName || paramObj?.name || trp.description || trp.name || `Parameter #${idx + 1}`).trim();
       
+      // Determine Location of Sample
+      const rawLoc = (trp.locationOfSample || trp.location_of_sample || selectedTR.locationOfSample || selectedTR.location_of_sample || '').trim();
+      const hasSpecificLoc = rawLoc && rawLoc.toLowerCase() !== 'general';
+
       // Determine Category / Discipline
       let cat = '';
       if (paramObj?.category && typeof paramObj.category === 'object') {
@@ -374,55 +372,65 @@ export const buildAnnexureBFromTRF = (selectedTR, trParams = [], masters = {}) =
       }
 
       if (!cat) {
-        cat = selectedTR.sampleParticular || selectedTR.sampleParticularName || selectedTR.category?.name || 'General Water Analysis';
+        cat = selectedTR.formTitle || selectedTR.sampleParticular || selectedTR.sampleParticularName || selectedTR.category?.name || 'WATER ANALYSIS';
       }
 
       const rawCat = cat.trim();
+      const cleanBaseCat = rawCat.replace(/^[0-9]+[A-Za-z\-]*\.\s*/, '').trim();
 
-      // Deduplication check: prevent duplicate parameter entries within the same category
-      const uniqueKey = `${rawCat}___${pId || desc}`;
+      // Determine Group Category Header: Discipline Group + [Location] (e.g. "WATER TESTING [Inletttt]")
+      const groupHeader = hasSpecificLoc ? `${cleanBaseCat} [${rawLoc}]` : cleanBaseCat;
+
+      // Deduplication check: unique per location and parameter
+      const uniqueKey = `${rawLoc || 'GEN'}___${cleanBaseCat}___${pId || desc}`;
       if (seenParamKeys.has(uniqueKey)) {
         return;
       }
       seenParamKeys.add(uniqueKey);
 
-      // Determine rate
-      let rate = parseFloat(trp.price);
-      if (isNaN(rate) || rate === 0) {
+      // Determine rate: use exact price saved in TRF
+      let rate = (trp.price !== undefined && trp.price !== null && !isNaN(parseFloat(trp.price)))
+        ? parseFloat(trp.price)
+        : NaN;
+
+      if (isNaN(rate)) {
         const pm = priceMasters.find(pr => pr.parameterId === pId || pr.parameter_id === pId);
-        if (pm) rate = parseFloat(pm.price || pm.rate || 0);
-      }
-      if (isNaN(rate) || rate === 0) {
-        rate = parseFloat(paramObj?.price || paramObj?.rate || 0) || 0;
-      }
-
-      let srNo = '';
-      let cleanCat = rawCat;
-      const match = rawCat.match(/^([0-9]+[A-Za-z\-]*)\.\s*(.*)$/);
-      if (match) {
-        srNo = match[1];
-        cleanCat = match[2];
-      } else {
-        srNo = String(groupsMap.size + 1);
+        if (pm && !isNaN(parseFloat(pm.price || pm.rate))) {
+          rate = parseFloat(pm.price || pm.rate);
+        } else {
+          rate = parseFloat(paramObj?.price || paramObj?.rate || 0) || 0;
+        }
       }
 
-      if (!groupsMap.has(rawCat)) {
-        groupsMap.set(rawCat, {
+      if (!groupsMap.has(groupHeader)) {
+        groupsMap.set(groupHeader, {
           id: 'grp_' + (groupsMap.size + 1) + '_' + Math.random().toString(36).substr(2, 4),
-          srNo: srNo,
-          category: cleanCat,
+          srNo: String(groupsMap.size + 1),
+          category: groupHeader,
+          location: rawLoc || '',
           parameters: []
         });
       }
 
-      groupsMap.get(rawCat).parameters.push({
+      groupsMap.get(groupHeader).parameters.push({
         id: 'p_' + idx + '_' + Math.random().toString(36).substr(2, 4),
         description: desc,
+        location: rawLoc || '',
         rate: isNaN(rate) ? 0 : rate
       });
     });
 
-    return Array.from(groupsMap.values());
+    // Re-index srNo sequentially 1, 2, 3...
+    return Array.from(groupsMap.values()).map((g, i) => ({
+      ...g,
+      srNo: String(i + 1)
+    }));
+  }
+
+  // 2. Fallback: If TR has explicit annexure items saved from TRF Audit Quotation
+  if (Array.isArray(selectedTR.annexure) && selectedTR.annexure.length > 0) {
+    const mapped = mapTRFAnnexureToGroups(selectedTR.annexure);
+    if (mapped && mapped.length > 0) return mapped;
   }
 
   return [];
@@ -544,42 +552,37 @@ export const calculatePage2Charges = (quotation = {}, annexureATotalParam = null
   const p2 = quotation.page2Charges || {};
   const annI = quotation.annexureI || {};
 
-  // Industry Scale & Audit Fee (Row 1)
-  const auditFee = Number(p2.auditFee !== undefined ? p2.auditFee : (annI.auditFee !== undefined ? annI.auditFee : 25000));
-
-  // Visits & Days
-  const visits = parseInt(p2.visits !== undefined ? p2.visits : (annI.visits !== undefined ? annI.visits : (quotation.annexureAVisits || 3)), 10) || 3;
-  const daysPerVisit = parseInt(p2.daysPerVisit !== undefined ? p2.daysPerVisit : (annI.daysPerVisit !== undefined ? annI.daysPerVisit : 4), 10) || 4;
-  const totalDays = Number(p2.daDaysPerYear !== undefined ? p2.daDaysPerYear : (visits * daysPerVisit));
-
   // Row 1: Audit Report Charges
+  const auditFee = Number(p2.auditFee !== undefined ? p2.auditFee : (annI.auditFee !== undefined ? annI.auditFee : 25000));
   const row1Qty = p2.row1Qty !== undefined ? p2.row1Qty : 1;
   const row1Unit = p2.row1Unit || 'No.';
   const row1Amount = Math.round(auditFee * (parseFloat(row1Qty) || 1));
 
-  // Row 2.1: Transportation
-  const transportQty = p2.transportQty !== undefined ? p2.transportQty : visits;
+  // Row 2.1: Transportation (Completely Independent)
+  const transportQty = p2.transportQty !== undefined ? p2.transportQty : (p2.visits ?? annI.visits ?? 3);
   const transportUnit = p2.transportUnit || 'Visit';
-  const jltVehicleRatePerDay = Number(p2.jltVehicleRatePerDay !== undefined ? p2.jltVehicleRatePerDay : (annI.jltVehicleRatePerDay !== undefined ? annI.jltVehicleRatePerDay : 5000));
-  const defaultTransportRatePerVisit = jltVehicleRatePerDay * daysPerVisit;
-  const transportRatePerVisit = Number(p2.transportRatePerVisit !== undefined ? p2.transportRatePerVisit : (annI.transportRatePerVisit !== undefined ? annI.transportRatePerVisit : defaultTransportRatePerVisit));
-  const transportTotal = Number(p2.transportTotalAmount !== undefined ? p2.transportTotalAmount : (annI.transportTotalAmount !== undefined ? annI.transportTotalAmount : (transportRatePerVisit * (parseFloat(transportQty) || visits))));
-  const autoTransportDaysWord = getNumberInWords(visits * daysPerVisit);
-  const transportDaysText = (p2.transportDaysText && p2.transportDaysText !== 'six days') ? p2.transportDaysText : (autoTransportDaysWord ? `${autoTransportDaysWord} days` : `${visits * daysPerVisit} days`);
+  const transportDaysPerVisit = parseInt(p2.transportDaysPerVisit !== undefined ? p2.transportDaysPerVisit : (p2.daysPerVisit ?? annI.daysPerVisit ?? 4), 10) || 4;
+  const transportVisitsCount = parseInt(p2.transportVisits !== undefined ? p2.transportVisits : transportQty, 10) || 3;
+  const jltVehicleRatePerDay = Number(p2.jltVehicleRatePerDay !== undefined ? p2.jltVehicleRatePerDay : (annI.jltVehicleRatePerDay ?? 5000));
+  const defaultTransportRatePerVisit = jltVehicleRatePerDay * transportDaysPerVisit;
+  const transportRatePerVisit = Number(p2.transportRatePerVisit !== undefined ? p2.transportRatePerVisit : (annI.transportRatePerVisit ?? defaultTransportRatePerVisit));
+  const transportTotal = Number(p2.transportTotalAmount !== undefined ? p2.transportTotalAmount : (annI.transportTotalAmount ?? (transportRatePerVisit * (parseFloat(transportQty) || 3))));
+  const totalTransportDays = transportVisitsCount * transportDaysPerVisit;
+  const autoTransportDaysWord = getNumberInWords(totalTransportDays);
+  const transportDaysText = (p2.transportDaysText && p2.transportDaysText !== 'six days') ? p2.transportDaysText : (autoTransportDaysWord ? `${autoTransportDaysWord} days` : `${totalTransportDays} days`);
 
-  // Row 2.2: Dearness Allowance (DA)
-  const daQty = p2.daQty !== undefined ? p2.daQty : visits;
+  // Row 2.2: Dearness Allowance (DA - Completely Independent)
+  const daQty = p2.daQty !== undefined ? p2.daQty : (p2.visits ?? annI.visits ?? 3);
   const daUnit = p2.daUnit || 'Visit';
   const daRatePerPerson = Number(p2.daRatePerPerson !== undefined ? p2.daRatePerPerson : 520);
   const daPersons = Number(p2.daPersons !== undefined ? p2.daPersons : 4);
-  const daDaysPerYear = Number(p2.daDaysPerYear !== undefined ? p2.daDaysPerYear : totalDays);
-  // Formula: Amount = rate(520) * Person per day (4) * Days per year
-  const daTotal = Math.round(daRatePerPerson * daPersons * daDaysPerYear);
-  // Formula: Rate = amount / Visit
-  const daRatePerVisit = (visits && visits > 0) ? Math.round(daTotal / visits) : daTotal;
+  const daDaysPerYear = Number(p2.daDaysPerYear !== undefined ? p2.daDaysPerYear : (parseInt(daQty, 10) * 4 || 12));
+  const defaultDaTotal = Math.round(daRatePerPerson * daPersons * daDaysPerYear);
+  const daTotal = Number(p2.daTotalAmount !== undefined ? p2.daTotalAmount : defaultDaTotal);
+  const daRatePerVisit = Number(p2.daRatePerVisit !== undefined ? p2.daRatePerVisit : ((parseFloat(daQty) > 0) ? Math.round(daTotal / parseFloat(daQty)) : daTotal));
 
-  // Row 2.3: Accommodation
-  const accomQty = p2.accomQty !== undefined ? p2.accomQty : visits;
+  // Row 2.3: Accommodation (Completely Independent)
+  const accomQty = p2.accomQty !== undefined ? p2.accomQty : (p2.visits ?? annI.visits ?? 3);
   const accomUnit = p2.accomUnit || 'Visit';
   const hotelRoomRate = Number(p2.hotelRoomRate !== undefined ? p2.hotelRoomRate : 3000);
   const hotelRoomsCount = Number(p2.hotelRoomsCount !== undefined ? p2.hotelRoomsCount : 2);
@@ -587,15 +590,20 @@ export const calculatePage2Charges = (quotation = {}, annexureATotalParam = null
   const dailyRoomCost = hotelRoomRate * hotelRoomsCount; // 3000 * 2 = 6000
   const defaultAccomPerVisit = dailyRoomCost * hotelNightsPerVisit; // 6000 * 2 = 12000
   const accomRatePerVisit = Number(p2.accomRatePerVisit !== undefined ? p2.accomRatePerVisit : defaultAccomPerVisit);
-  const accomTotal = Number(p2.accomTotalAmount !== undefined ? p2.accomTotalAmount : (accomRatePerVisit * (parseFloat(accomQty) || visits))); // 12000 * 3 = 36000
+  const accomTotal = Number(p2.accomTotalAmount !== undefined ? p2.accomTotalAmount : (accomRatePerVisit * (parseFloat(accomQty) || 3))); // 12000 * 3 = 36000
 
   // Row 3: Sampling & Analysis (Annexure-A Total)
   let annexureATotal = annexureATotalParam;
   if (annexureATotal === null || annexureATotal === undefined) {
-    const actTotals = calculateAnnexureATotals(quotation.activities || [], visits);
+    const actTotals = calculateAnnexureATotals(quotation.activities || [], quotation.annexureAVisits || 3);
     annexureATotal = actTotals.totalAnnualCharge;
   }
   const samplingTotal = Number(annexureATotal || 0);
+
+  // Backward compatibility alias properties
+  const visits = transportVisitsCount;
+  const daysPerVisit = transportDaysPerVisit;
+  const totalDays = totalTransportDays;
 
   // Grand Total & Tax
   const taxableTotal = row1Amount + transportTotal + daTotal + accomTotal + samplingTotal;
