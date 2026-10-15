@@ -12,6 +12,7 @@ import {
 } from 'react-icons/fa';
 
 import { getQuotationById, fetchMasterData, DEFAULT_TERMS_TEXT, DEFAULT_ANNEXURE_B_GROUPS } from '../services/provisionalQuotationStorage.service';
+import GeneralTestingDocument from '../components/GeneralTestingDocument';
 import {
   calculateMainCharges,
   calculateAnnexureI,
@@ -171,6 +172,40 @@ const ProvisionalQuotationPreview = () => {
       <div className="text-center py-5">
         <div className="spinner-border text-primary mb-3" role="status"></div>
         <p className="text-muted">Loading Quotation Preview...</p>
+      </div>
+    );
+  }
+
+  // Branch for General Testing / Consulting Quotation Preview
+  if (quotation.quotationType === 'general_testing') {
+    return (
+      <div className="preview-page-container gt-preview-page">
+        {/* Action Toolbar */}
+        <div className="preview-toolbar d-flex justify-between align-center mb-4 p-3 bg-white rounded shadow-sm border">
+          <div className="d-flex align-center gap-3">
+            <Link to={`/quotations/provisional/edit/${quotation.id}?type=general_testing`} className="btn btn-outline-secondary btn-sm">
+              <FaArrowLeft /> Edit Quotation
+            </Link>
+            <span className="font-bold text-slate-800">
+              Previewing: {quotation.quotationNumber || quotation.quotationNo} (General Testing)
+            </span>
+            <span className="badge badge-info text-xs">{quotation.status || 'Draft'}</span>
+          </div>
+
+          <div className="d-flex align-center gap-2">
+            <button
+              type="button"
+              className="btn btn-primary btn-sm font-semibold"
+              onClick={() => window.open(`#/quotations/provisional/print/${quotation.id}`, '_blank')}
+            >
+              <FaPrint /> Print / Save as PDF
+            </button>
+          </div>
+        </div>
+
+        <div style={{ maxWidth: '210mm', margin: '0 auto' }}>
+          <GeneralTestingDocument data={quotation} isPrintMode={false} />
+        </div>
       </div>
     );
   }

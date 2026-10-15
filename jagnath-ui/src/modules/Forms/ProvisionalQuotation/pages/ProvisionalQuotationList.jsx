@@ -119,8 +119,11 @@ const ProvisionalQuotationList = () => {
             Create, customize, calculate, and print Schedule-II Environmental Audit & Sampling Provisional Proposals.
           </p>
         </div>
-        <Link to="/quotations/provisional/add" className="btn btn-primary font-semibold">
-          <FaPlus /> New Provisional Quote
+        <Link
+          to="/quotations/provisional/add"
+          className="btn btn-primary font-semibold"
+        >
+          <FaPlus /> New Quotation
         </Link>
       </div>
 
@@ -179,6 +182,7 @@ const ProvisionalQuotationList = () => {
             <thead className="bg-slate-100">
               <tr>
                 <th style={{ width: '160px' }}>Quotation No.</th>
+                <th style={{ width: '110px' }}>Type</th>
                 <th>Client / Organization</th>
                 <th>Plant / Unit</th>
                 <th style={{ width: '120px' }}>Date</th>
@@ -189,115 +193,138 @@ const ProvisionalQuotationList = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredQuotations.map((q) => (
-                <tr key={q.id}>
-                  <td>
-                    <Link
-                      to={`/quotations/provisional/edit/${q.id}`}
-                      className="font-bold text-primary hover:underline d-block"
-                    >
-                      {q.quotationNumber || 'UNNAMED-QUOTE'}
-                    </Link>
-                    {q.referenceNo && (
-                      <small className="text-muted d-block font-mono text-xs">
-                        Ref: {q.referenceNo}
+              {filteredQuotations.map((q) => {
+                const isGt = q.quotationType === 'general_testing';
+                const editUrl = isGt
+                  ? `/quotations/provisional/edit/${q.id}?type=general_testing`
+                  : `/quotations/provisional/edit/${q.id}`;
+                const previewUrl = `/quotations/provisional/preview/${q.id}`;
+                const printUrl = `/quotations/provisional/print/${q.id}`;
+
+                return (
+                  <tr key={q.id}>
+                    <td>
+                      <Link
+                        to={editUrl}
+                        className="font-bold text-primary hover:underline d-block"
+                      >
+                        {q.quotationNumber || q.quotationNo || 'UNNAMED-QUOTE'}
+                      </Link>
+                      {q.referenceNo && (
+                        <small className="text-muted d-block font-mono text-xs">
+                          Ref: {q.referenceNo}
+                        </small>
+                      )}
+                    </td>
+                    <td>
+                      {isGt ? (
+                        <span className="badge" style={{ background: '#e0f2fe', color: '#0369a1', fontSize: '0.72rem', fontWeight: 700 }}>
+                          General Testing
+                        </span>
+                      ) : (
+                        <span className="badge badge-secondary" style={{ fontSize: '0.72rem' }}>
+                          General Quote
+                        </span>
+                      )}
+                    </td>
+                    <td>
+                      <span className="font-semibold text-slate-800 d-block">
+                        {q.clientName || q.client?.companyName || 'No Client Selected'}
+                      </span>
+                      <small className="text-muted d-block text-xs">
+                        {q.clientCity ? `${q.clientCity}, ${q.clientState || ''}` : ''}
                       </small>
-                    )}
-                  </td>
-                  <td>
-                    <span className="font-semibold text-slate-800 d-block">
-                      {q.clientName || 'No Client Selected'}
-                    </span>
-                    <small className="text-muted d-block text-xs">
-                      {q.clientCity ? `${q.clientCity}, ${q.clientState || ''}` : ''}
-                    </small>
-                  </td>
-                  <td>
-                    <span className="text-slate-700 font-medium">
-                      {q.plantName || q.plantAddress || '-'}
-                    </span>
-                  </td>
-                  <td>
-                    <span className="text-sm text-slate-600">
-                      {q.quotationDate || '-'}
-                    </span>
-                  </td>
-                  <td className="text-center">
-                    <span className="badge badge-secondary text-xs">v{q.version || 1}</span>
-                  </td>
-                  <td>
-                    <span className={`badge ${getStatusBadgeClass(q.status)}`}>
-                      {q.status || 'Draft'}
-                    </span>
-                  </td>
-                  <td className="text-right font-bold text-slate-900">
-                    ₹{Number(q.grandTotal || 0).toLocaleString('en-IN')}
-                  </td>
-                  <td className="text-center">
-                    <div className="d-flex justify-center gap-1">
-                      <Link
-                        to={`/quotations/provisional/edit/${q.id}`}
-                        className="btn btn-icon btn-xs btn-outline-primary"
-                        title="Edit Quotation"
-                      >
-                        <FaEdit />
-                      </Link>
-                      <Link
-                        to={`/quotations/provisional/preview/${q.id}`}
-                        className="btn btn-icon btn-xs btn-outline-secondary"
-                        title="Live A4 Preview"
-                      >
-                        <FaEye />
-                      </Link>
-                      <Link
-                        to={`/quotations/provisional/print/${q.id}`}
-                        className="btn btn-icon btn-xs btn-outline-info"
-                        title="Print / Save PDF"
-                      >
-                        <FaPrint />
-                      </Link>
-                      <button
-                        type="button"
-                        className="btn btn-icon btn-xs btn-outline-warning"
-                        title="Create Revision"
-                        onClick={() => setRevisionModal({ isOpen: true, quotation: q })}
-                      >
-                        <FaHistory />
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-icon btn-xs btn-outline-dark"
-                        title="Duplicate Quotation"
-                        onClick={() => handleDuplicate(q.id)}
-                      >
-                        <FaCopy />
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-icon btn-xs btn-danger-soft"
-                        title="Delete Quotation"
-                        onClick={() => handleDelete(q.id, q.quotationNumber)}
-                      >
-                        <FaTrash />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td>
+                      <span className="text-slate-700 font-medium">
+                        {q.plantName || q.plantAddress || q.client?.serviceName || q.client?.address || '-'}
+                      </span>
+                    </td>
+                    <td>
+                      <span className="text-sm text-slate-600">
+                        {q.quotationDate || '-'}
+                      </span>
+                    </td>
+                    <td className="text-center">
+                      <span className="badge badge-secondary text-xs">v{q.version || 1}</span>
+                    </td>
+                    <td>
+                      <span className={`badge ${getStatusBadgeClass(q.status)}`}>
+                        {q.status || 'Draft'}
+                      </span>
+                    </td>
+                    <td className="text-right font-bold text-slate-900">
+                      ₹{Number(q.grandTotal || 0).toLocaleString('en-IN')}
+                    </td>
+                    <td className="text-center">
+                      <div className="d-flex justify-center gap-1">
+                        <Link
+                          to={editUrl}
+                          className="btn btn-icon btn-xs btn-outline-primary"
+                          title="Edit Quotation"
+                        >
+                          <FaEdit />
+                        </Link>
+                        <Link
+                          to={previewUrl}
+                          className="btn btn-icon btn-xs btn-outline-secondary"
+                          title="Live A4 Preview"
+                        >
+                          <FaEye />
+                        </Link>
+                        <Link
+                          to={printUrl}
+                          className="btn btn-icon btn-xs btn-outline-info"
+                          title="Print / Save PDF"
+                        >
+                          <FaPrint />
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => handleDuplicate(q.id)}
+                          className="btn btn-icon btn-xs btn-outline-secondary"
+                          title="Duplicate Quotation"
+                        >
+                          <FaCopy />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRevisionModal({ isOpen: true, quotation: q })}
+                          className="btn btn-icon btn-xs btn-outline-warning"
+                          title="Create Revision"
+                        >
+                          <FaHistory />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(q.id, q.quotationNumber || q.quotationNo)}
+                          className="btn btn-icon btn-xs btn-outline-danger"
+                          title="Delete"
+                        >
+                          <FaTrash />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
 
               {filteredQuotations.length === 0 && !loading && (
                 <tr>
-                  <td colSpan={8} className="text-center py-5">
+                  <td colSpan={9} className="text-center py-5">
                     <div className="empty-state-box">
                       <FaFileInvoiceDollar size={36} className="text-muted mb-2" />
-                      <h4 className="font-bold text-slate-700">No Provisional Quotations Found</h4>
+                      <h4 className="font-bold text-slate-700">No Quotations Found</h4>
                       <p className="text-muted text-sm mb-3">
                         {quotations.length === 0
-                          ? 'You have not created any Provisional Estimated Quotations yet.'
+                          ? 'You have not created any quotations yet.'
                           : 'No quotations match your current search or filter criteria.'}
                       </p>
-                      <Link to="/quotations/provisional/add" className="btn btn-primary btn-sm">
-                        <FaPlus /> Create Your First Provisional Quotation
+                      <Link
+                        to="/quotations/provisional/add"
+                        className="btn btn-primary btn-sm"
+                      >
+                        <FaPlus /> Create First Quotation
                       </Link>
                     </div>
                   </td>
@@ -306,7 +333,7 @@ const ProvisionalQuotationList = () => {
 
               {loading && (
                 <tr>
-                  <td colSpan={8} className="text-center py-4 text-muted">
+                  <td colSpan={9} className="text-center py-4 text-muted">
                     Loading quotation records and master data...
                   </td>
                 </tr>
@@ -328,3 +355,4 @@ const ProvisionalQuotationList = () => {
 };
 
 export default ProvisionalQuotationList;
+

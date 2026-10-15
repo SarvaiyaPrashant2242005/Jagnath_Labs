@@ -5,7 +5,8 @@
  */
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
+import GeneralTestingQuotationForm from '../components/GeneralTestingQuotationForm';
 import {
   FaArrowLeft, FaSave, FaPrint, FaClipboardList, FaBuilding,
   FaFileInvoiceDollar, FaCar, FaUserTie, FaHotel, FaFlask,
@@ -24,6 +25,7 @@ import {
   DEFAULT_INTRO_TEXT,
   DEFAULT_SCOPE_ITEMS,
   DEFAULT_TERMS_ITEMS,
+  DEFAULT_TERMS_TEXT,
   DEFAULT_ANNEXURE_A_ACTIVITIES,
   DEFAULT_ANNEXURE_B_GROUPS,
 } from '../services/provisionalQuotationStorage.service';
@@ -173,8 +175,9 @@ const renderStandardPageFooter = (pageNum) => (
   </div>
 );
 
-const ProvisionalQuotationForm = () => {
-  const { id } = useParams();
+const LegacyGeneralQuotationForm = ({ id: propId }) => {
+  const { id: routeId } = useParams();
+  const id = propId !== undefined ? propId : routeId;
   const navigate = useNavigate();
   const isEditing = !!id;
 
@@ -975,6 +978,40 @@ const ProvisionalQuotationForm = () => {
             onClick={() => scrollToPreview('preview-page-1')}
             style={{ background: '#f0fdf4', border: '1.5px solid #86efac', borderRadius: '10px', padding: '1rem', boxShadow: '0 2px 4px rgba(34, 197, 94, 0.08)', cursor: 'default' }}
           >
+            {/* Quotation Type Selector Dropdown */}
+            <div className="form-group mb-3 pb-3" style={{ borderBottom: '1.5px dashed #86efac' }}>
+              <label className="form-label font-bold text-slate-800 mb-1 d-flex align-center gap-2" style={{ fontSize: '0.88rem' }}>
+                <FaFileInvoiceDollar style={{ color: '#16a34a' }} /> Select Quotation Type:
+              </label>
+              <select
+                className="form-control font-bold"
+                style={{
+                  height: '40px',
+                  fontSize: '0.92rem',
+                  borderColor: '#22c55e',
+                  backgroundColor: '#ffffff',
+                  color: '#0f172a'
+                }}
+                value="general"
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === 'general_testing') {
+                    if (isEditing) {
+                      navigate(`/quotations/provisional/edit/${id}?type=general_testing`);
+                    } else {
+                      navigate('/quotations/provisional/add?type=general_testing');
+                    }
+                  }
+                }}
+              >
+                <option value="general">1) General Quotation</option>
+                <option value="general_testing">2) General Testing / Consulting Quotation</option>
+              </select>
+              <small className="text-muted d-block mt-1 font-medium">
+                Choose between General Quotation (Schedule-II Environmental Audit) or General Testing / Consulting Quotation.
+              </small>
+            </div>
+
             <label className="form-label font-bold text-primary mb-1 d-flex align-center gap-2" style={{ fontSize: '0.9rem' }}>
               <FaClipboardList /> 1. Select Test Request (TRF) to Auto-Fetch Everything:
             </label>
@@ -2990,6 +3027,28 @@ const ProvisionalQuotationForm = () => {
       </div>
     </div>
   );
+};
+
+/**
+ * Master Quotation Route Component
+ * Dispatches cleanly between General Quotation and General Testing Quotation.
+ * Using separate components with distinct keys guarantees 100% compliance
+ * with React's Rules of Hooks.
+ */
+const ProvisionalQuotationForm = () => {
+  const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const isEditing = !!id;
+
+  const existingForType = isEditing ? getQuotationById(id) : null;
+  const typeParam = searchParams.get('type');
+  const isGeneralTesting = typeParam === 'general_testing' || (typeParam !== 'general' && existingForType?.quotationType === 'general_testing');
+
+  if (isGeneralTesting) {
+    return <GeneralTestingQuotationForm key={`gt_${id || 'new'}`} quotationId={id} />;
+  }
+
+  return <LegacyGeneralQuotationForm key={`general_${id || 'new'}`} id={id} />;
 };
 
 export default ProvisionalQuotationForm;
