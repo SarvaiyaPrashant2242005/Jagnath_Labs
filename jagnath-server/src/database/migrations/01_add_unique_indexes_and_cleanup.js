@@ -284,9 +284,7 @@ const runMigration = async () => {
     `, { transaction });
 
     await sequelize.query(`
-      CREATE UNIQUE INDEX IF NOT EXISTS idx_parameters_company_subcat_lower_name
-      ON parameters ("companyId", COALESCE("subCategoryId", '00000000-0000-0000-0000-000000000000'), LOWER(TRIM("parameterName")))
-      WHERE deleted_at IS NULL;
+      DROP INDEX IF EXISTS idx_parameters_company_subcat_lower_name;
     `, { transaction });
 
     // Deduplicate reportNumber in test_requests if any duplicates exist

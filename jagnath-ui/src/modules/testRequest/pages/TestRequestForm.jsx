@@ -130,7 +130,9 @@ const TestRequestForm = () => {
   const [companies, setCompanies] = useState([]);
   const [clients, setClients] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [selectedDepartmentIds, setSelectedDepartmentIds] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState([]);
   const [subCategories, setSubCategories] = useState([]);
   const [selectedSubCategory, setSelectedSubCategory] = useState('');
   const [cautions, setCautions] = useState([]);
@@ -138,7 +140,15 @@ const TestRequestForm = () => {
   const [selectedParamLocation, setSelectedParamLocation] = useState('');
   const [priceMasterMap, setPriceMasterMap] = useState({});
 
-  // State for dynamic parameter checklist & pagination
+  // State for dynamic parameter checklist & pagination (Location-Wise)
+  const [configuredLocations, setConfiguredLocations] = useState(['Inlet']);
+  const [activeLocationTab, setActiveLocationTab] = useState('Inlet');
+  const [locationParameters, setLocationParameters] = useState({});
+  const [locationParamSequence, setLocationParamSequence] = useState({});
+  const [savedParamRecords, setSavedParamRecords] = useState({});
+  const [newLocationInput, setNewLocationInput] = useState('');
+
+  const [isGpcbOnly, setIsGpcbOnly] = useState(false);
   const [parameters, setParameters] = useState([]);
   const [checkedParameters, setCheckedParameters] = useState({});
   const [selectedParamSequence, setSelectedParamSequence] = useState([]);
@@ -147,6 +157,19 @@ const TestRequestForm = () => {
   const [paramPage, setParamPage] = useState(1);
   const [paramSearch, setParamSearch] = useState('');
   const [paramPageSize, setParamPageSize] = useState(10);
+  const [clientEmails, setClientEmails] = useState([]);
+  const [showEmailDropdown, setShowEmailDropdown] = useState(false);
+  const emailDropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (emailDropdownRef.current && !emailDropdownRef.current.contains(event.target)) {
+        setShowEmailDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -538,17 +561,23 @@ const TestRequestForm = () => {
       }
 
       // 2. Fetch other resources concurrently using the target company context
-      const [compRes, cautionRes, priceRes, deptRes, catRes] = await Promise.all([
+      const [compRes, cautionRes, priceRes, deptRes, catRes, locRes] = await Promise.all([
         apiService.get(COMPANY_ENDPOINTS.GET_MY),
         apiService.get(CAUTION_ENDPOINTS.GET_ALL),
         apiService.get(PRICE_MASTER_ENDPOINTS.GET_ALL),
-        apiService.get(`${DEPARTMENT_ENDPOINTS.GET_ALL}?companyId=${targetCompanyId}&status=Active&limit=500`),
-        apiService.get(CATEGORY_ENDPOINTS.GET_ALL)
+        apiService.get(`${DEPARTMENT_ENDPOINTS.GET_ALL}?companyId=${targetCompanyId}&status=Active&limit=500&gpcbOnly=false&isGpcb=false`),
+        apiService.get(CATEGORY_ENDPOINTS.GET_ALL),
+        apiService.get(`${LOCATION_SAMPLE_ENDPOINTS.GET_ALL}?status=Active`)
       ]);
- 
+
       const cList = Array.isArray(compRes?.data) ? compRes.data : [compRes?.data];
       if (compRes?.data) setCompanies(cList);
- 
+
+      if (locRes?.data) {
+        const locList = Array.isArray(locRes.data) ? locRes.data : (locRes.data.rows || [locRes.data]);
+        setLocationSamples(locList);
+      }
+
       if (deptRes?.data) {
         setDepartments(deptRes.data.rows || deptRes.data || []);
       }
@@ -557,7 +586,7 @@ const TestRequestForm = () => {
         const catList = Array.isArray(catRes.data) ? catRes.data : [catRes.data];
         setCategories(catList.filter(cat => cat.status === 'Active'));
       }
- 
+
       if (cautionRes?.data) {
         const cautionList = Array.isArray(cautionRes.data) ? cautionRes.data : [cautionRes.data];
         setCautions(cautionList.filter(c => c.status === true || c.status === 'Active'));
@@ -594,6 +623,10 @@ const TestRequestForm = () => {
       if (isEditing && tr) {
         const matchingComp = cList.find(c => c.id === tr.companyId || (c.companyName || c.company_name) === tr.companyName) || {};
         const matchingClient = clList.find(c => c.id === tr.clientId || c.clientName === tr.clientName) || {};
+        const emailsList = (matchingClient.emails && matchingClient.emails.length > 0)
+          ? matchingClient.emails
+          : (matchingClient.email ? matchingClient.email.split(',').map(e => e.trim()).filter(Boolean) : []);
+        setClientEmails(emailsList);
 
         let savedSubCatId = tr.subCategoryId || tr.sub_category_id || '';
         let savedCategoryId = tr.categoryId || tr.category_id || (tr.sampleParticular && tr.sampleParticular.length === 36 ? tr.sampleParticular : '');
@@ -607,9 +640,14 @@ const TestRequestForm = () => {
           }
         }
 
-        // Fetch checked parameters for this test request
+        // Fetch checked parameters for this test request (Location-Wise grouping)
+        const locParamsMap = {};
+        const locSeqMap = {};
+        const savedRecordsMap = {};
         const checks = {};
         const loadedSeq = [];
+        const discoveredLocations = [];
+
         try {
           const trpRes = await apiService.get(TEST_REQUEST_PARAMETER_ENDPOINTS.GET_ALL);
           if (trpRes?.data) {
@@ -618,11 +656,40 @@ const TestRequestForm = () => {
             matchingTrps.sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
             matchingTrps.forEach(t => {
               if (t.parameterId) {
+                const loc = (t.locationOfSample || t.location_of_sample || (tr.locationOfSample ? tr.locationOfSample.split(',')[0].trim() : '') || 'Inlet').trim();
+                if (!discoveredLocations.includes(loc)) {
+                  discoveredLocations.push(loc);
+                }
+                if (!locParamsMap[loc]) locParamsMap[loc] = {};
+                if (!locSeqMap[loc]) locSeqMap[loc] = [];
+
+                locParamsMap[loc][t.parameterId] = true;
+                locParamsMap[loc][`_id_${t.parameterId}`] = t.id;
+                savedRecordsMap[`${loc}_${t.parameterId}`] = t.id;
+                if (!locSeqMap[loc].includes(t.parameterId)) {
+                  locSeqMap[loc].push(t.parameterId);
+                }
+
                 checks[t.parameterId] = true;
-                checks[`_id_${t.parameterId}`] = t.id; // Store transaction ID for updates/deletes
-                loadedSeq.push(t.parameterId);
+                checks[`_id_${t.parameterId}`] = t.id;
+                if (!loadedSeq.includes(t.parameterId)) {
+                  loadedSeq.push(t.parameterId);
+                }
               }
             });
+
+            const trLocs = (tr.locationOfSample || '')
+              .split(',')
+              .map(l => l.trim())
+              .filter(Boolean);
+            const mergedLocs = Array.from(new Set([...discoveredLocations, ...trLocs]));
+            const finalLocations = mergedLocs.length > 0 ? mergedLocs : ['Inlet'];
+
+            setConfiguredLocations(finalLocations);
+            setActiveLocationTab(finalLocations[0]);
+            setLocationParameters(locParamsMap);
+            setLocationParamSequence(locSeqMap);
+            setSavedParamRecords(savedRecordsMap);
             setCheckedParameters(checks);
             setSelectedParamSequence(loadedSeq);
           }
@@ -650,7 +717,7 @@ const TestRequestForm = () => {
           clientId: matchingClient.id || tr.clientId || '',
           address: tr.address || matchingClient.plantAddress || matchingClient.plant_address || matchingClient.officeAddress || matchingClient.office_address || matchingClient.address || '',
           email: tr.email || '',
-          locationOfSample: tr.locationOfSample || '',
+          locationOfSample: tr.locationOfSample || 'Inlet',
           contactPerson: tr.contactPerson || '',
           contactNumber: tr.contactNumber || '',
           dateOfCollection: tr.dateOfCollection || '',
@@ -686,16 +753,20 @@ const TestRequestForm = () => {
           industryPrice: tr.industryPrice || tr.industry_price || ''
         });
 
+        const initialCatIds = savedCategoryId ? [savedCategoryId] : [];
+        setSelectedCategoryIds(initialCatIds);
+
         if (savedSubCatId) {
           setSelectedSubCategory(savedSubCatId);
         }
 
         if (savedDepartmentId) {
           fetchCategoriesForDepartment(savedDepartmentId);
-        } else if (savedCategoryId) {
-          fetchSubCategoriesForCategory(savedCategoryId);
         }
-        fetchParameters(savedSubCatId, savedCategoryId, loadedSeq);
+        if (initialCatIds.length > 0) {
+          fetchSubCategoriesForCategories(initialCatIds);
+        }
+        fetchParameters(savedSubCatId, initialCatIds, loadedSeq);
       } else {
         // Pre-select company if we resolved one and auto-generate next Report No (e.g. JLT010826RR00320)
         const nowForFallback = new Date();
@@ -726,47 +797,62 @@ const TestRequestForm = () => {
 
   const [categoriesLoading, setCategoriesLoading] = useState(false);
 
-  const fetchCategoriesForDepartment = async (departmentId) => {
-    if (!departmentId) {
+  const fetchDepartmentsList = async (gpcbOnlyFlag = isGpcbOnly) => {
+    try {
+      const activeCompId = formData.companyId || localStorage.getItem('selectedCompanyId') || '';
+      let url = `${DEPARTMENT_ENDPOINTS.GET_ALL}?companyId=${activeCompId}&status=Active&limit=500&gpcbOnly=${gpcbOnlyFlag ? 'true' : 'false'}&isGpcb=${gpcbOnlyFlag ? 'true' : 'false'}`;
+      const res = await apiService.get(url);
+      if (res?.data) {
+        setDepartments(res.data.rows || res.data || []);
+      }
+    } catch (e) {
+      console.error("Error fetching departments", e);
+    }
+  };
+
+  const fetchCategoriesForDepartments = async (departmentIds, gpcbOnlyFlag = isGpcbOnly) => {
+    const deptIdsArray = Array.isArray(departmentIds)
+      ? departmentIds.filter(Boolean)
+      : (departmentIds ? String(departmentIds).split(',').map(s => s.trim()).filter(Boolean) : []);
+
+    if (deptIdsArray.length === 0) {
       setCategories([]);
       return;
     }
     setCategoriesLoading(true);
     try {
       const activeCompId = formData.companyId || localStorage.getItem('selectedCompanyId') || '';
-      const res = await apiService.get(`${CATEGORY_ENDPOINTS.GET_ALL}?departmentId=${departmentId}&companyId=${activeCompId}&status=Active&limit=1000&all=true`);
+      let url = `${CATEGORY_ENDPOINTS.GET_ALL}?departmentId=${deptIdsArray.join(',')}&companyId=${activeCompId}&status=Active&limit=1000&all=true&gpcbOnly=${gpcbOnlyFlag ? 'true' : 'false'}&isGpcb=${gpcbOnlyFlag ? 'true' : 'false'}`;
+      const res = await apiService.get(url);
       const raw = res?.data;
       let list = Array.isArray(raw) ? raw : (raw?.rows || raw?.categories || raw?.data || []);
       setCategories(list.filter(c => c.status === 'Active' || c.status === true || !c.status));
     } catch (e) {
-      console.error("Error fetching categories for department", e);
+      console.error("Error fetching categories for departments", e);
       setCategories([]);
     } finally {
       setCategoriesLoading(false);
     }
   };
 
-  const fetchSubCategoriesForCategory = async (categoryId) => {
-    if (!categoryId) {
+  const fetchCategoriesForDepartment = fetchCategoriesForDepartments;
+
+  const fetchSubCategoriesForCategories = async (categoryIds, gpcbOnlyFlag = isGpcbOnly) => {
+    const idsArray = Array.isArray(categoryIds)
+      ? categoryIds.filter(Boolean)
+      : (categoryIds ? [categoryIds] : []);
+
+    if (idsArray.length === 0) {
       setSubCategories([]);
       return;
     }
     setSubCategoriesLoading(true);
     try {
-      const res = await apiService.get(`${SUB_CATEGORY_ENDPOINTS.GET_ALL}?categoryId=${categoryId}&status=Active&all=true`);
+      let url = `${SUB_CATEGORY_ENDPOINTS.GET_ALL}?categoryId=${idsArray.join(',')}&status=Active&all=true&gpcbOnly=${gpcbOnlyFlag ? 'true' : 'false'}&isGpcb=${gpcbOnlyFlag ? 'true' : 'false'}`;
+      const res = await apiService.get(url);
       const raw = res?.data;
       let list = Array.isArray(raw) ? raw : (raw?.rows || raw?.subCategories || raw?.data || []);
       if (!Array.isArray(list)) list = [];
-
-      if (categoryId) {
-        const matched = list.filter(s => {
-          const sCatId = s.categoryId || s.category_id || (s.category ? s.category.id : '');
-          return String(sCatId) === String(categoryId);
-        });
-        if (matched.length > 0 || list.length > 0) {
-          list = matched.length > 0 ? matched : list;
-        }
-      }
 
       setSubCategories(list.filter(s => s.status === 'Active' || s.status === true || !s.status));
     } catch (e) {
@@ -777,19 +863,30 @@ const TestRequestForm = () => {
     }
   };
 
-  const fetchParameters = async (subCategoryId, categoryId, extraIncludeIds = []) => {
-    if (!subCategoryId && !categoryId && (!extraIncludeIds || extraIncludeIds.length === 0)) {
+  const fetchSubCategoriesForCategory = fetchSubCategoriesForCategories;
+
+  const fetchParameters = async (subCategoryId, categoryIds, extraIncludeIds = [], gpcbOnlyFlag = isGpcbOnly) => {
+    const idsArray = Array.isArray(categoryIds)
+      ? categoryIds.filter(Boolean)
+      : (typeof categoryIds === 'string' && categoryIds ? categoryIds.split(',').map(s => s.trim()).filter(Boolean) : []);
+
+    const checkedIds = (extraIncludeIds && extraIncludeIds.length > 0)
+      ? extraIncludeIds
+      : Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]);
+
+    if (!subCategoryId && idsArray.length === 0 && checkedIds.length === 0) {
       setParameters([]);
       setParametersLoading(false);
       return;
     }
     setParametersLoading(true);
     try {
-      let url = `${PARAMETER_ENDPOINTS.GET_ALL}?status=Active&all=true`;
+      let url = `${PARAMETER_ENDPOINTS.GET_ALL}?status=Active&all=true&gpcbOnly=${gpcbOnlyFlag ? 'true' : 'false'}&isGpcb=${gpcbOnlyFlag ? 'true' : 'false'}`;
       if (subCategoryId) {
         url += `&subCategoryId=${subCategoryId}`;
-      } else if (categoryId) {
-        url += `&categoryId=${categoryId}`;
+      }
+      if (idsArray.length > 0) {
+        url += `&categoryId=${idsArray.join(',')}`;
       }
       const res = await apiService.get(url);
       let list = [];
@@ -801,20 +898,43 @@ const TestRequestForm = () => {
         list = [res.data];
       }
 
-      let activeList = list.filter(p => p.status === 'Active' || p.status === true || !p.status);
+      let activeList = list.filter(p => {
+        const isActive = p.status === 'Active' || p.status === true || !p.status;
+        const isGpcb = p.isGpcb === true || p.is_gpcb === true || p.type === 'GPCB' || p.type === 'gpcb';
+        const matchesGpcb = gpcbOnlyFlag ? isGpcb : !isGpcb;
+        return isActive && matchesGpcb;
+      });
 
-      // If there are extra parameter IDs (e.g., from existing TR parameters) missing from activeList, fetch and merge them
-      if (extraIncludeIds && extraIncludeIds.length > 0) {
-        const missingIds = extraIncludeIds.filter(id => !activeList.some(p => p.id === id));
+      // If there are extra parameter IDs already checked (from previously selected discipline groups or saved request), merge them
+      if (checkedIds.length > 0) {
+        const missingIds = checkedIds.filter(id => !activeList.some(p => p.id === id));
         if (missingIds.length > 0) {
-          const allRes = await apiService.get(`${PARAMETER_ENDPOINTS.GET_ALL}?status=Active&all=true`);
-          const allList = Array.isArray(allRes?.data) ? allRes.data : (allRes?.data?.rows || []);
-          const extraParams = allList.filter(p => missingIds.includes(p.id));
-          activeList = [...activeList, ...extraParams];
+          try {
+            const allRes = await apiService.get(`${PARAMETER_ENDPOINTS.GET_ALL}?status=Active&all=true&gpcbOnly=${gpcbOnlyFlag ? 'true' : 'false'}&isGpcb=${gpcbOnlyFlag ? 'true' : 'false'}`);
+            const allList = Array.isArray(allRes?.data) ? allRes.data : (allRes?.data?.rows || []);
+            const extraParams = allList.filter(p => {
+              const isGpcb = p.isGpcb === true || p.is_gpcb === true || p.type === 'GPCB' || p.type === 'gpcb';
+              const matchesGpcb = gpcbOnlyFlag ? isGpcb : !isGpcb;
+              return missingIds.includes(p.id) && matchesGpcb;
+            });
+            activeList = [...activeList, ...extraParams];
+          } catch (err) {
+            console.error("Error loading checked extra parameters", err);
+          }
         }
       }
 
-      setParameters(activeList);
+      // Deduplicate activeList by parameter id
+      const seenMap = new Map();
+      const uniqueParams = [];
+      for (const p of activeList) {
+        if (!seenMap.has(p.id)) {
+          seenMap.set(p.id, true);
+          uniqueParams.push(p);
+        }
+      }
+
+      setParameters(uniqueParams);
       setParamPage(1);
     } catch (e) {
       console.error("Error fetching parameters", e);
@@ -824,53 +944,216 @@ const TestRequestForm = () => {
     }
   };
 
-  const handleSubCategoryChange = (e) => {
-    const subId = e.target.value;
-    setSelectedSubCategory(subId);
-    setFormData(prev => ({ ...prev, subCategoryId: subId }));
+  const handleToggleGpcb = async (e) => {
+    const nextGpcb = e.target.checked;
+    setIsGpcbOnly(nextGpcb);
+
+    // Clear dependent selection to prevent mismatched stale states
+    setSelectedSubCategory('');
+    setSelectedCategoryIds([]);
+    setSelectedDepartmentIds([]);
+    setFormData(prev => ({
+      ...prev,
+      departmentId: '',
+      categoryId: '',
+      subCategoryId: ''
+    }));
+    setCategories([]);
+    setSubCategories([]);
     setParamPage(1);
-    setCheckedParameters({});
-    if (subId) {
-      fetchParameters(subId, formData.categoryId);
-    } else if (formData.categoryId) {
-      fetchParameters('', formData.categoryId);
+    setParamSearch('');
+
+    const currentCheckedIds = Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]);
+    if (currentCheckedIds.length > 0) {
+      fetchParameters('', [], currentCheckedIds, nextGpcb);
     } else {
       setParameters([]);
     }
+
+    // Fetch fresh departments list with new GPCB state
+    await fetchDepartmentsList(nextGpcb);
+  };
+
+  const handleDepartmentSelectionChange = (selectedVals) => {
+    const deptIdsArray = Array.isArray(selectedVals)
+      ? selectedVals.filter(Boolean)
+      : (selectedVals ? [selectedVals] : []);
+
+    setSelectedDepartmentIds(deptIdsArray);
+    setFormData(prev => ({
+      ...prev,
+      departmentId: deptIdsArray[0] || '',
+      categoryId: '',
+      subCategoryId: ''
+    }));
+    setSelectedCategoryIds([]);
+    setSelectedSubCategory('');
+    setSubCategories([]);
+    setParamPage(1);
+
+    if (deptIdsArray.length > 0) {
+      fetchCategoriesForDepartments(deptIdsArray, isGpcbOnly);
+    } else {
+      setCategories([]);
+      const currentCheckedIds = getAllCheckedParamIds();
+      if (currentCheckedIds.length > 0) {
+        fetchParameters('', [], currentCheckedIds, isGpcbOnly);
+      } else {
+        setParameters([]);
+      }
+    }
+  };
+
+  const getAllCheckedParamIds = () => {
+    const allIds = new Set();
+    Object.values(locationParameters).forEach(locMap => {
+      Object.keys(locMap || {}).forEach(k => {
+        if (!k.startsWith('_id_') && locMap[k]) {
+          allIds.add(k);
+        }
+      });
+    });
+    Object.keys(checkedParameters || {}).forEach(k => {
+      if (!k.startsWith('_id_') && checkedParameters[k]) {
+        allIds.add(k);
+      }
+    });
+    return Array.from(allIds);
+  };
+
+  const handleCategorySelectionChange = (selectedVals) => {
+    const catIdsArray = Array.isArray(selectedVals)
+      ? selectedVals.filter(Boolean)
+      : (selectedVals ? [selectedVals] : []);
+
+    setSelectedCategoryIds(catIdsArray);
+    setFormData(prev => ({
+      ...prev,
+      categoryId: catIdsArray[0] || ''
+    }));
+    setParamPage(1);
+    setSelectedSubCategory('');
+
+    if (catIdsArray.length > 0) {
+      fetchSubCategoriesForCategories(catIdsArray, isGpcbOnly);
+      const checkedIds = getAllCheckedParamIds();
+      fetchParameters('', catIdsArray, checkedIds, isGpcbOnly);
+    } else {
+      setSubCategories([]);
+      const checkedIds = getAllCheckedParamIds();
+      if (checkedIds.length > 0) {
+        fetchParameters('', [], checkedIds, isGpcbOnly);
+      } else {
+        setParameters([]);
+      }
+    }
+  };
+
+  const handleSubCategoryChange = (e) => {
+    const val = e?.target?.value !== undefined ? e.target.value : (typeof e === 'string' ? e : '');
+    setSelectedSubCategory(val);
+    setFormData(prev => ({ ...prev, subCategoryId: val }));
+    setParamPage(1);
+    const checkedIds = getAllCheckedParamIds();
+    fetchParameters(val, selectedCategoryIds, checkedIds, isGpcbOnly);
+  };
+
+  const handleAddLocation = (locName) => {
+    const trimmed = (locName || '').trim();
+    if (!trimmed) return;
+    if (!configuredLocations.includes(trimmed)) {
+      setConfiguredLocations(prev => [...prev, trimmed]);
+    }
+    setActiveLocationTab(trimmed);
+    setNewLocationInput('');
+  };
+
+  const handleRemoveLocation = (locName) => {
+    if (configuredLocations.length <= 1) {
+      triggerToast('At least one location is required.', 'error');
+      return;
+    }
+    const filtered = configuredLocations.filter(l => l !== locName);
+    setConfiguredLocations(filtered);
+    if (activeLocationTab === locName) {
+      setActiveLocationTab(filtered[0] || 'Inlet');
+    }
+    setLocationParameters(prev => {
+      const next = { ...prev };
+      delete next[locName];
+      return next;
+    });
+    setLocationParamSequence(prev => {
+      const next = { ...prev };
+      delete next[locName];
+      return next;
+    });
   };
 
   const handleToggleSelectAllParameters = () => {
-    const displayedParams = parameters.filter(param => !selectedSubCategory || param.subCategoryId === selectedSubCategory || param.subCategory?.id === selectedSubCategory);
+    const currentLoc = activeLocationTab || configuredLocations[0] || 'Inlet';
+    const locChecks = locationParameters[currentLoc] || {};
+    const displayedParams = parameters.filter(param => {
+      if (selectedSubCategory) {
+        return param.subCategoryId === selectedSubCategory || param.subCategory?.id === selectedSubCategory || locChecks[param.id];
+      }
+      return true;
+    });
     if (displayedParams.length === 0) return;
 
-    const allChecked = displayedParams.every(p => !!checkedParameters[p.id]);
+    const allChecked = displayedParams.every(p => !!locChecks[p.id]);
     const displayedIds = displayedParams.map(p => p.id);
 
+    setLocationParameters(prev => {
+      const curLocObj = { ...(prev[currentLoc] || {}) };
+      displayedParams.forEach(p => {
+        if (allChecked) {
+          delete curLocObj[p.id];
+        } else {
+          curLocObj[p.id] = true;
+        }
+      });
+      return {
+        ...prev,
+        [currentLoc]: curLocObj
+      };
+    });
+
+    setLocationParamSequence(prev => {
+      const curSeq = prev[currentLoc] || [];
+      if (allChecked) {
+        return {
+          ...prev,
+          [currentLoc]: curSeq.filter(id => !displayedIds.includes(id))
+        };
+      } else {
+        const newIdsToAdd = displayedIds.filter(id => !curSeq.includes(id));
+        return {
+          ...prev,
+          [currentLoc]: [...curSeq, ...newIdsToAdd]
+        };
+      }
+    });
+
+    // Also update global checkedParameters cache
     setCheckedParameters(prev => {
       const next = { ...prev };
       displayedParams.forEach(p => {
         if (allChecked) {
-          delete next[p.id];
+          // only delete if not checked in another location
+          const inOtherLoc = configuredLocations.some(l => l !== currentLoc && (locationParameters[l] || {})[p.id]);
+          if (!inOtherLoc) delete next[p.id];
         } else {
           next[p.id] = true;
         }
       });
       return next;
     });
-
-    setSelectedParamSequence(prevSeq => {
-      if (allChecked) {
-        return prevSeq.filter(id => !displayedIds.includes(id));
-      } else {
-        const newIdsToAdd = displayedIds.filter(id => !prevSeq.includes(id));
-        return [...prevSeq, ...newIdsToAdd];
-      }
-    });
   };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
+
     if (name === 'industryType') {
       const price = INDUSTRY_PRICES[value] !== undefined ? INDUSTRY_PRICES[value] : '';
       setFormData(prev => ({ ...prev, industryType: value, industryPrice: price }));
@@ -880,63 +1163,136 @@ const TestRequestForm = () => {
 
     if (name === 'departmentId') {
       setSelectedSubCategory('');
+      setSelectedCategoryIds([]);
       setFormData(prev => ({ ...prev, departmentId: value, categoryId: '', subCategoryId: '' }));
-      setParameters([]);
-      setCheckedParameters({});
-      setSelectedParamSequence([]);
       setSubCategories([]);
       setParamPage(1);
       setParamSearch('');
       if (value) {
-        fetchCategoriesForDepartment(value);
+        fetchCategoriesForDepartment(value, isGpcbOnly);
       } else {
         setCategories([]);
       }
-    }
-
-    if (name === 'categoryId') {
-      setSelectedSubCategory('');
-      setFormData(prev => ({ ...prev, categoryId: value, subCategoryId: '' }));
-      setParameters([]);
-      setCheckedParameters({});
-      setParamPage(1);
-      setParamSearch('');
-      if (value) {
-        fetchSubCategoriesForCategory(value);
-        fetchParameters('', value);
+      const currentCheckedIds = getAllCheckedParamIds();
+      if (currentCheckedIds.length > 0) {
+        fetchParameters('', [], currentCheckedIds, isGpcbOnly);
       } else {
-        setSubCategories([]);
+        setParameters([]);
       }
     }
 
-    if (name === 'clientId' && value) {
-      // Auto-fill client details including Plant/Industry Address
-      const selectedClient = clients.find(c => c.id === value);
-      if (selectedClient) {
-        const clientPlantAddress = selectedClient.plantAddress || selectedClient.plant_address || selectedClient.officeAddress || selectedClient.office_address || selectedClient.address || '';
+    if (name === 'clientId') {
+      if (!value) {
+        setClientEmails([]);
         setFormData(prev => ({
           ...prev,
-          address: clientPlantAddress,
-          email: selectedClient.email || '',
-          contactNumber: selectedClient.contactNumber || prev.contactNumber
+          clientId: '',
+          address: '',
+          email: '',
+          contactNumber: ''
         }));
+      } else {
+        // Fetch latest client details from backend to resolve emails
+        apiService.get(CLIENT_ENDPOINTS.GET_BY_ID(value))
+          .then(res => {
+            const selectedClient = res.data;
+            if (selectedClient) {
+              const clientPlantAddress = selectedClient.plantAddress || selectedClient.plant_address || selectedClient.officeAddress || selectedClient.office_address || selectedClient.address || '';
+              const emailsList = (selectedClient.emails && selectedClient.emails.length > 0)
+                ? selectedClient.emails
+                : (selectedClient.email ? selectedClient.email.split(',').map(e => e.trim()).filter(Boolean) : []);
+              setClientEmails(emailsList);
+              const primaryEmail = emailsList.length > 0 ? emailsList[0] : '';
+              setFormData(prev => ({
+                ...prev,
+                address: clientPlantAddress,
+                email: primaryEmail,
+                contactNumber: selectedClient.contactNumber || prev.contactNumber
+              }));
+            }
+          })
+          .catch(err => {
+            console.error("Error fetching latest client details:", err);
+            const selectedClient = clients.find(c => c.id === value);
+            if (selectedClient) {
+              const clientPlantAddress = selectedClient.plantAddress || selectedClient.plant_address || selectedClient.officeAddress || selectedClient.office_address || selectedClient.address || '';
+              const emailsList = (selectedClient.emails && selectedClient.emails.length > 0)
+                ? selectedClient.emails
+                : (selectedClient.email ? selectedClient.email.split(',').map(e => e.trim()).filter(Boolean) : []);
+              setClientEmails(emailsList);
+              const primaryEmail = emailsList.length > 0 ? emailsList[0] : '';
+              setFormData(prev => ({
+                ...prev,
+                address: clientPlantAddress,
+                email: primaryEmail,
+                contactNumber: selectedClient.contactNumber || prev.contactNumber
+              }));
+            }
+          });
       }
     }
   };
 
-  const handleParameterCheck = (paramId) => {
-    const isCurrentlyChecked = !!checkedParameters[paramId];
+  const handleToggleEmail = (email) => {
+    const currentEmails = formData.email ? formData.email.split(',').map(e => e.trim()).filter(Boolean) : [];
+    let updated;
+    if (currentEmails.includes(email)) {
+      updated = currentEmails.filter(e => e !== email);
+    } else {
+      updated = [...currentEmails, email];
+    }
+    setFormData(prev => ({ ...prev, email: updated.join(', ') }));
+  };
 
-    setCheckedParameters(prev => ({
+  const handleSelectAllEmails = () => {
+    const currentEmails = formData.email ? formData.email.split(',').map(e => e.trim()).filter(Boolean) : [];
+    const allSelected = clientEmails.every(e => currentEmails.includes(e));
+    if (allSelected) {
+      setFormData(prev => ({ ...prev, email: '' }));
+    } else {
+      setFormData(prev => ({ ...prev, email: clientEmails.join(', ') }));
+    }
+  };
+
+  const handleParameterCheck = (paramId) => {
+    const currentLoc = activeLocationTab || configuredLocations[0] || 'Inlet';
+    const locChecks = locationParameters[currentLoc] || {};
+    const isCurrentlyChecked = !!locChecks[paramId];
+
+    setLocationParameters(prev => ({
       ...prev,
-      [paramId]: !isCurrentlyChecked
+      [currentLoc]: {
+        ...(prev[currentLoc] || {}),
+        [paramId]: !isCurrentlyChecked
+      }
     }));
 
-    setSelectedParamSequence(prevSeq => {
+    setLocationParamSequence(prev => {
+      const curSeq = prev[currentLoc] || [];
       if (!isCurrentlyChecked) {
-        return prevSeq.includes(paramId) ? prevSeq : [...prevSeq, paramId];
+        return {
+          ...prev,
+          [currentLoc]: curSeq.includes(paramId) ? curSeq : [...curSeq, paramId]
+        };
       } else {
-        return prevSeq.filter(id => id !== paramId);
+        return {
+          ...prev,
+          [currentLoc]: curSeq.filter(id => id !== paramId)
+        };
+      }
+    });
+
+    setCheckedParameters(prev => {
+      if (!isCurrentlyChecked) {
+        return { ...prev, [paramId]: true };
+      } else {
+        const inOtherLoc = configuredLocations.some(l => l !== currentLoc && (locationParameters[l] || {})[paramId]);
+        if (!inOtherLoc) {
+          const next = { ...prev };
+          delete next[paramId];
+          return next;
+        }
+        return prev;
       }
     });
   };
@@ -950,28 +1306,17 @@ const TestRequestForm = () => {
       triggerToast('Please select a Client.', 'error');
       return false;
     }
-    if (!formData.departmentId) {
-      triggerToast('Please select a Department.', 'error');
+    if (selectedDepartmentIds.length === 0 && !formData.departmentId) {
+      triggerToast('Please select at least one Department.', 'error');
       return false;
     }
-    const activeCatId = formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : '');
+    const activeCatId = selectedCategoryIds[0] || formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : '');
     if (!activeCatId) {
-      triggerToast('Please select a Discipline Group.', 'error');
+      triggerToast('Please select at least one Discipline Group.', 'error');
       return false;
     }
-    if (!selectedSubCategory && !formData.subCategoryId) {
-      triggerToast('Please select a Sub Category.', 'error');
-      return false;
-    }
-    // HIDE MULTIPLE QUOTATIONS FUNCTIONALITY (DISABLED)
-    // if (formData.quotationRequired === 'Yes' && !formData.quotationType) {
-    //   triggerToast('Please select a Quotation Type.', 'error');
-    //   return false;
-    // }
     return true;
   };
-
-
 
   const handleSave = async () => {
     if (!validateForm()) return false;
@@ -979,11 +1324,13 @@ const TestRequestForm = () => {
 
     try {
       // 1. Save Test Request
-      const activeCatId = formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : null);
+      const activeCatId = selectedCategoryIds[0] || formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : null);
       const textSampleParticular = (formData.sampleParticular && formData.sampleParticular.length === 36) ? '' : formData.sampleParticular;
+      const activeLocationsStr = configuredLocations.join(', ');
 
       const payload = {
         ...formData,
+        locationOfSample: activeLocationsStr || formData.locationOfSample,
         categoryId: activeCatId,
         departmentId: formData.departmentId || null,
         sampleParticular: textSampleParticular,
@@ -991,10 +1338,13 @@ const TestRequestForm = () => {
         includeCaution: Boolean(formData.includeCaution),
         cautionId: formData.includeCaution && formData.cautionId ? formData.cautionId : null,
         reportIssueDays: formData.tentativeDays,
-        reviewedBy: formData.sampleTestingFacilityReviewedBy
+        reviewedBy: formData.sampleTestingFacilityReviewedBy,
+        quotationRequired: 'No',
+        quotationType: null
       };
       delete payload.tentativeDays;
       delete payload.sampleTestingFacilityReviewedBy;
+      delete payload.categoryIds;
 
       const targetId = savedRequestId || id;
       let savedTrId = targetId;
@@ -1002,7 +1352,7 @@ const TestRequestForm = () => {
         await apiService.put(TEST_REQUEST_ENDPOINTS.UPDATE(targetId), payload);
       } else {
         const res = await apiService.post(TEST_REQUEST_ENDPOINTS.CREATE, payload);
-        savedTrId = res?.data?.id || res?.data?.data?.id; // depending on response format
+        savedTrId = res?.data?.id || res?.data?.data?.id;
       }
 
       if (!savedTrId) {
@@ -1014,62 +1364,71 @@ const TestRequestForm = () => {
       // Update saved requestId state
       setSavedRequestId(savedTrId);
 
-      // 2. Save Parameters Checklist with sequence
-      const checkedParamIds = Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]);
+      // 2. Save Location-Wise Parameters
+      const allSelectedTuples = [];
+      configuredLocations.forEach(loc => {
+        const locChecks = locationParameters[loc] || {};
+        const checkedIds = Object.keys(locChecks).filter(k => !k.startsWith('_id_') && locChecks[k]);
+        const seqList = locationParamSequence[loc] || [];
+        const orderedIds = Array.from(new Set([
+          ...seqList.filter(id => checkedIds.includes(id)),
+          ...checkedIds.filter(id => !seqList.includes(id))
+        ]));
 
-      // Delete any previously saved parameters that have been unselected
-      const savedParamKeys = Object.keys(checkedParameters).filter(k => k.startsWith('_id_'));
-      const keysToDeleteFromState = [];
-      for (const key of savedParamKeys) {
-        const pId = key.replace('_id_', '');
-        if (!checkedParamIds.includes(pId)) {
-          const trpId = checkedParameters[key];
-          if (trpId) {
-            try {
-              await apiService.delete(TEST_REQUEST_PARAMETER_ENDPOINTS.DELETE(trpId));
-              keysToDeleteFromState.push(key, pId);
-            } catch (err) {
-              console.error("Failed to delete unchecked parameter from database", err);
-            }
+        orderedIds.forEach((pId, idx) => {
+          const targetParam = parameters.find(p => p.id === pId);
+          const key = `${loc}_${pId}`;
+          const existingTrpId = savedParamRecords[key] || locChecks[`_id_${pId}`];
+          const price = priceMasterMap[pId] !== undefined ? priceMasterMap[pId] : (parseFloat(targetParam?.price) || 0);
+          allSelectedTuples.push({
+            locationOfSample: loc,
+            parameterId: pId,
+            sequence: idx + 1,
+            price: price || 0,
+            testMethod: targetParam ? (targetParam.testMethod || targetParam.defaultTestMethod) : null,
+            key,
+            trpId: existingTrpId
+          });
+        });
+      });
+
+      // Delete removed parameters
+      const currentSelectedKeys = allSelectedTuples.map(t => t.key);
+      for (const [key, trpId] of Object.entries(savedParamRecords)) {
+        if (trpId && !currentSelectedKeys.includes(key)) {
+          try {
+            await apiService.delete(TEST_REQUEST_PARAMETER_ENDPOINTS.DELETE(trpId));
+          } catch (err) {
+            console.error("Failed to delete unchecked parameter from database", err);
           }
         }
       }
-      if (keysToDeleteFromState.length > 0) {
-        setCheckedParameters(prev => {
-          const updated = { ...prev };
-          keysToDeleteFromState.forEach(k => delete updated[k]);
-          return updated;
-        });
-      }
 
-      const orderedParamIds = [
-        ...selectedParamSequence.filter(id => checkedParamIds.includes(id)),
-        ...checkedParamIds.filter(id => !selectedParamSequence.includes(id))
-      ];
-
-      for (let i = 0; i < orderedParamIds.length; i++) {
-        const pId = orderedParamIds[i];
-        const seqNum = i + 1;
-        const trpId = checkedParameters[`_id_${pId}`];
-
-        if (!trpId) {
-          const targetParam = parameters.find(p => p.id === pId);
+      const updatedSavedRecords = {};
+      for (const tuple of allSelectedTuples) {
+        if (!tuple.trpId) {
           const res = await apiService.post(TEST_REQUEST_PARAMETER_ENDPOINTS.CREATE, {
             testRequestId: savedTrId,
-            parameterId: pId,
-            sequence: seqNum,
-            testMethod: targetParam ? (targetParam.testMethod || targetParam.defaultTestMethod) : null,
-            price: priceMasterMap[pId] || 0
+            parameterId: tuple.parameterId,
+            locationOfSample: tuple.locationOfSample,
+            sequence: tuple.sequence,
+            testMethod: tuple.testMethod,
+            price: tuple.price
           });
           if (res?.data?.id) {
-            setCheckedParameters(prev => ({ ...prev, [`_id_${pId}`]: res.data.id }));
+            updatedSavedRecords[tuple.key] = res.data.id;
           }
         } else {
-          await apiService.put(TEST_REQUEST_PARAMETER_ENDPOINTS.UPDATE(trpId), {
-            sequence: seqNum
+          await apiService.put(TEST_REQUEST_PARAMETER_ENDPOINTS.UPDATE(tuple.trpId), {
+            locationOfSample: tuple.locationOfSample,
+            sequence: tuple.sequence,
+            testMethod: tuple.testMethod,
+            price: tuple.price
           });
+          updatedSavedRecords[tuple.key] = tuple.trpId;
         }
       }
+      setSavedParamRecords(updatedSavedRecords);
 
       // Save Audit Quotation if required
       if (formData.quotationRequired === 'Yes' && formData.quotationType === 'Audit') {
@@ -1115,7 +1474,11 @@ const TestRequestForm = () => {
   const handleSaveAndQuotation = async () => {
     const savedId = await handleSave();
     if (savedId) {
-      window.open(`#/test-requests/quotation/${savedId}`, '_blank');
+      if (formData.quotationType === 'Provisional') {
+        window.open(`#/quotations/provisional/add?trfId=${savedId}&type=provisional`, '_blank');
+      } else {
+        window.open(`#/test-requests/quotation/${savedId}`, '_blank');
+      }
       setTimeout(() => {
         navigate('/test-requests');
       }, 500);
@@ -1275,28 +1638,90 @@ const TestRequestForm = () => {
                 <textarea name="address" value={formData.address} onChange={handleChange} className="premium-input" rows={2} placeholder="Enter full address..."></textarea>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', position: 'relative' }} ref={emailDropdownRef}>
                 <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Email ID</label>
-                <input type="text" name="email" value={formData.email} onChange={handleChange} className="premium-input" placeholder="e.g. contact@client.com, contact2@client.com" />
-              </div>
+                {clientEmails.length > 1 ? (
+                  <>
+                    <div
+                      onClick={() => setShowEmailDropdown(!showEmailDropdown)}
+                      className="premium-input"
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        cursor: 'pointer',
+                        background: '#ffffff',
+                        minHeight: '42px',
+                        padding: '0.5rem 0.75rem',
+                        boxSizing: 'border-box'
+                      }}
+                    >
+                      <span style={{ fontSize: '0.9rem', color: formData.email ? '#0f172a' : '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {formData.email || 'Select Emails'}
+                      </span>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>▼</span>
+                    </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Location of Sample</label>
-                <SearchableSelect
-                  options={[
-                    { id: '', name: 'Select Location of Sample' },
-                    ...[...locationSamples].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(loc => ({ id: loc.name, name: loc.name })),
-                    ...(formData.locationOfSample && !locationSamples.some(l => l.name === formData.locationOfSample)
-                      ? [{ id: formData.locationOfSample, name: formData.locationOfSample }]
-                      : [])
-                  ]}
-                  value={formData.locationOfSample}
-                  onChange={(selectedVal) => {
-                    handleChange({ target: { name: 'locationOfSample', value: selectedVal } });
-                  }}
-                  placeholder="Select Location of Sample"
-                  searchPlaceholder="Search location..."
-                />
+                    {showEmailDropdown && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: '100%',
+                          left: 0,
+                          right: 0,
+                          marginTop: '0.25rem',
+                          background: '#ffffff',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '8px',
+                          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                          zIndex: 50,
+                          padding: '0.5rem',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '0.5rem',
+                          maxHeight: '200px',
+                          overflowY: 'auto'
+                        }}
+                      >
+                        {/* Select All Option */}
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.25rem 0.5rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, borderBottom: '1px solid #f1f5f9', paddingBottom: '0.5rem' }}>
+                          <input
+                            type="checkbox"
+                            checked={clientEmails.every(e => (formData.email ? formData.email.split(',').map(x => x.trim()) : []).includes(e))}
+                            onChange={handleSelectAllEmails}
+                            style={{ accentColor: '#22c55e', cursor: 'pointer' }}
+                          />
+                          Select All ({clientEmails.length})
+                        </label>
+
+                        {/* Individual Email Options */}
+                        {clientEmails.map((email, idx) => {
+                          const isChecked = (formData.email ? formData.email.split(',').map(x => x.trim()) : []).includes(email);
+                          return (
+                            <label key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.25rem 0.5rem', cursor: 'pointer', fontSize: '0.875rem', color: '#334155' }}>
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => handleToggleEmail(email)}
+                                style={{ accentColor: '#22c55e', cursor: 'pointer' }}
+                              />
+                              {email}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <input
+                    type="text"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    className="premium-input"
+                    placeholder="e.g. contact@client.com, contact2@client.com"
+                  />
+                )}
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
@@ -1437,54 +1862,137 @@ const TestRequestForm = () => {
 
           {/* Testing Parameters Card */}
           <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc' }}>
-              <div style={{ width: '12px', height: '24px', background: 'linear-gradient(to bottom, #8b5cf6, #a78bfa)', borderRadius: '6px' }}></div>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Testing Parameters</h3>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ width: '12px', height: '24px', background: 'linear-gradient(to bottom, #8b5cf6, #a78bfa)', borderRadius: '6px' }}></div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Testing Parameters</h3>
+              </div>
+
+              {/* GPCB Parameters Toggle */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.6rem',
+                  cursor: 'pointer',
+                  padding: '0.45rem 0.9rem',
+                  borderRadius: '10px',
+                  backgroundColor: isGpcbOnly ? '#f0fdf4' : '#f8fafc',
+                  border: isGpcbOnly ? '1.5px solid #86efac' : '1.5px solid #e2e8f0',
+                  transition: 'all 0.2s ease',
+                  userSelect: 'none'
+                }}>
+                  <input
+                    type="checkbox"
+                    id="gpcb-toggle"
+                    checked={isGpcbOnly}
+                    onChange={handleToggleGpcb}
+                    style={{
+                      width: '1.2rem',
+                      height: '1.2rem',
+                      accentColor: '#16a34a',
+                      cursor: 'pointer'
+                    }}
+                  />
+                  <span style={{
+                    fontSize: '0.9rem',
+                    fontWeight: isGpcbOnly ? 700 : 600,
+                    color: isGpcbOnly ? '#15803d' : '#475569'
+                  }}>
+                    GPCB Parameters Only
+                  </span>
+                </label>
+                {isGpcbOnly && (
+                  <span style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    backgroundColor: '#dcfce7',
+                    color: '#15803d',
+                    padding: '0.3rem 0.65rem',
+                    borderRadius: '20px',
+                    border: '1px solid #bbf7d0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem'
+                  }}>
+                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#16a34a', display: 'inline-block' }}></span>
+                    GPCB Mode Active
+                  </span>
+                )}
+              </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
-              
-              {/* Department Selector */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Department <span style={{ color: '#ef4444' }}>*</span></label>
-                <SearchableSelect
-                  options={[...departments].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
-                  value={formData.departmentId || ''}
-                  onChange={(selectedVal) => {
-                    handleChange({ target: { name: 'departmentId', value: selectedVal } });
-                  }}
-                  placeholder="Select Department"
-                  searchPlaceholder="Search department..."
-                />
-              </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
 
-              {/* Discipline Group Dropdown */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Discipline Group <span style={{ color: '#ef4444' }}>*</span></label>
-                  <AddMasterButton label="Add New Group" onClick={() => setInlineModal({ isOpen: true, type: 'category', parentData: { companyId: formData.companyId, departmentId: formData.departmentId } })} />
-                </div>
-                <SearchableSelect
-                  options={[...categories].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
-                  value={formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : '')}
-                  onChange={(selectedVal) => {
-                    handleChange({ target: { name: 'categoryId', value: selectedVal } });
-                  }}
-                  placeholder="Select Discipline Group"
-                  searchPlaceholder="Search discipline group..."
-                  disabled={!formData.departmentId}
-                />
-              </div>
-
+              {/* Location of Sample Selector */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>
-                    Sub Category <span style={{ color: '#ef4444' }}>*</span> {subCategoriesLoading && <span style={{ fontSize: '0.75rem', color: '#64748b' }}>(Loading...)</span>}
+                    Location of Sample <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <AddMasterButton
+                    label="Add Location"
+                    onClick={() => setInlineModal({ isOpen: true, type: 'locationSample', parentData: { companyId: formData.companyId } })}
+                  />
+                </div>
+                <SearchableSelect
+                  options={[
+                    ...[...locationSamples].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(loc => ({ id: loc.name, name: loc.name })),
+                    ...(newLocationInput && !locationSamples.some(l => l.name === newLocationInput)
+                      ? [{ id: newLocationInput, name: newLocationInput }]
+                      : [])
+                  ]}
+                  value={activeLocationTab || configuredLocations[0] || ''}
+                  onChange={(selectedVal) => {
+                    if (selectedVal) {
+                      handleAddLocation(selectedVal);
+                    }
+                  }}
+                  placeholder="Select Location of Sample"
+                  searchPlaceholder="Search or select location..."
+                />
+              </div>
+
+              {/* Department Selector (Multi-Select) */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Department(s) <span style={{ color: '#ef4444' }}>*</span></label>
+                <SearchableSelect
+                  options={[...departments].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
+                  value={selectedDepartmentIds.length > 0 ? selectedDepartmentIds : (formData.departmentId ? [formData.departmentId] : [])}
+                  onChange={handleDepartmentSelectionChange}
+                  placeholder="Select Department(s)"
+                  searchPlaceholder="Search department..."
+                  isMulti={true}
+                />
+              </div>
+
+              {/* Discipline Group Dropdown (Multi-Select) */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Discipline Group(s) <span style={{ color: '#ef4444' }}>*</span></label>
+                  <AddMasterButton label="Add New Group" onClick={() => setInlineModal({ isOpen: true, type: 'category', parentData: { companyId: formData.companyId, departmentId: selectedDepartmentIds[0] || formData.departmentId } })} />
+                </div>
+                <SearchableSelect
+                  options={[...categories].sort((a, b) => (a.name || '').localeCompare(b.name || ''))}
+                  value={selectedCategoryIds.length > 0 ? selectedCategoryIds : (formData.categoryId ? [formData.categoryId] : [])}
+                  onChange={handleCategorySelectionChange}
+                  placeholder="Select Discipline Group(s)"
+                  searchPlaceholder="Search discipline group..."
+                  disabled={selectedDepartmentIds.length === 0 && !formData.departmentId}
+                  isMulti={true}
+                />
+              </div>
+
+              {/* Sub Category */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>
+                    Sub Category {subCategoriesLoading && <span style={{ fontSize: '0.75rem', color: '#64748b' }}>(Loading...)</span>}
                   </label>
                   <AddMasterButton
                     label="Add New Sub Category"
                     onClick={() => {
-                      const activeCatId = formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : '');
+                      const activeCatId = selectedCategoryIds[0] || formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36 ? formData.sampleParticular : '');
                       if (!activeCatId) {
                         triggerToast('Please select a Discipline Group first.', 'error');
                         return;
@@ -1499,25 +2007,21 @@ const TestRequestForm = () => {
                   onChange={(selectedVal) => {
                     handleSubCategoryChange({ target: { value: selectedVal } });
                   }}
-                  placeholder="Select Sub Category"
+                  placeholder="Select Sub Category (Optional)"
                   searchPlaceholder="Search sub category..."
-                  disabled={(!formData.categoryId && (!formData.sampleParticular || formData.sampleParticular.length !== 36)) || subCategoriesLoading}
+                  disabled={(selectedCategoryIds.length === 0 && !formData.categoryId && (!formData.sampleParticular || formData.sampleParticular.length !== 36)) || subCategoriesLoading}
                 />
-                {(formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36)) && !subCategoriesLoading && subCategories.length === 0 && (
+                {(selectedCategoryIds.length > 0 || formData.categoryId || (formData.sampleParticular && formData.sampleParticular.length === 36)) && !subCategoriesLoading && subCategories.length === 0 && (
                   <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic' }}>
-                    No subcategories available for this discipline group
+                    No subcategories available for selected discipline groups
                   </span>
                 )}
               </div>
             </div>
 
-            {!formData.categoryId && (!formData.sampleParticular || formData.sampleParticular.length !== 36) ? (
+            {(selectedCategoryIds.length === 0 && !formData.categoryId && (!formData.sampleParticular || formData.sampleParticular.length !== 36)) ? (
               <div style={{ padding: '2.5rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1', fontWeight: 500 }}>
                 Please select a Discipline Group to begin.
-              </div>
-            ) : (!selectedSubCategory && !formData.subCategoryId && subCategories.length > 0 && parameters.length === 0) ? (
-              <div style={{ padding: '2.5rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1', fontWeight: 500 }}>
-                Please select a Sub Category to view test parameters.
               </div>
             ) : parametersLoading ? (
               <div style={{ padding: '2.5rem', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
@@ -1528,11 +2032,14 @@ const TestRequestForm = () => {
                 No parameters mapped to this selection
               </div>
             ) : (() => {
+              const currentLoc = activeLocationTab || configuredLocations[0] || 'Inlet';
+              const curLocChecks = locationParameters[currentLoc] || {};
+
               const categoryFilteredParams = parameters.filter(param => {
                 const matchesSubCat = !selectedSubCategory ||
                   param.subCategoryId === selectedSubCategory ||
                   param.subCategory?.id === selectedSubCategory ||
-                  checkedParameters[param.id];
+                  curLocChecks[param.id];
                 return matchesSubCat;
               });
               const searchFilteredParams = categoryFilteredParams
@@ -1540,7 +2047,8 @@ const TestRequestForm = () => {
                   if (!paramSearch.trim()) return true;
                   const q = paramSearch.toLowerCase();
                   return (param.parameterName || '').toLowerCase().includes(q) ||
-                    (param.testMethod || '').toLowerCase().includes(q);
+                    (param.testMethod || '').toLowerCase().includes(q) ||
+                    (param.categoryName || '').toLowerCase().includes(q);
                 })
                 .sort((a, b) => (a.parameterName || '').localeCompare(b.parameterName || ''));
 
@@ -1555,269 +2063,456 @@ const TestRequestForm = () => {
                 safeParamPage * paramPageSize
               );
 
+              const curLocCheckedIds = Object.keys(curLocChecks).filter(k => !k.startsWith('_id_') && curLocChecks[k]);
+              const curLocCheckedPrice = curLocCheckedIds.reduce((sum, pId) => {
+                const paramObj = parameters.find(p => p.id === pId);
+                const price = priceMasterMap[pId] !== undefined ? priceMasterMap[pId] : (paramObj?.price || 0);
+                return sum + parseFloat(price || 0);
+              }, 0);
+
+              // Multi-location summaries
+              const locationBreakdowns = configuredLocations.map(loc => {
+                const locMap = locationParameters[loc] || {};
+                const pIds = Object.keys(locMap).filter(k => !k.startsWith('_id_') && locMap[k]);
+                const locSubtotal = pIds.reduce((sum, pId) => {
+                  const pObj = parameters.find(p => p.id === pId);
+                  const price = priceMasterMap[pId] !== undefined ? priceMasterMap[pId] : (pObj?.price || 0);
+                  return sum + parseFloat(price || 0);
+                }, 0);
+                return {
+                  location: loc,
+                  paramIds: pIds,
+                  count: pIds.length,
+                  subtotal: locSubtotal
+                };
+              });
+
+              const totalParamsCount = locationBreakdowns.reduce((sum, item) => sum + item.count, 0);
+              const totalSubtotalAmount = locationBreakdowns.reduce((sum, item) => sum + item.subtotal, 0);
+              const totalGstAmount = totalSubtotalAmount * 0.18;
+              const totalGrandAmount = Math.round(totalSubtotalAmount + totalGstAmount);
+
               return categoryFilteredParams.length > 0 && (
-                <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-                  {/* Top Bar / Header */}
-                  <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #e2e8f0', background: 'linear-gradient(to right, #f8fafc, #ffffff)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
-                    <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '1rem' }}>
-                      Select Test Parameters to be Analyzed
-                    </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
-                    <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                      {/* Search box */}
-                      <div style={{ position: 'relative', width: '220px' }}>
-                        <input
-                          type="text"
-                          placeholder="Search parameters..."
-                          value={paramSearch}
-                          onChange={(e) => {
-                            setParamSearch(e.target.value);
-                            setParamPage(1);
-                          }}
-                          style={{
-                            padding: '0.35rem 0.65rem 0.35rem 2rem',
-                            borderRadius: '8px',
-                            border: '1px solid #cbd5e1',
-                            fontSize: '0.85rem',
-                            width: '100%',
-                            outline: 'none',
-                            backgroundColor: '#ffffff'
-                          }}
-                        />
-                        <FaSearch size={12} style={{ position: 'absolute', left: '0.7rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-                        {paramSearch && (
-                          <button
-                            type="button"
-                            onClick={() => setParamSearch('')}
-                            style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', color: '#94a3b8', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold' }}
-                          >
-                            ✕
-                          </button>
-                        )}
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={handleToggleSelectAllParameters}
-                        style={{
-                          background: '#e0e7ff',
-                          color: '#4338ca',
-                          border: 'none',
-                          borderRadius: '8px',
-                          padding: '0.35rem 0.75rem',
-                          fontSize: '0.8rem',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          transition: 'all 0.15s ease'
-                        }}
-                      >
-                        {categoryFilteredParams.length > 0 && categoryFilteredParams.every(p => !!checkedParameters[p.id])
-                          ? 'Deselect All' : 'Select All'}
-                      </button>
-
-                      <span style={{ fontSize: '0.85rem', background: '#dcfce7', color: '#166534', padding: '0.3rem 0.75rem', borderRadius: '999px', fontWeight: 700 }}>
-                        Total: ₹{parameters.reduce((sum, param) => sum + (checkedParameters[param.id] ? (priceMasterMap[param.id] || 0) : 0), 0).toFixed(2)}
-                      </span>
-
-                      <span style={{ fontSize: '0.8rem', background: '#e0e7ff', color: '#4338ca', padding: '0.25rem 0.65rem', borderRadius: '999px', fontWeight: 600 }}>
-                        {Object.keys(checkedParameters).filter(k => !k.startsWith('_id_') && checkedParameters[k]).length} Selected
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Clean Parameters Table */}
-                  <div style={{ width: '100%', overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.925rem' }}>
-                      <thead>
-                        <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                          <th style={{ padding: '0.75rem 1rem', textAlign: 'center', width: '70px', color: '#64748b', fontWeight: 600 }}>
-                            <input
-                              type="checkbox"
-                              checked={categoryFilteredParams.length > 0 && categoryFilteredParams.every(p => !!checkedParameters[p.id])}
-                              onChange={handleToggleSelectAllParameters}
-                              title={categoryFilteredParams.length > 0 && categoryFilteredParams.every(p => !!checkedParameters[p.id]) ? "Deselect All" : "Select All"}
-                              style={{ width: '1.1rem', height: '1.1rem', cursor: 'pointer', accentColor: '#22c55e' }}
-                            />
-                          </th>
-                          <th style={{ padding: '0.75rem 1rem', textAlign: 'left', color: '#64748b', fontWeight: 600 }}>Parameter Name</th>
-                          <th style={{ padding: '0.75rem 1rem', textAlign: 'left', color: '#64748b', fontWeight: 600 }}>Test Method</th>
-                          <th style={{ padding: '0.75rem 1rem', textAlign: 'right', color: '#64748b', fontWeight: 600, width: '130px' }}>Price (₹)</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {paginatedParams.length === 0 ? (
-                          <tr>
-                            <td colSpan={4} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-                              No parameters match your search criteria.
-                            </td>
-                          </tr>
-                        ) : (
-                          paginatedParams.map(param => {
-                            const isChecked = !!checkedParameters[param.id];
-                            const paramPrice = priceMasterMap[param.id] || 0;
-                            const seqIndex = selectedParamSequence.indexOf(param.id);
-                            const seqNumber = seqIndex >= 0 ? seqIndex + 1 : null;
-                            return (
-                              <tr
-                                key={param.id}
-                                onClick={() => handleParameterCheck(param.id)}
-                                style={{
-                                  borderBottom: '1px solid #f1f5f9',
-                                  cursor: 'pointer',
-                                  transition: 'background-color 0.15s ease',
-                                  backgroundColor: isChecked ? '#f0fdf4' : '#ffffff'
-                                }}
-                                onMouseEnter={(e) => { if (!isChecked) e.currentTarget.style.backgroundColor = '#f8fafc' }}
-                                onMouseLeave={(e) => { if (!isChecked) e.currentTarget.style.backgroundColor = '#ffffff' }}
-                              >
-                                <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
-                                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.4rem' }}>
-                                    <div style={{ width: '22px', height: '22px', borderRadius: '6px', border: isChecked ? 'none' : '2px solid #cbd5e1', background: isChecked ? '#22c55e' : 'transparent', display: 'flex', justifyContent: 'center', alignItems: 'center', transition: 'all 0.15s ease' }}>
-                                      {isChecked && <span style={{ color: 'white', fontSize: '13px', fontWeight: 'bold' }}>✓</span>}
-                                    </div>
-                                    {isChecked && seqNumber !== null && (
-                                      <span style={{
-                                        display: 'inline-flex',
-                                        justifyContent: 'center',
-                                        alignItems: 'center',
-                                        minWidth: '22px',
-                                        height: '22px',
-                                        borderRadius: '50%',
-                                        background: '#3b82f6',
-                                        color: '#ffffff',
-                                        fontSize: '0.7rem',
-                                        fontWeight: 700,
-                                        lineHeight: 1
-                                      }}>
-                                        {seqNumber}
-                                      </span>
-                                    )}
-                                  </div>
-                                </td>
-                                <td style={{ padding: '0.75rem 1rem', color: isChecked ? '#166534' : '#1e293b', fontWeight: isChecked ? 600 : 500 }}>
-                                  {param.parameterName}
-                                </td>
-                                <td style={{ padding: '0.75rem 1rem', color: isChecked ? '#15803d' : '#64748b' }}>
-                                  {param.testMethod || 'N/A'}
-                                </td>
-                                <td style={{ padding: '0.75rem 1rem', textAlign: 'right', color: isChecked ? '#15803d' : '#334155', fontWeight: 600 }}>
-                                  ₹{paramPrice.toFixed(2)}
-                                </td>
-                              </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Clean Pagination Footer */}
-                  <div style={{
-                    padding: '0.85rem 1.25rem',
-                    borderTop: '1px solid #e2e8f0',
-                    background: '#f8fafc',
-                    display: 'flex',
-                    justify: 'space-between',
-                    alignItems: 'center',
-                    flexWrap: 'wrap',
-                    gap: '0.75rem'
-                  }}>
-                    <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                      Showing <strong style={{ color: '#0f172a' }}>{startParamItem}</strong> to <strong style={{ color: '#0f172a' }}>{endParamItem}</strong> of <strong style={{ color: '#0f172a' }}>{totalParamItems}</strong> parameters
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', color: '#64748b' }}>
-                        <span>Rows per page:</span>
-                        <select
-                          value={paramPageSize}
-                          onChange={(e) => {
-                            setParamPageSize(Number(e.target.value));
-                            setParamPage(1);
-                          }}
-                          style={{ padding: '0.25rem 0.4rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.8rem', backgroundColor: '#ffffff', outline: 'none' }}
-                        >
-                          <option value={10}>10</option>
-                          <option value={20}>20</option>
-                          <option value={50}>50</option>
-                        </select>
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                        <button
-                          type="button"
-                          onClick={() => setParamPage(p => Math.max(1, p - 1))}
-                          disabled={safeParamPage <= 1}
-                          style={{
-                            padding: '0.35rem 0.65rem',
-                            borderRadius: '6px',
-                            border: '1px solid #cbd5e1',
-                            backgroundColor: safeParamPage <= 1 ? '#f1f5f9' : '#ffffff',
-                            color: safeParamPage <= 1 ? '#94a3b8' : '#334155',
-                            cursor: safeParamPage <= 1 ? 'not-allowed' : 'pointer',
-                            fontWeight: 600,
-                            fontSize: '0.8rem',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.3rem'
-                          }}
-                        >
-                          <FaChevronLeft size={10} /> Prev
-                        </button>
-
-                        {/* Smart Page Pill Buttons */}
-                        {Array.from({ length: totalParamPages }, (_, i) => i + 1)
-                          .filter(page => page === 1 || page === totalParamPages || Math.abs(page - safeParamPage) <= 1)
-                          .map((page, idx, arr) => {
-                            const prevPage = arr[idx - 1];
-                            const showEllipsis = prevPage && page - prevPage > 1;
-                            return (
-                              <React.Fragment key={page}>
-                                {showEllipsis && <span style={{ color: '#94a3b8', fontSize: '0.8rem', padding: '0 0.15rem' }}>...</span>}
+                  {/* Active Locations Tabs Bar */}
+                  {configuredLocations.length > 0 && (
+                    <div style={{
+                      background: '#f8fafc',
+                      border: '1.5px solid #e2e8f0',
+                      borderRadius: '12px',
+                      padding: '0.75rem 1rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: '0.75rem'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: 700, color: '#475569', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          Locations:
+                        </span>
+                        {configuredLocations.map(loc => {
+                          const isCurrent = currentLoc === loc;
+                          const locData = locationBreakdowns.find(b => b.location === loc) || { count: 0, subtotal: 0 };
+                          return (
+                            <div
+                              key={loc}
+                              onClick={() => setActiveLocationTab(loc)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.6rem',
+                                padding: '0.45rem 0.85rem',
+                                borderRadius: '10px',
+                                cursor: 'pointer',
+                                border: isCurrent ? '2px solid #3b82f6' : '1px solid #cbd5e1',
+                                background: isCurrent ? '#eff6ff' : '#ffffff',
+                                boxShadow: isCurrent ? '0 2px 8px rgba(59, 130, 246, 0.15)' : 'none',
+                                transition: 'all 0.15s ease',
+                                userSelect: 'none'
+                              }}
+                            >
+                              <span style={{
+                                fontWeight: isCurrent ? 700 : 600,
+                                color: isCurrent ? '#1d4ed8' : '#334155',
+                                fontSize: '0.9rem'
+                              }}>
+                                {loc}
+                              </span>
+                              <span style={{
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                padding: '0.15rem 0.5rem',
+                                borderRadius: '999px',
+                                background: isCurrent ? '#3b82f6' : '#e2e8f0',
+                                color: isCurrent ? '#ffffff' : '#475569'
+                              }}>
+                                {locData.count} params • ₹{locData.subtotal.toFixed(0)}
+                              </span>
+                              {configuredLocations.length > 1 && (
                                 <button
                                   type="button"
-                                  onClick={() => setParamPage(page)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRemoveLocation(loc);
+                                  }}
+                                  title={`Remove ${loc}`}
                                   style={{
-                                    padding: '0.35rem 0.6rem',
-                                    borderRadius: '6px',
-                                    border: page === safeParamPage ? '1px solid #8b5cf6' : '1px solid #cbd5e1',
-                                    backgroundColor: page === safeParamPage ? '#8b5cf6' : '#ffffff',
-                                    color: page === safeParamPage ? '#ffffff' : '#334155',
-                                    fontWeight: page === safeParamPage ? 700 : 500,
+                                    background: 'transparent',
+                                    border: 'none',
+                                    color: isCurrent ? '#ef4444' : '#94a3b8',
                                     cursor: 'pointer',
-                                    fontSize: '0.8rem',
-                                    minWidth: '28px'
+                                    fontSize: '0.85rem',
+                                    fontWeight: 'bold',
+                                    padding: '0 2px',
+                                    lineHeight: 1
                                   }}
                                 >
-                                  {page}
+                                  ✕
                                 </button>
-                              </React.Fragment>
-                            );
-                          })}
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Parameters Table Card */}
+                  <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+                    {/* Top Bar / Header */}
+                    <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #e2e8f0', background: 'linear-gradient(to right, #f8fafc, #ffffff)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+                      <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '1rem' }}>
+                        Parameters for: <span style={{ color: '#2563eb', textDecoration: 'underline' }}>{currentLoc}</span>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                        {/* Search box */}
+                        <div style={{ position: 'relative', width: '220px' }}>
+                          <input
+                            type="text"
+                            placeholder="Search parameters..."
+                            value={paramSearch}
+                            onChange={(e) => {
+                              setParamSearch(e.target.value);
+                              setParamPage(1);
+                            }}
+                            style={{
+                              padding: '0.35rem 0.65rem 0.35rem 2rem',
+                              borderRadius: '8px',
+                              border: '1px solid #cbd5e1',
+                              fontSize: '0.85rem',
+                              width: '100%',
+                              outline: 'none',
+                              backgroundColor: '#ffffff'
+                            }}
+                          />
+                          <FaSearch size={12} style={{ position: 'absolute', left: '0.7rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                          {paramSearch && (
+                            <button
+                              type="button"
+                              onClick={() => setParamSearch('')}
+                              style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', color: '#94a3b8', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold' }}
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
 
                         <button
                           type="button"
-                          onClick={() => setParamPage(p => Math.min(totalParamPages, p + 1))}
-                          disabled={safeParamPage >= totalParamPages}
+                          onClick={handleToggleSelectAllParameters}
                           style={{
-                            padding: '0.35rem 0.65rem',
-                            borderRadius: '6px',
-                            border: '1px solid #cbd5e1',
-                            backgroundColor: safeParamPage >= totalParamPages ? '#f1f5f9' : '#ffffff',
-                            color: safeParamPage >= totalParamPages ? '#94a3b8' : '#334155',
-                            cursor: safeParamPage >= totalParamPages ? 'not-allowed' : 'pointer',
-                            fontWeight: 600,
+                            background: '#e0e7ff',
+                            color: '#4338ca',
+                            border: 'none',
+                            borderRadius: '8px',
+                            padding: '0.35rem 0.75rem',
                             fontSize: '0.8rem',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.3rem'
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
                           }}
                         >
-                          Next <FaChevronRight size={10} />
+                          {categoryFilteredParams.length > 0 && categoryFilteredParams.every(p => !!curLocChecks[p.id])
+                            ? 'Deselect All' : 'Select All'}
                         </button>
+
+                        <span style={{ fontSize: '0.85rem', background: '#dcfce7', color: '#166534', padding: '0.3rem 0.75rem', borderRadius: '999px', fontWeight: 700 }}>
+                          {currentLoc}: ₹{curLocCheckedPrice.toFixed(2)}
+                        </span>
+
+                        <span style={{ fontSize: '0.8rem', background: '#e0e7ff', color: '#4338ca', padding: '0.25rem 0.65rem', borderRadius: '999px', fontWeight: 600 }}>
+                          {curLocCheckedIds.length} Selected
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Clean Parameters Table */}
+                    <div style={{ width: '100%', overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.925rem' }}>
+                        <thead>
+                          <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                            <th style={{ padding: '0.75rem 1rem', textAlign: 'center', width: '70px', color: '#64748b', fontWeight: 600 }}>
+                              <input
+                                type="checkbox"
+                                checked={categoryFilteredParams.length > 0 && categoryFilteredParams.every(p => !!curLocChecks[p.id])}
+                                onChange={handleToggleSelectAllParameters}
+                                title={categoryFilteredParams.length > 0 && categoryFilteredParams.every(p => !!curLocChecks[p.id]) ? "Deselect All" : "Select All"}
+                                style={{ width: '1.1rem', height: '1.1rem', cursor: 'pointer', accentColor: '#22c55e' }}
+                              />
+                            </th>
+                            <th style={{ padding: '0.75rem 1rem', textAlign: 'left', color: '#64748b', fontWeight: 600 }}>Parameter Name</th>
+                            <th style={{ padding: '0.75rem 1rem', textAlign: 'left', color: '#64748b', fontWeight: 600 }}>Test Method</th>
+                            <th style={{ padding: '0.75rem 1rem', textAlign: 'right', color: '#64748b', fontWeight: 600, width: '130px' }}>Price (₹)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {paginatedParams.length === 0 ? (
+                            <tr>
+                              <td colSpan={4} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                                No parameters match your search criteria.
+                              </td>
+                            </tr>
+                          ) : (
+                            paginatedParams.map(param => {
+                              const isChecked = !!curLocChecks[param.id];
+                              const paramPrice = priceMasterMap[param.id] !== undefined ? priceMasterMap[param.id] : (parseFloat(param.price) || 0);
+                              const curLocSeq = locationParamSequence[currentLoc] || [];
+                              const seqIndex = curLocSeq.indexOf(param.id);
+                              const seqNumber = seqIndex >= 0 ? seqIndex + 1 : null;
+                              const catLabel = param.categoryName || param.category?.name || '';
+                              const subCatLabel = param.subCategoryName || param.subCategory?.name || '';
+
+                              return (
+                                <tr
+                                  key={param.id}
+                                  onClick={() => handleParameterCheck(param.id)}
+                                  style={{
+                                    borderBottom: '1px solid #f1f5f9',
+                                    cursor: 'pointer',
+                                    transition: 'background-color 0.15s ease',
+                                    backgroundColor: isChecked ? '#f0fdf4' : '#ffffff'
+                                  }}
+                                  onMouseEnter={(e) => { if (!isChecked) e.currentTarget.style.backgroundColor = '#f8fafc' }}
+                                  onMouseLeave={(e) => { if (!isChecked) e.currentTarget.style.backgroundColor = '#ffffff' }}
+                                >
+                                  <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.4rem' }}>
+                                      <div style={{ width: '22px', height: '22px', borderRadius: '6px', border: isChecked ? 'none' : '2px solid #cbd5e1', background: isChecked ? '#22c55e' : 'transparent', display: 'flex', justifyContent: 'center', alignItems: 'center', transition: 'all 0.15s ease' }}>
+                                        {isChecked && <span style={{ color: 'white', fontSize: '13px', fontWeight: 'bold' }}>✓</span>}
+                                      </div>
+                                      {isChecked && seqNumber !== null && (
+                                        <span style={{
+                                          display: 'inline-flex',
+                                          justifyContent: 'center',
+                                          alignItems: 'center',
+                                          minWidth: '22px',
+                                          height: '22px',
+                                          borderRadius: '50%',
+                                          background: '#3b82f6',
+                                          color: '#ffffff',
+                                          fontSize: '0.7rem',
+                                          fontWeight: 700,
+                                          lineHeight: 1
+                                        }}>
+                                          {seqNumber}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td style={{ padding: '0.75rem 1rem' }}>
+                                    <div style={{ color: isChecked ? '#166534' : '#1e293b', fontWeight: isChecked ? 600 : 500 }}>
+                                      {param.parameterName}
+                                    </div>
+                                    {(catLabel || subCatLabel) && (
+                                      <div style={{ fontSize: '0.75rem', color: '#64748b', display: 'flex', gap: '0.4rem', marginTop: '3px', flexWrap: 'wrap' }}>
+                                        {catLabel && (
+                                          <span style={{ background: '#f1f5f9', color: '#475569', padding: '1px 7px', borderRadius: '4px', fontWeight: 500, border: '1px solid #e2e8f0' }}>
+                                            {catLabel}
+                                          </span>
+                                        )}
+                                        {subCatLabel && (
+                                          <span style={{ background: '#f8fafc', color: '#64748b', padding: '1px 7px', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
+                                            {subCatLabel}
+                                          </span>
+                                        )}
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td style={{ padding: '0.75rem 1rem', color: isChecked ? '#15803d' : '#64748b' }}>
+                                    {param.testMethod || 'N/A'}
+                                  </td>
+                                  <td style={{ padding: '0.75rem 1rem', textAlign: 'right', color: isChecked ? '#15803d' : '#334155', fontWeight: 600 }}>
+                                    ₹{paramPrice.toFixed(2)}
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Clean Pagination Footer */}
+                    <div style={{
+                      padding: '0.85rem 1.25rem',
+                      borderTop: '1px solid #e2e8f0',
+                      background: '#f8fafc',
+                      display: 'flex',
+                      justify: 'space-between',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: '0.75rem'
+                    }}>
+                      <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                        Showing <strong style={{ color: '#0f172a' }}>{startParamItem}</strong> to <strong style={{ color: '#0f172a' }}>{endParamItem}</strong> of <strong style={{ color: '#0f172a' }}>{totalParamItems}</strong> parameters
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', color: '#64748b' }}>
+                          <span>Rows per page:</span>
+                          <select
+                            value={paramPageSize}
+                            onChange={(e) => {
+                              setParamPageSize(Number(e.target.value));
+                              setParamPage(1);
+                            }}
+                            style={{ padding: '0.25rem 0.4rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.8rem', backgroundColor: '#ffffff', outline: 'none' }}
+                          >
+                            <option value={10}>10</option>
+                            <option value={20}>20</option>
+                            <option value={50}>50</option>
+                          </select>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                          <button
+                            type="button"
+                            onClick={() => setParamPage(p => Math.max(1, p - 1))}
+                            disabled={safeParamPage <= 1}
+                            style={{
+                              padding: '0.35rem 0.65rem',
+                              borderRadius: '6px',
+                              border: '1px solid #cbd5e1',
+                              backgroundColor: safeParamPage <= 1 ? '#f1f5f9' : '#ffffff',
+                              color: safeParamPage <= 1 ? '#94a3b8' : '#334155',
+                              cursor: safeParamPage <= 1 ? 'not-allowed' : 'pointer',
+                              fontWeight: 600,
+                              fontSize: '0.8rem',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.3rem'
+                            }}
+                          >
+                            <FaChevronLeft size={10} /> Prev
+                          </button>
+
+                          {/* Smart Page Pill Buttons */}
+                          {Array.from({ length: totalParamPages }, (_, i) => i + 1)
+                            .filter(page => page === 1 || page === totalParamPages || Math.abs(page - safeParamPage) <= 1)
+                            .map((page, idx, arr) => {
+                              const prevPage = arr[idx - 1];
+                              const showEllipsis = prevPage && page - prevPage > 1;
+                              return (
+                                <React.Fragment key={page}>
+                                  {showEllipsis && <span style={{ color: '#94a3b8', fontSize: '0.8rem', padding: '0 0.15rem' }}>...</span>}
+                                  <button
+                                    type="button"
+                                    onClick={() => setParamPage(page)}
+                                    style={{
+                                      padding: '0.35rem 0.6rem',
+                                      borderRadius: '6px',
+                                      border: page === safeParamPage ? '1px solid #8b5cf6' : '1px solid #cbd5e1',
+                                      backgroundColor: page === safeParamPage ? '#8b5cf6' : '#ffffff',
+                                      color: page === safeParamPage ? '#ffffff' : '#334155',
+                                      fontWeight: page === safeParamPage ? 700 : 500,
+                                      cursor: 'pointer',
+                                      fontSize: '0.8rem',
+                                      minWidth: '28px'
+                                    }}
+                                  >
+                                    {page}
+                                  </button>
+                                </React.Fragment>
+                              );
+                            })}
+
+                          <button
+                            type="button"
+                            onClick={() => setParamPage(p => Math.min(totalParamPages, p + 1))}
+                            disabled={safeParamPage >= totalParamPages}
+                            style={{
+                              padding: '0.35rem 0.65rem',
+                              borderRadius: '6px',
+                              border: '1px solid #cbd5e1',
+                              backgroundColor: safeParamPage >= totalParamPages ? '#f1f5f9' : '#ffffff',
+                              color: safeParamPage >= totalParamPages ? '#94a3b8' : '#334155',
+                              cursor: safeParamPage >= totalParamPages ? 'not-allowed' : 'pointer',
+                              fontWeight: 600,
+                              fontSize: '0.8rem',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.3rem'
+                            }}
+                          >
+                            Next <FaChevronRight size={10} />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
+
+                  {/* Location-Wise Summary & Grand Total Banner */}
+                  <div style={{
+                    background: 'linear-gradient(135deg, #1e293b, #0f172a)',
+                    color: '#ffffff',
+                    borderRadius: '14px',
+                    padding: '1.25rem 1.5rem',
+                    boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.15)'
+                  }}>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.75rem' }}>
+                      Location-Wise Parameter Breakdown
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+                      {locationBreakdowns.map(b => (
+                        <div key={b.location} style={{
+                          background: 'rgba(255, 255, 255, 0.06)',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          borderRadius: '10px',
+                          padding: '0.75rem 1rem'
+                        }}>
+                          <div style={{ fontWeight: 600, color: '#60a5fa', fontSize: '0.95rem' }}>{b.location}</div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.35rem', fontSize: '0.85rem', color: '#cbd5e1' }}>
+                            <span>Parameters: <strong style={{ color: '#fff' }}>{b.count}</strong></span>
+                            <span>Amount: <strong style={{ color: '#4ade80' }}>₹{b.subtotal.toFixed(2)}</strong></span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      borderTop: '1px solid rgba(255, 255, 255, 0.15)',
+                      paddingTop: '0.85rem',
+                      flexWrap: 'wrap',
+                      gap: '1rem'
+                    }}>
+                      <div style={{ fontSize: '0.95rem', color: '#cbd5e1' }}>
+                        Total Parameters Across All Locations: <strong style={{ color: '#ffffff', fontSize: '1.1rem' }}>{totalParamsCount}</strong>
+                      </div>
+                      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#4ade80', background: 'rgba(34, 197, 94, 0.15)', padding: '0.35rem 0.85rem', borderRadius: '8px', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
+                          Total Amount: ₹{totalSubtotalAmount.toFixed(2)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                 </div>
               );
             })()}
@@ -1967,284 +2662,224 @@ const TestRequestForm = () => {
             </div>
           </div>
 
-              {/* Quotation Requirement Card */}
-          <div className="test-request-form-card" style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginTop: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc' }}>
-              <div style={{ width: '12px', height: '24px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '6px' }}></div>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Quotation Requirement</h3>
-            </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.75rem' }}>
-              {/* Quotation Requirement */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Do you want to add/generate a Quotation? <span style={{ color: '#ef4444' }}>*</span></label>
-                <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', background: '#f8fafc', padding: '0.75rem 1rem', border: '1px solid #e2e8f0', borderRadius: '8px', height: '42px', boxSizing: 'border-box' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500, color: '#1e293b' }}>
-                    <input
-                      type="radio"
-                      name="quotationRequired"
-                      value="No"
-                      checked={formData.quotationRequired === 'No'}
-                      onChange={() => setFormData(prev => ({ ...prev, quotationRequired: 'No', quotationType: '' }))}
-                      style={{ width: '1.1rem', height: '1.1rem', accentColor: '#3b82f6' }}
-                    />
-                    No
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500, color: '#1e293b' }}>
-                    <input
-                      type="radio"
-                      name="quotationRequired"
-                      value="Yes"
-                      checked={formData.quotationRequired === 'Yes'}
-                      onChange={() => setFormData(prev => ({ ...prev, quotationRequired: 'Yes' }))}
-                      style={{ width: '1.1rem', height: '1.1rem', accentColor: '#3b82f6' }}
-                    />
-                    Yes
-                  </label>
-                </div>
-              </div>
-
-              {/* HIDE MULTIPLE QUOTATIONS FUNCTIONALITY (DISABLED)
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', opacity: formData.quotationRequired === 'Yes' ? 1 : 0.5 }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>
-                  Quotation Type {formData.quotationRequired === 'Yes' && <span style={{ color: '#ef4444' }}>*</span>}
-                </label>
-                <select
-                  name="quotationType"
-                  value={formData.quotationType || ''}
-                  disabled={formData.quotationRequired !== 'Yes'}
-                  onChange={handleChange}
-                  className="premium-input"
-                  style={{ height: '42px' }}
-                >
-                  <option value="">Select Quotation Type</option>
-                  <option value="Quotation">Quotation</option>
-                  <option value="Consulting">Consulting</option>
-                  <option value="Audit">Audit</option>
-                  <option value="General Testing / Consulting">General Testing / Consulting</option>
-                  <option value="Monthly Consulting">Monthly Consulting</option>
-                </select>
-              </div>
-              */}
-            </div>
-          </div>
 
           {/* HIDE MULTIPLE QUOTATIONS FUNCTIONALITY (DISABLED) */}
           {false && (
             <>
               {formData.quotationRequired === 'Yes' && formData.quotationType === 'Audit' && (
-            <div style={{ marginTop: '2rem' }}>
-              {/* Card 1: Basic details */}
-              <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
-                  <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Basic Quotation Details</h3>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Quotation Reference Number</label>
-                    <input type="text" name="quotationNumber" value={quotationData.quotationNumber} onChange={handleQuotationChange} className="premium-input" />
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Quotation Date</label>
-                    <input type="text" name="quotationDate" placeholder="dd/mm/yyyy" value={quotationData.quotationDate} onChange={handleQuotationChange} className="premium-input" />
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Revised Date (Optional)</label>
-                    <input type="text" name="revisedDate" placeholder="dd/mm/yyyy" value={quotationData.revisedDate} onChange={handleQuotationChange} className="premium-input" />
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Financial Year / Year</label>
-                    <input type="text" name="financialYear" value={quotationData.financialYear} onChange={handleQuotationChange} className="premium-input" />
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', gridColumn: '1 / -1' }}>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Audit Reference</label>
-                    <input type="text" name="reference" value={quotationData.reference} onChange={handleQuotationChange} className="premium-input" />
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', gridColumn: '1 / -1' }}>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Subject Heading</label>
-                    <textarea name="subject" value={quotationData.subject} onChange={handleQuotationChange} className="premium-input" rows={2}></textarea>
-                  </div>
-                </div>
-              </div>
-
-              {/* Card 2: Letter Content */}
-              <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
-                  <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Page 1 - Letter Content</h3>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Introductory & Accreditation Paragraphs</label>
-                  <textarea name="introText" value={quotationData.introText} onChange={handleQuotationChange} className="premium-input" rows={6} style={{ fontSize: '0.85rem' }}></textarea>
-                </div>
-              </div>
-
-              {/* Card 3: Scope of Work */}
-              <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
-                  <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Page 2 - Scope of Work</h3>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Scope Points Text</label>
-                  <textarea name="scopeText" value={quotationData.scopeText} onChange={handleQuotationChange} className="premium-input" rows={5} style={{ fontSize: '0.85rem' }}></textarea>
-                </div>
-              </div>
-
-              {/* Card 4: Charges Table */}
-              <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Page 2 - Detail of Charges</h3>
-                  </div>
-                  <button type="button" onClick={addQuotationChargeRow} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', backgroundColor: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.4rem 0.8rem', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }}>
-                    <FaPlus /> Add Row
-                  </button>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  {quotationData.charges?.map((item, index) => (
-                    <div key={index} style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '1rem', background: '#f8fafc' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                        <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#475569' }}>Row #{item.srNo}</span>
-                        <button type="button" onClick={() => removeQuotationChargeRow(index)} style={{ border: 'none', background: 'transparent', color: '#ef4444', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
-                          <FaTrash size={12} /> Remove
-                        </button>
+                <div style={{ marginTop: '2rem' }}>
+                  {/* Card 1: Basic details */}
+                  <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
+                      <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Basic Quotation Details</h3>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Quotation Reference Number</label>
+                        <input type="text" name="quotationNumber" value={quotationData.quotationNumber} onChange={handleQuotationChange} className="premium-input" />
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                        <div>
-                          <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Description of Work</label>
-                          <input type="text" value={item.description} onChange={(e) => handleQuotationChargeRowChange(index, 'description', e.target.value)} className="premium-input" style={{ fontSize: '0.85rem', height: '36px' }} />
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem' }}>
-                          <div>
-                            <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Qty</label>
-                            <input type="number" value={item.qty} onChange={(e) => handleQuotationChargeRowChange(index, 'qty', e.target.value)} className="premium-input" style={{ fontSize: '0.85rem', height: '36px' }} />
-                          </div>
-                          <div>
-                            <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Unit</label>
-                            <input type="text" value={item.unit} onChange={(e) => handleQuotationChargeRowChange(index, 'unit', e.target.value)} className="premium-input" style={{ fontSize: '0.85rem', height: '36px' }} />
-                          </div>
-                          <div>
-                            <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Rate (Rs.)</label>
-                            <input type="number" value={item.rate} onChange={(e) => handleQuotationChargeRowChange(index, 'rate', e.target.value)} className="premium-input" style={{ fontSize: '0.85rem', height: '36px' }} />
-                          </div>
-                          <div>
-                            <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Amount (Rs.)</label>
-                            <input type="number" value={item.amount} onChange={(e) => handleQuotationChargeRowChange(index, 'amount', e.target.value)} className="premium-input" style={{ fontSize: '0.85rem', height: '36px' }} />
-                          </div>
-                        </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Quotation Date</label>
+                        <input type="text" name="quotationDate" placeholder="dd/mm/yyyy" value={quotationData.quotationDate} onChange={handleQuotationChange} className="premium-input" />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Revised Date (Optional)</label>
+                        <input type="text" name="revisedDate" placeholder="dd/mm/yyyy" value={quotationData.revisedDate} onChange={handleQuotationChange} className="premium-input" />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Financial Year / Year</label>
+                        <input type="text" name="financialYear" value={quotationData.financialYear} onChange={handleQuotationChange} className="premium-input" />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', gridColumn: '1 / -1' }}>
+                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Audit Reference</label>
+                        <input type="text" name="reference" value={quotationData.reference} onChange={handleQuotationChange} className="premium-input" />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', gridColumn: '1 / -1' }}>
+                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Subject Heading</label>
+                        <textarea name="subject" value={quotationData.subject} onChange={handleQuotationChange} className="premium-input" rows={2}></textarea>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Card 5: Terms and Conditions */}
-              <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
-                  <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Page 3 - Terms & Conditions</h3>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <div>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Terms text list</label>
-                    <textarea name="termsText" value={quotationData.termsText} onChange={handleQuotationChange} className="premium-input" rows={6} style={{ fontSize: '0.85rem' }}></textarea>
                   </div>
-                  <div>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Contact Person Details</label>
-                    <input type="text" name="contactPerson" value={quotationData.contactPerson} onChange={handleQuotationChange} className="premium-input" />
-                  </div>
-                </div>
-              </div>
 
-              {/* Card 6: Signatory details */}
-              <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
-                  <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Signatory & Stamp Configuration</h3>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Signatory Name</label>
-                      <input type="text" name="signatoryName" value={quotationData.signatoryName} onChange={handleQuotationChange} className="premium-input" />
+                  {/* Card 2: Letter Content */}
+                  <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
+                      <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Page 1 - Letter Content</h3>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Signatory Designation</label>
-                      <input type="text" name="signatoryDesignation" value={quotationData.signatoryDesignation} onChange={handleQuotationChange} className="premium-input" />
+                      <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Introductory & Accreditation Paragraphs</label>
+                      <textarea name="introText" value={quotationData.introText} onChange={handleQuotationChange} className="premium-input" rows={6} style={{ fontSize: '0.85rem' }}></textarea>
                     </div>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '0.5rem' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Authorized Digital Signature</label>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <input type="file" ref={signatureInputRef} onChange={(e) => handleQuotationFileUpload(e, 'signatorySignature')} accept="image/*" style={{ display: 'none' }} />
-                        <button type="button" onClick={() => signatureInputRef.current.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 1rem', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }}>
-                          <FaUpload /> Upload Signature
-                        </button>
-                        {quotationData.signatorySignature && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <img src={quotationData.signatorySignature} alt="Signature Preview" style={{ maxHeight: '36px', border: '1px solid #e2e8f0', borderRadius: '4px' }} />
-                            <button type="button" onClick={() => removeQuotationImage('signatorySignature')} style={{ color: '#ef4444', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '0.8rem' }}>Delete</button>
-                          </div>
-                        )}
-                      </div>
+                  {/* Card 3: Scope of Work */}
+                  <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
+                      <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Page 2 - Scope of Work</h3>
                     </div>
-
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Company Round Stamp</label>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <input type="file" ref={stampInputRef} onChange={(e) => handleQuotationFileUpload(e, 'stampImage')} accept="image/*" style={{ display: 'none' }} />
-                        <button type="button" onClick={() => stampInputRef.current.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 1rem', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }}>
-                          <FaUpload /> Upload Stamp
-                        </button>
-                        {quotationData.stampImage && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <img src={quotationData.stampImage} alt="Stamp Preview" style={{ maxHeight: '36px', border: '1px solid #e2e8f0', borderRadius: '4px' }} />
-                            <button type="button" onClick={() => removeQuotationImage('stampImage')} style={{ color: '#ef4444', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '0.8rem' }}>Delete</button>
+                      <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Scope Points Text</label>
+                      <textarea name="scopeText" value={quotationData.scopeText} onChange={handleQuotationChange} className="premium-input" rows={5} style={{ fontSize: '0.85rem' }}></textarea>
+                    </div>
+                  </div>
+
+                  {/* Card 4: Charges Table */}
+                  <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
+                        <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Page 2 - Detail of Charges</h3>
+                      </div>
+                      <button type="button" onClick={addQuotationChargeRow} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', backgroundColor: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.4rem 0.8rem', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }}>
+                        <FaPlus /> Add Row
+                      </button>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      {quotationData.charges?.map((item, index) => (
+                        <div key={index} style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '1rem', background: '#f8fafc' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                            <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#475569' }}>Row #{item.srNo}</span>
+                            <button type="button" onClick={() => removeQuotationChargeRow(index)} style={{ border: 'none', background: 'transparent', color: '#ef4444', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
+                              <FaTrash size={12} /> Remove
+                            </button>
                           </div>
-                        )}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            <div>
+                              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Description of Work</label>
+                              <input type="text" value={item.description} onChange={(e) => handleQuotationChargeRowChange(index, 'description', e.target.value)} className="premium-input" style={{ fontSize: '0.85rem', height: '36px' }} />
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem' }}>
+                              <div>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Qty</label>
+                                <input type="number" value={item.qty} onChange={(e) => handleQuotationChargeRowChange(index, 'qty', e.target.value)} className="premium-input" style={{ fontSize: '0.85rem', height: '36px' }} />
+                              </div>
+                              <div>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Unit</label>
+                                <input type="text" value={item.unit} onChange={(e) => handleQuotationChargeRowChange(index, 'unit', e.target.value)} className="premium-input" style={{ fontSize: '0.85rem', height: '36px' }} />
+                              </div>
+                              <div>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Rate (Rs.)</label>
+                                <input type="number" value={item.rate} onChange={(e) => handleQuotationChargeRowChange(index, 'rate', e.target.value)} className="premium-input" style={{ fontSize: '0.85rem', height: '36px' }} />
+                              </div>
+                              <div>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Amount (Rs.)</label>
+                                <input type="number" value={item.amount} onChange={(e) => handleQuotationChargeRowChange(index, 'amount', e.target.value)} className="premium-input" style={{ fontSize: '0.85rem', height: '36px' }} />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Card 5: Terms and Conditions */}
+                  <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
+                      <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Page 3 - Terms & Conditions</h3>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      <div>
+                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Terms text list</label>
+                        <textarea name="termsText" value={quotationData.termsText} onChange={handleQuotationChange} className="premium-input" rows={6} style={{ fontSize: '0.85rem' }}></textarea>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Contact Person Details</label>
+                        <input type="text" name="contactPerson" value={quotationData.contactPerson} onChange={handleQuotationChange} className="premium-input" />
                       </div>
                     </div>
                   </div>
-                </div>
-              </div>
 
-              {/* Card 7: Annexure Rates */}
-              <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', marginBottom: '2rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
-                  <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Annexure-B Rates Editor</h3>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '500px', overflowY: 'auto', paddingRight: '0.5rem' }}>
-                  {quotationData.annexure?.map((item, index) => (
-                    <div key={index} style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', marginBottom: '0.4rem' }}>
-                        <span>{item.category}</span>
+                  {/* Card 6: Signatory details */}
+                  <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
+                      <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Signatory & Stamp Configuration</h3>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Signatory Name</label>
+                          <input type="text" name="signatoryName" value={quotationData.signatoryName} onChange={handleQuotationChange} className="premium-input" />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Signatory Designation</label>
+                          <input type="text" name="signatoryDesignation" value={quotationData.signatoryDesignation} onChange={handleQuotationChange} className="premium-input" />
+                        </div>
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0.5rem' }}>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: '#475569' }}>Description</label>
-                          <input type="text" value={item.description} onChange={(e) => handleQuotationAnnexureRowChange(index, 'description', e.target.value)} className="premium-input" style={{ fontSize: '0.8rem', height: '32px' }} />
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '0.5rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Authorized Digital Signature</label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <input type="file" ref={signatureInputRef} onChange={(e) => handleQuotationFileUpload(e, 'signatorySignature')} accept="image/*" style={{ display: 'none' }} />
+                            <button type="button" onClick={() => signatureInputRef.current.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 1rem', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }}>
+                              <FaUpload /> Upload Signature
+                            </button>
+                            {quotationData.signatorySignature && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <img src={quotationData.signatorySignature} alt="Signature Preview" style={{ maxHeight: '36px', border: '1px solid #e2e8f0', borderRadius: '4px' }} />
+                                <button type="button" onClick={() => removeQuotationImage('signatorySignature')} style={{ color: '#ef4444', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '0.8rem' }}>Delete</button>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: '#475569' }}>Rate/Sample</label>
-                          <input type="number" value={item.ratePerSample} onChange={(e) => handleQuotationAnnexureRowChange(index, 'ratePerSample', e.target.value)} className="premium-input" style={{ fontSize: '0.8rem', height: '32px' }} />
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '0.75rem', color: '#475569' }}>Sample/Visit</label>
-                          <input type="number" value={item.samplePerVisit} onChange={(e) => handleQuotationAnnexureRowChange(index, 'samplePerVisit', e.target.value)} className="premium-input" style={{ fontSize: '0.8rem', height: '32px' }} />
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Company Round Stamp</label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <input type="file" ref={stampInputRef} onChange={(e) => handleQuotationFileUpload(e, 'stampImage')} accept="image/*" style={{ display: 'none' }} />
+                            <button type="button" onClick={() => stampInputRef.current.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 1rem', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }}>
+                              <FaUpload /> Upload Stamp
+                            </button>
+                            {quotationData.stampImage && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <img src={quotationData.stampImage} alt="Stamp Preview" style={{ maxHeight: '36px', border: '1px solid #e2e8f0', borderRadius: '4px' }} />
+                                <button type="button" onClick={() => removeQuotationImage('stampImage')} style={{ color: '#ef4444', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '0.8rem' }}>Delete</button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  ))}
+                  </div>
+
+                  {/* Card 7: Annexure Rates */}
+                  <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', marginBottom: '2rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '2px solid #f8fafc' }}>
+                      <div style={{ width: '8px', height: '18px', background: 'linear-gradient(to bottom, #0284c7, #38bdf8)', borderRadius: '4px' }}></div>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Annexure-B Rates Editor</h3>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '500px', overflowY: 'auto', paddingRight: '0.5rem' }}>
+                      {quotationData.annexure?.map((item, index) => (
+                        <div key={index} style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', marginBottom: '0.4rem' }}>
+                            <span>{item.category}</span>
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0.5rem' }}>
+                            <div>
+                              <label style={{ fontSize: '0.75rem', color: '#475569' }}>Description</label>
+                              <input type="text" value={item.description} onChange={(e) => handleQuotationAnnexureRowChange(index, 'description', e.target.value)} className="premium-input" style={{ fontSize: '0.8rem', height: '32px' }} />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: '0.75rem', color: '#475569' }}>Rate/Sample</label>
+                              <input type="number" value={item.ratePerSample} onChange={(e) => handleQuotationAnnexureRowChange(index, 'ratePerSample', e.target.value)} className="premium-input" style={{ fontSize: '0.8rem', height: '32px' }} />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: '0.75rem', color: '#475569' }}>Sample/Visit</label>
+                              <input type="number" value={item.samplePerVisit} onChange={(e) => handleQuotationAnnexureRowChange(index, 'samplePerVisit', e.target.value)} className="premium-input" style={{ fontSize: '0.8rem', height: '32px' }} />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          )}
+              )}
             </>
           )}
 
@@ -2285,20 +2920,8 @@ const TestRequestForm = () => {
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.6rem 1.25rem', fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer' }}
             >
               <FaPrint />
-              <span>Save & TRF PDF</span>
+              <span>Save &amp; TRF PDF</span>
             </button>
-            {/* HIDE MULTIPLE QUOTATIONS FUNCTIONALITY (DISABLED)
-            formData.quotationRequired === 'Yes' && (
-              <button
-                type="button"
-                onClick={handleSaveAndQuotation}
-                disabled={submitting}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.6rem 1.25rem', fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer' }}
-              >
-                <FaFilePdf />
-                <span>Generate Quotation</span>
-              </button>
-            )*/}
           </div>
         </div>
 
@@ -2663,324 +3286,324 @@ const TestRequestForm = () => {
               // Original TRF Preview
               <>
                 <div style={{
-                background: '#ffffff',
-                border: '1px solid #000000',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
-                padding: '1.25rem',
-                fontSize: '10px',
-                fontFamily: '"Plus Jakarta Sans", "Inter", sans-serif',
-                color: '#000000',
-                lineHeight: '1.3'
-              }}>
-              {/* Header block */}
-              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', marginBottom: '8px' }}>
-                <tbody>
-                  <tr>
-                    <td style={{ width: '45%', border: '1px solid #000000', padding: '0px', verticalAlign: 'middle', textAlign: 'center' }}>
-                      <img src={getSelectedCompanyLogo()} alt="Logo" style={{ height: '75px', width: '100%', objectFit: 'cover', display: 'block', margin: '0 auto' }} />
-                    </td>
-                    <td style={{ width: '25%', border: '1px solid #000000', padding: '4px', textAlign: 'center', fontWeight: 'bold', fontSize: '10px' }}>
-                      FORMATS
-                    </td>
-                    <td style={{ width: '30%', border: '1px solid #000000', padding: '0' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '7px' }}>
-                        <tbody>
-                          <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Amendment No.</td><td style={{ padding: '2px 3px' }}>00</td></tr>
-                          <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Amendment Date</td><td style={{ padding: '2px 3px' }}>--</td></tr>
-                          <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Issue No.</td><td style={{ padding: '2px 3px' }}>01</td></tr>
-                          <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Issue Date</td><td style={{ padding: '2px 3px' }}>01/09/2018</td></tr>
-                          <tr><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Format No.</td><td style={{ padding: '2px 3px' }}>7.1 F-01</td></tr>
-                        </tbody>
-                      </table>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-
-              {/* Document Title */}
-              <div style={{ border: '1px solid #000000', borderTop: 'none', background: '#f8fafc', padding: '3px', textAlign: 'center', fontWeight: 'bold', fontSize: '8px', marginBottom: '8px' }}>
-                TEST REQUEST FORM FOR {formData.formTitle || 'WATER & WASTE WATER'}
-              </div>
-
-              {/* Form Fields Table */}
-              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '8px' }}>
-                <tbody>
-                  <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ width: '32%', padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Name of Company / Customer</td>
-                    <td style={{ padding: '3px 4px' }}>{selCompany.companyName || selCompany.company_name || '(Select Company)'} {selClient.clientName ? `- ${selClient.clientName}` : ''}</td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Address for Communication</td>
-                    <td style={{ padding: '3px 4px' }}>{formData.address || 'N/A'}</td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Email ID</td>
-                    <td style={{ padding: '3px 4px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span>{formData.email || 'N/A'}</span>
-                        <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Location of Sample</span>
-                        <span style={{ paddingLeft: '6px' }}>{formData.locationOfSample || 'N/A'}</span>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Contact Person</td>
-                    <td style={{ padding: '3px 4px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span>{formData.contactPerson || 'N/A'}</span>
-                        <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Contact No.</span>
-                        <span style={{ paddingLeft: '6px' }}>{formData.contactNumber || 'N/A'}</span>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Date of Collection</td>
-                    <td style={{ padding: '3px 4px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span>{formData.dateOfCollection || 'N/A'}</span>
-                        <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Date of Receipt</span>
-                        <span style={{ paddingLeft: '6px' }}>{formData.dateOfReceipt || 'N/A'}</span>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Sample Collected By</td>
-                    <td style={{ padding: '3px 4px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span>{formData.sampleCollectedBy || 'N/A'}</span>
-                        <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Sample Quantity</span>
-                        <span style={{ paddingLeft: '6px' }}>{formData.sampleQuantity || 'N/A'}</span>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Field Data Sheet</td>
-                    <td style={{ padding: '3px 4px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span>{formData.fieldDataSheet}</span>
-                        <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px' }}>Packing details</span>
-                        <span>{formData.packingDetails || 'N/A'}</span>
-                        <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Form Type</span>
-                        <span style={{ paddingLeft: '6px' }}>{formData.formType || 'Regular'}</span>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Sample ID No.</td>
-                    <td style={{ padding: '3px 4px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span>{formData.sampleIdNumber || 'N/A'}</span>
-                        <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Report No.</span>
-                        <span style={{ paddingLeft: '6px' }}>{formData.reportNumber || 'N/A'}</span>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Sample Particular</td>
-                    <td style={{ padding: '3px 4px', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{formData.sampleParticular || selCategory.name || 'N/A'}</td>
-                  </tr>
-
-                  {/* Feasibility table inner block */}
-                  <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '0', fontWeight: '600' }} colSpan={2}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '7.5px' }}>
-                        <tbody>
-                          <tr style={{ borderBottom: '1px solid #000000' }}>
-                            <td style={{ width: '25%', padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Availability of Equip.</td>
-                            <td style={{ width: '25%', padding: '2px 3px', borderRight: '1px solid #000000' }}>{formData.equipmentAvailability}</td>
-                            <td style={{ width: '25%', padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Availability of Ref Std.</td>
-                            <td style={{ width: '25%', padding: '2px 3px' }}>{formData.referenceStandardAvailability}</td>
-                          </tr>
-                          <tr style={{ borderBottom: '1px solid #000000' }}>
-                            <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Availability of Test Method</td>
-                            <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>{formData.testMethodAvailability}</td>
-                            <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Availability of Trained Person</td>
-                            <td style={{ padding: '2px 3px' }}>{formData.trainedPersonAvailability}</td>
-                          </tr>
-                          <tr>
-                            <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Adequacy of sample qty</td>
-                            <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>{formData.sampleAdequacy}</td>
-                            <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Tentative Report Days</td>
-                            <td style={{ padding: '2px 3px' }}>{formData.tentativeDays}</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </td>
-                  </tr>
-
-                  <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Facility reviewed by</td>
-                    <td style={{ padding: '3px 4px' }}>{formData.sampleTestingFacilityReviewedBy}</td>
-                  </tr>
-
-                  {/* Signatures space */}
-                  <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '0', fontWeight: '600' }} colSpan={2}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '7.5px' }}>
-                        <tbody>
-                          <tr style={{ borderBottom: '1px solid #000000', height: '20px' }}>
-                            <td style={{ width: '50%', padding: '2px 3px', borderRight: '1px solid #000000', verticalAlign: 'top', fontWeight: 'bold' }}>Signature of Customer Representative:</td>
-                            <td style={{ width: '50%', padding: '2px 3px', verticalAlign: 'top', fontWeight: 'bold' }}>Signature of Sample Received By:</td>
-                          </tr>
-                          <tr>
-                            <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>
-                              Name & Designation: <span style={{ fontWeight: 'normal' }}>{formData.customerRepresentativeName || 'N/A'}</span>
-                            </td>
-                            <td style={{ padding: '2px 3px', fontWeight: 'bold' }}>
-                              Name & Designation: <span style={{ fontWeight: 'normal' }}>{formData.sampleReceiverName || 'N/A'}</span>
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </td>
-                  </tr>
-
-                  <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000', verticalAlign: 'top' }}>Test Protocol adopted</td>
-                    <td style={{ padding: '3px 4px', whiteSpace: 'pre-wrap' }}>{formData.testProtocol}</td>
-                  </tr>
-
-                  <tr>
-                    <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000', verticalAlign: 'top' }}>Remarks / Notes</td>
-                    <td style={{ padding: '3px 4px', whiteSpace: 'pre-wrap' }}>
-                      <ol style={{ margin: 0, paddingLeft: '1rem', fontSize: '7px' }}>
-                        <li>Please mention specific tests to be applied</li>
-                        <li>All the test procedures are followed as per National & International Standards.</li>
-                        <li>In case of sampling conducted by JLT, sampling plan is followed as per National & International Standards.</li>
-                        <li>If due to any unavoidable condition, testing will be sub-contracted only to NABL-complying competent agencies.</li>
-                      </ol>
-                      {formData.remarks && <div style={{ marginTop: '3px', borderTop: '1px dashed #cbd5e1', paddingTop: '3px' }}><strong>Additional:</strong> {formData.remarks}</div>}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-
-              {/* Footer Page 1 */}
-              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '7px', marginTop: 'auto' }}>
-                <tbody>
-                  <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}>Doc No: JLT/ 7.1 F-01</td>
-                    <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}></td>
-                    <td style={{ width: '33.33%', padding: '2px 3px', textAlign: 'right' }}>Page 1 of 2</td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Format No. 7.1 F-01</td>
-                    <td colSpan={2} style={{ padding: '2px 3px' }}>Format: Test Request Form (Water & Waste Water)</td>
-                  </tr>
-                  <tr>
-                    <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Prepared By: TM</td>
-                    <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Approved By: QM</td>
-                    <td style={{ padding: '2px 3px' }}>Issue By/Reviewed By: TM</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            {/* PAGE BREAK / SPACER */}
-            <div style={{ margin: '2rem 0', borderTop: '2px dashed #cbd5e1', position: 'relative' }}>
-              <span style={{ position: 'absolute', top: '-10px', left: '50%', transform: 'translateX(-50%)', background: '#f8fafc', padding: '0 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Page 2 Preview</span>
-            </div>
-
-            {/* PAGE 2 */}
-            <div style={{
-              background: '#ffffff',
-              border: '1px solid #000000',
-              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
-              padding: '1.25rem',
-              fontSize: '10px',
-              fontFamily: '"Plus Jakarta Sans", "Inter", sans-serif',
-              color: '#000000',
-              lineHeight: '1.3',
-              display: 'flex',
-              flexDirection: 'column',
-              minHeight: '297mm',
-              boxSizing: 'border-box'
-            }}>
-              {/* Header block (repeated from Page 1) */}
-              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', marginBottom: '8px' }}>
-                <tbody>
-                  <tr>
-                    <td style={{ width: '45%', border: '1px solid #000000', padding: '0px', verticalAlign: 'middle', textAlign: 'center' }}>
-                      <img src={getSelectedCompanyLogo()} alt="Logo" style={{ height: '75px', width: '100%', objectFit: 'cover', display: 'block', margin: '0 auto' }} />
-                    </td>
-                    <td style={{ width: '25%', border: '1px solid #000000', padding: '4px', textAlign: 'center', fontWeight: 'bold', fontSize: '10px' }}>
-                      FORMATS
-                    </td>
-                    <td style={{ width: '30%', border: '1px solid #000000', padding: '0' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '7px' }}>
-                        <tbody>
-                          <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Amendment No.</td><td style={{ padding: '2px 3px' }}>00</td></tr>
-                          <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Amendment Date</td><td style={{ padding: '2px 3px' }}>--</td></tr>
-                          <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Issue No.</td><td style={{ padding: '2px 3px' }}>01</td></tr>
-                          <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Issue Date</td><td style={{ padding: '2px 3px' }}>01/09/2018</td></tr>
-                          <tr><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Format No.</td><td style={{ padding: '2px 3px' }}>7.1 F-01</td></tr>
-                        </tbody>
-                      </table>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-
-              <div style={{ fontWeight: 'bold', fontSize: '8px', marginBottom: '8px', border: '1px solid #000000', borderTop: 'none', background: '#f8fafc', padding: '3px', textAlign: 'center' }}>
-                Test Parameter to Be Analyzed: - {selCategory.name || 'WATER & WASTE WATER'}
-              </div>
-
-              {/* Parameters Grid */}
-              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '8px', marginBottom: '8px' }}>
-                <thead>
-                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid #000000' }}>
-                    <th style={{ width: '8%', padding: '3px', borderRight: '1px solid #000000', textAlign: 'center' }}>Sr. No.</th>
-                    <th style={{ width: '42%', padding: '3px', borderRight: '1px solid #000000', textAlign: 'left' }}>Test Parameters</th>
-                    <th style={{ width: '10%', padding: '3px', borderRight: '1px solid #000000', textAlign: 'center' }}>Tick √</th>
-                    <th style={{ width: '40%', padding: '3px', textAlign: 'center' }}>Test Method</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Array.from({ length: Math.max(20, parameters.length) }).map((_, i) => {
-                    const param = parameters[i];
-                    const isChecked = param ? !!checkedParameters[param.id] : false;
-                    return (
-                      <tr key={i} style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ padding: '2px', borderRight: '1px solid #000000', textAlign: 'center' }}>{i + 1}.</td>
-                        <td style={{ padding: '2px 4px', borderRight: '1px solid #000000', textAlign: 'left' }}>{param ? (param.parameterName || param.name) : ''}</td>
-                        <td style={{ padding: '2px', borderRight: '1px solid #000000', textAlign: 'center', fontWeight: 'bold', color: '#15803d' }}>{isChecked ? '√' : ''}</td>
-                        <td style={{ padding: '2px 4px', textAlign: 'left' }}>{param ? (param.testMethod || '') : ''}</td>
+                  background: '#ffffff',
+                  border: '1px solid #000000',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+                  padding: '1.25rem',
+                  fontSize: '10px',
+                  fontFamily: '"Plus Jakarta Sans", "Inter", sans-serif',
+                  color: '#000000',
+                  lineHeight: '1.3'
+                }}>
+                  {/* Header block */}
+                  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', marginBottom: '8px' }}>
+                    <tbody>
+                      <tr>
+                        <td style={{ width: '45%', border: '1px solid #000000', padding: '0px', verticalAlign: 'middle', textAlign: 'center' }}>
+                          <img src={getSelectedCompanyLogo()} alt="Logo" style={{ height: '75px', width: '100%', objectFit: 'cover', display: 'block', margin: '0 auto' }} />
+                        </td>
+                        <td style={{ width: '25%', border: '1px solid #000000', padding: '4px', textAlign: 'center', fontWeight: 'bold', fontSize: '10px' }}>
+                          FORMATS
+                        </td>
+                        <td style={{ width: '30%', border: '1px solid #000000', padding: '0' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '7px' }}>
+                            <tbody>
+                              <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Amendment No.</td><td style={{ padding: '2px 3px' }}>00</td></tr>
+                              <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Amendment Date</td><td style={{ padding: '2px 3px' }}>--</td></tr>
+                              <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Issue No.</td><td style={{ padding: '2px 3px' }}>01</td></tr>
+                              <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Issue Date</td><td style={{ padding: '2px 3px' }}>01/09/2018</td></tr>
+                              <tr><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Format No.</td><td style={{ padding: '2px 3px' }}>7.1 F-01</td></tr>
+                            </tbody>
+                          </table>
+                        </td>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                    </tbody>
+                  </table>
 
-              {/* Approved By Technical Manager */}
-              <div style={{ textAlign: 'right', marginTop: '1.5rem', fontWeight: 'bold', fontSize: '8px', paddingRight: '1.5rem' }}>
-                Approved By<br />
-                Technical Manager
-              </div>
+                  {/* Document Title */}
+                  <div style={{ border: '1px solid #000000', borderTop: 'none', background: '#f8fafc', padding: '3px', textAlign: 'center', fontWeight: 'bold', fontSize: '8px', marginBottom: '8px' }}>
+                    TEST REQUEST FORM FOR {formData.formTitle || 'WATER & WASTE WATER'}
+                  </div>
 
-              {/* Footer Page 2 */}
-              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '7px', marginTop: 'auto' }}>
-                <tbody>
-                  <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}>Doc No: JLT/ 7.1 F-01</td>
-                    <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}></td>
-                    <td style={{ width: '33.33%', padding: '2px 3px', textAlign: 'right' }}>Page 2 of 2</td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid #000000' }}>
-                    <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Format No. 7.1 F-01</td>
-                    <td colSpan={2} style={{ padding: '2px 3px' }}>Format: Test Request Form (Water & Waste Water)</td>
-                  </tr>
-                  <tr>
-                    <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Prepared By: TM</td>
-                    <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Approved By: QM</td>
-                    <td style={{ padding: '2px 3px' }}>Issue By/Reviewed By: TM</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </>
+                  {/* Form Fields Table */}
+                  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '8px' }}>
+                    <tbody>
+                      <tr style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ width: '32%', padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Name of Company / Customer</td>
+                        <td style={{ padding: '3px 4px' }}>{selCompany.companyName || selCompany.company_name || '(Select Company)'} {selClient.clientName ? `- ${selClient.clientName}` : ''}</td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Address for Communication</td>
+                        <td style={{ padding: '3px 4px' }}>{formData.address || 'N/A'}</td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Email ID</td>
+                        <td style={{ padding: '3px 4px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span>{formData.email || 'N/A'}</span>
+                            <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Location of Sample</span>
+                            <span style={{ paddingLeft: '6px' }}>{formData.locationOfSample || 'N/A'}</span>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Contact Person</td>
+                        <td style={{ padding: '3px 4px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span>{formData.contactPerson || 'N/A'}</span>
+                            <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Contact No.</span>
+                            <span style={{ paddingLeft: '6px' }}>{formData.contactNumber || 'N/A'}</span>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Date of Collection</td>
+                        <td style={{ padding: '3px 4px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span>{formData.dateOfCollection || 'N/A'}</span>
+                            <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Date of Receipt</span>
+                            <span style={{ paddingLeft: '6px' }}>{formData.dateOfReceipt || 'N/A'}</span>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Sample Collected By</td>
+                        <td style={{ padding: '3px 4px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span>{formData.sampleCollectedBy || 'N/A'}</span>
+                            <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Sample Quantity</span>
+                            <span style={{ paddingLeft: '6px' }}>{formData.sampleQuantity || 'N/A'}</span>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Field Data Sheet</td>
+                        <td style={{ padding: '3px 4px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>{formData.fieldDataSheet}</span>
+                            <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px' }}>Packing details</span>
+                            <span>{formData.packingDetails || 'N/A'}</span>
+                            <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Form Type</span>
+                            <span style={{ paddingLeft: '6px' }}>{formData.formType || 'Regular'}</span>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Sample ID No.</td>
+                        <td style={{ padding: '3px 4px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span>{formData.sampleIdNumber || 'N/A'}</span>
+                            <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Report No.</span>
+                            <span style={{ paddingLeft: '6px' }}>{formData.reportNumber || 'N/A'}</span>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Sample Particular</td>
+                        <td style={{ padding: '3px 4px', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{formData.sampleParticular || selCategory.name || 'N/A'}</td>
+                      </tr>
+
+                      {/* Feasibility table inner block */}
+                      <tr style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ padding: '0', fontWeight: '600' }} colSpan={2}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '7.5px' }}>
+                            <tbody>
+                              <tr style={{ borderBottom: '1px solid #000000' }}>
+                                <td style={{ width: '25%', padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Availability of Equip.</td>
+                                <td style={{ width: '25%', padding: '2px 3px', borderRight: '1px solid #000000' }}>{formData.equipmentAvailability}</td>
+                                <td style={{ width: '25%', padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Availability of Ref Std.</td>
+                                <td style={{ width: '25%', padding: '2px 3px' }}>{formData.referenceStandardAvailability}</td>
+                              </tr>
+                              <tr style={{ borderBottom: '1px solid #000000' }}>
+                                <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Availability of Test Method</td>
+                                <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>{formData.testMethodAvailability}</td>
+                                <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Availability of Trained Person</td>
+                                <td style={{ padding: '2px 3px' }}>{formData.trainedPersonAvailability}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Adequacy of sample qty</td>
+                                <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>{formData.sampleAdequacy}</td>
+                                <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Tentative Report Days</td>
+                                <td style={{ padding: '2px 3px' }}>{formData.tentativeDays}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </td>
+                      </tr>
+
+                      <tr style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Facility reviewed by</td>
+                        <td style={{ padding: '3px 4px' }}>{formData.sampleTestingFacilityReviewedBy}</td>
+                      </tr>
+
+                      {/* Signatures space */}
+                      <tr style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ padding: '0', fontWeight: '600' }} colSpan={2}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '7.5px' }}>
+                            <tbody>
+                              <tr style={{ borderBottom: '1px solid #000000', height: '20px' }}>
+                                <td style={{ width: '50%', padding: '2px 3px', borderRight: '1px solid #000000', verticalAlign: 'top', fontWeight: 'bold' }}>Signature of Customer Representative:</td>
+                                <td style={{ width: '50%', padding: '2px 3px', verticalAlign: 'top', fontWeight: 'bold' }}>Signature of Sample Received By:</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>
+                                  Name & Designation: <span style={{ fontWeight: 'normal' }}>{formData.customerRepresentativeName || 'N/A'}</span>
+                                </td>
+                                <td style={{ padding: '2px 3px', fontWeight: 'bold' }}>
+                                  Name & Designation: <span style={{ fontWeight: 'normal' }}>{formData.sampleReceiverName || 'N/A'}</span>
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </td>
+                      </tr>
+
+                      <tr style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000', verticalAlign: 'top' }}>Test Protocol adopted</td>
+                        <td style={{ padding: '3px 4px', whiteSpace: 'pre-wrap' }}>{formData.testProtocol}</td>
+                      </tr>
+
+                      <tr>
+                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000', verticalAlign: 'top' }}>Remarks / Notes</td>
+                        <td style={{ padding: '3px 4px', whiteSpace: 'pre-wrap' }}>
+                          <ol style={{ margin: 0, paddingLeft: '1rem', fontSize: '7px' }}>
+                            <li>Please mention specific tests to be applied</li>
+                            <li>All the test procedures are followed as per National & International Standards.</li>
+                            <li>In case of sampling conducted by JLT, sampling plan is followed as per National & International Standards.</li>
+                            <li>If due to any unavoidable condition, testing will be sub-contracted only to NABL-complying competent agencies.</li>
+                          </ol>
+                          {formData.remarks && <div style={{ marginTop: '3px', borderTop: '1px dashed #cbd5e1', paddingTop: '3px' }}><strong>Additional:</strong> {formData.remarks}</div>}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  {/* Footer Page 1 */}
+                  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '7px', marginTop: 'auto' }}>
+                    <tbody>
+                      <tr style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}>Doc No: JLT/ 7.1 F-01</td>
+                        <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}></td>
+                        <td style={{ width: '33.33%', padding: '2px 3px', textAlign: 'right' }}>Page 1 of 2</td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Format No. 7.1 F-01</td>
+                        <td colSpan={2} style={{ padding: '2px 3px' }}>Format: Test Request Form (Water & Waste Water)</td>
+                      </tr>
+                      <tr>
+                        <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Prepared By: TM</td>
+                        <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Approved By: QM</td>
+                        <td style={{ padding: '2px 3px' }}>Issue By/Reviewed By: TM</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* PAGE BREAK / SPACER */}
+                <div style={{ margin: '2rem 0', borderTop: '2px dashed #cbd5e1', position: 'relative' }}>
+                  <span style={{ position: 'absolute', top: '-10px', left: '50%', transform: 'translateX(-50%)', background: '#f8fafc', padding: '0 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Page 2 Preview</span>
+                </div>
+
+                {/* PAGE 2 */}
+                <div style={{
+                  background: '#ffffff',
+                  border: '1px solid #000000',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+                  padding: '1.25rem',
+                  fontSize: '10px',
+                  fontFamily: '"Plus Jakarta Sans", "Inter", sans-serif',
+                  color: '#000000',
+                  lineHeight: '1.3',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  minHeight: '297mm',
+                  boxSizing: 'border-box'
+                }}>
+                  {/* Header block (repeated from Page 1) */}
+                  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', marginBottom: '8px' }}>
+                    <tbody>
+                      <tr>
+                        <td style={{ width: '45%', border: '1px solid #000000', padding: '0px', verticalAlign: 'middle', textAlign: 'center' }}>
+                          <img src={getSelectedCompanyLogo()} alt="Logo" style={{ height: '75px', width: '100%', objectFit: 'cover', display: 'block', margin: '0 auto' }} />
+                        </td>
+                        <td style={{ width: '25%', border: '1px solid #000000', padding: '4px', textAlign: 'center', fontWeight: 'bold', fontSize: '10px' }}>
+                          FORMATS
+                        </td>
+                        <td style={{ width: '30%', border: '1px solid #000000', padding: '0' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '7px' }}>
+                            <tbody>
+                              <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Amendment No.</td><td style={{ padding: '2px 3px' }}>00</td></tr>
+                              <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Amendment Date</td><td style={{ padding: '2px 3px' }}>--</td></tr>
+                              <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Issue No.</td><td style={{ padding: '2px 3px' }}>01</td></tr>
+                              <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Issue Date</td><td style={{ padding: '2px 3px' }}>01/09/2018</td></tr>
+                              <tr><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Format No.</td><td style={{ padding: '2px 3px' }}>7.1 F-01</td></tr>
+                            </tbody>
+                          </table>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  <div style={{ fontWeight: 'bold', fontSize: '8px', marginBottom: '8px', border: '1px solid #000000', borderTop: 'none', background: '#f8fafc', padding: '3px', textAlign: 'center' }}>
+                    Test Parameter to Be Analyzed: - {selCategory.name || 'WATER & WASTE WATER'}
+                  </div>
+
+                  {/* Parameters Grid */}
+                  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '8px', marginBottom: '8px' }}>
+                    <thead>
+                      <tr style={{ background: '#f8fafc', borderBottom: '1px solid #000000' }}>
+                        <th style={{ width: '8%', padding: '3px', borderRight: '1px solid #000000', textAlign: 'center' }}>Sr. No.</th>
+                        <th style={{ width: '42%', padding: '3px', borderRight: '1px solid #000000', textAlign: 'left' }}>Test Parameters</th>
+                        <th style={{ width: '10%', padding: '3px', borderRight: '1px solid #000000', textAlign: 'center' }}>Tick √</th>
+                        <th style={{ width: '40%', padding: '3px', textAlign: 'center' }}>Test Method</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Array.from({ length: Math.max(20, parameters.length) }).map((_, i) => {
+                        const param = parameters[i];
+                        const isChecked = param ? !!checkedParameters[param.id] : false;
+                        return (
+                          <tr key={i} style={{ borderBottom: '1px solid #000000' }}>
+                            <td style={{ padding: '2px', borderRight: '1px solid #000000', textAlign: 'center' }}>{i + 1}.</td>
+                            <td style={{ padding: '2px 4px', borderRight: '1px solid #000000', textAlign: 'left' }}>{param ? (param.parameterName || param.name) : ''}</td>
+                            <td style={{ padding: '2px', borderRight: '1px solid #000000', textAlign: 'center', fontWeight: 'bold', color: '#15803d' }}>{isChecked ? '√' : ''}</td>
+                            <td style={{ padding: '2px 4px', textAlign: 'left' }}>{param ? (param.testMethod || '') : ''}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+
+                  {/* Approved By Technical Manager */}
+                  <div style={{ textAlign: 'right', marginTop: '1.5rem', fontWeight: 'bold', fontSize: '8px', paddingRight: '1.5rem' }}>
+                    Approved By<br />
+                    Technical Manager
+                  </div>
+
+                  {/* Footer Page 2 */}
+                  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '7px', marginTop: 'auto' }}>
+                    <tbody>
+                      <tr style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}>Doc No: JLT/ 7.1 F-01</td>
+                        <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}></td>
+                        <td style={{ width: '33.33%', padding: '2px 3px', textAlign: 'right' }}>Page 2 of 2</td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid #000000' }}>
+                        <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Format No. 7.1 F-01</td>
+                        <td colSpan={2} style={{ padding: '2px 3px' }}>Format: Test Request Form (Water & Waste Water)</td>
+                      </tr>
+                      <tr>
+                        <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Prepared By: TM</td>
+                        <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Approved By: QM</td>
+                        <td style={{ padding: '2px 3px' }}>Issue By/Reviewed By: TM</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </div>
         )}
-      </div>
-    )}
 
         {/* Inline Master Creation Modal */}
         <InlineMasterModal

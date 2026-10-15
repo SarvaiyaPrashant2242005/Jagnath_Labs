@@ -117,6 +117,7 @@ const getAll = async (req, res) => {
             limit: req.query.limit,
             search: req.query.search,
             status: req.query.status,
+            gpcbOnly: req.query.gpcbOnly || req.query.gpcb_only || req.query.isGpcb || req.query.is_gpcb,
             sortBy: req.query.sortBy,
             sortOrder: req.query.sortOrder
         };

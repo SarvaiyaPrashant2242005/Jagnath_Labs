@@ -28,6 +28,11 @@ const TestRequestParameter = sequelize.define("TestRequestParameter", {
             key: "id",
         }
     },
+    locationOfSample: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        field: "location_of_sample"
+    },
     testMethod: {
         type: DataTypes.STRING,
         allowNull: true,

@@ -25,6 +25,10 @@ import Profile from './modules/profile/pages/Profile';
 import PriceList from './modules/pricelist/pages/PriceList';
 import CautionMaster from './modules/cautionMaster/pages/CautionMaster';
 import LocationSampleMaster from './modules/locationSampleMaster/pages/LocationSampleMaster';
+import ProvisionalQuotationList from './modules/Forms/ProvisionalQuotation/pages/ProvisionalQuotationList';
+import ProvisionalQuotationForm from './modules/Forms/ProvisionalQuotation/pages/ProvisionalQuotationForm';
+import ProvisionalQuotationPreview from './modules/Forms/ProvisionalQuotation/pages/ProvisionalQuotationPreview';
+import ProvisionalQuotationPrint from './modules/Forms/ProvisionalQuotation/pages/ProvisionalQuotationPrint';
 import { getStoredUser } from './modules/auth/services/authService';
 import './assets/styles/index.css';
 
@@ -174,6 +178,13 @@ function App() {
         <Route path="/test-reports" element={<ProtectedRoute><TestReportList /></ProtectedRoute>} />
         <Route path="/test-reports/add" element={<ProtectedRoute><TestReportForm /></ProtectedRoute>} />
         <Route path="/test-reports/edit/:id" element={<ProtectedRoute><TestReportForm /></ProtectedRoute>} />
+
+        {/* Provisional Estimated Quotation Routes */}
+        <Route path="/quotations/provisional" element={<ProtectedRoute><ProvisionalQuotationList /></ProtectedRoute>} />
+        <Route path="/quotations/provisional/add" element={<ProtectedRoute><ProvisionalQuotationForm /></ProtectedRoute>} />
+        <Route path="/quotations/provisional/edit/:id" element={<ProtectedRoute><ProvisionalQuotationForm /></ProtectedRoute>} />
+        <Route path="/quotations/provisional/preview/:id" element={<ProtectedRoute><ProvisionalQuotationPreview /></ProtectedRoute>} />
+        <Route path="/quotations/provisional/print/:id" element={<ProtectedPrintRoute><ProvisionalQuotationPrint /></ProtectedPrintRoute>} />
 
         {/* Print Routes without DashboardLayout */}
         <Route path="/test-requests/print/:id" element={<ProtectedPrintRoute><TestRequestPrint /></ProtectedPrintRoute>} />
