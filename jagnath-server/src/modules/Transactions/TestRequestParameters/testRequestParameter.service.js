@@ -16,6 +16,7 @@ const updateLogPath = path.join(__dirname, "../../../../logs/TestRequestParamete
 const deleteLogPath = path.join(__dirname, "../../../../logs/TestRequestParameter/Delete.txt");
 
 const fieldLabels = {
+    locationOfSample: "Location of Sample",
     testMethod: "Test Method",
     unit: "Unit",
     result: "Result",
@@ -57,6 +58,7 @@ const formatTransaction = (trp) => {
         trpObj.unit = trpObj.unit || trpObj.parameter.unit;
         trpObj.isPermissibleLimitApplicable = trpObj.parameter.isPermissibleLimitApplicable;
         trpObj.permissibleLimit = trpObj.parameter.permissibleLimit;
+        trpObj.acceptableLimit = trpObj.parameter.acceptableLimit;
     } else {
         trpObj.parameterName = null;
     }

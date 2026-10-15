@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  FaClipboardList, FaPlus, FaDownload, FaEdit, FaTrash, FaCheck, 
-  FaExclamationCircle, FaFileExcel, FaCopy, FaFileCsv, 
+import {
+  FaClipboardList, FaPlus, FaDownload, FaEdit, FaTrash, FaCheck,
+  FaExclamationCircle, FaFileExcel, FaCopy, FaFileCsv,
   FaFilePdf, FaPrint, FaChevronDown, FaEye, FaExclamationTriangle
 } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
@@ -23,10 +23,10 @@ const TestRequestList = () => {
   const [pageSize, setPageSize] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-  
+
   // Toast notifications state
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
-  
+
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -147,19 +147,19 @@ const TestRequestList = () => {
       if (selectedClient) {
         params.append('clientId', selectedClient);
       }
-      
+
       const url = `${TEST_REQUEST_ENDPOINTS.GET_ALL}?${params.toString()}`;
       const response = await apiService.get(url);
       if (response && response.data) {
         if (response.data.rows !== undefined) {
-           setRequests(response.data.rows);
-           setTotalItems(response.data.total);
-           setTotalPages(response.data.totalPages);
+          setRequests(response.data.rows);
+          setTotalItems(response.data.total);
+          setTotalPages(response.data.totalPages);
         } else {
-           const trList = Array.isArray(response.data) ? response.data : [response.data];
-           setRequests(trList);
-           setTotalItems(trList.length);
-           setTotalPages(1);
+          const trList = Array.isArray(response.data) ? response.data : [response.data];
+          setRequests(trList);
+          setTotalItems(trList.length);
+          setTotalPages(1);
         }
       } else {
         setRequests([]);
@@ -212,7 +212,7 @@ const TestRequestList = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      
+
       {/* Toast Notification Container in Top Right Corner */}
       {toast.show && (
         <div style={{
@@ -244,28 +244,28 @@ const TestRequestList = () => {
           <span>Test Requests</span>
         </h2>
         <div className="master-top-bar-actions" style={{ display: 'flex', gap: '0.75rem', position: 'relative' }} ref={dropdownRef}>
-          <button 
-            onClick={() => navigate('/test-requests/add')} 
+          <button
+            onClick={() => navigate('/test-requests/add')}
             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1rem', fontWeight: 600, cursor: 'pointer' }}
           >
             <FaPlus />
             <span>Test Request</span>
           </button>
 
-          <button 
-            onClick={() => setShowDownloadDropdown(!showDownloadDropdown)} 
+          <button
+            onClick={() => setShowDownloadDropdown(!showDownloadDropdown)}
             disabled={requests.length === 0}
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '0.5rem', 
-              backgroundColor: '#22c55e', 
-              color: '#ffffff', 
-              border: 'none', 
-              borderRadius: '8px', 
-              padding: '0.5rem 1.25rem', 
-              fontWeight: 600, 
-              cursor: 'pointer', 
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              backgroundColor: '#22c55e',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '0.5rem 1.25rem',
+              fontWeight: 600,
+              cursor: 'pointer',
               opacity: requests.length === 0 ? 0.6 : 1,
               boxShadow: '0 2px 4px rgba(34, 197, 94, 0.2)'
             }}
@@ -328,7 +328,7 @@ const TestRequestList = () => {
 
       {/* Filter and Table view matching CompanyMaster */}
       <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-        
+
         {/* Filters Row */}
         <div className="master-table-filters" style={{ display: 'flex', gap: '1rem', marginBottom: '1.25rem', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ fontSize: '0.9rem', color: '#475569', fontWeight: 600 }}>
@@ -357,9 +357,9 @@ const TestRequestList = () => {
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
             </select>
-            <input 
-              type="text" 
-              placeholder="Search reports..." 
+            <input
+              type="text"
+              placeholder="Search reports..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{ padding: '0.5rem 1rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', fontSize: '0.85rem', width: '220px' }}
@@ -397,41 +397,47 @@ const TestRequestList = () => {
                 </tr>
               ) : (
                 requests.map((req, index) => (
-                  <tr 
-                    key={req.id} 
+                  <tr
+                    key={req.id}
                     onClick={() => navigate(`/test-requests/edit/${req.id}`)}
                     style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background-color 0.15s' }}
                     className="company-table-row"
                   >
                     <td style={{ padding: '0.75rem 1rem', display: 'flex', gap: '0.4rem' }}>
-                      <button 
+                      <button
                         onClick={(e) => { e.stopPropagation(); navigate(`/test-requests/print/${req.id}`); }}
                         style={{ background: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                         title="Print TRF PDF"
                       >
                         <FaPrint size={12} />
                       </button>
-                      {/* HIDE MULTIPLE QUOTATIONS FUNCTIONALITY (DISABLED)
-                      req.quotationRequired === 'Yes' && (
-                        <button 
-                          onClick={(e) => { 
-                            e.stopPropagation(); 
-                            window.open(`#/test-requests/quotation/${req.id}`, '_blank'); 
-                          }}
-                          style={{ background: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
-                          title="Generate Quotation PDF"
-                        >
-                          <FaFilePdf size={12} />
-                        </button>
-                      )*/}
-                      <button 
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.open(`#/quotations/provisional/add?trfId=${req.id}`, '_blank');
+                        }}
+                        style={{
+                          background: '#0284c7',
+                          color: '#ffffff',
+                          border: 'none',
+                          borderRadius: '4px',
+                          padding: '0.375rem',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center'
+                        }}
+                        title="Generate Quotation (Regular or Provisional)"
+                      >
+                        <FaFilePdf size={12} />
+                      </button>
+                      <button
                         onClick={(e) => { e.stopPropagation(); navigate(`/test-requests/edit/${req.id}`); }}
                         style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                         title="Edit"
                       >
                         <FaEdit size={12} />
                       </button>
-                      <button 
+                      <button
                         onClick={(e) => { e.stopPropagation(); handleDelete(req.id); }}
                         style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '0.375rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                         title="Delete"
@@ -446,7 +452,7 @@ const TestRequestList = () => {
                     <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{formatDateDDMMYYYY(req.dateOfReceipt || req.dateOfCollection)}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{req.sampleCollectedBy || 'N/A'}</td>
                     <td style={{ padding: '0.75rem 1rem' }}>
-                      <span style={{ 
+                      <span style={{
                         display: 'inline-block',
                         padding: '0.125rem 0.5rem',
                         fontSize: '0.75rem',
@@ -482,9 +488,9 @@ const TestRequestList = () => {
                   <div className="master-record-card-header">
                     <div>
                       <div className="master-record-title">{req.clientName || 'N/A'}</div>
-                      <div className="master-record-subtitle">#{ (currentPage - 1) * pageSize + index + 1 } • {getCategoryName(req)}</div>
+                      <div className="master-record-subtitle">#{(currentPage - 1) * pageSize + index + 1} • {getCategoryName(req)}</div>
                     </div>
-                    <span style={{ 
+                    <span style={{
                       padding: '0.2rem 0.6rem',
                       fontSize: '0.75rem',
                       fontWeight: 700,
@@ -508,19 +514,19 @@ const TestRequestList = () => {
                   </div>
 
                   <div className="master-record-actions">
-                    <button 
+                    <button
                       onClick={(e) => { e.stopPropagation(); navigate(`/test-requests/print/${req.id}`); }}
                       style={{ background: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                     >
                       <FaPrint size={12} /> Print
                     </button>
-                    <button 
+                    <button
                       onClick={(e) => { e.stopPropagation(); navigate(`/test-requests/edit/${req.id}`); }}
                       style={{ background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                     >
                       <FaEdit size={12} /> Edit
                     </button>
-                    <button 
+                    <button
                       onClick={(e) => { e.stopPropagation(); handleDelete(req.id); }}
                       style={{ background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '0.4rem 0.8rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                     >
@@ -532,9 +538,9 @@ const TestRequestList = () => {
             </div>
           )}
         </div>
-        
+
         {/* Pagination Controls */}
-        <Pagination 
+        <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
           totalItems={totalItems}

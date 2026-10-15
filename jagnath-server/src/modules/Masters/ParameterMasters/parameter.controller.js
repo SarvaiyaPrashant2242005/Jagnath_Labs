@@ -109,9 +109,13 @@ const create = async (req, res) => {
             parameterName: value.parameterName,
             description: value.description,
             testMethod: value.testMethod,
+            referenceStandard: value.referenceStandard || null,
             unit: value.unit,
             isPermissibleLimitApplicable: value.isPermissibleLimitApplicable,
             permissibleLimit: value.permissibleLimit,
+            acceptableLimit: value.acceptableLimit,
+            isGpcb: value.isGpcb !== undefined ? value.isGpcb : false,
+            price: value.price !== undefined ? value.price : 0,
             status: value.status || "Active",
             companyId,
             categoryId: value.categoryId,
@@ -172,6 +176,9 @@ const getAll = async (req, res) => {
             categoryId: req.query.categoryId,
             subCategoryId: req.query.subCategoryId,
             departmentId: req.query.departmentId,
+            type: req.query.type,
+            isGpcb: req.query.isGpcb || req.query.is_gpcb,
+            gpcbOnly: req.query.gpcbOnly || req.query.gpcb_only,
             sortBy: req.query.sortBy,
             sortOrder: req.query.sortOrder
         };
@@ -296,9 +303,13 @@ const update = async (req, res) => {
             parameterName: value.parameterName,
             description: value.description,
             testMethod: value.testMethod,
+            referenceStandard: value.referenceStandard !== undefined ? value.referenceStandard : param.referenceStandard,
             unit: value.unit,
             isPermissibleLimitApplicable: value.isPermissibleLimitApplicable,
             permissibleLimit: value.permissibleLimit,
+            acceptableLimit: value.acceptableLimit,
+            isGpcb: value.isGpcb !== undefined ? value.isGpcb : param.isGpcb,
+            price: value.price !== undefined ? value.price : param.price,
             status: value.status,
             companyId: targetCompanyId,
             categoryId: value.categoryId,
@@ -417,9 +428,10 @@ const bulkImport = async (req, res) => {
 
         const result = await parameterService.bulkImportParameters(rows, companyIdToUse, userId, reqInfo);
 
+        const gpcbMsg = result.gpcbCount !== undefined ? ` — ${result.gpcbCount} tagged GPCB, ${result.normalCount} tagged Normal` : '';
         return res.status(200).json(successResponse(
             "PARAMETERS_BULK_IMPORTED",
-            `Successfully processed ${result.totalProcessed} parameters (${result.createdCount} created, ${result.updatedCount} updated).`,
+            `Successfully processed ${result.totalProcessed} parameters (${result.createdCount} created, ${result.updatedCount} updated)${gpcbMsg}.`,
             "Bulk import completed.",
             result
         ));

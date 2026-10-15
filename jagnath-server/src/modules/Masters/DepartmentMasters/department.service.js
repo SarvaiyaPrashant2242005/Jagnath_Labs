@@ -312,6 +312,102 @@ const getDepartmentsByCompany = async (companyId, options = {}) => {
             attributes: { exclude: ["deleted_at"] }
         };
 
+        if (options.gpcbOnly === true || options.gpcbOnly === 'true' || options.isGpcb === 'true' || options.isGpcb === true) {
+            const Category = require("../CategoryMasters/category.model");
+            const SubCategory = require("../SubCategoryMasters/subCategory.model");
+            const Parameter = require("../ParameterMasters/parameter.model");
+            const CategoryParameter = require("../CategoryParameterMasters/categoryParameter.model");
+
+            // Find all department IDs that have at least one GPCB parameter (via SubCategory or CategoryParameter)
+            const gpcbParams = await Parameter.findAll({
+                where: { companyId, isGpcb: true, deleted_at: null },
+                include: [
+                    {
+                        model: SubCategory,
+                        as: "subCategory",
+                        attributes: ["categoryId"],
+                        include: [{
+                            model: Category,
+                            as: "category",
+                            attributes: ["departmentId"]
+                        }]
+                    },
+                    {
+                        model: CategoryParameter,
+                        as: "categoryParameters",
+                        include: [{
+                            model: Category,
+                            as: "category",
+                            attributes: ["departmentId"]
+                        }]
+                    }
+                ]
+            });
+
+            const validDeptIds = new Set();
+            for (const p of gpcbParams) {
+                if (p.subCategory?.category?.departmentId) {
+                    validDeptIds.add(p.subCategory.category.departmentId);
+                }
+                if (p.categoryParameters) {
+                    for (const cp of p.categoryParameters) {
+                        if (cp.category?.departmentId) {
+                            validDeptIds.add(cp.category.departmentId);
+                        }
+                    }
+                }
+            }
+
+            queryOptions.where.id = { [Op.in]: Array.from(validDeptIds) };
+        } else if (options.gpcbOnly === false || options.gpcbOnly === 'false' || options.isGpcb === 'false' || options.isGpcb === false) {
+            const Category = require("../CategoryMasters/category.model");
+            const SubCategory = require("../SubCategoryMasters/subCategory.model");
+            const Parameter = require("../ParameterMasters/parameter.model");
+            const CategoryParameter = require("../CategoryParameterMasters/categoryParameter.model");
+
+            // Find all department IDs that have at least one Normal parameter (isGpcb: false)
+            const normalParams = await Parameter.findAll({
+                where: { companyId, isGpcb: false, deleted_at: null },
+                include: [
+                    {
+                        model: SubCategory,
+                        as: "subCategory",
+                        attributes: ["categoryId"],
+                        include: [{
+                            model: Category,
+                            as: "category",
+                            attributes: ["departmentId"]
+                        }]
+                    },
+                    {
+                        model: CategoryParameter,
+                        as: "categoryParameters",
+                        include: [{
+                            model: Category,
+                            as: "category",
+                            attributes: ["departmentId"]
+                        }]
+                    }
+                ]
+            });
+
+            const validDeptIds = new Set();
+            for (const p of normalParams) {
+                if (p.subCategory?.category?.departmentId) {
+                    validDeptIds.add(p.subCategory.category.departmentId);
+                }
+                if (p.categoryParameters) {
+                    for (const cp of p.categoryParameters) {
+                        if (cp.category?.departmentId) {
+                            validDeptIds.add(cp.category.departmentId);
+                        }
+                    }
+                }
+            }
+
+            queryOptions.where.id = { [Op.in]: Array.from(validDeptIds) };
+        }
+
         if (options.sortBy) {
             const allowedSortFields = ["name", "status", "created_at", "createdAt"];
             if (allowedSortFields.includes(options.sortBy)) {

@@ -365,7 +365,7 @@ const Sidebar = ({ activeTab, onTabChange, onNewRequest, sidebarRef, isOpen = tr
                 </Link>
                 <Link
                   to="/quotations/provisional"
-                  className={`submenu-item ${activeTab === 'provisional-quotations' ? 'active-sub' : ''}`}
+                  className={`submenu-item ${activeTab === 'provisional-quotations' || activeTab === 'quotations' ? 'active-sub' : ''}`}
                   onClick={() => handleItemClick('provisional-quotations')}
                   style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}
                 >
