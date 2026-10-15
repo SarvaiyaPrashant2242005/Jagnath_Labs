@@ -2281,7 +2281,8 @@ const TestRequestForm = () => {
               <FaPrint />
               <span>Save & TRF PDF</span>
             </button>
-            {formData.quotationRequired === 'Yes' && (
+            {/* HIDE MULTIPLE QUOTATIONS FUNCTIONALITY (DISABLED)
+            formData.quotationRequired === 'Yes' && (
               <button
                 type="button"
                 onClick={handleSaveAndQuotation}
@@ -2291,7 +2292,7 @@ const TestRequestForm = () => {
                 <FaFilePdf />
                 <span>Generate Quotation</span>
               </button>
-            )}
+            )*/}
           </div>
         </div>
 
