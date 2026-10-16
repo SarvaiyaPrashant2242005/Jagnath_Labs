@@ -20,7 +20,7 @@ import '../styles/generalTestingPrint.css';
 
 // Page height thresholds in pixels (inner usable frame height)
 export const MAX_PAGE_HEIGHT_P1 = 820;
-export const MAX_PAGE_HEIGHT_DEFAULT = 820;
+export const MAX_PAGE_HEIGHT_DEFAULT = 865;
 
 const formatDisplayDate = (dateStr) => {
   if (!dateStr) return '';
@@ -78,7 +78,7 @@ const PageContainer = ({
         className="gt-page-frame"
         style={{
           border: '1px solid #000000',
-          padding: '6px 9px 18px 9px',
+          padding: '6px 9px 24px 9px',
           boxSizing: 'border-box',
           width: '100%',
           height: '100%',
@@ -456,18 +456,20 @@ export const GeneralTestingDocument = ({
         const doc = parser.parseFromString(section.content, 'text/html');
         const childNodes = Array.from(doc.body.childNodes).filter(node => node.nodeType === 1 || (node.nodeType === 3 && node.textContent.trim().length > 0));
 
+        let complianceMinPage = minPage;
         childNodes.forEach((node, nodeIdx) => {
           const tagName = node.nodeName ? node.nodeName.toUpperCase() : '';
           const htmlContent = node.outerHTML || node.textContent;
 
           const isSubHeadingP = tagName === 'P' && (node.querySelector('strong') || node.querySelector('b')) && /^\s*(\d+\.|\bNOTE\b|[A-Z][a-zA-Z\s&]+)/i.test(node.textContent.trim());
 
-          let blockMinPage = minPage;
+          let blockMinPage = Math.max(minPage, complianceMinPage);
           if (section.presetKey === 'compliance_requirements') {
             const rawText = node.textContent.trim();
             // In Compliance Requirements, subheadings 7 and 8 start on Page 3
             if (/^\s*(7\.|8\.)/i.test(rawText)) {
-              blockMinPage = Math.max(blockMinPage, 3);
+              complianceMinPage = 3;
+              blockMinPage = 3;
             }
           }
 
@@ -489,12 +491,13 @@ export const GeneralTestingDocument = ({
             const liNodes = Array.from(node.children).filter(child => child.tagName === 'LI');
             if (liNodes.length > 0) {
               liNodes.forEach((li, liIdx) => {
-                let liMinPage = minPage;
+                let liMinPage = Math.max(minPage, complianceMinPage);
                 if (section.presetKey === 'compliance_requirements') {
                   const liText = li.textContent.trim();
                   // Bullets after "Samples are accepted only if:" start on Page 3 (matching physical reference document photo 3)
                   if (/^\s*Non-conforming/i.test(liText) || /^\s*All samples must be marked/i.test(liText) || /^\s*Customers bear the risk/i.test(liText)) {
-                    liMinPage = Math.max(liMinPage, 3);
+                    complianceMinPage = 3;
+                    liMinPage = 3;
                   }
                 }
                 blocks.push({
@@ -511,7 +514,7 @@ export const GeneralTestingDocument = ({
                       }}
                     >
                       <li
-                        style={{ lineHeight: 1.26, marginBottom: '1px' }}
+                        style={{ lineHeight: 1.25, marginBottom: '1px' }}
                         dangerouslySetInnerHTML={{ __html: sanitizeHtml(li.innerHTML) }}
                       />
                     </ul>
@@ -527,7 +530,7 @@ export const GeneralTestingDocument = ({
                   <div
                     key={`sec_${section.id || sIdx}_node_${nodeIdx}`}
                     className="gt-doc-content"
-                    style={{ fontSize: '9.8pt', lineHeight: 1.26, marginBottom: '1px' }}
+                    style={{ fontSize: '9.8pt', lineHeight: 1.25, marginBottom: '1px' }}
                     dangerouslySetInnerHTML={{ __html: sanitizeHtml(htmlContent) }}
                   />
                 )
@@ -536,7 +539,8 @@ export const GeneralTestingDocument = ({
           } else {
             const isItalicNote = node.querySelector('em') || node.querySelector('i');
             if (section.presetKey === 'compliance_requirements' && isItalicNote) {
-              blockMinPage = Math.max(blockMinPage, 3);
+              complianceMinPage = 3;
+              blockMinPage = 3;
             }
             blocks.push({
               id: `sec_${section.id || sIdx}_node_${nodeIdx}`,
@@ -549,7 +553,7 @@ export const GeneralTestingDocument = ({
                   style={{
                     fontSize: isItalicNote ? '9.3pt' : '9.8pt',
                     fontStyle: isItalicNote ? 'italic' : 'normal',
-                    lineHeight: 1.26,
+                    lineHeight: 1.25,
                     marginTop: isItalicNote ? '2px' : '1px',
                     marginBottom: isItalicNote ? '3px' : '1px',
                   }}
@@ -693,38 +697,34 @@ export const GeneralTestingDocument = ({
         const pageLimit = currentPageIndex === 0 ? MAX_PAGE_HEIGHT_P1 : MAX_PAGE_HEIGHT_DEFAULT;
 
         // Check if block has a minimum page requirement that exceeds current page
-        if (block.minPage && block.minPage > (currentPageIndex + 1)) {
+        while (block.minPage && block.minPage > (currentPageIndex + 1)) {
           if (currentPageBlocks.length > 0) {
             pages.push(currentPageBlocks);
             currentPageBlocks = [];
+            currentHeight = 0;
+            currentPageIndex++;
+          } else {
+            pages.push([]);
             currentHeight = 0;
             currentPageIndex++;
           }
         }
 
         const el = elements[i];
-        let elHeight = 25;
+        let elHeight = 22;
         if (el) {
           const rect = el.getBoundingClientRect();
-          const style = window.getComputedStyle ? window.getComputedStyle(el) : null;
-          const marginTop = style ? (parseFloat(style.marginTop) || 0) : 0;
-          const marginBottom = style ? (parseFloat(style.marginBottom) || 0) : 0;
-          elHeight = rect.height + marginTop + marginBottom;
+          elHeight = rect.height;
         }
 
         // Keep heading with next block
         let blockTotalHeight = elHeight;
         if (block.keepWithNext && i + 1 < blocks.length) {
           const nextEl = elements[i + 1];
-          let nextElHeight = 25;
           if (nextEl) {
             const nextRect = nextEl.getBoundingClientRect();
-            const nextStyle = window.getComputedStyle ? window.getComputedStyle(nextEl) : null;
-            const nextMarginTop = nextStyle ? (parseFloat(nextStyle.marginTop) || 0) : 0;
-            const nextMarginBottom = nextStyle ? (parseFloat(nextStyle.marginBottom) || 0) : 0;
-            nextElHeight = nextRect.height + nextMarginTop + nextMarginBottom;
+            blockTotalHeight += nextRect.height;
           }
-          blockTotalHeight += nextElHeight;
         }
 
         if (currentHeight + blockTotalHeight > pageLimit && currentPageBlocks.length > 0) {
@@ -745,13 +745,20 @@ export const GeneralTestingDocument = ({
       setPaginatedPages(pages.length > 0 ? pages : [blocks]);
     };
 
+    // Measure immediately on layout
+    measureAndPaginate();
+
+    // Re-verify once custom fonts are fully loaded
+    let timer = null;
     if (document.fonts && document.fonts.ready) {
       document.fonts.ready.then(() => {
-        setTimeout(measureAndPaginate, 50);
+        timer = setTimeout(measureAndPaginate, 20);
       });
-    } else {
-      setTimeout(measureAndPaginate, 50);
     }
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, [data, lineItems, sections, notes, signature, logoUrl]);
 
   // Deterministic fallback initial page split before useLayoutEffect finishes measuring
@@ -804,7 +811,7 @@ export const GeneralTestingDocument = ({
           className="gt-page-frame"
           style={{
             border: '1px solid #000000',
-            padding: '6px 9px 18px 9px',
+            padding: '6px 9px 24px 9px',
             boxSizing: 'border-box',
             width: '100%',
           }}

@@ -17,7 +17,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import {
   FaArrowLeft, FaSave, FaPrint, FaPlus, FaTrash, FaCopy,
   FaArrowUp, FaArrowDown, FaUpload, FaTimes, FaUndo, FaEye, FaEyeSlash,
-  FaClipboardList, FaFileInvoiceDollar
+  FaClipboardList
 } from 'react-icons/fa';
 
 import {
@@ -490,7 +490,53 @@ export const GeneralTestingQuotationForm = ({ quotationId = null }) => {
         {/* ================= LEFT COLUMN: FORM EDITOR (6 CARDS) ================= */}
         <div className="gt-form-column" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
-          {/* 1. Quotation Type & TRF Hero Card */}
+          {/* Quotation Type Selector (Single Row Compact) */}
+          <div style={{
+            background: '#ffffff',
+            border: '1.5px solid #cbd5e1',
+            borderRadius: '8px',
+            padding: '0.5rem 0.85rem',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '0.75rem'
+          }}>
+            <label style={{ fontSize: '0.84rem', fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: '0.45rem', whiteSpace: 'nowrap' }}>
+              <span>📑</span> Quotation Type:
+            </label>
+            <div style={{ flex: '1 1 auto', maxWidth: '320px' }}>
+              <select
+                value="general_testing"
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === 'provisional' || val === 'regular') {
+                    if (isEditing) {
+                      navigate(`/quotations/provisional/edit/${quotationId}?type=${val}`);
+                    } else {
+                      navigate(val === 'regular' ? '/quotations/provisional/add?type=regular' : '/quotations/provisional/add');
+                    }
+                  }
+                }}
+                className="form-control font-bold"
+                style={{
+                  height: '36px',
+                  fontSize: '0.84rem',
+                  borderColor: '#22c55e',
+                  backgroundColor: '#f0fdf4',
+                  color: '#166534',
+                  cursor: 'pointer',
+                  padding: '0.25rem 0.65rem'
+                }}
+              >
+                <option value="provisional">📋 Audit Quotation</option>
+                <option value="regular">📄 Regular Quotation</option>
+                <option value="general_testing">🧪 General Testing / Consulting Quotation</option>
+              </select>
+            </div>
+          </div>
+
+          {/* 1. TRF Hero Card */}
           <div
             style={{
               background: '#f0fdf4',
@@ -500,63 +546,27 @@ export const GeneralTestingQuotationForm = ({ quotationId = null }) => {
               boxShadow: '0 2px 4px rgba(34, 197, 94, 0.08)'
             }}
           >
-            {/* Quotation Type Selector Dropdown */}
-            <div className="form-group mb-3 pb-3" style={{ borderBottom: testRequests.length ? '1.5px dashed #86efac' : 'none' }}>
-              <label className="form-label font-bold text-slate-800 mb-1 d-flex align-center gap-2" style={{ fontSize: '0.88rem' }}>
-                <FaFileInvoiceDollar style={{ color: '#16a34a' }} /> Select Quotation Type:
+            <div>
+              <label className="form-label font-bold text-primary mb-1 d-flex align-center gap-2" style={{ fontSize: '0.9rem' }}>
+                <FaClipboardList /> 1. Select Test Request (TRF) to Auto-Fetch Everything:
               </label>
               <select
                 className="form-control font-bold"
-                style={{
-                  height: '40px',
-                  fontSize: '0.92rem',
-                  borderColor: '#22c55e',
-                  backgroundColor: '#ffffff',
-                  color: '#0f172a'
-                }}
-                value="general_testing"
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === 'general') {
-                    if (isEditing) {
-                      navigate(`/quotations/provisional/edit/${quotationId}?type=general`);
-                    } else {
-                      navigate('/quotations/provisional/add');
-                    }
-                  }
-                }}
+                style={{ height: '42px', fontSize: '0.92rem', borderColor: '#22c55e', backgroundColor: '#ffffff' }}
+                value={formData.testRequestId || ''}
+                onChange={(e) => handleSelectTRF(e.target.value)}
               >
-                <option value="general">1) General Quotation</option>
-                <option value="general_testing">2) General Testing / Consulting Quotation</option>
+                <option value="">-- Choose TRF Number to Auto-Populate ({testRequests.length} available) --</option>
+                {testRequests.map(tr => (
+                  <option key={tr.id} value={tr.id}>
+                    TRF: {tr.reportNumber || tr.sampleIdNumber || tr.id.slice(0, 8)} • {tr.client?.clientName || 'Client'} ({tr.sampleParticular || 'Environmental Matrix'})
+                  </option>
+                ))}
               </select>
-              <small className="text-muted d-block mt-1 font-medium">
-                Choose between General Quotation (Schedule-II Environmental Audit) or General Testing / Consulting Quotation.
+              <small className="text-muted d-block mt-1">
+                Selecting a TRF automatically fetches the Client, Office Address, Plant Site, and Parameters.
               </small>
             </div>
-
-            {testRequests.length > 0 && (
-              <div>
-                <label className="form-label font-bold text-primary mb-1 d-flex align-center gap-2" style={{ fontSize: '0.9rem' }}>
-                  <FaClipboardList /> 1. Select Test Request (TRF) to Auto-Fetch Everything:
-                </label>
-                <select
-                  className="form-control font-bold"
-                  style={{ height: '42px', fontSize: '0.92rem', borderColor: '#22c55e', backgroundColor: '#ffffff' }}
-                  value={formData.testRequestId || ''}
-                  onChange={(e) => handleSelectTRF(e.target.value)}
-                >
-                  <option value="">-- Choose TRF Number to Auto-Populate ({testRequests.length} available) --</option>
-                  {testRequests.map(tr => (
-                    <option key={tr.id} value={tr.id}>
-                      TRF: {tr.reportNumber || tr.sampleIdNumber || tr.id.slice(0, 8)} • {tr.client?.clientName || 'Client'} ({tr.sampleParticular || 'Environmental Matrix'})
-                    </option>
-                  ))}
-                </select>
-                <small className="text-muted d-block mt-1">
-                  Selecting a TRF automatically fetches the Client, Office Address, Plant Site, and Parameters.
-                </small>
-              </div>
-            )}
           </div>
 
           {/* Card 1: Quotation Identification & Meta Details */}

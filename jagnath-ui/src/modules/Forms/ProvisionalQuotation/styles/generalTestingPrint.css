@@ -42,7 +42,7 @@
 
 .gt-page-frame {
   border: 1px solid #000000;
-  padding: 6px 9px 18px 9px;
+  padding: 6px 9px 24px 9px;
   box-sizing: border-box;
   width: 100%;
   height: 100%;
@@ -52,6 +52,15 @@
   z-index: 1;
   word-break: break-word;
   overflow-wrap: break-word;
+}
+
+/* Ensure measurement blocks contain margins without collapsing */
+.gt-measure-block {
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 /* Bullet styling & nested lists inside document */
@@ -78,13 +87,13 @@
 .gt-a4-page li,
 .gt-doc-content li {
   margin-bottom: 1px !important;
-  line-height: 1.26 !important;
+  line-height: 1.25 !important;
 }
 
 .gt-a4-page p,
 .gt-doc-content p {
   margin: 0 0 1.5px 0 !important;
-  line-height: 1.26 !important;
+  line-height: 1.25 !important;
 }
 
 /* ========================================================================= */
@@ -113,9 +122,34 @@
   body.gt-print-active .sidebar-backdrop,
   body.gt-print-active .builder-form-area,
   body.gt-print-active .gt-form-actions-bar,
+  body.gt-print-active .gt-form-column,
+  body.gt-print-active .app-sidebar,
+  body.gt-print-active .app-header,
   body.gt-print-active header,
   body.gt-print-active nav {
     display: none !important;
+  }
+
+  /* Reset split view container for printing */
+  body.gt-print-active .gt-split-view-container {
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body.gt-print-active .gt-preview-sticky-column {
+    position: static !important;
+    max-height: none !important;
+    overflow: visible !important;
+    background: transparent !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    width: 100% !important;
+  }
+
+  body.gt-print-active .gt-preview-sticky-column > div:first-child {
+    display: none !important; /* Hide "Live A4 Document Preview" header */
   }
 
   /* Hide off-screen measurement element in print */
@@ -123,7 +157,8 @@
     display: none !important;
   }
 
-  .gt-print-root {
+  .gt-print-root,
+  body.gt-print-active .gt-document-root {
     padding: 0 !important;
     margin: 0 !important;
     background: #ffffff !important;
@@ -131,13 +166,14 @@
     width: 100% !important;
   }
 
-  .gt-print-root .gt-preview-container {
+  .gt-preview-container {
     padding: 0 !important;
     margin: 0 !important;
     gap: 0 !important;
     display: block !important;
   }
 
+  body.gt-print-active .gt-a4-page,
   .gt-print-root .gt-a4-page {
     box-shadow: none !important;
     margin: 0 !important;
@@ -154,24 +190,29 @@
     overflow: hidden !important;
   }
 
+  body.gt-print-active .gt-a4-page:last-child,
   .gt-print-root .gt-a4-page:last-child {
     page-break-after: avoid !important;
     break-after: avoid !important;
   }
 
+  body.gt-print-active table,
   .gt-print-root table {
     page-break-inside: auto;
   }
 
+  body.gt-print-active tr,
   .gt-print-root tr {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
   }
 
+  body.gt-print-active thead,
   .gt-print-root thead {
     display: table-header-group;
   }
 
+  body.gt-print-active li,
   .gt-print-root li {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
