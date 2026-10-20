@@ -104,6 +104,8 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
     companyName: '',
     companyEmail: '',
     phone: '',
+    gst_no: '',
+    udyam_no: '',
     address: '',
     state: '',
     city: '',
@@ -308,6 +310,14 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
       errors.logo = 'Company Logo is required.';
     }
 
+    // Optional GSTIN format validation
+    if (formData.gst_no && formData.gst_no.trim()) {
+      const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+      if (!gstRegex.test(formData.gst_no.trim().toUpperCase())) {
+        errors.gst_no = 'Invalid GSTIN format (e.g. 24ABCDE1234F1Z5).';
+      }
+    }
+
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -347,6 +357,8 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
       companyName: '',
       companyEmail: '',
       phone: '',
+      gst_no: '',
+      udyam_no: '',
       address: '',
       state: '',
       city: '',
@@ -383,6 +395,8 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
       companyName: company.companyName || company.company_name || '',
       companyEmail: company.companyEmail || company.company_email || '',
       phone: company.phone || company.contact_number || '',
+      gst_no: company.gst_no || company.gstNo || '',
+      udyam_no: company.udyam_no || company.udyamNo || '',
       address: company.address || '',
       state: company.state || '',
       city: company.city || '',
@@ -424,6 +438,8 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
     formDataToSend.append('companyName', formData.companyName);
     formDataToSend.append('companyEmail', formData.companyEmail);
     formDataToSend.append('phone', formData.phone);
+    formDataToSend.append('gst_no', formData.gst_no ? formData.gst_no.trim().toUpperCase() : '');
+    formDataToSend.append('udyam_no', formData.udyam_no ? formData.udyam_no.trim() : '');
     formDataToSend.append('address', formData.address);
     formDataToSend.append('state', formData.state || '');
     formDataToSend.append('city', formData.city || '');
@@ -531,9 +547,11 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
   const handleDownloadCSV = async () => {
     const allData = await fetchAllExportData();
     if (!allData || allData.length === 0) return;
-    const headers = ['Company Name', 'Email', 'Phone', 'Address', 'City', 'Status'];
+    const headers = ['Company Name', 'GST No', 'Udyam No', 'Email', 'Phone', 'Address', 'City', 'Status'];
     const rows = allData.map(c => [
       c.companyName || c.company_name || 'N/A',
+      c.gst_no || c.gstNo || 'N/A',
+      c.udyam_no || c.udyamNo || 'N/A',
       c.companyEmail || c.company_email || 'N/A',
       c.phone || c.contact_number || 'N/A',
       c.address || 'N/A',
@@ -548,9 +566,11 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
   const handleDownloadExcel = async () => {
     const allData = await fetchAllExportData();
     if (!allData || allData.length === 0) return;
-    const headers = ['Company Name', 'Email', 'Phone', 'Address', 'City', 'Status'];
+    const headers = ['Company Name', 'GST No', 'Udyam No', 'Email', 'Phone', 'Address', 'City', 'Status'];
     const rows = allData.map(c => [
       c.companyName || c.company_name || 'N/A',
+      c.gst_no || c.gstNo || 'N/A',
+      c.udyam_no || c.udyamNo || 'N/A',
       c.companyEmail || c.company_email || 'N/A',
       c.phone || c.contact_number || 'N/A',
       c.address || 'N/A',
@@ -565,9 +585,11 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
   const handleCopy = async () => {
     const allData = await fetchAllExportData();
     if (!allData || allData.length === 0) return;
-    const headers = ['Company Name', 'Email', 'Phone', 'Address', 'City', 'Status'];
+    const headers = ['Company Name', 'GST No', 'Udyam No', 'Email', 'Phone', 'Address', 'City', 'Status'];
     const rows = allData.map(c => [
       c.companyName || c.company_name || 'N/A',
+      c.gst_no || c.gstNo || 'N/A',
+      c.udyam_no || c.udyamNo || 'N/A',
       c.companyEmail || c.company_email || 'N/A',
       c.phone || c.contact_number || 'N/A',
       c.address || 'N/A',
@@ -587,10 +609,12 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
     const allData = await fetchAllExportData();
     if (!allData || allData.length === 0) return;
     const printWindow = window.open('', '_blank');
-    const headers = ['Company Name', 'Email', 'Phone', 'Address', 'City', 'Status'];
+    const headers = ['Company Name', 'GST No', 'Udyam No', 'Email', 'Phone', 'Address', 'City', 'Status'];
     const rows = allData.map(c => `
       <tr>
         <td>${c.companyName || c.company_name || 'N/A'}</td>
+        <td>${c.gst_no || c.gstNo || 'N/A'}</td>
+        <td>${c.udyam_no || c.udyamNo || 'N/A'}</td>
         <td>${c.companyEmail || c.company_email || 'N/A'}</td>
         <td>${c.phone || c.contact_number || 'N/A'}</td>
         <td>${c.address || 'N/A'}</td>
@@ -639,7 +663,7 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
     setShowDownloadDropdown(false);
   };
 
-  const renderLogoUploadField = (label, fileVar, setFileVar, key, existingKey, removeKey) => {
+  const renderLogoUploadField = (label, fileVar, setFileVar, key, existingKey, removeKey, sizeSpec = '') => {
     const existingPath = formData[existingKey];
     const isRemoved = formData[removeKey];
     
@@ -652,7 +676,7 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
     }
 
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', background: '#f8fafc', padding: '0.85rem', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', background: '#f8fafc', padding: '0.85rem', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>{label}</label>
           {previewSrc && (
@@ -681,8 +705,28 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
             </button>
           )}
         </div>
+
+        {/* Explicit size specification indicator */}
+        {sizeSpec && (
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.35rem',
+            fontSize: '0.73rem',
+            color: '#0369a1',
+            backgroundColor: '#f0f9ff',
+            border: '1px solid #bae6fd',
+            borderRadius: '4px',
+            padding: '2px 8px',
+            width: 'fit-content',
+            fontWeight: 500
+          }}>
+            <span style={{ fontWeight: 700 }}>Required Size:</span>
+            <span>{sizeSpec}</span>
+          </div>
+        )}
         
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.15rem' }}>
           {previewSrc ? (
             <div style={{ width: '56px', height: '56px', border: '1px solid #cbd5e1', borderRadius: '6px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff', flexShrink: 0 }}>
               <img src={previewSrc} alt="Preview" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
@@ -714,6 +758,10 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
               flex: 1
             }}
           />
+        </div>
+        <div style={{ fontSize: '0.7rem', color: '#64748b', display: 'flex', justifyContent: 'space-between', paddingLeft: '2px' }}>
+          <span>Format: PNG, JPG, JPEG</span>
+          <span>Max: 16 MB</span>
         </div>
         {formErrors[key] && <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.1rem' }}>{formErrors[key]}</span>}
       </div>
@@ -895,6 +943,33 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
                 />
               </div>
 
+              {/* GST Number */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>GST Number</label>
+                <input
+                  type="text"
+                  name="gst_no"
+                  value={formData.gst_no}
+                  onChange={handleInputChange}
+                  placeholder="Enter GSTIN (e.g. 24ABCDE1234F1Z5)"
+                  style={{ padding: '0.625rem', border: `1px solid ${formErrors.gst_no ? '#ef4444' : '#cbd5e1'}`, borderRadius: '6px', outline: 'none' }}
+                />
+                {formErrors.gst_no && <span style={{ fontSize: '0.75rem', color: '#ef4444' }}>{formErrors.gst_no}</span>}
+              </div>
+
+              {/* Udyam Registration Number */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Udyam Registration Number</label>
+                <input
+                  type="text"
+                  name="udyam_no"
+                  value={formData.udyam_no}
+                  onChange={handleInputChange}
+                  placeholder="Enter Udyam Reg. No (e.g. UDYAM-GJ-01-0000000)"
+                  style={{ padding: '0.625rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none' }}
+                />
+              </div>
+
             </div>
 
             {/* Address, State, City & Status Side by Side */}
@@ -1000,10 +1075,10 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
 
             {/* Logo File Uploads */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem', marginTop: '0.5rem' }}>
-              {renderLogoUploadField('Company Logo (Main / Default) *', logoFile, setLogoFile, 'logo', 'existingLogo', 'removeLogo')}
-              {renderLogoUploadField('Test Request Logo (Optional)', testRequestLogoFile, setTestRequestLogoFile, 'test_request_logo', 'existingTestRequestLogo', 'removeTestRequestLogo')}
-              {renderLogoUploadField('Test Report Logo (Optional)', testReportLogoFile, setTestReportLogoFile, 'test_report_logo', 'existingTestReportLogo', 'removeTestReportLogo')}
-              {renderLogoUploadField('Quotation Logo (Optional)', quotationLogoFile, setQuotationLogoFile, 'quotation_logo', 'existingQuotationLogo', 'removeQuotationLogo')}
+              {renderLogoUploadField('Company Logo (Main / Default) *', logoFile, setLogoFile, 'logo', 'existingLogo', 'removeLogo', '250 × 80 px (Aspect Ratio ~3:1)')}
+              {renderLogoUploadField('Test Request Logo (Optional)', testRequestLogoFile, setTestRequestLogoFile, 'test_request_logo', 'existingTestRequestLogo', 'removeTestRequestLogo', '300 × 75 px (Aspect Ratio 4:1)')}
+              {renderLogoUploadField('Test Report Logo (Optional)', testReportLogoFile, setTestReportLogoFile, 'test_report_logo', 'existingTestReportLogo', 'removeTestReportLogo', '300 × 80 px (Aspect Ratio ~3.75:1)')}
+              {renderLogoUploadField('Quotation Logo (Optional)', quotationLogoFile, setQuotationLogoFile, 'quotation_logo', 'existingQuotationLogo', 'removeQuotationLogo', '350 × 100 px (Aspect Ratio 3.5:1)')}
             </div>
 
             {/* Assign User / Company Admin Section (Super Admin Only) */}
@@ -1309,6 +1384,18 @@ const CompanyMaster = ({ onCompanyUpdate }) => {
                       <span className="master-record-label">Phone</span>
                       <span className="master-record-value">{company.contactNumber || company.phone || 'N/A'}</span>
                     </div>
+                    {(company.gst_no || company.gstNo) && (
+                      <div className="master-record-detail-item">
+                        <span className="master-record-label">GSTIN</span>
+                        <span className="master-record-value">{company.gst_no || company.gstNo}</span>
+                      </div>
+                    )}
+                    {(company.udyam_no || company.udyamNo) && (
+                      <div className="master-record-detail-item">
+                        <span className="master-record-label">Udyam No</span>
+                        <span className="master-record-value">{company.udyam_no || company.udyamNo}</span>
+                      </div>
+                    )}
                     <div className="master-record-detail-item" style={{ gridColumn: '1 / -1' }}>
                       <span className="master-record-label">Address</span>
                       <span className="master-record-value">{company.address || 'N/A'}</span>

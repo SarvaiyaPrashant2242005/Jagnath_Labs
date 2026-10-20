@@ -27,6 +27,8 @@ const fieldLabels = {
     city: "City",
     description: "Description",
     status: "Status",
+    gst_no: "GST Number",
+    udyam_no: "Udyam Registration Number",
     company_code: "Company Code",
     logo: "Logo File",
     signature: "Signature File"
@@ -128,7 +130,9 @@ const createCompany = async (companyData, userId, files, generatedId, reqInfo) =
             company_code: companyCode,
             company_name: companyData.company_name || companyData.companyName,
             company_email: companyData.company_email || companyData.companyEmail,
-            contact_number: companyData.contact_number || companyData.phone
+            contact_number: companyData.contact_number || companyData.phone,
+            gst_no: companyData.gst_no !== undefined ? companyData.gst_no : (companyData.gstNo || null),
+            udyam_no: companyData.udyam_no !== undefined ? companyData.udyam_no : (companyData.udyamNo || null)
         };
 
         if (files) {
@@ -263,6 +267,12 @@ const updateCompany = async (companyId, companyData, userId, files, reqInfo) => 
         }
         if (companyData.phone !== undefined && dataToUpdate.contact_number === undefined) {
             dataToUpdate.contact_number = companyData.phone;
+        }
+        if (companyData.gstNo !== undefined && dataToUpdate.gst_no === undefined) {
+            dataToUpdate.gst_no = companyData.gstNo;
+        }
+        if (companyData.udyamNo !== undefined && dataToUpdate.udyam_no === undefined) {
+            dataToUpdate.udyam_no = companyData.udyamNo;
         }
 
         if (files) {

@@ -166,6 +166,8 @@ export const GeneralTestingDocument = ({
     email: labProfile.email || 'info.akshaarlabs@gmail.com',
     contactPerson: labProfile.contactPerson || 'Mr. HITARTH',
     contactPhone: labProfile.contactPhone || '9537766446',
+    gstNo: labProfile.gstNo || labProfile.gst_no || '24AAZCA8021D1ZO',
+    udyamNo: labProfile.udyamNo || labProfile.udyam_no || '',
     serviceTaxNo: labProfile.serviceTaxNo || '24AAZCA8021D1ZO',
     panNo: labProfile.panNo || 'AAZCA8021D',
     bankDetails: {
@@ -265,9 +267,17 @@ export const GeneralTestingDocument = ({
           <div style={{ borderRight: '1px solid #000000', padding: '5px 7px' }}>
             <div style={{ textDecoration: 'underline', fontWeight: 'bold', marginBottom: '2px' }}>Direct To:</div>
             <div><span style={{ fontWeight: 'bold' }}>Company Name:</span> {client.companyName || ''}</div>
-            {client.contactPerson && <div><span style={{ fontWeight: 'bold' }}>Contact Person:</span> {client.contactPerson}</div>}
+            {(client.contactPerson || client.contact_person) && <div><span style={{ fontWeight: 'bold' }}>Contact Person:</span> {client.contactPerson || client.contact_person}</div>}
             {client.contactNo && <div><span style={{ fontWeight: 'bold' }}>Contact No.:</span> {client.contactNo}</div>}
             {client.email && <div><span style={{ fontWeight: 'bold' }}>Email.:</span> {client.email}</div>}
+            {(client.gstNo || client.gst_no) && <div><span style={{ fontWeight: 'bold' }}>GSTIN:</span> {client.gstNo || client.gst_no}</div>}
+            {(client.udyamNo || client.udyam_no) && <div><span style={{ fontWeight: 'bold' }}>Udyam No:</span> {client.udyamNo || client.udyam_no}</div>}
+            {(client.workOrderNo || client.work_order_no) && (
+              <div>
+                <span style={{ fontWeight: 'bold' }}>Work Order No:</span> {client.workOrderNo || client.work_order_no}
+                {(client.workOrderDate || client.work_order_date) ? ` (Dt: ${String(client.workOrderDate || client.work_order_date).slice(0, 10)})` : ''}
+              </div>
+            )}
             {client.address && <div><span style={{ fontWeight: 'bold' }}>Address:-</span> {client.address}</div>}
             {client.serviceName && <div style={{ marginTop: '2px' }}><span style={{ fontWeight: 'bold' }}>Service name:-</span> {client.serviceName}</div>}
           </div>
@@ -278,6 +288,8 @@ export const GeneralTestingDocument = ({
             <div style={{ fontWeight: 'bold' }}>{lab.companyName}</div>
             <div>HO &amp; Central Laboratory:</div>
             <div>{lab.labAddress}</div>
+            {lab.gstNo && <div><span style={{ fontWeight: 'bold' }}>GSTIN:</span> {lab.gstNo}</div>}
+            {lab.udyamNo && <div><span style={{ fontWeight: 'bold' }}>Udyam Reg. No:</span> {lab.udyamNo}</div>}
             {lab.email && <div><span style={{ fontWeight: 'bold' }}>Email id:</span> {lab.email}</div>}
             {lab.contactPerson && <div><span style={{ fontWeight: 'bold' }}>Contact Person:</span> {lab.contactPerson} {lab.contactPhone ? `(${lab.contactPhone})` : ''}</div>}
           </div>

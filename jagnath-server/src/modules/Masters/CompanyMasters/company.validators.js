@@ -20,6 +20,14 @@ const companyBaseSchema = {
     gst_number: Joi.string().pattern(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/).allow('', null).messages({
         "string.pattern.base": "Invalid GST format."
     }),
+    gst_no: Joi.string().trim().uppercase().pattern(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/).allow('', null).messages({
+        "string.pattern.base": "Invalid GST format (e.g. 24AAAAA0000A1Z5)."
+    }),
+    gstNo: Joi.string().trim().uppercase().pattern(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/).allow('', null).messages({
+        "string.pattern.base": "Invalid GST format (e.g. 24AAAAA0000A1Z5)."
+    }),
+    udyam_no: Joi.string().trim().uppercase().max(50).allow('', null),
+    udyamNo: Joi.string().trim().uppercase().max(50).allow('', null),
     cha_licence_number: Joi.string().allow('', null),
     bank_name: Joi.string().allow('', null),
     account_number: Joi.string().allow('', null),
@@ -61,6 +69,14 @@ const companyNewBaseSchema = {
     address: Joi.string().allow('', null),
     city: Joi.string().allow('', null),
     state: Joi.string().allow('', null),
+    gst_no: Joi.string().trim().uppercase().pattern(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/).allow('', null).messages({
+        "string.pattern.base": "Invalid GST format (e.g. 24AAAAA0000A1Z5)."
+    }),
+    gstNo: Joi.string().trim().uppercase().pattern(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/).allow('', null).messages({
+        "string.pattern.base": "Invalid GST format (e.g. 24AAAAA0000A1Z5)."
+    }),
+    udyam_no: Joi.string().trim().uppercase().max(50).allow('', null),
+    udyamNo: Joi.string().trim().uppercase().max(50).allow('', null),
     status: Joi.string().valid("Active", "Inactive").default("Active"),
     assignUserMode: Joi.string().allow('', null),
     assignedUserId: Joi.string().allow('', null),

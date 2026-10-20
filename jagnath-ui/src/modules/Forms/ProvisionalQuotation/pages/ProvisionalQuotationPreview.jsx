@@ -268,20 +268,45 @@ const ProvisionalQuotationPreview = () => {
           </div>
           <div style={{ borderBottom: '1.5px solid #0f172a', marginBottom: '24px' }}></div>
 
-          {/* DATE ON RIGHT (REGULAR FONT) */}
-          <div style={{ textAlign: 'right', marginBottom: '20px' }}>
-            <span style={{ fontSize: '13px', fontWeight: 'normal', color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              {formatDisplayDate(quotation.quotationDate)}
-            </span>
+          {/* DATE ON RIGHT (REGULAR FONT) & COMPANY GST/UDYAM */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+            <div>
+              {(company.gst_no || company.gstNo) && (
+                <div style={{ fontSize: '11.5px', color: '#334155' }}><strong>Company GSTIN:</strong> {company.gst_no || company.gstNo}</div>
+              )}
+              {(company.udyam_no || company.udyamNo) && (
+                <div style={{ fontSize: '11.5px', color: '#334155' }}><strong>Company Udyam:</strong> {company.udyam_no || company.udyamNo}</div>
+              )}
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <span style={{ fontSize: '13px', fontWeight: 'normal', color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                {formatDisplayDate(quotation.quotationDate)}
+              </span>
+            </div>
           </div>
 
           {/* RECIPIENT CLIENT & PLANT ADDRESS (REGULAR CLEAN FORMAT) */}
           <div className="mb-4" style={{ fontSize: '13px', color: '#0f172a', lineHeight: 1.5, fontWeight: 'normal' }}>
             <p className="mb-1" style={{ margin: '0 0 4px 0' }}>To,</p>
             <p className="mb-1" style={{ margin: '0 0 4px 0', fontSize: '13.5px' }}>M/s. {quotation.clientName || 'Valued Client'}</p>
+            {(quotation.contactPerson || quotation.contact_person) && (
+              <p className="mb-1" style={{ margin: '0 0 4px 0', fontSize: '12px', fontWeight: 600 }}>Kind Attn: {quotation.contactPerson || quotation.contact_person}</p>
+            )}
             <div className="whitespace-pre-line" style={{ lineHeight: 1.5 }}>
               {quotation.plantAddress || quotation.registeredAddress || 'Plant Address'}
             </div>
+            {(quotation.gstNo || quotation.gst_no) && (
+              <p className="mb-0" style={{ margin: '2px 0 0 0', fontSize: '12px' }}><strong>GSTIN:</strong> {quotation.gstNo || quotation.gst_no}</p>
+            )}
+            {(quotation.udyamNo || quotation.udyam_no) && (
+              <p className="mb-0" style={{ margin: '2px 0 0 0', fontSize: '12px' }}><strong>Udyam Reg. No:</strong> {quotation.udyamNo || quotation.udyam_no}</p>
+            )}
+            {(quotation.workOrderNo || quotation.work_order_no) && (
+              <p className="mb-0" style={{ margin: '2px 0 0 0', fontSize: '12px' }}>
+                <strong>Work Order No:</strong> {quotation.workOrderNo || quotation.work_order_no}
+                {(quotation.workOrderDate || quotation.work_order_date) ? ` (Dt: ${String(quotation.workOrderDate || quotation.work_order_date).slice(0, 10)})` : ''}
+              </p>
+            )}
           </div>
 
           <div className="subject-box mb-4">

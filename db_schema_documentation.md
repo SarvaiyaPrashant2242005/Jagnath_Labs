@@ -50,6 +50,8 @@ This document provides a detailed breakdown of all the tables, columns, data typ
 | `test_report_logo` | `VARCHAR(255)` | `YES` |  | `` |
 | `quotation_logo` | `VARCHAR(255)` | `YES` |  | `` |
 | `signature` | `VARCHAR(255)` | `YES` |  | `` |
+| `gst_no` | `VARCHAR(255)` | `YES` |  | `` |
+| `udyam_no` | `VARCHAR(255)` | `YES` |  | `` |
 | `status` | `ENUM` | `YES` |  | `Active` |
 | `created_at` | `TIMESTAMP WITH TIME ZONE` | `NO` |  | `` |
 | `updated_at` | `TIMESTAMP WITH TIME ZONE` | `NO` |  | `` |
@@ -82,6 +84,11 @@ This document provides a detailed breakdown of all the tables, columns, data typ
 | `state` | `VARCHAR(255)` | `YES` |  | `` |
 | `email` | `VARCHAR(255)` | `YES` |  | `` |
 | `gender` | `VARCHAR(255)` | `NO` |  | `` |
+| `contact_person` | `VARCHAR(255)` | `YES` |  | `` |
+| `gst_no` | `VARCHAR(255)` | `YES` |  | `` |
+| `udyam_no` | `VARCHAR(255)` | `YES` |  | `` |
+| `work_order_no` | `VARCHAR(255)` | `YES` |  | `` |
+| `work_order_date` | `DATE` | `YES` |  | `` |
 | `status` | `ENUM` | `YES` |  | `Active` |
 | `created_at` | `TIMESTAMP WITH TIME ZONE` | `NO` |  | `` |
 | `updated_at` | `TIMESTAMP WITH TIME ZONE` | `NO` |  | `` |

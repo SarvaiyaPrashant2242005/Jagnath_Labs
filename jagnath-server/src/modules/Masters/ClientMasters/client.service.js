@@ -18,7 +18,12 @@ const deleteLogPath = path.join(__dirname, "../../../../logs/Client/Delete.txt")
 
 const fieldLabels = {
     clientName: "Client Name",
+    contactPerson: "Contact Person",
     contactNumber: "Contact Number",
+    gstNo: "GST Number",
+    udyamNo: "Udyam Registration Number",
+    workOrderNo: "Work Order Number",
+    workOrderDate: "Work Order Date",
     gender: "Gender",
     address: "Address",
     officeAddress: "Office Address",
@@ -72,6 +77,13 @@ const formatClient = (client) => {
         clientObj.email = clientObj.email || null;
     }
     delete clientObj.clientEmails;
+
+    // Provide both camelCase and snake_case properties for compatibility
+    clientObj.contact_person = clientObj.contactPerson;
+    clientObj.gst_no = clientObj.gstNo;
+    clientObj.udyam_no = clientObj.udyamNo;
+    clientObj.work_order_no = clientObj.workOrderNo;
+    clientObj.work_order_date = clientObj.workOrderDate;
 
     return clientObj;
 };
@@ -138,6 +150,22 @@ const createClient = async (clientData, userId, reqInfo) => {
         emails = clientData.email.split(',').map(e => e.trim()).filter(Boolean);
     }
     clientData.email = emails.join(', ');
+
+    if (clientData.contact_person !== undefined && clientData.contactPerson === undefined) {
+        clientData.contactPerson = clientData.contact_person;
+    }
+    if (clientData.gst_no !== undefined && clientData.gstNo === undefined) {
+        clientData.gstNo = clientData.gst_no;
+    }
+    if (clientData.udyam_no !== undefined && clientData.udyamNo === undefined) {
+        clientData.udyamNo = clientData.udyam_no;
+    }
+    if (clientData.work_order_no !== undefined && clientData.workOrderNo === undefined) {
+        clientData.workOrderNo = clientData.work_order_no;
+    }
+    if (clientData.work_order_date !== undefined && clientData.workOrderDate === undefined) {
+        clientData.workOrderDate = clientData.work_order_date;
+    }
 
     const transaction = await sequelize.transaction();
     try {
@@ -219,6 +247,22 @@ const updateClient = async (clientId, clientData, userId, reqInfo) => {
     }
     if (emailsProvided) {
         clientData.email = emails.join(', ');
+    }
+
+    if (clientData.contact_person !== undefined && clientData.contactPerson === undefined) {
+        clientData.contactPerson = clientData.contact_person;
+    }
+    if (clientData.gst_no !== undefined && clientData.gstNo === undefined) {
+        clientData.gstNo = clientData.gst_no;
+    }
+    if (clientData.udyam_no !== undefined && clientData.udyamNo === undefined) {
+        clientData.udyamNo = clientData.udyam_no;
+    }
+    if (clientData.work_order_no !== undefined && clientData.workOrderNo === undefined) {
+        clientData.workOrderNo = clientData.work_order_no;
+    }
+    if (clientData.work_order_date !== undefined && clientData.workOrderDate === undefined) {
+        clientData.workOrderDate = clientData.work_order_date;
     }
 
     const transaction = await sequelize.transaction();
@@ -506,7 +550,12 @@ module.exports = {
 
                 const data = {
                     clientName: raw.clientName || 'Unnamed Client',
+                    contactPerson: raw.contactPerson || raw.contact_person || raw['Contact Person'] || null,
                     contactNumber: raw.contactNumber || 'N/A',
+                    gstNo: raw.gstNo || raw.gst_no || raw['GST Number'] || raw['GST No'] || raw['GSTIN'] || null,
+                    udyamNo: raw.udyamNo || raw.udyam_no || raw['Udyam Number'] || raw['Udyam No'] || raw['Udyam Registration Number'] || null,
+                    workOrderNo: raw.workOrderNo || raw.work_order_no || raw['Work Order Number'] || raw['Work Order No'] || null,
+                    workOrderDate: raw.workOrderDate || raw.work_order_date || raw['Work Order Date'] || null,
                     officeAddress: officeAddr,
                     plantAddress: plantAddr,
                     address: officeAddr,
@@ -518,7 +567,7 @@ module.exports = {
                     companyId
                 };
 
-                const { clientName, contactNumber, email, gender, officeAddress, plantAddress, address, city, state, status } = data;
+                const { clientName, contactPerson, contactNumber, gstNo, udyamNo, workOrderNo, workOrderDate, email, gender, officeAddress, plantAddress, address, city, state, status } = data;
                 const rawData = raw;
                 const rowNum = item._originalIndex || (records.indexOf(item) + 1);
                 const errors = [];
@@ -559,7 +608,12 @@ module.exports = {
                 const clientPayload = {
                     companyId,
                     clientName,
+                    contactPerson,
                     contactNumber,
+                    gstNo,
+                    udyamNo,
+                    workOrderNo,
+                    workOrderDate,
                     email: email || null,
                     gender,
                     officeAddress,

@@ -29,6 +29,7 @@ import ProvisionalQuotationList from './modules/Forms/ProvisionalQuotation/pages
 import ProvisionalQuotationForm from './modules/Forms/ProvisionalQuotation/pages/ProvisionalQuotationForm';
 import ProvisionalQuotationPreview from './modules/Forms/ProvisionalQuotation/pages/ProvisionalQuotationPreview';
 import ProvisionalQuotationPrint from './modules/Forms/ProvisionalQuotation/pages/ProvisionalQuotationPrint';
+import Invoices from './modules/dashboard/pages/Invoices';
 import { getStoredUser } from './modules/auth/services/authService';
 import './assets/styles/index.css';
 
@@ -132,7 +133,6 @@ function App() {
             </PublicRoute>
           }
         />
-{/* >>>>>>> Prashant_Dev */}
 
         {/* Authenticated Dashboard Pages */}
         <Route
@@ -192,7 +192,7 @@ function App() {
         <Route path="/test-requests/audit-quotation/print/:id" element={<ProtectedPrintRoute><AuditQuotationPrint /></ProtectedPrintRoute>} />
         <Route path="/test-reports/print/:id" element={<ProtectedPrintRoute><TestReportPrint /></ProtectedPrintRoute>} />
         <Route path="/reports" element={<ProtectedRoute><PlaceholderPage title="Reports Directory" /></ProtectedRoute>} />
-        <Route path="/invoices" element={<ProtectedRoute><PlaceholderPage title="Invoices Directory" /></ProtectedRoute>} />
+        <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
         <Route path="/dispatch" element={<ProtectedRoute><PlaceholderPage title="Dispatch Directory" /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><PlaceholderPage title="Settings Directory" /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />

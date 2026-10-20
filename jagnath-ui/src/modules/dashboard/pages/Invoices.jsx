@@ -40,23 +40,48 @@ const Invoices = () => {
   // Map requests to a formatted invoice objects list
   const invoices = useMemo(() => {
     return requests.map(r => {
-      const shortId = r.id.substring(0, 8).toUpperCase();
+      const shortId = (r.id || '').substring(0, 8).toUpperCase();
       const invoiceNo = `INV-${shortId}`;
       const amount = 450; // Average base testing cost
       
+      const clientObj = typeof r.client === 'object' && r.client ? r.client : (typeof r.Client === 'object' && r.Client ? r.Client : {});
+      const compObj = typeof r.company === 'object' && r.company ? r.company : (typeof r.Company === 'object' && r.Company ? r.Company : (companyInfo || {}));
+
+      const clientName = clientObj.clientName || r.clientName || (typeof r.client === 'string' ? r.client : 'Client');
+      const contactPerson = clientObj.contactPerson || clientObj.contact_person || r.contactPerson || r.contact_person || '';
+      const clientGstNo = clientObj.gstNo || clientObj.gst_no || r.gstNo || r.gst_no || '';
+      const clientUdyamNo = clientObj.udyamNo || clientObj.udyam_no || r.udyamNo || r.udyam_no || '';
+      const workOrderNo = clientObj.workOrderNo || clientObj.work_order_no || r.workOrderNo || r.work_order_no || '';
+      const workOrderDate = clientObj.workOrderDate || clientObj.work_order_date || r.workOrderDate || r.work_order_date || '';
+      const clientAddress = clientObj.plantAddress || clientObj.officeAddress || clientObj.address || r.address || '';
+
+      const companyName = compObj.company_name || compObj.companyName || r.companyName || (typeof r.company === 'string' ? r.company : 'Company');
+      const companyGstNo = compObj.gst_no || compObj.gstNo || companyInfo?.gst_no || companyInfo?.gstNo || '';
+      const companyUdyamNo = compObj.udyam_no || compObj.udyamNo || companyInfo?.udyam_no || companyInfo?.udyamNo || '';
+      const companyAddress = compObj.address || companyInfo?.address || '';
+
       return {
         id: r.id,
         invoiceNo,
         trNo: `TR-${shortId}`,
-        company: r.company,
-        client: r.client,
-        date: r.date || '2026-07-10',
+        company: companyName,
+        companyGstNo,
+        companyUdyamNo,
+        companyAddress,
+        client: clientName,
+        contactPerson,
+        clientGstNo,
+        clientUdyamNo,
+        workOrderNo,
+        workOrderDate,
+        clientAddress,
+        date: r.date || (r.createdAt ? String(r.createdAt).slice(0, 10) : '2026-07-10'),
         amount,
         status: r.status === 'Completed' || r.status === 'Inactive' ? 'Paid' : 'Unpaid',
-        category: r.category
+        category: r.category || r.sampleParticular || 'Diagnostics'
       };
     });
-  }, [requests]);
+  }, [requests, companyInfo]);
 
   const handlePrint = () => {
     window.print();
@@ -73,10 +98,12 @@ TR Number   : ${inv.trNo}
 Date        : ${inv.date}
 Status      : ${inv.status}
 ----------------------------------------
-Billed To   :
+Billed By   :
 Company     : ${inv.company}
+${inv.companyGstNo ? `GSTIN       : ${inv.companyGstNo}\n` : ''}${inv.companyUdyamNo ? `Udyam No    : ${inv.companyUdyamNo}\n` : ''}----------------------------------------
+Billed To   :
 Client      : ${inv.client}
-----------------------------------------
+${inv.contactPerson ? `Contact     : ${inv.contactPerson}\n` : ''}${inv.clientGstNo ? `GSTIN       : ${inv.clientGstNo}\n` : ''}${inv.clientUdyamNo ? `Udyam No    : ${inv.clientUdyamNo}\n` : ''}${inv.workOrderNo ? `Work Order  : ${inv.workOrderNo}${inv.workOrderDate ? ` (Dt: ${String(inv.workOrderDate).slice(0, 10)})` : ''}\n` : ''}----------------------------------------
 Description              Qty     Amount
 Testing Services (Base)   1      ₹${inv.amount}.00
 ----------------------------------------
@@ -211,10 +238,26 @@ TOTAL DUE                        ₹${inv.amount}.00
               </div>
 
               <div style={{ fontSize: '0.8rem', marginBottom: '1rem', background: '#F8FAFC', padding: '0.75rem', borderRadius: '4px' }}>
-                <strong>Billed To:</strong><br />
-                {selectedInvoice.client}<br />
-                {selectedInvoice.company}<br />
-                {companyInfo?.address && <span>{companyInfo.address}</span>}
+                <div style={{ marginBottom: '0.5rem', borderBottom: '1px solid #E2E8F0', paddingBottom: '0.35rem' }}>
+                  <strong>From:</strong><br />
+                  <span style={{ fontWeight: 600 }}>{selectedInvoice.company}</span><br />
+                  {selectedInvoice.companyAddress && <span>{selectedInvoice.companyAddress}<br /></span>}
+                  {selectedInvoice.companyGstNo && <span><strong>GSTIN:</strong> {selectedInvoice.companyGstNo}<br /></span>}
+                  {selectedInvoice.companyUdyamNo && <span><strong>Udyam No:</strong> {selectedInvoice.companyUdyamNo}<br /></span>}
+                </div>
+                <div>
+                  <strong>Billed To:</strong><br />
+                  <span style={{ fontWeight: 600 }}>{selectedInvoice.client}</span><br />
+                  {selectedInvoice.contactPerson && <span>Kind Attn: {selectedInvoice.contactPerson}<br /></span>}
+                  {selectedInvoice.clientAddress && <span>{selectedInvoice.clientAddress}<br /></span>}
+                  {selectedInvoice.clientGstNo && <span><strong>GSTIN:</strong> {selectedInvoice.clientGstNo}<br /></span>}
+                  {selectedInvoice.clientUdyamNo && <span><strong>Udyam Reg. No:</strong> {selectedInvoice.clientUdyamNo}<br /></span>}
+                  {selectedInvoice.workOrderNo && (
+                    <span><strong>Work Order No:</strong> {selectedInvoice.workOrderNo}
+                      {selectedInvoice.workOrderDate ? ` (Dt: ${String(selectedInvoice.workOrderDate).slice(0, 10)})` : ''}<br />
+                    </span>
+                  )}
+                </div>
               </div>
 
               <table style={{ width: '100%', fontSize: '0.8rem', borderCollapse: 'collapse', marginBottom: '1.5rem' }}>
