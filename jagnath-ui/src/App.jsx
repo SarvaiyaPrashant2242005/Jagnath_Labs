@@ -120,7 +120,23 @@ function App() {
         {/* Public Routes */}
         <Route
           path="/"
-          element={<LandingPage onNavigate={(page) => window.location.hash = `#/${page}`} />}
+          element={<LandingPage initialTab="home" onNavigate={(page) => window.location.hash = `#/${page}`} />}
+        />
+        <Route
+          path="/about"
+          element={<LandingPage initialTab="about" onNavigate={(page) => window.location.hash = `#/${page}`} />}
+        />
+        <Route
+          path="/services"
+          element={<LandingPage initialTab="services" onNavigate={(page) => window.location.hash = `#/${page}`} />}
+        />
+        <Route
+          path="/certificates"
+          element={<LandingPage initialTab="certificates" onNavigate={(page) => window.location.hash = `#/${page}`} />}
+        />
+        <Route
+          path="/contact"
+          element={<LandingPage initialTab="contact" onNavigate={(page) => window.location.hash = `#/${page}`} />}
         />
         <Route
           path="/login"
