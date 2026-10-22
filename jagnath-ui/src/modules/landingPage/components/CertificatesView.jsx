@@ -155,7 +155,7 @@ export default function CertificatesView({ onNavigateTab, onAppointmentClick }) 
                 <h4 style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#65a30d', margin: '0 0 0.85rem 0' }}>
                   KEY BENEFITS
                 </h4>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
+                <div className="jlt-cert-benefits-grid">
                   <div className="jlt-service-sub-bullet">
                     <CheckCircle2 size={16} color="#66b834" />
                     <span style={{ fontSize: '0.88rem', color: '#334155' }}>ISO/IEC 17025 based assessment</span>
@@ -180,7 +180,7 @@ export default function CertificatesView({ onNavigateTab, onAppointmentClick }) 
                 <h4 style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#65a30d', margin: '0 0 0.95rem 0' }}>
                   OFFICIAL CERTIFICATES & AGREEMENTS
                 </h4>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }}>
+                <div className="jlt-cert-docs-grid">
                   
                   {/* Card 1: NABL Accreditation Certificate */}
                   <div className="jlt-cert-doc-card">
@@ -277,7 +277,7 @@ export default function CertificatesView({ onNavigateTab, onAppointmentClick }) 
                 <h4 style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#e11d48', margin: '0 0 0.85rem 0' }}>
                   KEY BENEFITS
                 </h4>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
+                <div className="jlt-cert-benefits-grid">
                   <div className="jlt-service-sub-bullet">
                     <CheckCircle2 size={16} color="#e11d48" />
                     <span style={{ fontSize: '0.88rem', color: '#334155' }}>Official food testing authority</span>
@@ -347,7 +347,7 @@ export default function CertificatesView({ onNavigateTab, onAppointmentClick }) 
                 <h4 style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#0284c7', margin: '0 0 0.85rem 0' }}>
                   KEY BENEFITS
                 </h4>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
+                <div className="jlt-cert-benefits-grid">
                   <div className="jlt-service-sub-bullet">
                     <CheckCircle2 size={16} color="#0284c7" />
                     <span style={{ fontSize: '0.88rem', color: '#334155' }}>Documented QMS procedures</span>
@@ -399,7 +399,7 @@ export default function CertificatesView({ onNavigateTab, onAppointmentClick }) 
                 <h4 style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#ea580c', margin: '0 0 0.85rem 0' }}>
                   KEY BENEFITS
                 </h4>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
+                <div className="jlt-cert-benefits-grid">
                   <div className="jlt-service-sub-bullet">
                     <CheckCircle2 size={16} color="#ea580c" />
                     <span style={{ fontSize: '0.88rem', color: '#334155' }}>Effluent & stack emission testing</span>
@@ -424,7 +424,7 @@ export default function CertificatesView({ onNavigateTab, onAppointmentClick }) 
                 <h4 style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#ea580c', margin: '0 0 1rem 0' }}>
                   GPCB RECOGNITION CERTIFICATE
                 </h4>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }}>
+                <div className="jlt-cert-docs-grid">
                   {gpcbCerts.map((cert, idx) => (
                     <div key={idx} className="jlt-cert-doc-card">
                       <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#334155', marginBottom: '0.5rem' }}>
@@ -500,7 +500,7 @@ export default function CertificatesView({ onNavigateTab, onAppointmentClick }) 
                 <h4 style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#0891b2', margin: '0 0 0.85rem 0' }}>
                   KEY BENEFITS
                 </h4>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem' }}>
+                <div className="jlt-cert-benefits-grid">
                   <div className="jlt-service-sub-bullet">
                     <CheckCircle2 size={16} color="#0891b2" />
                     <span style={{ fontSize: '0.88rem', color: '#334155' }}>Documented SOPs for all tests</span>
@@ -581,7 +581,7 @@ export default function CertificatesView({ onNavigateTab, onAppointmentClick }) 
             <span className="jlt-sub-hero-tag" style={{ color: '#66b834', display: 'inline-block', marginBottom: '0.75rem' }}>
               CERTIFICATE VERIFICATION
             </span>
-            <h2 style={{ fontSize: '2.5rem', fontWeight: 800, color: '#ffffff', margin: '0 0 1rem 0' }}>
+            <h2 className="jlt-cert-verify-title">
               Need to Verify Our Accreditations?
             </h2>
             <p style={{ color: '#94a3b8', fontSize: '1.05rem', lineHeight: 1.6, margin: '0 0 2.25rem 0' }}>

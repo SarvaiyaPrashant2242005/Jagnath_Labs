@@ -1649,8 +1649,8 @@
 
 .jlt-footer-grid {
   display: grid;
-  grid-template-columns: 1.5fr 1fr 1fr 1.35fr;
-  gap: 3rem;
+  grid-template-columns: 1.25fr 1fr 1.35fr;
+  gap: 3.5rem;
 }
 
 .jlt-footer-col-title {
@@ -1784,12 +1784,43 @@
 .jlt-modal-box {
   background: #ffffff;
   border-radius: var(--jlt-radius-lg);
-  max-width: 800px;
+  max-width: 850px;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
   position: relative;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  padding: 1.5rem;
+}
+
+.jlt-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e2e8f0;
+  flex-wrap: wrap;
+}
+
+.jlt-cert-benefits-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.65rem;
+}
+
+.jlt-cert-docs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.5rem;
+}
+
+.jlt-cert-verify-title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 0 0 1rem 0;
+  line-height: 1.2;
 }
 
 .jlt-modal-close-btn {
@@ -1816,25 +1847,35 @@
 /* Mobile Drawer */
 .jlt-mobile-drawer {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(15, 23, 42, 0.6);
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
   backdrop-filter: blur(4px);
-  z-index: 1000;
+  z-index: 2000;
   display: flex;
   justify-content: flex-end;
+  animation: jltFadeIn 0.2s ease-out;
+}
+
+@keyframes jltFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes jltSlideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
 }
 
 .jlt-mobile-drawer-content {
   background: #ffffff;
-  width: 300px;
+  width: min(320px, 85vw);
   height: 100%;
   padding: 2rem 1.5rem;
   display: flex;
   flex-direction: column;
-  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.18);
+  overflow-y: auto;
+  animation: jltSlideInRight 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .jlt-mobile-links {
@@ -1854,108 +1895,457 @@
   border: none;
   text-align: left;
   cursor: pointer;
+  padding: 0.35rem 0;
+  transition: color 0.2s ease;
 }
 
 .jlt-mobile-link.active {
   color: var(--jlt-primary);
 }
 
-/* Responsiveness */
+.jlt-mobile-link:hover {
+  color: var(--jlt-primary);
+}
+
+/* ==========================================================================
+   COMPREHENSIVE RESPONSIVENESS SYSTEM (Mobile, Tablet, Desktop)
+   ========================================================================== */
+
+/* 1. Large Screens & Tablets Landscape (max-width: 1024px) */
 @media (max-width: 1024px) {
+  .jlt-nav-links {
+    gap: 1.25rem;
+  }
+  .jlt-nav-link {
+    font-size: 0.92rem;
+  }
+  .jlt-btn-appointment {
+    padding: 0.65rem 1.25rem;
+    font-size: 0.9rem;
+  }
   .jlt-services-grid {
     grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
   }
   .jlt-service-card-wide {
     grid-column: span 1;
   }
   .jlt-clients-grid {
     grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
   }
   .jlt-footer-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 2.5rem;
   }
   .jlt-service-row {
+    grid-template-columns: 1fr;
     gap: 2.5rem;
+    padding: 3.5rem 0;
+  }
+  .jlt-service-img-box {
+    order: -1;
+    height: 320px;
   }
   .jlt-tab-content-grid {
     grid-template-columns: 1fr;
     gap: 2rem;
   }
   .jlt-tab-image-box {
-    height: 320px;
-  }
-}
-
-@media (max-width: 768px) {
-  .jlt-nav-links,
-  .jlt-btn-appointment {
-    display: none;
-  }
-  .jlt-mobile-toggle {
-    display: block;
-  }
-  .jlt-trust-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
-  }
-  .jlt-trust-item:not(:last-child)::after {
-    display: none;
-  }
-  .jlt-services-grid {
-    grid-template-columns: 1fr;
-  }
-  .jlt-clients-grid {
-    grid-template-columns: 1fr;
-  }
-  .jlt-faq-grid {
-    grid-template-columns: 1fr;
+    height: 300px;
+    order: -1;
   }
   .jlt-booking-grid {
     grid-template-columns: 1fr;
   }
   .jlt-booking-image-col {
-    min-height: 260px;
-    padding: 2rem;
+    min-height: 250px;
+    padding: 2.5rem;
   }
   .jlt-booking-form-col {
-    padding: 2rem;
+    padding: 2.5rem;
   }
+  .jlt-contact-grid {
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+  }
+  .jlt-about-grid {
+    grid-template-columns: 1fr;
+    gap: 3rem;
+  }
+}
+
+/* 2. Tablets Portrait & Mobile Devices (max-width: 768px) */
+@media (max-width: 768px) {
+  /* Header & Navigation */
+  .jlt-topbar-right {
+    display: none;
+  }
+  .jlt-topbar {
+    padding: 0.45rem 0;
+    font-size: 0.78rem;
+  }
+  .jlt-topbar-inner {
+    justify-content: center;
+  }
+  .jlt-topbar-left {
+    justify-content: center;
+    gap: 1.25rem;
+    width: 100%;
+  }
+  .jlt-nav-links,
+  .jlt-navbar .jlt-btn-appointment {
+    display: none;
+  }
+  .jlt-mobile-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .jlt-navbar-inner {
+    height: 64px;
+  }
+  .jlt-logo-img {
+    height: 44px;
+  }
+  .jlt-main-content {
+    padding-top: 98px;
+  }
+
+  /* Homepage Hero */
+  .jlt-hero-section {
+    height: auto;
+    min-height: 520px;
+    padding: 4.5rem 0 3.5rem 0;
+  }
+  .jlt-hero-overlay {
+    background: rgba(15, 23, 42, 0.85);
+  }
+  .jlt-hero-title {
+    font-size: clamp(2rem, 7vw, 2.75rem);
+    line-height: 1.18;
+  }
+  .jlt-hero-desc {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin-bottom: 2rem;
+  }
+
+  /* Trust Bar */
+  .jlt-trust-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem 0.75rem;
+  }
+  .jlt-trust-item:not(:last-child)::after {
+    display: none;
+  }
+  .jlt-trust-item {
+    font-size: 0.85rem;
+  }
+  .jlt-trust-bar-green {
+    padding: 1.35rem 0;
+  }
+  .jlt-trust-bar-green .jlt-trust-num {
+    font-size: 1.85rem;
+  }
+  .jlt-trust-bar-green .jlt-trust-label {
+    font-size: 0.82rem;
+  }
+
+  /* Services & Cards */
+  .jlt-services-grid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+  .jlt-service-card {
+    height: 340px;
+  }
+  .jlt-section-title {
+    font-size: 1.85rem;
+  }
+
+  /* Why Choose Us Tabs */
+  .jlt-tabs-nav {
+    flex-direction: column;
+    width: 100%;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+  }
+  .jlt-tab-btn {
+    width: 100%;
+    text-align: center;
+    padding: 0.75rem 1rem;
+  }
+
+  /* Clients Grid */
+  .jlt-clients-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  .jlt-client-card {
+    padding: 0.9rem 1rem;
+  }
+
+  /* FAQ */
+  .jlt-faq-grid {
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+  }
+  .jlt-faq-question-btn {
+    padding: 1.15rem 1.25rem;
+  }
+
+  /* Booking Form */
+  .jlt-booking-image-col {
+    min-height: 220px;
+    padding: 2rem 1.5rem;
+  }
+  .jlt-booking-form-col {
+    padding: 2.25rem 1.5rem;
+  }
+  .jlt-form-row {
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+  }
+
+  /* Sub Hero Banners */
+  .jlt-sub-hero {
+    padding: 3.5rem 1rem 3rem 1rem;
+  }
+  .jlt-sub-hero-title {
+    font-size: 2.15rem;
+  }
+  .jlt-sub-hero-desc {
+    font-size: 0.95rem;
+  }
+  .jlt-sub-hero-badges {
+    gap: 0.5rem;
+    margin-top: 1.25rem;
+  }
+  .jlt-sub-badge {
+    font-size: 0.8rem;
+    padding: 0.35rem 0.9rem;
+  }
+
+  /* Detailed Service & Certificate Rows */
   .jlt-service-row {
     grid-template-columns: 1fr;
     gap: 2rem;
+    padding: 2.75rem 0;
   }
   .jlt-service-img-box {
     order: -1;
     height: 260px;
   }
-  .jlt-contact-grid {
-    grid-template-columns: 1fr;
+  .jlt-cert-section {
+    padding-bottom: 2.75rem !important;
+    margin-bottom: 2.75rem !important;
   }
-  .jlt-footer-grid {
-    grid-template-columns: 1fr;
-    gap: 2rem;
+  .jlt-cert-section h2 {
+    font-size: 1.65rem !important;
   }
-  .jlt-section-title {
+
+  /* Why It Matters & Verification CTA */
+  .jlt-why-matters-grid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+  .jlt-why-matters-section {
+    padding: 3.5rem 0;
+  }
+  .jlt-why-matters-card {
+    padding: 1.75rem 1.25rem;
+  }
+  .jlt-cert-verify-cta {
+    padding: 3.5rem 0;
+  }
+  .jlt-cert-verify-title {
     font-size: 1.85rem;
   }
-  .jlt-sub-hero-title {
-    font-size: 2rem;
-  }
-  .jlt-form-row {
+
+  /* Footer */
+  .jlt-footer-grid {
     grid-template-columns: 1fr;
+    gap: 2.25rem;
   }
-  .jlt-hero-title {
-    font-size: 2.35rem;
-  }
-  .jlt-hero-section {
-    padding: 3.5rem 0 3rem 0;
-    min-height: auto;
-  }
-  .jlt-hero-desc {
-    font-size: 0.95rem;
-  }
-  .jlt-main-content {
-    padding-top: 125px;
+  .jlt-footer-main {
+    padding: 3.5rem 0 2.5rem 0;
   }
 }
+
+/* 3. Small Mobile Devices (max-width: 640px) */
+@media (max-width: 640px) {
+  .jlt-container,
+  .jlt-container-wide {
+    padding-left: 1.15rem;
+    padding-right: 1.15rem;
+  }
+  .jlt-section {
+    padding: 3.25rem 0;
+  }
+  .jlt-section-title {
+    font-size: 1.65rem;
+  }
+
+  /* Top Bar */
+  .jlt-topbar-left {
+    gap: 0.85rem;
+  }
+  .jlt-topbar-item {
+    font-size: 0.74rem;
+  }
+
+  /* About View */
+  .jlt-about-section {
+    padding: 3.25rem 0 3.75rem 0;
+  }
+  .jlt-about-heading,
+  .jlt-about-cta-heading {
+    font-size: 1.65rem;
+  }
+  .jlt-about-cards-grid {
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+  }
+  .jlt-about-card {
+    padding: 1.35rem 1.15rem;
+  }
+  .jlt-about-cta-section {
+    padding: 3.25rem 1rem 3.75rem 1rem;
+  }
+
+  /* Services View */
+  .jlt-service-row-title {
+    font-size: 1.45rem;
+  }
+  .jlt-service-sub-bullets {
+    grid-template-columns: 1fr;
+    gap: 0.55rem;
+  }
+  .jlt-btn-quote {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Certificates View */
+  .jlt-cert-benefits-grid {
+    grid-template-columns: 1fr;
+    gap: 0.55rem;
+  }
+  .jlt-cert-docs-grid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+  .jlt-cert-doc-preview {
+    height: 250px;
+  }
+
+  /* Lightbox Modal */
+  .jlt-modal-backdrop {
+    padding: 0.75rem;
+  }
+  .jlt-modal-box {
+    padding: 1.25rem 1rem;
+    border-radius: 14px;
+    max-height: 94vh;
+  }
+  .jlt-modal-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+  .jlt-modal-actions a {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Contact View */
+  .jlt-contact-card {
+    padding: 1rem;
+    gap: 0.85rem;
+  }
+  .jlt-contact-icon-box {
+    width: 38px;
+    height: 38px;
+  }
+  .jlt-contact-val {
+    font-size: 0.88rem;
+  }
+}
+
+/* 4. Extra Small Mobile Devices (max-width: 480px) */
+@media (max-width: 480px) {
+  .jlt-topbar-left {
+    justify-content: space-between;
+    gap: 0.5rem;
+    width: 100%;
+  }
+  .jlt-topbar-item {
+    font-size: 0.72rem;
+  }
+  .jlt-topbar-left a[href^="mailto"] span {
+    display: none;
+  }
+  .jlt-topbar-left a[href^="mailto"]::after {
+    content: 'Email';
+    font-size: 0.72rem;
+  }
+
+  /* Hero */
+  .jlt-hero-title {
+    font-size: 1.85rem;
+  }
+  .jlt-hero-ctas {
+    flex-direction: column;
+    width: 100%;
+    gap: 0.75rem;
+  }
+  .jlt-btn-hero-primary,
+  .jlt-btn-hero-outline {
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+    padding: 0.85rem 1.25rem;
+  }
+
+  /* Booking Form */
+  .jlt-booking-form-col {
+    padding: 1.6rem 1rem;
+  }
+  .jlt-booking-title {
+    font-size: 1.5rem;
+  }
+  .jlt-form-input,
+  .jlt-form-select,
+  .jlt-form-textarea {
+    font-size: 16px;
+    padding: 0.7rem 0.85rem;
+  }
+
+  /* Sub Hero */
+  .jlt-sub-hero-title {
+    font-size: 1.75rem;
+  }
+  .jlt-sub-badge {
+    font-size: 0.75rem;
+    padding: 0.3rem 0.75rem;
+  }
+
+  /* Trust Bar Green */
+  .jlt-trust-bar-green .jlt-trust-num {
+    font-size: 1.6rem;
+  }
+  .jlt-trust-bar-green .jlt-trust-label {
+    font-size: 0.76rem;
+  }
+
+  /* CTA Banner Buttons */
+  .jlt-cert-verify-title {
+    font-size: 1.5rem;
+  }
+  .jlt-cert-verify-cta .jlt-btn-appointment,
+  .jlt-cert-phone-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+

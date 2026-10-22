@@ -23,7 +23,6 @@ export default function CertificateModal({ isOpen, onClose, certificate }) {
       <div 
         className="jlt-modal-box" 
         onClick={(e) => e.stopPropagation()}
-        style={{ padding: '1.5rem', maxWidth: '850px', background: '#ffffff', borderRadius: '16px' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.75rem' }}>
           <div>
@@ -44,7 +43,7 @@ export default function CertificateModal({ isOpen, onClose, certificate }) {
           </button>
         </div>
 
-        <div style={{ textAlign: 'center', maxHeight: '72vh', overflowY: 'auto', background: '#f8fafc', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+        <div className="jlt-modal-img-wrap" style={{ textAlign: 'center', maxHeight: '72vh', overflowY: 'auto', background: '#f8fafc', padding: '0.75rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
           <img 
             src={certificate.image} 
             alt={certificate.title} 
@@ -52,7 +51,7 @@ export default function CertificateModal({ isOpen, onClose, certificate }) {
           />
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid #e2e8f0', flexWrap: 'wrap' }}>
+        <div className="jlt-modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid #e2e8f0', flexWrap: 'wrap' }}>
           <a
             href={certificate.image}
             target="_blank"

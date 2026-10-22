@@ -35,7 +35,7 @@ export default function Footer({ onNavigateTab }) {
   return (
     <footer className="jlt-footer">
       <div className="jlt-container jlt-footer-main">
-        <div className="jlt-footer-grid" style={{ gridTemplateColumns: '1.25fr 1fr 1.35fr' }}>
+        <div className="jlt-footer-grid">
           
           {/* Column 1: Logo & Tagline */}
           <div>
