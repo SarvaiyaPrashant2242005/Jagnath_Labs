@@ -184,6 +184,13 @@ const createTestRequest = async (testRequestData, userId, reqInfo) => {
             testRequestData.reportNumber = await generateNextReportNumber(testRequestData.companyId, transaction);
         }
 
+        if (!testRequestData.contactPerson && testRequestData.clientId) {
+            const cl = await Client.findByPk(testRequestData.clientId, { transaction });
+            if (cl && cl.contactPerson) {
+                testRequestData.contactPerson = cl.contactPerson;
+            }
+        }
+
         const newTR = await TestRequest.create(testRequestData, { transaction });
 
         // Fetch company and client details for logging
@@ -442,12 +449,12 @@ const getTestRequestsByCompany = async (companyId, options = {}) => {
                 {
                     model: Company,
                     as: "company",
-                    attributes: ["company_name"]
+                    attributes: ["id", "company_name", "company_email", "contact_number", "address", "city", "state", "gst_no", "udyam_no", "logo", "quotation_logo"]
                 },
                 {
                     model: Client,
                     as: "client",
-                    attributes: ["clientName"]
+                    attributes: ["id", "clientName", "contactPerson", "contactNumber", "email", "officeAddress", "plantAddress", "address", "city", "state", "gstNo", "udyamNo", "workOrderNo", "workOrderDate"]
                 },
                 {
                     model: require("../../Masters/DepartmentMasters/department.model"),

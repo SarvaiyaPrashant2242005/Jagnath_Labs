@@ -1189,10 +1189,11 @@ const TestRequestForm = () => {
           clientId: '',
           address: '',
           email: '',
-          contactNumber: ''
+          contactNumber: '',
+          contactPerson: ''
         }));
       } else {
-        // Fetch latest client details from backend to resolve emails
+        // Fetch latest client details from backend to resolve emails & contact person
         apiService.get(CLIENT_ENDPOINTS.GET_BY_ID(value))
           .then(res => {
             const selectedClient = res.data;
@@ -1207,7 +1208,8 @@ const TestRequestForm = () => {
                 ...prev,
                 address: clientPlantAddress,
                 email: primaryEmail,
-                contactNumber: selectedClient.contactNumber || prev.contactNumber
+                contactNumber: selectedClient.contactNumber || prev.contactNumber,
+                contactPerson: selectedClient.contactPerson || selectedClient.contact_person || prev.contactPerson
               }));
             }
           })
@@ -1225,7 +1227,8 @@ const TestRequestForm = () => {
                 ...prev,
                 address: clientPlantAddress,
                 email: primaryEmail,
-                contactNumber: selectedClient.contactNumber || prev.contactNumber
+                contactNumber: selectedClient.contactNumber || prev.contactNumber,
+                contactPerson: selectedClient.contactPerson || selectedClient.contact_person || prev.contactPerson
               }));
             }
           });
@@ -3299,8 +3302,8 @@ const TestRequestForm = () => {
                   <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', marginBottom: '8px' }}>
                     <tbody>
                       <tr>
-                        <td style={{ width: '45%', border: '1px solid #000000', padding: '0px', verticalAlign: 'middle', textAlign: 'center' }}>
-                          <img src={getSelectedCompanyLogo()} alt="Logo" style={{ height: '75px', width: '100%', objectFit: 'cover', display: 'block', margin: '0 auto' }} />
+                        <td style={{ width: '45%', height: '75px', border: '1px solid #000000', padding: '3px 6px', verticalAlign: 'middle', textAlign: 'center', boxSizing: 'border-box' }}>
+                          <img src={getSelectedCompanyLogo()} alt="Logo" style={{ maxHeight: '69px', maxWidth: '100%', width: 'auto', height: 'auto', objectFit: 'contain', display: 'block', margin: '0 auto' }} />
                         </td>
                         <td style={{ width: '25%', border: '1px solid #000000', padding: '4px', textAlign: 'center', fontWeight: 'bold', fontSize: '10px' }}>
                           FORMATS
@@ -3523,8 +3526,8 @@ const TestRequestForm = () => {
                   <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', marginBottom: '8px' }}>
                     <tbody>
                       <tr>
-                        <td style={{ width: '45%', border: '1px solid #000000', padding: '0px', verticalAlign: 'middle', textAlign: 'center' }}>
-                          <img src={getSelectedCompanyLogo()} alt="Logo" style={{ height: '75px', width: '100%', objectFit: 'cover', display: 'block', margin: '0 auto' }} />
+                        <td style={{ width: '45%', height: '75px', border: '1px solid #000000', padding: '3px 6px', verticalAlign: 'middle', textAlign: 'center', boxSizing: 'border-box' }}>
+                          <img src={getSelectedCompanyLogo()} alt="Logo" style={{ maxHeight: '69px', maxWidth: '100%', width: 'auto', height: 'auto', objectFit: 'contain', display: 'block', margin: '0 auto' }} />
                         </td>
                         <td style={{ width: '25%', border: '1px solid #000000', padding: '4px', textAlign: 'center', fontWeight: 'bold', fontSize: '10px' }}>
                           FORMATS

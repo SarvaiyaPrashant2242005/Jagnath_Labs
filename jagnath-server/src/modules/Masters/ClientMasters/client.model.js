@@ -24,9 +24,34 @@ const Client = sequelize.define("Client", {
         type: DataTypes.STRING,
         allowNull: false,
     },
+    contactPerson: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        field: "contact_person"
+    },
     contactNumber: {
         type: DataTypes.STRING,
         allowNull: false,
+    },
+    gstNo: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        field: "gst_no"
+    },
+    udyamNo: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        field: "udyam_no"
+    },
+    workOrderNo: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        field: "work_order_no"
+    },
+    workOrderDate: {
+        type: DataTypes.DATEONLY,
+        allowNull: true,
+        field: "work_order_date"
     },
     officeAddress: {
         type: DataTypes.TEXT,

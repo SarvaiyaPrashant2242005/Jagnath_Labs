@@ -208,16 +208,39 @@ const AuditQuotationPrint = () => {
             <hr className="header-divider-line" />
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+            <div>
+              {(company.gst_no || company.gstNo) && (
+                <div style={{ fontSize: '9.5pt' }}><strong>Company GSTIN:</strong> {company.gst_no || company.gstNo}</div>
+              )}
+              {(company.udyam_no || company.udyamNo) && (
+                <div style={{ fontSize: '9.5pt' }}><strong>Company Udyam:</strong> {company.udyam_no || company.udyamNo}</div>
+              )}
+            </div>
             <span style={{ fontWeight: 'bold' }}>Date: {formatDateLong(data.quotationDate)}</span>
           </div>
 
           <div style={{ marginBottom: '25px', fontSize: '11pt' }}>
             <div style={{ fontWeight: 'bold' }}>To,</div>
             <div style={{ fontWeight: 'bold' }}>M/s. {client.companyName || client.clientName || 'CLIENT NAME'}</div>
+            {(client.contactPerson || client.contact_person) && (
+              <div style={{ fontSize: '10pt', fontWeight: 600 }}>Kind Attn: {client.contactPerson || client.contact_person}</div>
+            )}
             <div style={{ whiteSpace: 'pre-line', marginTop: '2px' }}>
               {client.plantAddress || client.address || 'Plant Address'}
             </div>
+            {(client.gstNo || client.gst_no) && (
+              <div style={{ fontSize: '9.5pt', marginTop: '3px' }}><strong>GSTIN:</strong> {client.gstNo || client.gst_no}</div>
+            )}
+            {(client.udyamNo || client.udyam_no) && (
+              <div style={{ fontSize: '9.5pt', marginTop: '3px' }}><strong>Udyam Reg. No:</strong> {client.udyamNo || client.udyam_no}</div>
+            )}
+            {(client.workOrderNo || client.work_order_no) && (
+              <div style={{ fontSize: '9.5pt', marginTop: '3px' }}>
+                <strong>Work Order No:</strong> {client.workOrderNo || client.work_order_no}
+                {(client.workOrderDate || client.work_order_date) ? ` (Dt: ${String(client.workOrderDate || client.work_order_date).slice(0, 10)})` : ''}
+              </div>
+            )}
           </div>
 
           <div style={{ marginBottom: '25px', fontWeight: 'bold', textTransform: 'uppercase', lineHeight: '1.4' }}>

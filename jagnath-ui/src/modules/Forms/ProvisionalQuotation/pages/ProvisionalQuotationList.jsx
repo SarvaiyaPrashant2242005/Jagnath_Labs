@@ -9,15 +9,17 @@ import { useNavigate, Link } from 'react-router-dom';
 import {
   FaFileInvoiceDollar, FaPlus, FaSearch, FaFilter, FaEdit,
   FaPrint, FaTrash, FaHistory, FaCalendarAlt,
-  FaBuilding, FaCheckCircle, FaExclamationCircle, FaFilePdf
+  FaBuilding, FaCheckCircle, FaExclamationCircle, FaFilePdf,
+  FaFlask, FaEye, FaCopy
 } from 'react-icons/fa';
 import {
   getSavedQuotations,
   deleteQuotation,
-  fetchMasterData
+  duplicateQuotation,
+  fetchMasterData,
+  createQuotationRevision
 } from '../services/provisionalQuotationStorage.service';
 import QuotationRevisionModal from '../components/QuotationRevisionModal';
-import { createQuotationRevision } from '../services/provisionalQuotationStorage.service';
 import Pagination from '../../../../shared/components/Pagination';
 import '../styles/provisionalQuotation.css';
 
@@ -27,6 +29,7 @@ const ProvisionalQuotationList = () => {
   const [quotations, setQuotations] = useState([]);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
+
 
   // Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -69,6 +72,13 @@ const ProvisionalQuotationList = () => {
     }
   };
 
+  const handleDuplicate = (id) => {
+    const copy = duplicateQuotation(id);
+    if (copy) {
+      loadData();
+    }
+  };
+
   const handleCreateRevision = (changeSummary) => {
     if (revisionModal.quotation) {
       const revised = createQuotationRevision(revisionModal.quotation.id, changeSummary);
@@ -84,12 +94,15 @@ const ProvisionalQuotationList = () => {
     const term = searchQuery.toLowerCase();
     const matchSearch =
       (q.quotationNumber && q.quotationNumber.toLowerCase().includes(term)) ||
+      (q.quotationNo && q.quotationNo.toLowerCase().includes(term)) ||
       (q.clientName && q.clientName.toLowerCase().includes(term)) ||
+      (q.client?.companyName && q.client.companyName.toLowerCase().includes(term)) ||
       (q.plantName && q.plantName.toLowerCase().includes(term)) ||
       (q.referenceNo && q.referenceNo.toLowerCase().includes(term)) ||
       (q.qpiNo && q.qpiNo.toLowerCase().includes(term));
 
-    const qCategory = (q.quotationCategoryType || q.categoryType || (q.quotationType?.toLowerCase().includes('regular') ? 'regular' : 'provisional')).toLowerCase();
+    const isGt = q.quotationType === 'general_testing';
+    const qCategory = isGt ? 'general_testing' : (q.quotationCategoryType || q.categoryType || (q.quotationType?.toLowerCase().includes('regular') ? 'regular' : 'provisional')).toLowerCase();
     const matchType = !selectedTypeFilter || qCategory === selectedTypeFilter;
 
     const matchClient = !selectedClientFilter || q.clientId === selectedClientFilter || q.clientName === selectedClientFilter;
@@ -152,7 +165,10 @@ const ProvisionalQuotationList = () => {
             Create, customize, calculate, and print Audit Proposals and Regular Sample Analysis Quotations.
           </p>
         </div>
-        <Link to="/quotations/provisional/add" className="btn btn-primary font-semibold">
+        <Link
+          to="/quotations/provisional/add"
+          className="btn btn-primary font-semibold d-flex align-center gap-2"
+        >
           <FaPlus /> New Quotation
         </Link>
       </div>
@@ -186,11 +202,12 @@ const ProvisionalQuotationList = () => {
                 setCurrentPage(1);
               }}
               className="form-control font-semibold"
-              style={{ borderColor: selectedTypeFilter === 'regular' ? '#38bdf8' : (selectedTypeFilter === 'provisional' ? '#86efac' : '#cbd5e1') }}
+              style={{ borderColor: selectedTypeFilter === 'regular' ? '#38bdf8' : (selectedTypeFilter === 'provisional' ? '#86efac' : (selectedTypeFilter === 'general_testing' ? '#059669' : '#cbd5e1')) }}
             >
               <option value="">-- Filter by Type (All) --</option>
               <option value="provisional">📋 Audit Quotations</option>
               <option value="regular">📄 Regular Quotations</option>
+              <option value="general_testing">🧪 General Testing / Consulting</option>
             </select>
           </div>
 
@@ -312,10 +329,17 @@ const ProvisionalQuotationList = () => {
             </thead>
             <tbody>
               {paginatedQuotations.map((q) => {
+                const isGt = q.quotationType === 'general_testing';
                 const isRegular = (q.quotationCategoryType === 'regular' || q.categoryType === 'regular' || q.quotationType === 'Regular Quotation');
-                const editUrl = isRegular
-                  ? `/quotations/provisional/edit/${q.id}?type=regular`
-                  : `/quotations/provisional/edit/${q.id}`;
+                const editUrl = isGt
+                  ? `/quotations/provisional/edit/${q.id}?type=general_testing`
+                  : (isRegular
+                      ? `/quotations/provisional/edit/${q.id}?type=regular`
+                      : `/quotations/provisional/edit/${q.id}`);
+                const previewUrl = `/quotations/provisional/preview/${q.id}`;
+                const printUrl = isRegular
+                  ? `#/test-requests/quotation/${q.testRequestId || q.id}`
+                  : `/quotations/provisional/print/${q.id}`;
 
                 return (
                   <tr key={q.id}>
@@ -324,10 +348,14 @@ const ProvisionalQuotationList = () => {
                         to={editUrl}
                         className="font-bold text-primary hover:underline d-block"
                       >
-                        {q.quotationNumber || 'UNNAMED-QUOTE'}
+                        {q.quotationNumber || q.quotationNo || 'UNNAMED-QUOTE'}
                       </Link>
                       <div className="d-flex align-center gap-1 mt-1">
-                        {isRegular ? (
+                        {isGt ? (
+                          <span className="badge" style={{ backgroundColor: '#f0fdf4', color: '#166534', border: '1px solid #86efac', fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                            <FaFlask size={9} /> General Testing
+                          </span>
+                        ) : isRegular ? (
                           <span className="badge" style={{ backgroundColor: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd', fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                             <FaFilePdf size={9} /> Regular Quote
                           </span>
@@ -345,7 +373,7 @@ const ProvisionalQuotationList = () => {
                     </td>
                     <td>
                       <span className="font-semibold text-slate-800 d-block">
-                        {q.clientName || 'No Client Selected'}
+                        {q.clientName || q.client?.companyName || 'No Client Selected'}
                       </span>
                       <small className="text-muted d-block text-xs">
                         {q.clientCity ? `${q.clientCity}, ${q.clientState || ''}` : ''}
@@ -353,7 +381,7 @@ const ProvisionalQuotationList = () => {
                     </td>
                     <td>
                       <span className="text-slate-700 font-medium">
-                        {q.plantName || q.plantAddress || '-'}
+                        {q.plantName || q.plantAddress || q.client?.serviceName || q.client?.address || '-'}
                       </span>
                     </td>
                     <td style={{ whiteSpace: 'nowrap' }}>
@@ -381,10 +409,17 @@ const ProvisionalQuotationList = () => {
                         >
                           <FaEdit />
                         </Link>
+                        <Link
+                          to={previewUrl}
+                          className="btn btn-icon btn-xs btn-outline-secondary"
+                          title="Live A4 Preview"
+                        >
+                          <FaEye />
+                        </Link>
                         {isRegular ? (
                           <button
                             type="button"
-                            onClick={() => window.open(`#/test-requests/quotation/${q.testRequestId || q.id}`, '_blank')}
+                            onClick={() => window.open(printUrl, '_blank')}
                             className="btn btn-icon btn-xs btn-outline-info"
                             title="Print Regular Quotation PDF"
                           >
@@ -392,13 +427,21 @@ const ProvisionalQuotationList = () => {
                           </button>
                         ) : (
                           <Link
-                            to={`/quotations/provisional/print/${q.id}`}
+                            to={printUrl}
                             className="btn btn-icon btn-xs btn-outline-info"
-                            title="Print Provisional PDF"
+                            title="Print / Save PDF"
                           >
                             <FaPrint />
                           </Link>
                         )}
+                        <button
+                          type="button"
+                          className="btn btn-icon btn-xs btn-outline-secondary"
+                          title="Duplicate Quotation"
+                          onClick={() => handleDuplicate(q.id)}
+                        >
+                          <FaCopy />
+                        </button>
                         <button
                           type="button"
                           className="btn btn-icon btn-xs btn-outline-warning"
@@ -411,7 +454,7 @@ const ProvisionalQuotationList = () => {
                           type="button"
                           className="btn btn-icon btn-xs btn-danger-soft"
                           title="Delete Quotation"
-                          onClick={() => handleDelete(q.id, q.quotationNumber)}
+                          onClick={() => handleDelete(q.id, q.quotationNumber || q.quotationNo)}
                         >
                           <FaTrash />
                         </button>
@@ -423,7 +466,7 @@ const ProvisionalQuotationList = () => {
 
               {filteredQuotations.length === 0 && !loading && (
                 <tr>
-                  <td colSpan={8} className="text-center py-5">
+                  <td colSpan={9} className="text-center py-5">
                     <div className="empty-state-box">
                       <FaFileInvoiceDollar size={36} className="text-muted mb-2" />
                       <h4 className="font-bold text-slate-700">No Quotations Found</h4>
@@ -432,8 +475,11 @@ const ProvisionalQuotationList = () => {
                           ? 'You have not created any Quotations yet.'
                           : 'No quotations match your current search or filter criteria.'}
                       </p>
-                      <Link to="/quotations/provisional/add" className="btn btn-primary btn-sm">
-                        <FaPlus /> Create Your First Quotation
+                      <Link
+                        to="/quotations/provisional/add"
+                        className="btn btn-primary btn-sm"
+                      >
+                        <FaPlus /> Create First Quotation
                       </Link>
                     </div>
                   </td>
@@ -442,7 +488,7 @@ const ProvisionalQuotationList = () => {
 
               {loading && (
                 <tr>
-                  <td colSpan={8} className="text-center py-4 text-muted">
+                  <td colSpan={9} className="text-center py-4 text-muted">
                     Loading quotation records and master data...
                   </td>
                 </tr>
@@ -477,3 +523,4 @@ const ProvisionalQuotationList = () => {
 };
 
 export default ProvisionalQuotationList;
+

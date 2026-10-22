@@ -12,6 +12,7 @@ import {
 } from 'react-icons/fa';
 
 import { getQuotationById, fetchMasterData, DEFAULT_TERMS_TEXT, DEFAULT_ANNEXURE_B_GROUPS } from '../services/provisionalQuotationStorage.service';
+import GeneralTestingDocument from '../components/GeneralTestingDocument';
 import {
   calculateMainCharges,
   calculateAnnexureI,
@@ -176,6 +177,40 @@ const ProvisionalQuotationPreview = () => {
     );
   }
 
+  // Branch for General Testing / Consulting Quotation Preview
+  if (quotation.quotationType === 'general_testing') {
+    return (
+      <div className="preview-page-container gt-preview-page">
+        {/* Action Toolbar */}
+        <div className="preview-toolbar d-flex justify-between align-center mb-4 p-3 bg-white rounded shadow-sm border">
+          <div className="d-flex align-center gap-3">
+            <Link to={`/quotations/provisional/edit/${quotation.id}?type=general_testing`} className="btn btn-outline-secondary btn-sm">
+              <FaArrowLeft /> Edit Quotation
+            </Link>
+            <span className="font-bold text-slate-800">
+              Previewing: {quotation.quotationNumber || quotation.quotationNo} (General Testing)
+            </span>
+            <span className="badge badge-info text-xs">{quotation.status || 'Draft'}</span>
+          </div>
+
+          <div className="d-flex align-center gap-2">
+            <button
+              type="button"
+              className="btn btn-primary btn-sm font-semibold"
+              onClick={() => window.open(`#/quotations/provisional/print/${quotation.id}`, '_blank')}
+            >
+              <FaPrint /> Print / Save as PDF
+            </button>
+          </div>
+        </div>
+
+        <div style={{ maxWidth: '210mm', margin: '0 auto' }}>
+          <GeneralTestingDocument data={quotation} isPrintMode={false} />
+        </div>
+      </div>
+    );
+  }
+
   // Financial values
   const globalVisits = parseInt(quotation.annexureAVisits !== undefined ? quotation.annexureAVisits : (quotation.annexureI?.visits || 3), 10) || 3;
   const annexureATotals = calculateAnnexureATotals(quotation.activities || [], globalVisits);
@@ -233,20 +268,45 @@ const ProvisionalQuotationPreview = () => {
           </div>
           <div style={{ borderBottom: '1.5px solid #0f172a', marginBottom: '24px' }}></div>
 
-          {/* DATE ON RIGHT (REGULAR FONT) */}
-          <div style={{ textAlign: 'right', marginBottom: '20px' }}>
-            <span style={{ fontSize: '13px', fontWeight: 'normal', color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              {formatDisplayDate(quotation.quotationDate)}
-            </span>
+          {/* DATE ON RIGHT (REGULAR FONT) & COMPANY GST/UDYAM */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+            <div>
+              {(company.gst_no || company.gstNo) && (
+                <div style={{ fontSize: '11.5px', color: '#334155' }}><strong>Company GSTIN:</strong> {company.gst_no || company.gstNo}</div>
+              )}
+              {(company.udyam_no || company.udyamNo) && (
+                <div style={{ fontSize: '11.5px', color: '#334155' }}><strong>Company Udyam:</strong> {company.udyam_no || company.udyamNo}</div>
+              )}
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <span style={{ fontSize: '13px', fontWeight: 'normal', color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                {formatDisplayDate(quotation.quotationDate)}
+              </span>
+            </div>
           </div>
 
           {/* RECIPIENT CLIENT & PLANT ADDRESS (REGULAR CLEAN FORMAT) */}
           <div className="mb-4" style={{ fontSize: '13px', color: '#0f172a', lineHeight: 1.5, fontWeight: 'normal' }}>
             <p className="mb-1" style={{ margin: '0 0 4px 0' }}>To,</p>
             <p className="mb-1" style={{ margin: '0 0 4px 0', fontSize: '13.5px' }}>M/s. {quotation.clientName || 'Valued Client'}</p>
+            {(quotation.contactPerson || quotation.contact_person) && (
+              <p className="mb-1" style={{ margin: '0 0 4px 0', fontSize: '12px', fontWeight: 600 }}>Kind Attn: {quotation.contactPerson || quotation.contact_person}</p>
+            )}
             <div className="whitespace-pre-line" style={{ lineHeight: 1.5 }}>
               {quotation.plantAddress || quotation.registeredAddress || 'Plant Address'}
             </div>
+            {(quotation.gstNo || quotation.gst_no) && (
+              <p className="mb-0" style={{ margin: '2px 0 0 0', fontSize: '12px' }}><strong>GSTIN:</strong> {quotation.gstNo || quotation.gst_no}</p>
+            )}
+            {(quotation.udyamNo || quotation.udyam_no) && (
+              <p className="mb-0" style={{ margin: '2px 0 0 0', fontSize: '12px' }}><strong>Udyam Reg. No:</strong> {quotation.udyamNo || quotation.udyam_no}</p>
+            )}
+            {(quotation.workOrderNo || quotation.work_order_no) && (
+              <p className="mb-0" style={{ margin: '2px 0 0 0', fontSize: '12px' }}>
+                <strong>Work Order No:</strong> {quotation.workOrderNo || quotation.work_order_no}
+                {(quotation.workOrderDate || quotation.work_order_date) ? ` (Dt: ${String(quotation.workOrderDate || quotation.work_order_date).slice(0, 10)})` : ''}
+              </p>
+            )}
           </div>
 
           <div className="subject-box mb-4">

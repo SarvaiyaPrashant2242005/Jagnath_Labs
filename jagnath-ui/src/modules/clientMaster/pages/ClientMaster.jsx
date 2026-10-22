@@ -94,6 +94,11 @@ const ClientMaster = () => {
   // Form inputs state
   const [formData, setFormData] = useState({
     clientName: '',
+    contactPerson: '',
+    gstNo: '',
+    udyamNo: '',
+    workOrderNo: '',
+    workOrderDate: '',
     contactNumber: '',
     companyName: '',
     gender: 'Male',
@@ -310,6 +315,14 @@ const ClientMaster = () => {
       errors.city = 'City is required.';
     }
 
+    // Optional GSTIN format validation
+    if (formData.gstNo && formData.gstNo.trim()) {
+      const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+      if (!gstRegex.test(formData.gstNo.trim().toUpperCase())) {
+        errors.gstNo = 'Invalid GSTIN format (e.g. 24ABCDE1234F1Z5).';
+      }
+    }
+
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -361,6 +374,11 @@ const ClientMaster = () => {
 
     setFormData({
       clientName: '',
+      contactPerson: '',
+      gstNo: '',
+      udyamNo: '',
+      workOrderNo: '',
+      workOrderDate: '',
       contactNumber: '',
       companyName: defaultCompanyName,
       gender: 'Male',
@@ -384,6 +402,11 @@ const ClientMaster = () => {
   const handleOpenEdit = (client) => {
     setFormData({
       clientName: client.clientName || '',
+      contactPerson: client.contactPerson || client.contact_person || '',
+      gstNo: client.gstNo || client.gst_no || '',
+      udyamNo: client.udyamNo || client.udyam_no || '',
+      workOrderNo: client.workOrderNo || client.work_order_no || '',
+      workOrderDate: client.workOrderDate ? String(client.workOrderDate).slice(0, 10) : (client.work_order_date ? String(client.work_order_date).slice(0, 10) : ''),
       contactNumber: client.contactNumber || '',
       companyName: client.companyName || client.company_name || (client.company ? (client.company.companyName || client.company.company_name) : ''),
       gender: client.gender || 'Male',
@@ -490,9 +513,14 @@ const ClientMaster = () => {
   const handleDownloadCSV = async () => {
     const allData = await fetchAllExportData();
     if (!allData || allData.length === 0) return;
-    const headers = ['Client Name', 'Email', 'Contact Number', 'Office Address', 'Plant / Industry Address', 'City', 'State', 'Status'];
+    const headers = ['Client Name', 'Contact Person', 'GST No', 'Udyam No', 'Work Order No', 'Work Order Date', 'Email', 'Contact Number', 'Office Address', 'Plant / Industry Address', 'City', 'State', 'Status'];
     const rows = allData.map(c => [
       c.clientName,
+      c.contactPerson || c.contact_person || 'N/A',
+      c.gstNo || c.gst_no || 'N/A',
+      c.udyamNo || c.udyam_no || 'N/A',
+      c.workOrderNo || c.work_order_no || 'N/A',
+      c.workOrderDate ? String(c.workOrderDate).slice(0, 10) : (c.work_order_date ? String(c.work_order_date).slice(0, 10) : 'N/A'),
       c.email || 'N/A',
       c.contactNumber,
       c.officeAddress || c.address || 'N/A',
@@ -509,9 +537,14 @@ const ClientMaster = () => {
   const handleDownloadExcel = async () => {
     const allData = await fetchAllExportData();
     if (!allData || allData.length === 0) return;
-    const headers = ['Client Name', 'Email', 'Contact Number', 'Office Address', 'Plant / Industry Address', 'City', 'State', 'Status'];
+    const headers = ['Client Name', 'Contact Person', 'GST No', 'Udyam No', 'Work Order No', 'Work Order Date', 'Email', 'Contact Number', 'Office Address', 'Plant / Industry Address', 'City', 'State', 'Status'];
     const rows = allData.map(c => [
       c.clientName,
+      c.contactPerson || c.contact_person || 'N/A',
+      c.gstNo || c.gst_no || 'N/A',
+      c.udyamNo || c.udyam_no || 'N/A',
+      c.workOrderNo || c.work_order_no || 'N/A',
+      c.workOrderDate ? String(c.workOrderDate).slice(0, 10) : (c.work_order_date ? String(c.work_order_date).slice(0, 10) : 'N/A'),
       c.email || 'N/A',
       c.contactNumber,
       c.officeAddress || c.address || 'N/A',
@@ -528,9 +561,12 @@ const ClientMaster = () => {
   const handleCopy = async () => {
     const allData = await fetchAllExportData();
     if (!allData || allData.length === 0) return;
-    const headers = ['Client Name', 'Company Name', 'Email', 'Contact Number', 'Address', 'City', 'State', 'Status'];
+    const headers = ['Client Name', 'Contact Person', 'GST No', 'Udyam No', 'Company Name', 'Email', 'Contact Number', 'Address', 'City', 'State', 'Status'];
     const rows = allData.map(c => [
       c.clientName,
+      c.contactPerson || c.contact_person || 'N/A',
+      c.gstNo || c.gst_no || 'N/A',
+      c.udyamNo || c.udyam_no || 'N/A',
       c.companyName || (c.company ? (c.company.companyName || c.company.company_name) : 'N/A'),
       c.email || 'N/A',
       c.contactNumber,
@@ -555,6 +591,8 @@ const ClientMaster = () => {
     const rowsHtml = allData.map(c => `
       <tr>
         <td>${c.clientName}</td>
+        <td>${c.contactPerson || c.contact_person || 'N/A'}</td>
+        <td>${c.gstNo || c.gst_no || 'N/A'}</td>
         <td>${c.companyName || (c.company ? (c.company.companyName || c.company.company_name) : 'N/A')}</td>
         <td>${c.email || 'N/A'}</td>
         <td>${c.contactNumber}</td>
@@ -579,7 +617,7 @@ const ClientMaster = () => {
           <h2>Clients Report</h2>
           <table>
             <thead>
-              <tr><th>Client Name</th><th>Company</th><th>Email</th><th>Phone</th><th>Address</th><th>City</th><th>Status</th></tr>
+              <tr><th>Client Name</th><th>Contact Person</th><th>GST No</th><th>Company</th><th>Email</th><th>Phone</th><th>Address</th><th>City</th><th>Status</th></tr>
             </thead>
             <tbody>
               ${rowsHtml}
@@ -760,6 +798,20 @@ const ClientMaster = () => {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>
+                  Contact Person
+                </label>
+                <input
+                  type="text"
+                  name="contactPerson"
+                  value={formData.contactPerson}
+                  onChange={handleInputChange}
+                  placeholder="Enter Contact Person"
+                  style={{ padding: '0.625rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>
                   Contact Number <span style={{ color: '#ef4444' }}>*</span>
                 </label>
                 <input
@@ -771,6 +823,67 @@ const ClientMaster = () => {
                   style={{ padding: '0.625rem', border: `1px solid ${formErrors.contactNumber ? '#ef4444' : '#cbd5e1'}`, borderRadius: '6px', outline: 'none' }}
                 />
                 {formErrors.contactNumber && <span style={{ fontSize: '0.75rem', color: '#ef4444' }}>{formErrors.contactNumber}</span>}
+              </div>
+
+            </div>
+
+            {/* GST, Udyam, Work Order Details */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem', marginTop: '0.25rem' }}>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>
+                  GST Number
+                </label>
+                <input
+                  type="text"
+                  name="gstNo"
+                  value={formData.gstNo}
+                  onChange={handleInputChange}
+                  placeholder="Enter GSTIN (e.g. 24ABCDE1234F1Z5)"
+                  style={{ padding: '0.625rem', border: `1px solid ${formErrors.gstNo ? '#ef4444' : '#cbd5e1'}`, borderRadius: '6px', outline: 'none' }}
+                />
+                {formErrors.gstNo && <span style={{ fontSize: '0.75rem', color: '#ef4444' }}>{formErrors.gstNo}</span>}
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>
+                  Udyam Registration Number
+                </label>
+                <input
+                  type="text"
+                  name="udyamNo"
+                  value={formData.udyamNo}
+                  onChange={handleInputChange}
+                  placeholder="Enter Udyam Reg. No (e.g. UDYAM-GJ-01-0000000)"
+                  style={{ padding: '0.625rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>
+                  Work Order Number
+                </label>
+                <input
+                  type="text"
+                  name="workOrderNo"
+                  value={formData.workOrderNo}
+                  onChange={handleInputChange}
+                  placeholder="Enter Work Order No."
+                  style={{ padding: '0.625rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>
+                  Work Order Date
+                </label>
+                <input
+                  type="date"
+                  name="workOrderDate"
+                  value={formData.workOrderDate}
+                  onChange={handleInputChange}
+                  style={{ padding: '0.625rem', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none', backgroundColor: '#ffffff', height: '42px', fontSize: '0.875rem' }}
+                />
               </div>
 
             </div>
@@ -1067,6 +1180,7 @@ const ClientMaster = () => {
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>ACTIONS</th>
                 <th style={{ padding: '0.75rem 1rem', color: '#475569', fontWeight: 600 }}>SR. NO.</th>
                 {renderSortableHeader('CLIENT NAME', 'clientName')}
+                {renderSortableHeader('CONTACT PERSON', 'contactPerson')}
                 {renderSortableHeader('EMAIL', 'email')}
                 {renderSortableHeader('CONTACT', 'contactNumber')}
                 {renderSortableHeader('OFFICE ADDRESS', 'officeAddress')}
@@ -1079,13 +1193,13 @@ const ClientMaster = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={11} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan={12} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                     Loading clients...
                   </td>
                 </tr>
               ) : clients.length === 0 ? (
                 <tr>
-                  <td colSpan={11} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan={12} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                     No clients found.
                   </td>
                 </tr>
@@ -1123,6 +1237,7 @@ const ClientMaster = () => {
                     </td>
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a' }}>{(currentPage - 1) * pageSize + index + 1}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#0f172a', fontWeight: 600 }}>{client.clientName}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.contactPerson || client.contact_person || '-'}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.email || 'N/A'}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.contactNumber}</td>
                     <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>{client.officeAddress || client.address || 'N/A'}</td>
@@ -1181,6 +1296,12 @@ const ClientMaster = () => {
                   </div>
 
                   <div className="master-record-details">
+                    {(client.contactPerson || client.contact_person) && (
+                      <div className="master-record-detail-item">
+                        <span className="master-record-label">Contact Person</span>
+                        <span className="master-record-value">{client.contactPerson || client.contact_person}</span>
+                      </div>
+                    )}
                     <div className="master-record-detail-item">
                       <span className="master-record-label">Contact</span>
                       <span className="master-record-value">{client.contactNumber || 'N/A'}</span>
@@ -1189,6 +1310,12 @@ const ClientMaster = () => {
                       <span className="master-record-label">Email</span>
                       <span className="master-record-value">{client.email || 'N/A'}</span>
                     </div>
+                    {(client.gstNo || client.gst_no) && (
+                      <div className="master-record-detail-item">
+                        <span className="master-record-label">GSTIN</span>
+                        <span className="master-record-value">{client.gstNo || client.gst_no}</span>
+                      </div>
+                    )}
                     <div className="master-record-detail-item">
                       <span className="master-record-label">City</span>
                       <span className="master-record-value">{client.city || 'N/A'}</span>
