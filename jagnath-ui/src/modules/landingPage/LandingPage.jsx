@@ -127,7 +127,10 @@ export default function LandingPage({ onNavigate, initialTab }) {
         )}
 
         {activeTab === 'certificates' && (
-          <CertificatesView />
+          <CertificatesView 
+            onNavigateTab={handleTabChange} 
+            onAppointmentClick={handleAppointmentClick} 
+          />
         )}
 
         {activeTab === 'contact' && (

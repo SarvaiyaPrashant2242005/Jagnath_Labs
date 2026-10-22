@@ -969,6 +969,28 @@
   font-weight: 400;
 }
 
+.jlt-sub-hero-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.85rem;
+  margin-top: 1.85rem;
+}
+
+.jlt-sub-badge {
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(74, 222, 128, 0.35);
+  color: #4ade80;
+  font-size: 0.86rem;
+  font-weight: 600;
+  padding: 0.45rem 1.15rem;
+  border-radius: var(--jlt-radius-full);
+  letter-spacing: 0.02em;
+  display: inline-flex;
+  align-items: center;
+}
+
 /* ==========================================================================
    About Page Specific Styles (Exact Reference Recreation)
    ========================================================================== */
@@ -1396,6 +1418,148 @@
   color: var(--jlt-slate-800);
   margin-top: 0.75rem;
   text-align: center;
+}
+
+.jlt-cert-download-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 0.5rem 0.25rem 0.5rem;
+  margin-top: 0.5rem;
+  border-top: 1px solid var(--jlt-slate-100);
+}
+
+.jlt-cert-validity-text {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--jlt-slate-600);
+}
+
+.jlt-cert-pill-download-btn {
+  background: var(--jlt-primary);
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.35rem 0.85rem;
+  border-radius: var(--jlt-radius-full);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.jlt-cert-pill-download-btn:hover {
+  background: var(--jlt-primary-hover);
+  transform: translateY(-1px);
+}
+
+/* Why It Matters Section (Screenshot 9) */
+.jlt-why-matters-section {
+  background: #f4f8f3;
+  padding: 5rem 0;
+}
+
+.jlt-why-matters-badge {
+  color: var(--jlt-primary);
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  display: inline-block;
+  margin-bottom: 0.75rem;
+}
+
+.jlt-why-matters-title {
+  font-size: clamp(1.85rem, 3.2vw, 2.5rem);
+  font-weight: 800;
+  color: var(--jlt-slate-900);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.jlt-why-matters-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+}
+
+@media (max-width: 900px) {
+  .jlt-why-matters-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+}
+
+.jlt-why-matters-card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 2.5rem 2rem;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.03);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.jlt-why-matters-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06);
+}
+
+.jlt-why-matters-icon-box {
+  width: 68px;
+  height: 68px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.jlt-why-matters-card-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--jlt-slate-900);
+  margin: 0 0 0.85rem 0;
+}
+
+.jlt-why-matters-card-desc {
+  font-size: 0.95rem;
+  color: var(--jlt-slate-600);
+  line-height: 1.65;
+  margin: 0;
+}
+
+/* Certificate Verification CTA Banner (Screenshot 10) */
+.jlt-cert-verify-cta {
+  background: #1e2230;
+  padding: 5rem 0;
+  color: #ffffff;
+}
+
+.jlt-cert-phone-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 0.85rem 1.85rem;
+  border-radius: var(--jlt-radius-full);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.jlt-cert-phone-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: #ffffff;
+  transform: translateY(-1px);
 }
 
 /* Contact Us View */

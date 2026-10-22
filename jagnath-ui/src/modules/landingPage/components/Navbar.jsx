@@ -25,15 +25,15 @@ export const Navbar = ({ activeTab, setActiveTab, onAppointmentClick, isScrolled
         <div className="jlt-container">
           <div className="jlt-navbar-inner">
             {/* Logo */}
-            <div 
-              className="jlt-logo-link" 
+            <div
+              className="jlt-logo-link"
               onClick={() => handleNavClick('home')}
               title="Jagnath Lab Technologies"
             >
-              <img 
-                src="/Images/Navbar_Logo.png" 
-                alt="Jagnath Lab Technologies Logo" 
-                className="jlt-logo-img" 
+              <img
+                src="/Images/Navbar_Logo.png"
+                alt="Jagnath Lab Technologies Logo"
+                className="jlt-logo-img"
               />
             </div>
 
@@ -57,7 +57,7 @@ export const Navbar = ({ activeTab, setActiveTab, onAppointmentClick, isScrolled
               className="jlt-btn-appointment"
               onClick={onAppointmentClick || (() => window.location.hash = '#/login')}
             >
-              Get Appointment
+              Login Portal
             </button>
 
             {/* Mobile Hamburger Button */}
@@ -78,13 +78,13 @@ export const Navbar = ({ activeTab, setActiveTab, onAppointmentClick, isScrolled
         <div className="jlt-mobile-drawer" onClick={() => setMobileMenuOpen(false)}>
           <div className="jlt-mobile-drawer-content" onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <img 
-                src="/Images/Navbar_Logo.png" 
-                alt="Jagnath Logo" 
-                style={{ height: '44px', width: 'auto' }} 
+              <img
+                src="/Images/Navbar_Logo.png"
+                alt="Jagnath Logo"
+                style={{ height: '44px', width: 'auto' }}
               />
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => setMobileMenuOpen(false)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
               >
@@ -122,8 +122,8 @@ export const Navbar = ({ activeTab, setActiveTab, onAppointmentClick, isScrolled
               Get Appointment
             </button>
 
-            <a 
-              href="#/login" 
+            <a
+              href="#/login"
               className="jlt-topbar-login-btn"
               style={{ width: '100%', marginTop: '1rem', justifyContent: 'center', padding: '0.65rem' }}
             >

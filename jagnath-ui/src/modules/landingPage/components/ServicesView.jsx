@@ -11,7 +11,6 @@ import {
   CheckCircle2,
   ArrowRight
 } from 'lucide-react';
-import { getJagnathImage } from '../utils/images';
 
 export const ServicesView = ({ onAppointmentClick }) => {
   const servicesList = [
@@ -20,7 +19,7 @@ export const ServicesView = ({ onAppointmentClick }) => {
       badge: 'Service 01',
       title: 'Ambient Air Quality Monitoring & Stack Testing',
       icon: <Wind size={22} />,
-      image: getJagnathImage('1479609109.webp'),
+      image: '/assets/reference_images/1479609109.webp',
       intro: 'Ensure compliance with environmental standards and protect public health through our precise air analysis and stack emission testing services.',
       sections: [
         {
@@ -57,7 +56,7 @@ export const ServicesView = ({ onAppointmentClick }) => {
       badge: 'Service 02',
       title: 'Water & Wastewater Testing',
       icon: <Droplet size={22} />,
-      image: getJagnathImage('1545344758.webp'),
+      image: '/assets/reference_images/1545344758.webp',
       intro: 'Comprehensive chemical, physical, and microbiological characterization of drinking water, process water, groundwater, and industrial effluents.',
       sections: [
         {
@@ -85,7 +84,7 @@ export const ServicesView = ({ onAppointmentClick }) => {
       badge: 'Service 03',
       title: 'Soil, Sludge & Solid Waste Analysis',
       icon: <Layers size={22} />,
-      image: getJagnathImage('1322071992.webp'),
+      image: '/assets/reference_images/1322071992.webp',
       intro: 'Complete biological and chemical profiling of agricultural soils, ETP sludges, compost, and hazardous industrial solid wastes.',
       sections: [
         {
@@ -113,7 +112,7 @@ export const ServicesView = ({ onAppointmentClick }) => {
       badge: 'Service 04',
       title: 'Industrial Hygiene, Noise & Illumination',
       icon: <Volume2 size={22} />,
-      image: getJagnathImage('1884886428.webp'),
+      image: '/assets/reference_images/1884886428.webp',
       intro: 'Optimize workplace safety conditions, protect workers, and comply with Factories Act guidelines through calibrated field surveys.',
       sections: [
         {
@@ -141,7 +140,7 @@ export const ServicesView = ({ onAppointmentClick }) => {
       badge: 'Service 05',
       title: 'Food & Agricultural Testing',
       icon: <Apple size={22} />,
-      image: getJagnathImage('1150285146.webp'),
+      image: '/assets/reference_images/1150285146.webp',
       intro: 'Quality and regulatory testing of agricultural grains, processed snacks, spices, dairy products, and packaged foods under FSSAI mandates.',
       sections: [
         {
@@ -169,7 +168,7 @@ export const ServicesView = ({ onAppointmentClick }) => {
       badge: 'Service 06',
       title: 'Microbiological & Pathogen Testing',
       icon: <Microscope size={22} />,
-      image: getJagnathImage('1485080100.webp'),
+      image: '/assets/reference_images/1485080100.webp',
       intro: 'Isolation, identification, and quantification of bacterial, fungal, and viral contaminants across foods, pharmaceuticals, and water.',
       sections: [
         {
@@ -197,7 +196,7 @@ export const ServicesView = ({ onAppointmentClick }) => {
       badge: 'Service 07',
       title: 'Toxicology & Chemical Analysis',
       icon: <TestTubes size={22} />,
-      image: getJagnathImage('2191676796.webp'),
+      image: '/assets/reference_images/2191676796.webp',
       intro: 'Chemical assay, qualitative identification, and toxic chemical screening for industrial raw materials and formulated chemicals.',
       sections: [
         {
@@ -225,7 +224,7 @@ export const ServicesView = ({ onAppointmentClick }) => {
       badge: 'Service 08',
       title: 'Civil & Construction Material Testing',
       icon: <Building size={22} />,
-      image: getJagnathImage('2199680361.webp'),
+      image: '/assets/reference_images/2199680361.webp',
       intro: 'Reliable testing of construction materials to ensure structural integrity, durability, and compliance with IS and BIS standards.',
       sections: [
         {

@@ -31,7 +31,7 @@ export default function CertificateModal({ isOpen, onClose, certificate }) {
               {certificate.title}
             </h3>
             <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.85rem', color: '#64748b' }}>
-              {certificate.subtitle || 'Official Recognition by Gujarat Pollution Control Board'}
+              {certificate.subtitle || 'Official Accreditation Certificate'}
             </p>
           </div>
           <button 
@@ -52,23 +52,23 @@ export default function CertificateModal({ isOpen, onClose, certificate }) {
           />
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid #e2e8f0' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid #e2e8f0', flexWrap: 'wrap' }}>
           <a
             href={certificate.image}
             target="_blank"
             rel="noopener noreferrer"
             className="jlt-btn-quote"
-            style={{ background: '#66b834', padding: '0.5rem 1.25rem', fontSize: '0.85rem' }}
+            style={{ background: '#66b834', padding: '0.55rem 1.25rem', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
           >
             <ExternalLink size={16} /> Open Full Size
           </a>
           <a
-            href={certificate.image}
-            download={certificate.downloadName || 'certificate.webp'}
+            href={certificate.pdfUrl || certificate.image}
+            download={certificate.downloadName || 'certificate.pdf'}
             className="jlt-btn-quote"
-            style={{ background: '#1e293b', padding: '0.5rem 1.25rem', fontSize: '0.85rem' }}
+            style={{ background: '#1e293b', padding: '0.55rem 1.25rem', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
           >
-            <Download size={16} /> Download
+            <Download size={16} /> Download Certificate
           </a>
         </div>
       </div>

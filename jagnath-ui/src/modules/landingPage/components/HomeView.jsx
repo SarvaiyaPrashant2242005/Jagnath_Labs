@@ -14,7 +14,6 @@ import {
   ChevronDown,
   ArrowRight
 } from 'lucide-react';
-import { getJagnathImage } from '../utils/images';
 
 export const HomeView = ({ onNavigateTab, onAppointmentClick }) => {
   // Why Choose Us Active Tab State
@@ -66,7 +65,7 @@ export const HomeView = ({ onNavigateTab, onAppointmentClick }) => {
         'Rigorous QC at every stage',
         'Regulatory-compliant reporting'
       ],
-      image: getJagnathImage('2254461523.webp')
+      image: '/assets/reference_images/2254461523.webp'
     },
     comprehensive: {
       title: 'End-to-End Analytical Capabilities',
@@ -77,7 +76,7 @@ export const HomeView = ({ onNavigateTab, onAppointmentClick }) => {
         'Fast-track emergency testing available',
         'Dedicated technical consultation & support'
       ],
-      image: getJagnathImage('2164156074.webp')
+      image: '/assets/reference_images/2164156074.webp'
     },
     expertise: {
       title: 'Experienced Scientists & Technical Leadership',
@@ -88,7 +87,7 @@ export const HomeView = ({ onNavigateTab, onAppointmentClick }) => {
         'GPCB recognized environmental auditors',
         'Comprehensive client guidance on compliance'
       ],
-      image: getJagnathImage('2277442952.webp')
+      image: '/assets/reference_images/2277442952.webp'
     }
   };
 
@@ -142,7 +141,7 @@ export const HomeView = ({ onNavigateTab, onAppointmentClick }) => {
   return (
     <div className="jlt-home-wrapper">
       {/* 1. HERO SECTION (Exact match to reference screenshots) */}
-      <section className="jlt-hero-section" style={{ backgroundImage: `url(${getJagnathImage('image-1792410234366.png')})` }}>
+      <section className="jlt-hero-section" style={{ backgroundImage: "url('/assets/reference_images/image-1792410234366.png')" }}>
         <div className="jlt-hero-overlay"></div>
         <div className="jlt-container">
           <div className="jlt-hero-content">
@@ -208,7 +207,7 @@ export const HomeView = ({ onNavigateTab, onAppointmentClick }) => {
               onClick={() => onNavigateTab('services')}
             >
               <img 
-                src={getJagnathImage('2235272337.webp')} 
+                src="/assets/reference_images/2235272337.webp" 
                 alt="Environmental Testing & Monitoring" 
                 className="jlt-service-card-bg"
               />
@@ -230,7 +229,7 @@ export const HomeView = ({ onNavigateTab, onAppointmentClick }) => {
               onClick={() => onNavigateTab('services')}
             >
               <img 
-                src={getJagnathImage('2235272368.webp')} 
+                src="/assets/reference_images/2235272368.webp" 
                 alt="Water Analysis" 
                 className="jlt-service-card-bg"
               />
@@ -252,7 +251,7 @@ export const HomeView = ({ onNavigateTab, onAppointmentClick }) => {
               onClick={() => onNavigateTab('services')}
             >
               <img 
-                src={getJagnathImage('2245891170.webp')} 
+                src="/assets/reference_images/2245891170.webp" 
                 alt="Food Analysis" 
                 className="jlt-service-card-bg"
               />
@@ -274,7 +273,7 @@ export const HomeView = ({ onNavigateTab, onAppointmentClick }) => {
               onClick={() => onNavigateTab('services')}
             >
               <img 
-                src={getJagnathImage('2205687057.webp')} 
+                src="/assets/reference_images/2205687057.webp" 
                 alt="Nutritional Value Analysis" 
                 className="jlt-service-card-bg"
               />
@@ -296,7 +295,7 @@ export const HomeView = ({ onNavigateTab, onAppointmentClick }) => {
               onClick={() => onNavigateTab('services')}
             >
               <img 
-                src={getJagnathImage('1485080100.webp')} 
+                src="/assets/reference_images/1485080100.webp" 
                 alt="Microbiological Testing" 
                 className="jlt-service-card-bg"
               />
@@ -484,7 +483,7 @@ export const HomeView = ({ onNavigateTab, onAppointmentClick }) => {
             {/* Left Image Column */}
             <div className="jlt-booking-image-col">
               <img 
-                src={getJagnathImage('1746650566.webp')} 
+                src="/assets/reference_images/1746650566.webp" 
                 alt="Lab Scientist Booking" 
                 className="jlt-booking-bg-img"
               />
