@@ -177,8 +177,8 @@ const TestRequestPrint = () => {
         <table className="print-header-table">
           <tbody>
             <tr>
-              <td className="header-logo-cell" style={{ textAlign: 'center', padding: '0px' }}>
-                <img src={getLogoUrl()} alt="Logo" style={{ height: '85px', width: '100%', objectFit: 'cover', display: 'block', margin: '0 auto' }} />
+              <td className="header-logo-cell" style={{ textAlign: 'center', padding: '3px 6px', verticalAlign: 'middle', height: '85px', boxSizing: 'border-box' }}>
+                <img src={getLogoUrl()} alt="Logo" style={{ maxHeight: '79px', maxWidth: '100%', width: 'auto', height: 'auto', objectFit: 'contain', display: 'block', margin: '0 auto' }} />
               </td>
               <td className="header-title-cell">
                 <h2>FORMATS</h2>
@@ -355,8 +355,8 @@ const TestRequestPrint = () => {
         <table className="print-header-table">
           <tbody>
             <tr>
-              <td className="header-logo-cell" style={{ textAlign: 'center', padding: '0px' }}>
-                <img src={getLogoUrl()} alt="Logo" style={{ height: '85px', width: '100%', objectFit: 'cover', display: 'block', margin: '0 auto' }} />
+              <td className="header-logo-cell" style={{ textAlign: 'center', padding: '3px 6px', verticalAlign: 'middle', height: '85px', boxSizing: 'border-box' }}>
+                <img src={getLogoUrl()} alt="Logo" style={{ maxHeight: '79px', maxWidth: '100%', width: 'auto', height: 'auto', objectFit: 'contain', display: 'block', margin: '0 auto' }} />
               </td>
               <td className="header-title-cell">
                 <h2>FORMATS</h2>
@@ -486,7 +486,8 @@ const TestRequestPrint = () => {
         }
         .header-logo-cell {
           width: 40%;
-          padding: 0.5rem;
+          padding: 3px 6px;
+          vertical-align: middle;
         }
         .logo-placeholder {
           display: flex;

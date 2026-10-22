@@ -301,17 +301,42 @@ const QuotationPrint = () => {
       </div>
       <div style={{ borderBottom: '1.5px solid #000000', marginBottom: '15px' }}></div>
 
-      {/* Date & Ref No (Right Aligned) */}
-      <div style={{ textAlign: 'right', fontSize: '9.5pt', marginBottom: '12px' }}>
-        <div>{formatDateLong(formData.created_at || formData.createdAt)}</div>
-        <div style={{ textDecoration: 'underline', fontWeight: 'bold', marginTop: '3px' }}>{quoRefNo}</div>
+      {/* Date & Ref No (and Company GST/Udyam) */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', fontSize: '9.5pt', marginBottom: '12px' }}>
+        <div>
+          {(selCompany.gst_no || selCompany.gstNo) && (
+            <div><strong>Company GSTIN:</strong> {selCompany.gst_no || selCompany.gstNo}</div>
+          )}
+          {(selCompany.udyam_no || selCompany.udyamNo) && (
+            <div><strong>Company Udyam:</strong> {selCompany.udyam_no || selCompany.udyamNo}</div>
+          )}
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div>{formatDateLong(formData.created_at || formData.createdAt)}</div>
+          <div style={{ textDecoration: 'underline', fontWeight: 'bold', marginTop: '3px' }}>{quoRefNo}</div>
+        </div>
       </div>
 
       {/* To Address */}
       <div style={{ marginBottom: '15px' }}>
         <div style={{ fontWeight: 'bold' }}>To</div>
         <div style={{ fontWeight: 'bold', fontSize: '11pt' }}>M/s. {clientDisplayName.toUpperCase()},</div>
+        {(selClient.contactPerson || selClient.contact_person || formData.contactPerson || formData.contact_person) && (
+          <div style={{ fontSize: '9.5pt' }}>Kind Attn: {selClient.contactPerson || selClient.contact_person || formData.contactPerson || formData.contact_person}</div>
+        )}
         <div>{clientLocation}</div>
+        {(selClient.gstNo || selClient.gst_no) && (
+          <div style={{ fontSize: '9pt', marginTop: '2px' }}><strong>GSTIN:</strong> {selClient.gstNo || selClient.gst_no}</div>
+        )}
+        {(selClient.udyamNo || selClient.udyam_no) && (
+          <div style={{ fontSize: '9pt', marginTop: '2px' }}><strong>Udyam Reg. No:</strong> {selClient.udyamNo || selClient.udyam_no}</div>
+        )}
+        {(selClient.workOrderNo || selClient.work_order_no) && (
+          <div style={{ fontSize: '9pt', marginTop: '2px' }}>
+            <strong>Work Order No:</strong> {selClient.workOrderNo || selClient.work_order_no}
+            {(selClient.workOrderDate || selClient.work_order_date) ? ` (Dt: ${String(selClient.workOrderDate || selClient.work_order_date).slice(0, 10)})` : ''}
+          </div>
+        )}
       </div>
 
       {/* Subject */}

@@ -10,10 +10,24 @@ const createClientSchema = Joi.object({
     clientName: Joi.string().min(2).max(100).required().messages({
         "any.required": "Client Name is required."
     }),
+    contactPerson: Joi.string().trim().max(150).allow("", null).optional(),
+    contact_person: Joi.string().trim().max(150).allow("", null).optional(),
     contactNumber: Joi.string().pattern(/^[0-9]+$/).required().messages({
         "string.pattern.base": "Contact Number must contain only digits.",
         "any.required": "Contact Number is required."
     }),
+    gstNo: Joi.string().trim().uppercase().pattern(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/).allow("", null).optional().messages({
+        "string.pattern.base": "Invalid GST Number format (e.g. 24AAAAA0000A1Z5)."
+    }),
+    gst_no: Joi.string().trim().uppercase().pattern(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/).allow("", null).optional().messages({
+        "string.pattern.base": "Invalid GST Number format (e.g. 24AAAAA0000A1Z5)."
+    }),
+    udyamNo: Joi.string().trim().uppercase().max(50).allow("", null).optional(),
+    udyam_no: Joi.string().trim().uppercase().max(50).allow("", null).optional(),
+    workOrderNo: Joi.string().trim().max(100).allow("", null).optional(),
+    work_order_no: Joi.string().trim().max(100).allow("", null).optional(),
+    workOrderDate: Joi.string().allow("", null).optional(),
+    work_order_date: Joi.string().allow("", null).optional(),
     officeAddress: Joi.string().required().messages({
         "any.required": "Office Address is required.",
         "string.empty": "Office Address is required."
@@ -47,9 +61,23 @@ const updateClientSchema = Joi.object({
         "string.empty": "Company Name must not be empty."
     }),
     clientName: Joi.string().min(2).max(100).optional(),
+    contactPerson: Joi.string().trim().max(150).allow("", null).optional(),
+    contact_person: Joi.string().trim().max(150).allow("", null).optional(),
     contactNumber: Joi.string().pattern(/^[0-9]+$/).optional().messages({
         "string.pattern.base": "Contact Number must contain only digits."
     }),
+    gstNo: Joi.string().trim().uppercase().pattern(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/).allow("", null).optional().messages({
+        "string.pattern.base": "Invalid GST Number format (e.g. 24AAAAA0000A1Z5)."
+    }),
+    gst_no: Joi.string().trim().uppercase().pattern(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/).allow("", null).optional().messages({
+        "string.pattern.base": "Invalid GST Number format (e.g. 24AAAAA0000A1Z5)."
+    }),
+    udyamNo: Joi.string().trim().uppercase().max(50).allow("", null).optional(),
+    udyam_no: Joi.string().trim().uppercase().max(50).allow("", null).optional(),
+    workOrderNo: Joi.string().trim().max(100).allow("", null).optional(),
+    work_order_no: Joi.string().trim().max(100).allow("", null).optional(),
+    workOrderDate: Joi.string().allow("", null).optional(),
+    work_order_date: Joi.string().allow("", null).optional(),
     officeAddress: Joi.string().optional(),
     plantAddress: Joi.string().optional(),
     address: Joi.string().allow("", null).optional(),
