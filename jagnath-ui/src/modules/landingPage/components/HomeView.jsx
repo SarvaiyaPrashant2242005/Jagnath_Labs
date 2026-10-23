@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
-import { 
-  ShieldCheck, 
-  FlaskConical, 
-  Building2, 
+import {
+  ShieldCheck,
+  BadgeCheck,
+  FlaskConical,
+  Building2,
   Users,
-  Clock, 
-  Leaf, 
-  Droplet, 
-  Apple, 
-  Scale, 
-  Microscope, 
-  CheckCircle2, 
+  Clock,
+  Leaf,
+  Droplet,
+  Apple,
+  Scale,
+  Microscope,
+  CheckCircle2,
   ChevronDown,
   ArrowRight
 } from 'lucide-react';
@@ -154,19 +155,19 @@ export const HomeView = ({ onNavigateTab, onAppointmentClick }) => {
               Advanced laboratory solutions for environmental, water, food, nutritional, and microbiological analysis — delivering precise, compliant, and dependable results every time.
             </p>
             <div className="jlt-hero-ctas">
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="jlt-btn-hero-primary"
                 onClick={() => onNavigateTab('services')}
               >
                 Explore More
               </button>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="jlt-btn-hero-outline"
                 onClick={onAppointmentClick}
               >
-                Get Appointment
+                Login Portal
               </button>
             </div>
           </div>
@@ -180,6 +181,10 @@ export const HomeView = ({ onNavigateTab, onAppointmentClick }) => {
             <div className="jlt-trust-item">
               <span className="jlt-trust-icon"><ShieldCheck size={20} /></span>
               <span>NABL Accredited Lab</span>
+            </div>
+            <div className="jlt-trust-item">
+              <span className="jlt-trust-icon"><BadgeCheck size={20} /></span>
+              <span>GPCB Recognised Schedule II Auditor</span>
             </div>
             <div className="jlt-trust-item">
               <span className="jlt-trust-icon"><FlaskConical size={20} /></span>
@@ -202,13 +207,13 @@ export const HomeView = ({ onNavigateTab, onAppointmentClick }) => {
         <div className="jlt-container">
           <div className="jlt-services-grid">
             {/* Service 1: Environmental Testing & Monitoring */}
-            <div 
+            <div
               className="jlt-service-card"
               onClick={() => onNavigateTab('services')}
             >
-              <img 
-                src="/assets/reference_images/2235272337.webp" 
-                alt="Environmental Testing & Monitoring" 
+              <img
+                src="/assets/reference_images/2235272337.webp"
+                alt="Environmental Testing & Monitoring"
                 className="jlt-service-card-bg"
               />
               <div className="jlt-service-card-overlay"></div>
@@ -224,13 +229,13 @@ export const HomeView = ({ onNavigateTab, onAppointmentClick }) => {
             </div>
 
             {/* Service 2: Water Analysis */}
-            <div 
+            <div
               className="jlt-service-card"
               onClick={() => onNavigateTab('services')}
             >
-              <img 
-                src="/assets/reference_images/2235272368.webp" 
-                alt="Water Analysis" 
+              <img
+                src="/assets/reference_images/2235272368.webp"
+                alt="Water Analysis"
                 className="jlt-service-card-bg"
               />
               <div className="jlt-service-card-overlay"></div>
@@ -246,13 +251,13 @@ export const HomeView = ({ onNavigateTab, onAppointmentClick }) => {
             </div>
 
             {/* Service 3: Food Analysis */}
-            <div 
+            <div
               className="jlt-service-card"
               onClick={() => onNavigateTab('services')}
             >
-              <img 
-                src="/assets/reference_images/2245891170.webp" 
-                alt="Food Analysis" 
+              <img
+                src="/assets/reference_images/2245891170.webp"
+                alt="Food Analysis"
                 className="jlt-service-card-bg"
               />
               <div className="jlt-service-card-overlay"></div>
@@ -268,13 +273,13 @@ export const HomeView = ({ onNavigateTab, onAppointmentClick }) => {
             </div>
 
             {/* Service 4: Nutritional Value Analysis */}
-            <div 
+            <div
               className="jlt-service-card"
               onClick={() => onNavigateTab('services')}
             >
-              <img 
-                src="/assets/reference_images/2205687057.webp" 
-                alt="Nutritional Value Analysis" 
+              <img
+                src="/assets/reference_images/2205687057.webp"
+                alt="Nutritional Value Analysis"
                 className="jlt-service-card-bg"
               />
               <div className="jlt-service-card-overlay"></div>
@@ -290,13 +295,13 @@ export const HomeView = ({ onNavigateTab, onAppointmentClick }) => {
             </div>
 
             {/* Service 5: Microbiological Testing */}
-            <div 
+            <div
               className="jlt-service-card jlt-service-card-wide"
               onClick={() => onNavigateTab('services')}
             >
-              <img 
-                src="/assets/reference_images/1485080100.webp" 
-                alt="Microbiological Testing" 
+              <img
+                src="/assets/reference_images/1485080100.webp"
+                alt="Microbiological Testing"
                 className="jlt-service-card-bg"
               />
               <div className="jlt-service-card-overlay"></div>
@@ -313,8 +318,8 @@ export const HomeView = ({ onNavigateTab, onAppointmentClick }) => {
           </div>
 
           <div className="jlt-services-footer-action">
-            <button 
-              type="button" 
+            <button
+              type="button"
               className="jlt-btn-dark"
               onClick={() => onNavigateTab('services')}
             >
@@ -362,7 +367,7 @@ export const HomeView = ({ onNavigateTab, onAppointmentClick }) => {
             <div className="jlt-tab-text-box">
               <h3 className="jlt-tab-text-title">{whyTabsData[whyTab].title}</h3>
               <p className="jlt-tab-text-p">{whyTabsData[whyTab].desc}</p>
-              
+
               <ul className="jlt-check-list">
                 {whyTabsData[whyTab].bullets.map((bullet, idx) => (
                   <li key={idx} className="jlt-check-item">
@@ -372,8 +377,8 @@ export const HomeView = ({ onNavigateTab, onAppointmentClick }) => {
                 ))}
               </ul>
 
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="jlt-btn-appointment"
                 onClick={onAppointmentClick}
               >
@@ -382,9 +387,9 @@ export const HomeView = ({ onNavigateTab, onAppointmentClick }) => {
             </div>
 
             <div className="jlt-tab-image-box">
-              <img 
-                src={whyTabsData[whyTab].image} 
-                alt={whyTabsData[whyTab].title} 
+              <img
+                src={whyTabsData[whyTab].image}
+                alt={whyTabsData[whyTab].title}
                 className="jlt-tab-img"
               />
             </div>
@@ -434,8 +439,8 @@ export const HomeView = ({ onNavigateTab, onAppointmentClick }) => {
                 const isOpen = openFaq === idx;
                 return (
                   <div key={idx} className={`jlt-faq-item ${isOpen ? 'open' : ''}`}>
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       className="jlt-faq-question-btn"
                       onClick={() => setOpenFaq(isOpen ? null : idx)}
                     >
@@ -457,8 +462,8 @@ export const HomeView = ({ onNavigateTab, onAppointmentClick }) => {
                 const isOpen = openFaq === idx;
                 return (
                   <div key={idx} className={`jlt-faq-item ${isOpen ? 'open' : ''}`}>
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       className="jlt-faq-question-btn"
                       onClick={() => setOpenFaq(isOpen ? null : idx)}
                     >
@@ -482,9 +487,9 @@ export const HomeView = ({ onNavigateTab, onAppointmentClick }) => {
           <div className="jlt-booking-grid">
             {/* Left Image Column */}
             <div className="jlt-booking-image-col">
-              <img 
-                src="/assets/reference_images/1746650566.webp" 
-                alt="Lab Scientist Booking" 
+              <img
+                src="/assets/reference_images/1746650566.webp"
+                alt="Lab Scientist Booking"
                 className="jlt-booking-bg-img"
               />
               <div className="jlt-booking-image-content">
@@ -501,10 +506,10 @@ export const HomeView = ({ onNavigateTab, onAppointmentClick }) => {
               <form onSubmit={handleFormSubmit}>
                 <div className="jlt-form-group">
                   <label className="jlt-form-label">Name</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     required
-                    placeholder="Enter your full name" 
+                    placeholder="Enter your full name"
                     className="jlt-form-input"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -514,10 +519,10 @@ export const HomeView = ({ onNavigateTab, onAppointmentClick }) => {
                 <div className="jlt-form-row">
                   <div className="jlt-form-group">
                     <label className="jlt-form-label">Phone Number</label>
-                    <input 
-                      type="tel" 
+                    <input
+                      type="tel"
                       required
-                      placeholder="+91 Phone number" 
+                      placeholder="+91 Phone number"
                       className="jlt-form-input"
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
@@ -525,9 +530,9 @@ export const HomeView = ({ onNavigateTab, onAppointmentClick }) => {
                   </div>
                   <div className="jlt-form-group">
                     <label className="jlt-form-label">Email Address</label>
-                    <input 
-                      type="email" 
-                      placeholder="your@email.com" 
+                    <input
+                      type="email"
+                      placeholder="your@email.com"
                       className="jlt-form-input"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -538,7 +543,7 @@ export const HomeView = ({ onNavigateTab, onAppointmentClick }) => {
                 <div className="jlt-form-row">
                   <div className="jlt-form-group">
                     <label className="jlt-form-label">Select Service</label>
-                    <select 
+                    <select
                       className="jlt-form-select"
                       value={formData.service}
                       onChange={(e) => setFormData({ ...formData, service: e.target.value })}
@@ -554,8 +559,8 @@ export const HomeView = ({ onNavigateTab, onAppointmentClick }) => {
                   </div>
                   <div className="jlt-form-group">
                     <label className="jlt-form-label">Preferred Date</label>
-                    <input 
-                      type="date" 
+                    <input
+                      type="date"
                       className="jlt-form-input"
                       value={formData.date}
                       onChange={(e) => setFormData({ ...formData, date: e.target.value })}
@@ -565,18 +570,18 @@ export const HomeView = ({ onNavigateTab, onAppointmentClick }) => {
 
                 <div className="jlt-form-group">
                   <label className="jlt-form-label">Message / Requirements</label>
-                  <textarea 
+                  <textarea
                     rows={3}
-                    placeholder="Briefly describe sample type or testing parameters needed..." 
+                    placeholder="Briefly describe sample type or testing parameters needed..."
                     className="jlt-form-textarea"
                     value={formData.message}
                     onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                   />
                 </div>
 
-                <button 
-                  type="submit" 
-                  className="jlt-btn-appointment" 
+                <button
+                  type="submit"
+                  className="jlt-btn-appointment"
                   style={{ width: '100%', padding: '0.85rem' }}
                   disabled={formSubmitted}
                 >

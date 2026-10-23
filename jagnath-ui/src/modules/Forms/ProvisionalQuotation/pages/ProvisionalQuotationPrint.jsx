@@ -885,23 +885,20 @@ const ProvisionalQuotationPrint = () => {
                   <td style={{ border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 700, verticalAlign: 'middle' }}>
                     {Number(rowCalc.rate).toLocaleString('en-IN')}/-
                   </td>
-                  {/* 4. VISITS (Vertically centered spanning all rows) */}
-                  {aIdx === 0 ? (
-                    <td
-                      rowSpan={(quotation.activities || []).length}
-                      style={{
-                        border: '1px solid #0f172a',
-                        padding: '5px 4px',
-                        textAlign: 'center',
-                        fontWeight: 700,
-                        fontSize: '12px',
-                        verticalAlign: 'middle',
-                        backgroundColor: '#ffffff'
-                      }}
-                    >
-                      {globalVisits}
-                    </td>
-                  ) : null}
+                  {/* 4. VISITS */}
+                  <td
+                    style={{
+                      border: '1px solid #0f172a',
+                      padding: '5px 4px',
+                      textAlign: 'center',
+                      fontWeight: 700,
+                      fontSize: '11px',
+                      verticalAlign: 'middle',
+                      backgroundColor: '#ffffff'
+                    }}
+                  >
+                    {rowCalc.visits}
+                  </td>
                   {/* 5. NO. OF SAMPLE/QUARTER */}
                   <td style={{ border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 600, verticalAlign: 'middle' }}>
                     {act.sampleQuarter || `${String(act.sampleQty || 1).padStart(2, '0')} Sample`}

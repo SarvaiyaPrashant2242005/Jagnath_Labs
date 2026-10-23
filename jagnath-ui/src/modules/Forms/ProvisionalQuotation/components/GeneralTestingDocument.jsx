@@ -19,8 +19,8 @@ import {
 import '../styles/generalTestingPrint.css';
 
 // Page height thresholds in pixels (inner usable frame height)
-export const MAX_PAGE_HEIGHT_P1 = 820;
-export const MAX_PAGE_HEIGHT_DEFAULT = 865;
+export const MAX_PAGE_HEIGHT_P1 = 980;
+export const MAX_PAGE_HEIGHT_DEFAULT = 995;
 
 const formatDisplayDate = (dateStr) => {
   if (!dateStr) return '';
@@ -380,7 +380,18 @@ export const GeneralTestingDocument = ({
   (sections || []).forEach((section, sIdx) => {
     if (!section || !section.content) return;
 
-    const minPage = section.pageNumber || 1;
+    // General terms belong to Page 1 and only flow over dynamically if needed
+    const isGeneralTermOrReq = 
+      section.presetKey === 'sample_requirements' ||
+      section.presetKey === 'validity' ||
+      section.presetKey === 'payment_terms' ||
+      section.presetKey === 'sampling_conditions' ||
+      section.presetKey === 'sample_handling' ||
+      section.presetKey === 'suspension_of_work' ||
+      section.presetKey === 'invoicing_reports' ||
+      (section.title && /^(1\.|2\.|3\.|4\.|5\.|6\.)/i.test(section.title));
+
+    const minPage = isGeneralTermOrReq ? 1 : (section.pageNumber || 2);
 
     // Check if sample requirements note
     if (section.presetKey === 'sample_requirements') {
@@ -468,28 +479,17 @@ export const GeneralTestingDocument = ({
         const doc = parser.parseFromString(section.content, 'text/html');
         const childNodes = Array.from(doc.body.childNodes).filter(node => node.nodeType === 1 || (node.nodeType === 3 && node.textContent.trim().length > 0));
 
-        let complianceMinPage = minPage;
         childNodes.forEach((node, nodeIdx) => {
           const tagName = node.nodeName ? node.nodeName.toUpperCase() : '';
           const htmlContent = node.outerHTML || node.textContent;
 
           const isSubHeadingP = tagName === 'P' && (node.querySelector('strong') || node.querySelector('b')) && /^\s*(\d+\.|\bNOTE\b|[A-Z][a-zA-Z\s&]+)/i.test(node.textContent.trim());
 
-          let blockMinPage = Math.max(minPage, complianceMinPage);
-          if (section.presetKey === 'compliance_requirements') {
-            const rawText = node.textContent.trim();
-            // In Compliance Requirements, subheadings 7 and 8 start on Page 3
-            if (/^\s*(7\.|8\.)/i.test(rawText)) {
-              complianceMinPage = 3;
-              blockMinPage = 3;
-            }
-          }
-
           if (isSubHeadingP) {
             blocks.push({
               id: `sec_${section.id || sIdx}_node_${nodeIdx}`,
               type: 'sub_heading',
-              minPage: blockMinPage,
+              minPage,
               keepWithNext: true,
               render: () => (
                 <div
@@ -503,19 +503,10 @@ export const GeneralTestingDocument = ({
             const liNodes = Array.from(node.children).filter(child => child.tagName === 'LI');
             if (liNodes.length > 0) {
               liNodes.forEach((li, liIdx) => {
-                let liMinPage = Math.max(minPage, complianceMinPage);
-                if (section.presetKey === 'compliance_requirements') {
-                  const liText = li.textContent.trim();
-                  // Bullets after "Samples are accepted only if:" start on Page 3 (matching physical reference document photo 3)
-                  if (/^\s*Non-conforming/i.test(liText) || /^\s*All samples must be marked/i.test(liText) || /^\s*Customers bear the risk/i.test(liText)) {
-                    complianceMinPage = 3;
-                    liMinPage = 3;
-                  }
-                }
                 blocks.push({
                   id: `sec_${section.id || sIdx}_node_${nodeIdx}_li_${liIdx}`,
                   type: 'list_bullet',
-                  minPage: liMinPage,
+                  minPage,
                   render: () => (
                     <ul
                       key={`sec_${section.id || sIdx}_node_${nodeIdx}_li_${liIdx}`}
@@ -537,7 +528,7 @@ export const GeneralTestingDocument = ({
               blocks.push({
                 id: `sec_${section.id || sIdx}_node_${nodeIdx}`,
                 type: 'list_block',
-                minPage: blockMinPage,
+                minPage,
                 render: () => (
                   <div
                     key={`sec_${section.id || sIdx}_node_${nodeIdx}`}
@@ -550,14 +541,10 @@ export const GeneralTestingDocument = ({
             }
           } else {
             const isItalicNote = node.querySelector('em') || node.querySelector('i');
-            if (section.presetKey === 'compliance_requirements' && isItalicNote) {
-              complianceMinPage = 3;
-              blockMinPage = 3;
-            }
             blocks.push({
               id: `sec_${section.id || sIdx}_node_${nodeIdx}`,
               type: isItalicNote ? 'italic_note' : 'paragraph',
-              minPage: blockMinPage,
+              minPage,
               render: () => (
                 <div
                   key={`sec_${section.id || sIdx}_node_${nodeIdx}`}
@@ -628,7 +615,7 @@ export const GeneralTestingDocument = ({
   blocks.push({
     id: 'block_bank_signature',
     type: 'bank_signature',
-    minPage: 3,
+    minPage: 2,
     render: () => (
       <div key="block_bank_signature" style={{ marginTop: '6px' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '9.5pt' }}>
@@ -775,22 +762,18 @@ export const GeneralTestingDocument = ({
 
   // Deterministic fallback initial page split before useLayoutEffect finishes measuring
   const getInitialPageSplit = () => {
-    const p1 = [];
-    const p2 = [];
-    const p3 = [];
+    const pageBuckets = [];
     let curPage = 1;
     for (const b of blocks) {
       if (b.minPage && b.minPage > curPage) {
         curPage = b.minPage;
       }
-      if (curPage === 1) p1.push(b);
-      else if (curPage === 2) p2.push(b);
-      else p3.push(b);
+      while (pageBuckets.length < curPage) {
+        pageBuckets.push([]);
+      }
+      pageBuckets[curPage - 1].push(b);
     }
-    const res = [];
-    if (p1.length) res.push(p1);
-    if (p2.length) res.push(p2);
-    if (p3.length) res.push(p3);
+    const res = pageBuckets.filter((bucket) => bucket && bucket.length > 0);
     return res.length ? res : [blocks];
   };
 

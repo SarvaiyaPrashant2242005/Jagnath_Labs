@@ -709,34 +709,82 @@ const LegacyGeneralQuotationForm = ({ id: propId }) => {
           groups[index] = { ...groups[index], srNo: val };
         }
       } else if (field === 'visits') {
-        act.visits = parseInt(val, 10) || 1;
+        if (val === '') {
+          act.visits = '';
+        } else {
+          const parsed = parseInt(val, 10);
+          act.visits = !isNaN(parsed) && parsed >= 1 ? parsed : 1;
+        }
       } else if (field === 'sampleQuarter') {
         act.sampleQuarter = val;
+        // Automatically extract numeric quantity (e.g., "01 Locations" -> 1, "02 Locations" -> 2, "3" -> 3)
+        const match = String(val).match(/\d+(\.\d+)?/);
+        const qty = match ? (parseFloat(match[0]) || 1) : 1;
+        act.sampleQty = qty;
+        if (act.ratePerSample !== undefined && act.ratePerSample !== '') {
+          act.chargePerVisit = Math.round((parseFloat(act.ratePerSample) || 0) * qty);
+          act.isChargeOverridden = false;
+        } else if (act.chargePerVisit !== undefined && act.chargePerVisit !== '') {
+          act.ratePerSample = Math.round((parseFloat(act.chargePerVisit) || 0) / qty);
+        }
       } else if (field === 'sampleQty') {
         act.sampleQty = val === '' ? '' : (parseFloat(val) || 0);
-        const qty = parseFloat(val) || 0;
+        const qty = parseFloat(val) || 1;
         const isLoc = (act.sampleQuarter || '').toLowerCase().includes('loc') || (act.description || '').toLowerCase().includes('air') || (act.description || '').toLowerCase().includes('noise') || (act.description || '').toLowerCase().includes('stack');
         const unit = isLoc ? 'Locations' : 'Sample';
         if (val !== '') {
           act.sampleQuarter = `${String(qty).padStart(2, '0')} ${unit}`;
         }
-        if (!act.isChargeOverridden) {
-          act.chargePerVisit = act.ratePerSample === '' ? '' : Math.round((parseFloat(act.ratePerSample) || 0) * qty);
+        if (act.ratePerSample !== undefined && act.ratePerSample !== '') {
+          act.chargePerVisit = Math.round((parseFloat(act.ratePerSample) || 0) * qty);
+          act.isChargeOverridden = false;
         }
       } else if (field === 'ratePerSample') {
         const rate = val === '' ? '' : (parseFloat(val) || 0);
         act.ratePerSample = rate;
         act.isRateOverridden = true;
-        if (!act.isChargeOverridden) {
-          act.chargePerVisit = rate === '' ? '' : Math.round(Number(rate) * (parseFloat(act.sampleQty !== undefined && act.sampleQty !== '' ? act.sampleQty : 1) || 1));
+        let qty = parseFloat(act.sampleQty !== undefined && act.sampleQty !== '' ? act.sampleQty : 1);
+        if (isNaN(qty) || qty <= 0) {
+          const match = String(act.sampleQuarter || '').match(/\d+(\.\d+)?/);
+          qty = match ? (parseFloat(match[0]) || 1) : 1;
+          act.sampleQty = qty;
         }
+        act.chargePerVisit = rate === '' ? '' : Math.round(Number(rate) * qty);
+        act.isChargeOverridden = false;
       } else if (field === 'chargePerVisit') {
-        act.chargePerVisit = val === '' ? '' : (parseFloat(val) || 0);
+        const charge = val === '' ? '' : (parseFloat(val) || 0);
+        act.chargePerVisit = charge;
         act.isChargeOverridden = true;
+        let qty = parseFloat(act.sampleQty !== undefined && act.sampleQty !== '' ? act.sampleQty : 1);
+        if (isNaN(qty) || qty <= 0) {
+          const match = String(act.sampleQuarter || '').match(/\d+(\.\d+)?/);
+          qty = match ? (parseFloat(match[0]) || 1) : 1;
+          act.sampleQty = qty;
+        }
+        if (charge !== '' && qty > 0) {
+          act.ratePerSample = Math.round(Number(charge) / qty);
+        }
       } else if (field === 'resetOverride') {
         act.isChargeOverridden = false;
-        act.chargePerVisit = act.ratePerSample === '' ? '' : Math.round((parseFloat(act.ratePerSample) || 0) * (parseFloat(act.sampleQty !== undefined && act.sampleQty !== '' ? act.sampleQty : 1) || 1));
+        let qty = parseFloat(act.sampleQty !== undefined && act.sampleQty !== '' ? act.sampleQty : 1);
+        if (isNaN(qty) || qty <= 0) {
+          const match = String(act.sampleQuarter || '').match(/\d+(\.\d+)?/);
+          qty = match ? (parseFloat(match[0]) || 1) : 1;
+          act.sampleQty = qty;
+        }
+        act.chargePerVisit = act.ratePerSample === '' ? '' : Math.round((parseFloat(act.ratePerSample) || 0) * qty);
       }
+
+      // Automatically keep row total charge and annual amount in sync
+      const safeRate = parseFloat(act.ratePerSample) || 0;
+      const safeQty = parseFloat(act.sampleQty) || 1;
+      const safeChargePerVisit = act.chargePerVisit !== '' && act.chargePerVisit !== undefined
+        ? (parseFloat(act.chargePerVisit) || 0)
+        : Math.round(safeRate * safeQty);
+      const rawV = act.visits !== undefined && act.visits !== '' ? parseInt(act.visits, 10) : (parseInt(prev.annexureAVisits, 10) || 3);
+      const safeV = !isNaN(rawV) && rawV >= 1 ? rawV : 3;
+      act.totalCharge = Math.round(safeChargePerVisit * safeV);
+      act.annualAmount = act.totalCharge;
 
       activities[index] = act;
       return { ...prev, activities, annexureB: groups };
@@ -908,14 +956,30 @@ const LegacyGeneralQuotationForm = ({ id: propId }) => {
         params.push(newParam);
         groups[groupIdx] = { ...groups[groupIdx], parameters: params };
 
-        // Auto-sync group total to Annexure-A activity rate
+        // Auto-sync group total to Annexure-A activity rate and charge
         const groupTotal = params.reduce((sum, p) => sum + (parseFloat(p.rate) || 0), 0);
-        if (activities[groupIdx] && !activities[groupIdx].isRateOverridden) {
-          const qty = parseFloat(activities[groupIdx].sampleQty) || 1;
+        if (activities[groupIdx]) {
+          const act = activities[groupIdx];
+          let qty = parseFloat(act.sampleQty);
+          if (isNaN(qty) || qty <= 0) {
+            const match = String(act.sampleQuarter || '').match(/\d+(\.\d+)?/);
+            qty = match ? (parseFloat(match[0]) || 1) : 1;
+          }
+          if (isNaN(qty) || qty <= 0) qty = 1;
+
+          const visits = act.visits !== undefined && act.visits !== '' ? parseInt(act.visits, 10) : (parseInt(prev.annexureAVisits, 10) || 3);
+          const safeVisits = !isNaN(visits) && visits >= 1 ? visits : 3;
+          const chargePerVisit = Math.round(groupTotal * qty);
+          const totalCharge = Math.round(chargePerVisit * safeVisits);
+
           activities[groupIdx] = {
-            ...activities[groupIdx],
+            ...act,
+            sampleQty: qty,
             ratePerSample: groupTotal,
-            chargePerVisit: activities[groupIdx].isChargeOverridden ? activities[groupIdx].chargePerVisit : Math.round(groupTotal * qty)
+            chargePerVisit,
+            isChargeOverridden: false,
+            totalCharge,
+            annualAmount: totalCharge
           };
         }
       }
@@ -951,14 +1015,30 @@ const LegacyGeneralQuotationForm = ({ id: propId }) => {
       const newParams = [...customParams, ...masterParams];
       groups[groupIdx] = { ...groups[groupIdx], parameters: newParams };
 
-      // Auto-sync group total to Annexure-A activity rate
+      // Auto-sync group total to Annexure-A activity rate and charge
       const groupTotal = newParams.reduce((sum, p) => sum + (parseFloat(p.rate) || 0), 0);
-      if (activities[groupIdx] && !activities[groupIdx].isRateOverridden) {
-        const qty = parseFloat(activities[groupIdx].sampleQty) || 1;
+      if (activities[groupIdx]) {
+        const act = activities[groupIdx];
+        let qty = parseFloat(act.sampleQty);
+        if (isNaN(qty) || qty <= 0) {
+          const match = String(act.sampleQuarter || '').match(/\d+(\.\d+)?/);
+          qty = match ? (parseFloat(match[0]) || 1) : 1;
+        }
+        if (isNaN(qty) || qty <= 0) qty = 1;
+
+        const visits = act.visits !== undefined && act.visits !== '' ? parseInt(act.visits, 10) : (parseInt(prev.annexureAVisits, 10) || 3);
+        const safeVisits = !isNaN(visits) && visits >= 1 ? visits : 3;
+        const chargePerVisit = Math.round(groupTotal * qty);
+        const totalCharge = Math.round(chargePerVisit * safeVisits);
+
         activities[groupIdx] = {
-          ...activities[groupIdx],
+          ...act,
+          sampleQty: qty,
           ratePerSample: groupTotal,
-          chargePerVisit: activities[groupIdx].isChargeOverridden ? activities[groupIdx].chargePerVisit : Math.round(groupTotal * qty)
+          chargePerVisit,
+          isChargeOverridden: false,
+          totalCharge,
+          annualAmount: totalCharge
         };
       }
 
@@ -976,14 +1056,30 @@ const LegacyGeneralQuotationForm = ({ id: propId }) => {
           params[pIdx] = { ...params[pIdx], [field]: val };
           groups[groupIdx] = { ...groups[groupIdx], parameters: params };
 
-          // Auto-sync group total to Annexure-A activity rate
+          // Auto-sync group total to Annexure-A activity rate and charge
           const groupTotal = params.reduce((sum, p) => sum + (parseFloat(p.rate) || 0), 0);
-          if (activities[groupIdx] && !activities[groupIdx].isRateOverridden) {
-            const qty = parseFloat(activities[groupIdx].sampleQty) || 1;
+          if (activities[groupIdx]) {
+            const act = activities[groupIdx];
+            let qty = parseFloat(act.sampleQty);
+            if (isNaN(qty) || qty <= 0) {
+              const match = String(act.sampleQuarter || '').match(/\d+(\.\d+)?/);
+              qty = match ? (parseFloat(match[0]) || 1) : 1;
+            }
+            if (isNaN(qty) || qty <= 0) qty = 1;
+
+            const visits = act.visits !== undefined && act.visits !== '' ? parseInt(act.visits, 10) : (parseInt(prev.annexureAVisits, 10) || 3);
+            const safeVisits = !isNaN(visits) && visits >= 1 ? visits : 3;
+            const chargePerVisit = Math.round(groupTotal * qty);
+            const totalCharge = Math.round(chargePerVisit * safeVisits);
+
             activities[groupIdx] = {
-              ...activities[groupIdx],
+              ...act,
+              sampleQty: qty,
               ratePerSample: groupTotal,
-              chargePerVisit: activities[groupIdx].isChargeOverridden ? activities[groupIdx].chargePerVisit : Math.round(groupTotal * qty)
+              chargePerVisit,
+              isChargeOverridden: false,
+              totalCharge,
+              annualAmount: totalCharge
             };
           }
         }
@@ -1001,14 +1097,30 @@ const LegacyGeneralQuotationForm = ({ id: propId }) => {
         params.splice(pIdx, 1);
         groups[groupIdx] = { ...groups[groupIdx], parameters: params };
 
-        // Auto-sync group total to Annexure-A activity rate
+        // Auto-sync group total to Annexure-A activity rate and charge
         const groupTotal = params.reduce((sum, p) => sum + (parseFloat(p.rate) || 0), 0);
-        if (activities[groupIdx] && !activities[groupIdx].isRateOverridden) {
-          const qty = parseFloat(activities[groupIdx].sampleQty) || 1;
+        if (activities[groupIdx]) {
+          const act = activities[groupIdx];
+          let qty = parseFloat(act.sampleQty);
+          if (isNaN(qty) || qty <= 0) {
+            const match = String(act.sampleQuarter || '').match(/\d+(\.\d+)?/);
+            qty = match ? (parseFloat(match[0]) || 1) : 1;
+          }
+          if (isNaN(qty) || qty <= 0) qty = 1;
+
+          const visits = act.visits !== undefined && act.visits !== '' ? parseInt(act.visits, 10) : (parseInt(prev.annexureAVisits, 10) || 3);
+          const safeVisits = !isNaN(visits) && visits >= 1 ? visits : 3;
+          const chargePerVisit = Math.round(groupTotal * qty);
+          const totalCharge = Math.round(chargePerVisit * safeVisits);
+
           activities[groupIdx] = {
-            ...activities[groupIdx],
+            ...act,
+            sampleQty: qty,
             ratePerSample: groupTotal,
-            chargePerVisit: activities[groupIdx].isChargeOverridden ? activities[groupIdx].chargePerVisit : Math.round(groupTotal * qty)
+            chargePerVisit,
+            isChargeOverridden: false,
+            totalCharge,
+            annualAmount: totalCharge
           };
         }
       }
@@ -2608,8 +2720,8 @@ const LegacyGeneralQuotationForm = ({ id: propId }) => {
                           />
                         </div>
 
-                        {/* Row 3: The 3 User-Editable Columns */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.1fr 1.2fr 1.1fr', gap: '8px', alignItems: 'flex-end', background: '#f8fafc', padding: '8px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                        {/* Row 3: User-Editable Columns (Rate, Sample/Qtr, Charge/Visit, Visits/Year, Annual Total) */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.1fr 1.15fr 1.1fr', gap: '8px', alignItems: 'flex-end', background: '#f8fafc', padding: '8px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
                           {/* Rate Per Sample */}
                           <div>
                             <label style={{ fontSize: '0.68rem', fontWeight: 700, color: '#0f172a', display: 'block', marginBottom: '2px' }}>
@@ -2633,6 +2745,14 @@ const LegacyGeneralQuotationForm = ({ id: propId }) => {
                               type="text"
                               value={act.sampleQuarter || ''}
                               onChange={(e) => handleUpdateActivity(aIdx, 'sampleQuarter', e.target.value)}
+                              onBlur={(e) => {
+                                const val = (e.target.value || '').trim();
+                                if (/^\d+$/.test(val)) {
+                                  const isLoc = (act.description || '').toLowerCase().includes('air') || (act.description || '').toLowerCase().includes('noise') || (act.description || '').toLowerCase().includes('stack');
+                                  const unit = isLoc ? 'Locations' : 'Sample';
+                                  handleUpdateActivity(aIdx, 'sampleQuarter', `${String(parseInt(val, 10)).padStart(2, '0')} ${unit}`);
+                                }
+                              }}
                               placeholder="e.g. 01 Sample"
                               className="form-control font-bold"
                               style={{ height: '30px', fontSize: '0.78rem', borderColor: '#3b82f6' }}
@@ -2666,9 +2786,53 @@ const LegacyGeneralQuotationForm = ({ id: propId }) => {
                             />
                           </div>
 
+                          {/* Column 4: No. of Visits / Samples per Year */}
+                          <div>
+                            <label
+                              style={{
+                                fontSize: '0.68rem',
+                                fontWeight: 700,
+                                color: '#0f172a',
+                                display: 'block',
+                                marginBottom: '2px',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis'
+                              }}
+                              title="No. of Visits / Samples per Year"
+                            >
+                              No. of Visits / Samples per Year
+                            </label>
+                            <input
+                              type="number"
+                              min="1"
+                              step="1"
+                              value={act.visits !== undefined && act.visits !== '' ? act.visits : (globalVisits || 3)}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                if (v === '') {
+                                  handleUpdateActivity(aIdx, 'visits', '');
+                                } else {
+                                  const parsed = parseInt(v, 10);
+                                  handleUpdateActivity(aIdx, 'visits', isNaN(parsed) ? 1 : Math.max(1, parsed));
+                                }
+                              }}
+                              onBlur={(e) => {
+                                const v = parseInt(e.target.value, 10);
+                                if (isNaN(v) || v < 1) {
+                                  handleUpdateActivity(aIdx, 'visits', 3);
+                                }
+                              }}
+                              className="form-control font-bold text-center"
+                              style={{ height: '30px', fontSize: '0.78rem', borderColor: '#2563eb' }}
+                            />
+                          </div>
+
                           {/* Annual Total */}
                           <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontSize: '0.62rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase' }}>Annual (×{globalVisits})</div>
+                            <div style={{ fontSize: '0.62rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase' }}>
+                              ANNUAL (×{rowCalc.visits})
+                            </div>
                             <div style={{ fontSize: '0.84rem', fontWeight: 800, color: '#065f46' }}>
                               ₹{Number(rowCalc.totalCharge).toLocaleString('en-IN')}/-
                             </div>
@@ -3746,23 +3910,20 @@ const LegacyGeneralQuotationForm = ({ id: propId }) => {
                                 <td style={{ border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 700, verticalAlign: 'middle' }}>
                                   {Number(rowCalc.rate).toLocaleString('en-IN')}/-
                                 </td>
-                                {/* 4. VISITS (Vertically centered spanning all rows) */}
-                                {aIdx === 0 ? (
-                                  <td
-                                    rowSpan={(formData.activities || []).length}
-                                    style={{
-                                      border: '1px solid #0f172a',
-                                      padding: '5px 4px',
-                                      textAlign: 'center',
-                                      fontWeight: 700,
-                                      fontSize: '12px',
-                                      verticalAlign: 'middle',
-                                      backgroundColor: '#ffffff'
-                                    }}
-                                  >
-                                    {globalVisits}
-                                  </td>
-                                ) : null}
+                                {/* 4. VISITS */}
+                                <td
+                                  style={{
+                                    border: '1px solid #0f172a',
+                                    padding: '5px 4px',
+                                    textAlign: 'center',
+                                    fontWeight: 700,
+                                    fontSize: '11px',
+                                    verticalAlign: 'middle',
+                                    backgroundColor: '#ffffff'
+                                  }}
+                                >
+                                  {rowCalc.visits}
+                                </td>
                                 {/* 5. NO. OF SAMPLE/QUARTER */}
                                 <td style={{ border: '1px solid #0f172a', padding: '5px 4px', textAlign: 'center', fontWeight: 600, verticalAlign: 'middle' }}>
                                   {act.sampleQuarter || `${String(act.sampleQty || 1).padStart(2, '0')} Sample`}
