@@ -6,6 +6,7 @@
 const Joi = require("joi");
 
 const createAuditQuotationSchema = Joi.object({
+    id: Joi.string().optional().allow("", null),
     testRequestId: Joi.string().required().messages({
         "any.required": "Test Request ID is required.",
         "string.empty": "Test Request ID must not be empty."
@@ -35,7 +36,7 @@ const createAuditQuotationSchema = Joi.object({
         unit: Joi.string().optional().allow(""),
         rate: Joi.any().optional(),
         amount: Joi.any().optional()
-    })).optional().allow(null),
+    }).unknown(true)).optional().allow(null),
     annexure: Joi.array().items(Joi.object({
         category: Joi.string().optional().allow(""),
         description: Joi.string().optional().allow(""),
@@ -43,16 +44,17 @@ const createAuditQuotationSchema = Joi.object({
         samplePerVisit: Joi.any().optional(),
         chargesPerVisit: Joi.any().optional(),
         total: Joi.any().optional()
-    })).optional().allow(null),
+    }).unknown(true)).optional().allow(null),
     contactPerson: Joi.string().optional().allow("", null),
     signatoryName: Joi.string().optional().allow("", null),
     signatoryDesignation: Joi.string().optional().allow("", null),
     signatorySignature: Joi.string().optional().allow("", null),
     stampImage: Joi.string().optional().allow("", null),
     status: Joi.string().valid("Active", "Inactive").optional().allow("", null)
-});
+}).unknown(true);
 
 const updateAuditQuotationSchema = Joi.object({
+    id: Joi.string().optional().allow("", null),
     testRequestId: Joi.string().optional(),
     companyId: Joi.string().optional(),
     clientId: Joi.string().optional(),
@@ -73,7 +75,7 @@ const updateAuditQuotationSchema = Joi.object({
         unit: Joi.string().optional().allow(""),
         rate: Joi.any().optional(),
         amount: Joi.any().optional()
-    })).optional().allow(null),
+    }).unknown(true)).optional().allow(null),
     annexure: Joi.array().items(Joi.object({
         category: Joi.string().optional().allow(""),
         description: Joi.string().optional().allow(""),
@@ -81,14 +83,14 @@ const updateAuditQuotationSchema = Joi.object({
         samplePerVisit: Joi.any().optional(),
         chargesPerVisit: Joi.any().optional(),
         total: Joi.any().optional()
-    })).optional().allow(null),
+    }).unknown(true)).optional().allow(null),
     contactPerson: Joi.string().optional().allow("", null),
     signatoryName: Joi.string().optional().allow("", null),
     signatoryDesignation: Joi.string().optional().allow("", null),
     signatorySignature: Joi.string().optional().allow("", null),
     stampImage: Joi.string().optional().allow("", null),
     status: Joi.string().valid("Active", "Inactive").optional().allow("", null)
-});
+}).unknown(true);
 
 module.exports = {
     createAuditQuotationSchema,

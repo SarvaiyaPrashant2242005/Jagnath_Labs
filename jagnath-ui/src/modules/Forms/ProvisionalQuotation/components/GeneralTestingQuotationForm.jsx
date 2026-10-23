@@ -23,6 +23,7 @@ import {
 import {
   saveQuotationSnapshot,
   getQuotationById,
+  fetchQuotationByIdFromApi,
   getSavedQuotations,
   fetchMasterData
 } from '../services/provisionalQuotationStorage.service';
@@ -69,7 +70,10 @@ export const GeneralTestingQuotationForm = ({ quotationId = null }) => {
         const existingList = getSavedQuotations();
 
         if (isEditing) {
-          const existing = getQuotationById(quotationId);
+          let existing = getQuotationById(quotationId);
+          if (!existing) {
+            existing = await fetchQuotationByIdFromApi(quotationId);
+          }
           if (existing) {
             setFormData({
               ...createInitialGeneralTestingData(masters.company || {}),

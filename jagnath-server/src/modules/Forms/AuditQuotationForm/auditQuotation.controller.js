@@ -14,7 +14,16 @@ const getByTestRequestId = async (req, res) => {
     try {
         const { testRequestId } = req.params;
 
-        // Perform backend validation: Must have quotationRequired === 'Yes' and quotationType === 'Audit'
+        // If quotation already exists, return it immediately
+        const existing = await auditQuotationService.findByTestRequestId(testRequestId);
+        if (existing) {
+            return res.status(200).json({
+                success: true,
+                data: existing
+            });
+        }
+
+        // Otherwise check the TestRequest to initialize
         const tr = await TestRequest.findByPk(testRequestId);
         if (!tr) {
             return res.status(404).json({
@@ -23,11 +32,9 @@ const getByTestRequestId = async (req, res) => {
             });
         }
 
+        // Ensure TRF is marked as requiring Audit Quotation when initialized
         if (tr.quotationRequired !== "Yes" || tr.quotationType !== "Audit") {
-            return res.status(400).json({
-                success: false,
-                message: "Quotation was not requested for this Test Request."
-            });
+            await tr.update({ quotationRequired: "Yes", quotationType: "Audit" });
         }
 
         const quotation = await auditQuotationService.getOrInitializeQuotation(testRequestId);
@@ -57,13 +64,17 @@ const saveQuotation = async (req, res) => {
             });
         }
 
-        // Validate the TestRequest quotation type block
+        // Validate the TestRequest
         const tr = await TestRequest.findByPk(value.testRequestId);
-        if (!tr || tr.quotationRequired !== "Yes" || tr.quotationType !== "Audit") {
-            return res.status(400).json({
+        if (!tr) {
+            return res.status(404).json({
                 success: false,
-                message: "Quotation was not requested for this Test Request."
+                message: "Test Request not found."
             });
+        }
+
+        if (tr.quotationRequired !== "Yes" || tr.quotationType !== "Audit") {
+            await tr.update({ quotationRequired: "Yes", quotationType: "Audit" });
         }
 
         const quotation = await auditQuotationService.getOrInitializeQuotation(value.testRequestId);

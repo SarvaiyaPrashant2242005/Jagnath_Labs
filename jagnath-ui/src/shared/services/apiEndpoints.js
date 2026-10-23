@@ -179,5 +179,22 @@ export const DASHBOARD_ENDPOINTS = {
   GET_STATS: `${API_BASE_URL}/dashboard/stats`,
 };
 
+// ─── Quotation Endpoints ────────────────────────────────────────────────────────
+export const PROVISIONAL_QUOTATION_ENDPOINTS = {
+  CREATE: `${API_BASE_URL}/provisional-quotations`,
+  GET_ALL: `${API_BASE_URL}/provisional-quotations`,
+  GET_BY_ID: (id) => `${API_BASE_URL}/provisional-quotations/${id}`,
+  UPDATE: (id) => `${API_BASE_URL}/provisional-quotations/${id}`,
+  DELETE: (id) => `${API_BASE_URL}/provisional-quotations/${id}`,
+  DUPLICATE: (id) => `${API_BASE_URL}/provisional-quotations/${id}/duplicate`,
+  REVISION: (id) => `${API_BASE_URL}/provisional-quotations/${id}/revision`,
+};
+
+export const AUDIT_QUOTATION_ENDPOINTS = {
+  GET_BY_TR: (testRequestId) => `${API_BASE_URL}/audit-quotation/test-request/${testRequestId}`,
+  SAVE: `${API_BASE_URL}/audit-quotation`,
+  UPDATE: (id) => `${API_BASE_URL}/audit-quotation/${id}`,
+};
+
 
 

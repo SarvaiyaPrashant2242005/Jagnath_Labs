@@ -6,7 +6,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { getQuotationById, fetchMasterData, DEFAULT_TERMS_TEXT, DEFAULT_ANNEXURE_B_GROUPS } from '../services/provisionalQuotationStorage.service';
+import { getQuotationById, fetchQuotationByIdFromApi, fetchMasterData, DEFAULT_TERMS_TEXT, DEFAULT_ANNEXURE_B_GROUPS } from '../services/provisionalQuotationStorage.service';
 import GeneralTestingDocument from '../components/GeneralTestingDocument';
 import {
   calculateMainCharges,
@@ -139,7 +139,10 @@ const ProvisionalQuotationPrint = () => {
     const load = async () => {
       setLoading(true);
       try {
-        const quoteData = getQuotationById(id);
+        let quoteData = getQuotationById(id);
+        if (!quoteData) {
+          quoteData = await fetchQuotationByIdFromApi(id);
+        }
         setQuotation(quoteData);
 
         const masters = await fetchMasterData();

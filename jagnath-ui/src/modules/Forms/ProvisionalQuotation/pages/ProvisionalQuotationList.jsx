@@ -14,6 +14,7 @@ import {
 } from 'react-icons/fa';
 import {
   getSavedQuotations,
+  fetchQuotationsFromApi,
   deleteQuotation,
   duplicateQuotation,
   fetchMasterData,
@@ -53,8 +54,17 @@ const ProvisionalQuotationList = () => {
   const loadData = async () => {
     setLoading(true);
     try {
+      // 1. Immediate paint from cache
       const saved = getSavedQuotations();
-      setQuotations(saved);
+      if (saved && saved.length > 0) {
+        setQuotations(saved);
+      }
+
+      // 2. Fetch fresh list from PostgreSQL database
+      const remote = await fetchQuotationsFromApi();
+      if (remote && Array.isArray(remote)) {
+        setQuotations(remote);
+      }
 
       const masters = await fetchMasterData();
       setClients(masters.clients || []);
@@ -65,23 +75,23 @@ const ProvisionalQuotationList = () => {
     }
   };
 
-  const handleDelete = (id, quoteNo) => {
+  const handleDelete = async (id, quoteNo) => {
     if (window.confirm(`Are you sure you want to delete quotation "${quoteNo}"?`)) {
-      deleteQuotation(id);
+      await deleteQuotation(id);
       loadData();
     }
   };
 
-  const handleDuplicate = (id) => {
-    const copy = duplicateQuotation(id);
+  const handleDuplicate = async (id) => {
+    const copy = await duplicateQuotation(id);
     if (copy) {
       loadData();
     }
   };
 
-  const handleCreateRevision = (changeSummary) => {
+  const handleCreateRevision = async (changeSummary) => {
     if (revisionModal.quotation) {
-      const revised = createQuotationRevision(revisionModal.quotation.id, changeSummary);
+      const revised = await createQuotationRevision(revisionModal.quotation.id, changeSummary);
       if (revised) {
         loadData();
         navigate(`/quotations/provisional/edit/${revised.id}`);

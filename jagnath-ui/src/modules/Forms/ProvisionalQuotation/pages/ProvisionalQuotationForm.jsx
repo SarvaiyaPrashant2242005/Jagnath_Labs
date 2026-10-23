@@ -24,6 +24,7 @@ import {
   createInitialQuotation,
   saveQuotationSnapshot,
   getQuotationById,
+  fetchQuotationByIdFromApi,
   DEFAULT_INTRO_TEXT,
   DEFAULT_SCOPE_ITEMS,
   DEFAULT_TERMS_ITEMS,
@@ -225,7 +226,10 @@ const LegacyGeneralQuotationForm = ({ id: propId }) => {
         setMasters(loadedMasters);
 
         if (isEditing) {
-          const existing = getQuotationById(id);
+          let existing = getQuotationById(id);
+          if (!existing) {
+            existing = await fetchQuotationByIdFromApi(id);
+          }
           if (existing) {
             if (existing.quotationCategoryType === 'regular' || existing.categoryType === 'regular' || existing.quotationType === 'Regular Quotation' || searchParams.get('type') === 'regular') {
               setQuotationCategoryType('regular');
