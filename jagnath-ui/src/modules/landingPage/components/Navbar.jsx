@@ -119,7 +119,7 @@ export const Navbar = ({ activeTab, setActiveTab, onAppointmentClick, isScrolled
                 }
               }}
             >
-              Get Appointment
+              Login Portal
             </button>
 
             <a

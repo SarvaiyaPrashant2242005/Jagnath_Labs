@@ -15,6 +15,7 @@ import {
   USER_ENDPOINTS,
   COMPANY_ENDPOINTS,
   TEST_REQUEST_ENDPOINTS,
+  PROVISIONAL_QUOTATION_ENDPOINTS,
 } from '../../../../shared/services/apiEndpoints';
 import { generateQuotationNumber } from '../utils/quotationCalculation.utils';
 
@@ -340,6 +341,10 @@ export const fetchMasterData = async () => {
   }
 };
 
+const isUuid = (val) => {
+  return typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(val);
+};
+
 /**
  * Gets all saved provisional quotations from localStorage
  */
@@ -356,7 +361,60 @@ export const getSavedQuotations = () => {
 };
 
 /**
+ * Fetches fresh quotations from PostgreSQL API and synchronizes localStorage cache.
+ */
+export const fetchQuotationsFromApi = async (query = {}) => {
+  try {
+    const res = await apiService.get(PROVISIONAL_QUOTATION_ENDPOINTS.GET_ALL, { params: query });
+    if (res?.data && Array.isArray(res.data)) {
+      const local = getSavedQuotations();
+      const remoteIds = new Set(res.data.map(q => q.id));
+      
+      // Preserve purely local drafts not yet persisted to remote
+      const localOnly = local.filter(q => !remoteIds.has(q.id) && !isUuid(q.id));
+      const merged = [...res.data, ...localOnly];
+      
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+      return merged;
+    }
+  } catch (err) {
+    console.warn('Could not fetch quotations from server, using local cache:', err);
+  }
+  return getSavedQuotations();
+};
+
+/**
+ * Persists quotation asynchronously to PostgreSQL API.
+ */
+export const persistQuotationToApi = async (quotation) => {
+  try {
+    const isExistingUuid = isUuid(quotation.id);
+    let res;
+    if (isExistingUuid) {
+      res = await apiService.put(PROVISIONAL_QUOTATION_ENDPOINTS.UPDATE(quotation.id), quotation);
+    } else {
+      res = await apiService.post(PROVISIONAL_QUOTATION_ENDPOINTS.CREATE, quotation);
+    }
+    if (res?.data) {
+      const all = getSavedQuotations();
+      const idx = all.findIndex(q => q.id === quotation.id || q.id === res.data.id);
+      if (idx >= 0) {
+        all[idx] = res.data;
+      } else {
+        all.unshift(res.data);
+      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+      return res.data;
+    }
+  } catch (err) {
+    console.warn('Backend sync warning (offline or background save):', err);
+  }
+  return quotation;
+};
+
+/**
  * Saves or updates a provisional quotation in localStorage (Snapshot integrity)
+ * and asynchronously syncs to PostgreSQL database.
  */
 export const saveQuotationSnapshot = (quotation) => {
   const all = getSavedQuotations();
@@ -379,11 +437,25 @@ export const saveQuotationSnapshot = (quotation) => {
   }
 
   localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+
+  // Sync to PostgreSQL database in background
+  persistQuotationToApi(snapshotData).catch(err => {
+    console.warn('Background database sync error:', err);
+  });
+
   return snapshotData;
 };
 
 /**
- * Gets a single provisional quotation by ID
+ * Explicit async save that waits for PostgreSQL database response.
+ */
+export const saveQuotationToApi = async (quotation) => {
+  const local = saveQuotationSnapshot(quotation);
+  return await persistQuotationToApi(local);
+};
+
+/**
+ * Gets a single provisional quotation by ID (local cache)
  */
 export const getQuotationById = (id) => {
   const all = getSavedQuotations();
@@ -391,24 +463,62 @@ export const getQuotationById = (id) => {
 };
 
 /**
- * Deletes a provisional quotation
+ * Fetches single quotation from PostgreSQL API with local cache update.
  */
-export const deleteQuotation = (id) => {
+export const fetchQuotationByIdFromApi = async (id) => {
+  if (isUuid(id)) {
+    try {
+      const res = await apiService.get(PROVISIONAL_QUOTATION_ENDPOINTS.GET_BY_ID(id));
+      if (res?.data) {
+        saveQuotationSnapshot(res.data);
+        return res.data;
+      }
+    } catch (err) {
+      console.warn(`Could not fetch quotation ${id} from API:`, err);
+    }
+  }
+  return getQuotationById(id);
+};
+
+/**
+ * Deletes a provisional quotation from both localStorage and database.
+ */
+export const deleteQuotation = async (id) => {
   const all = getSavedQuotations();
   const filtered = all.filter(q => q.id !== id);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+
+  if (isUuid(id)) {
+    try {
+      await apiService.delete(PROVISIONAL_QUOTATION_ENDPOINTS.DELETE(id));
+    } catch (err) {
+      console.warn('Failed to delete quotation from backend database:', err);
+    }
+  }
   return true;
 };
 
 /**
  * Creates a duplicate of an existing quotation
  */
-export const duplicateQuotation = (id) => {
+export const duplicateQuotation = async (id) => {
+  if (isUuid(id)) {
+    try {
+      const res = await apiService.post(PROVISIONAL_QUOTATION_ENDPOINTS.DUPLICATE(id));
+      if (res?.data) {
+        saveQuotationSnapshot(res.data);
+        return res.data;
+      }
+    } catch (err) {
+      console.warn('API duplicate failed, falling back to local copy:', err);
+    }
+  }
+
   const source = getQuotationById(id);
   if (!source) return null;
 
   const copy = JSON.parse(JSON.stringify(source));
-  copy.id = 'pq_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+  delete copy.id;
   copy.quotationNumber = `${source.quotationNumber || 'PQ'}-COPY`;
   copy.version = 1;
   copy.status = 'Draft';
@@ -421,7 +531,19 @@ export const duplicateQuotation = (id) => {
 /**
  * Creates a new revision (e.g., Version 2) of a quotation
  */
-export const createQuotationRevision = (id, changeSummary = 'Revision created') => {
+export const createQuotationRevision = async (id, changeSummary = 'Revision created') => {
+  if (isUuid(id)) {
+    try {
+      const res = await apiService.post(PROVISIONAL_QUOTATION_ENDPOINTS.REVISION(id), { changeSummary });
+      if (res?.data) {
+        saveQuotationSnapshot(res.data);
+        return res.data;
+      }
+    } catch (err) {
+      console.warn('API revision failed, falling back to local revision:', err);
+    }
+  }
+
   const source = getQuotationById(id);
   if (!source) return null;
 
@@ -429,7 +551,7 @@ export const createQuotationRevision = (id, changeSummary = 'Revision created') 
   const newVersion = currentVersion + 1;
 
   const revised = JSON.parse(JSON.stringify(source));
-  revised.id = 'pq_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+  delete revised.id;
   revised.previousVersionId = source.id;
   revised.version = newVersion;
   revised.quotationNumber = source.quotationNumber ? `${source.quotationNumber.split('-R')[0]}-R${newVersion - 1}` : `PQ-R${newVersion - 1}`;

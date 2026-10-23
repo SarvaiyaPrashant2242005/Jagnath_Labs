@@ -23,6 +23,7 @@ import {
 import {
   saveQuotationSnapshot,
   getQuotationById,
+  fetchQuotationByIdFromApi,
   getSavedQuotations,
   fetchMasterData
 } from '../services/provisionalQuotationStorage.service';
@@ -69,7 +70,10 @@ export const GeneralTestingQuotationForm = ({ quotationId = null }) => {
         const existingList = getSavedQuotations();
 
         if (isEditing) {
-          const existing = getQuotationById(quotationId);
+          let existing = getQuotationById(quotationId);
+          if (!existing) {
+            existing = await fetchQuotationByIdFromApi(quotationId);
+          }
           if (existing) {
             setFormData({
               ...createInitialGeneralTestingData(masters.company || {}),
@@ -1130,7 +1134,7 @@ export const GeneralTestingQuotationForm = ({ quotationId = null }) => {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
                         <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#475569' }}>Page Hint:</span>
                         <select
-                          value={sec.pageNumber || 2}
+                          value={sec.pageNumber || 1}
                           onChange={(e) => handleUpdateSection(sIdx, 'pageNumber', parseInt(e.target.value, 10))}
                           className="form-select form-select-sm font-bold"
                           style={{ height: '26px', fontSize: '0.74rem', padding: '1px 5px', borderColor: '#0284c7', color: '#0369a1', cursor: 'pointer' }}

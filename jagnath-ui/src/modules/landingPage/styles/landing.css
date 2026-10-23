@@ -422,6 +422,11 @@
   gap: 1.5rem;
 }
 
+.jlt-trust-bar:not(.jlt-trust-bar-green) .jlt-trust-grid {
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1.25rem;
+}
+
 .jlt-trust-item {
   display: flex;
   align-items: center;
@@ -431,6 +436,11 @@
   font-weight: 700;
   color: var(--jlt-slate-800);
   position: relative;
+  line-height: 1.25;
+}
+
+.jlt-trust-item span:not(.jlt-trust-icon) {
+  text-align: left;
 }
 
 .jlt-trust-item:not(:last-child)::after {
@@ -448,6 +458,7 @@
   align-items: center;
   justify-content: center;
   color: var(--jlt-primary);
+  flex-shrink: 0;
 }
 
 /* Section Common */
@@ -2035,6 +2046,13 @@
   .jlt-trust-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 1.25rem 0.75rem;
+  }
+  .jlt-trust-bar:not(.jlt-trust-bar-green) .jlt-trust-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .jlt-trust-bar:not(.jlt-trust-bar-green) .jlt-trust-item:last-child {
+    grid-column: span 2;
+    justify-self: center;
   }
   .jlt-trust-item:not(:last-child)::after {
     display: none;

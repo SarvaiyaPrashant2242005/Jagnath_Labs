@@ -14,8 +14,7 @@ const AuditQuotation = sequelize.define("AuditQuotation", {
     },
     testRequestId: {
         type: DataTypes.UUID,
-        allowNull: false,
-        unique: true,
+        allowNull: true,
         references: {
             model: "test_requests",
             key: "id",
@@ -24,7 +23,7 @@ const AuditQuotation = sequelize.define("AuditQuotation", {
     },
     companyId: {
         type: DataTypes.UUID,
-        allowNull: false,
+        allowNull: true,
         references: {
             model: "companies",
             key: "id",
@@ -33,7 +32,7 @@ const AuditQuotation = sequelize.define("AuditQuotation", {
     },
     clientId: {
         type: DataTypes.UUID,
-        allowNull: false,
+        allowNull: true,
         references: {
             model: "clients",
             key: "id",
@@ -44,6 +43,12 @@ const AuditQuotation = sequelize.define("AuditQuotation", {
         type: DataTypes.STRING,
         allowNull: true,
         field: "quotation_number"
+    },
+    quotationType: {
+        type: DataTypes.STRING,
+        defaultValue: "Provisional Estimated Quotation",
+        allowNull: true,
+        field: "quotation_type"
     },
     quotationDate: {
         type: DataTypes.STRING,
@@ -64,6 +69,16 @@ const AuditQuotation = sequelize.define("AuditQuotation", {
         type: DataTypes.STRING,
         allowNull: true,
         field: "reference"
+    },
+    referenceNo: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        field: "reference_no"
+    },
+    qpiNo: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        field: "qpi_no"
     },
     subject: {
         type: DataTypes.STRING,
@@ -136,6 +151,90 @@ const AuditQuotation = sequelize.define("AuditQuotation", {
         type: DataTypes.TEXT,
         allowNull: true,
         field: "stamp_image"
+    },
+    categoryType: {
+        type: DataTypes.STRING,
+        defaultValue: "provisional",
+        allowNull: true,
+        field: "category_type"
+    },
+    clientName: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        field: "client_name"
+    },
+    plantName: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        field: "plant_name"
+    },
+    plantAddress: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        field: "plant_address"
+    },
+    industryType: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        field: "industry_type"
+    },
+    subtotal: {
+        type: DataTypes.DECIMAL(12, 2),
+        defaultValue: 0,
+        field: "subtotal"
+    },
+    discount: {
+        type: DataTypes.DECIMAL(12, 2),
+        defaultValue: 0,
+        field: "discount"
+    },
+    taxableAmount: {
+        type: DataTypes.DECIMAL(12, 2),
+        defaultValue: 0,
+        field: "taxable_amount"
+    },
+    gstPercentage: {
+        type: DataTypes.DECIMAL(5, 2),
+        defaultValue: 18.00,
+        field: "gst_percentage"
+    },
+    gstAmount: {
+        type: DataTypes.DECIMAL(12, 2),
+        defaultValue: 0,
+        field: "gst_amount"
+    },
+    grandTotal: {
+        type: DataTypes.DECIMAL(12, 2),
+        defaultValue: 0,
+        field: "grand_total"
+    },
+    version: {
+        type: DataTypes.INTEGER,
+        defaultValue: 1,
+        allowNull: false,
+        field: "version"
+    },
+    previousVersionId: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        field: "previous_version_id"
+    },
+    quotationData: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        field: "quotation_data",
+        get() {
+            const raw = this.getDataValue("quotationData");
+            if (!raw) return {};
+            try {
+                return JSON.parse(raw);
+            } catch (e) {
+                return {};
+            }
+        },
+        set(value) {
+            this.setDataValue("quotationData", value ? JSON.stringify(value) : "{}");
+        }
     },
     status: {
         type: DataTypes.STRING(50),

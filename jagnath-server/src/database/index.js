@@ -33,6 +33,8 @@ db.SubCategory = require("../modules/Masters/SubCategoryMasters/subCategory.mode
 db.LocationSample = require("../modules/Masters/LocationSampleMasters/locationSample.model");
 db.Department = require("../modules/Masters/DepartmentMasters/department.model");
 db.AuditQuotation = require("../modules/Forms/AuditQuotationForm/auditQuotation.model");
+db.RegularQuotation = require("../modules/Forms/RegularQuotationForm/regularQuotation.model");
+db.GeneralTestingQuotation = require("../modules/Forms/GeneralTestingQuotationForm/generalTestingQuotation.model");
 
 // Define Associations
 db.Users.hasMany(db.RefreshTokens, { foreignKey: "user_id" });
@@ -146,5 +148,19 @@ db.TestRequest.hasOne(db.AuditQuotation, { foreignKey: "testRequestId", as: "aud
 db.AuditQuotation.belongsTo(db.TestRequest, { foreignKey: "testRequestId", as: "testRequest" });
 db.AuditQuotation.belongsTo(db.Company, { foreignKey: "companyId", as: "company" });
 db.AuditQuotation.belongsTo(db.Client, { foreignKey: "clientId", as: "client" });
+
+// RegularQuotation Associations
+db.RegularQuotation.belongsTo(db.Company, { foreignKey: "companyId", as: "company" });
+db.RegularQuotation.belongsTo(db.Client, { foreignKey: "clientId", as: "client" });
+db.RegularQuotation.belongsTo(db.TestRequest, { foreignKey: "testRequestId", as: "testRequest" });
+db.Company.hasMany(db.RegularQuotation, { foreignKey: "companyId", as: "regularQuotations" });
+db.Client.hasMany(db.RegularQuotation, { foreignKey: "clientId", as: "regularQuotations" });
+
+// GeneralTestingQuotation Associations
+db.GeneralTestingQuotation.belongsTo(db.Company, { foreignKey: "companyId", as: "company" });
+db.GeneralTestingQuotation.belongsTo(db.Client, { foreignKey: "clientId", as: "client" });
+db.GeneralTestingQuotation.belongsTo(db.TestRequest, { foreignKey: "testRequestId", as: "testRequest" });
+db.Company.hasMany(db.GeneralTestingQuotation, { foreignKey: "companyId", as: "generalTestingQuotations" });
+db.Client.hasMany(db.GeneralTestingQuotation, { foreignKey: "clientId", as: "generalTestingQuotations" });
 
 module.exports = db;

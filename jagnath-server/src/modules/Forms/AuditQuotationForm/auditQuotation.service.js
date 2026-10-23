@@ -197,9 +197,6 @@ const formatDate = (date) => {
   return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
 };
 
-/**
- * Save / Update an existing Audit Quotation.
- */
 const updateQuotation = async (id, data) => {
   const quotation = await AuditQuotation.findByPk(id);
   if (!quotation) {
@@ -208,7 +205,28 @@ const updateQuotation = async (id, data) => {
   return await quotation.update(data);
 };
 
+const findByTestRequestId = async (testRequestId) => {
+  return await AuditQuotation.findOne({
+    where: { testRequestId },
+    include: [
+      { model: Client, as: "client" },
+      { model: Company, as: "company" }
+    ]
+  });
+};
+
+const findById = async (id) => {
+  return await AuditQuotation.findByPk(id, {
+    include: [
+      { model: Client, as: "client" },
+      { model: Company, as: "company" }
+    ]
+  });
+};
+
 module.exports = {
   getOrInitializeQuotation,
-  updateQuotation
+  updateQuotation,
+  findByTestRequestId,
+  findById
 };

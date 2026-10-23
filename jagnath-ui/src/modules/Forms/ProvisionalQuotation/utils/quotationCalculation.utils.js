@@ -442,10 +442,23 @@ export const buildAnnexureBFromTRF = (selectedTR, trParams = [], masters = {}) =
 export const calculateAnnexureARowCharge = (activity, globalVisits = 3) => {
   if (!activity) return { rate: 0, qty: 1, visits: 3, chargePerVisit: 0, totalCharge: 0 };
   const rate = parseFloat(activity.ratePerSample) || 0;
-  const qty = parseFloat(activity.sampleQty !== undefined ? activity.sampleQty : 1) || 1;
-  const visits = parseInt(activity.visits !== undefined ? activity.visits : globalVisits, 10) || 3;
   
-  const chargePerVisit = activity.isChargeOverridden && activity.chargePerVisit !== undefined
+  let qty = parseFloat(activity.sampleQty);
+  const qtrMatch = String(activity.sampleQuarter || '').match(/\d+(\.\d+)?/);
+  const qtrNum = qtrMatch ? parseFloat(qtrMatch[0]) : null;
+
+  if (qtrNum !== null && !isNaN(qtrNum) && qtrNum > 0) {
+    qty = qtrNum;
+  } else if (isNaN(qty) || qty <= 0) {
+    qty = 1;
+  }
+
+  const rawVisits = activity.visits !== undefined && activity.visits !== ''
+    ? parseInt(activity.visits, 10)
+    : (parseInt(globalVisits, 10) || 3);
+  const visits = !isNaN(rawVisits) && rawVisits >= 1 ? rawVisits : (parseInt(globalVisits, 10) || 3);
+  
+  const chargePerVisit = activity.chargePerVisit !== undefined && activity.chargePerVisit !== '' && !isNaN(parseFloat(activity.chargePerVisit))
     ? (parseFloat(activity.chargePerVisit) || 0)
     : Math.round(rate * qty);
 

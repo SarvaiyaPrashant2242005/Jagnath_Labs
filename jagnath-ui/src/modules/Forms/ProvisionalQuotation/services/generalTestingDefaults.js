@@ -44,7 +44,7 @@ REQUIRED 500G- 1KG OF SAMPLE FOR FOOD ANALYSIS</p>
   {
     id: 'sec_4',
     presetKey: 'sampling_conditions',
-    pageNumber: 2,
+    pageNumber: 1,
     title: '3. Sampling Conditions',
     content: `<ul>
   <li>If the sampling team is unable to proceed due to lack of infrastructure or customer cooperation, sampling fees will be charged again.</li>
@@ -54,7 +54,7 @@ REQUIRED 500G- 1KG OF SAMPLE FOR FOOD ANALYSIS</p>
   {
     id: 'sec_5',
     presetKey: 'sample_handling',
-    pageNumber: 2,
+    pageNumber: 1,
     title: '4. Sample Handling & Disposal',
     content: `<ul>
   <li>Leftover samples requiring special or legal disposal will be billed extra or must be collected back by the customer.</li>
@@ -67,7 +67,7 @@ REQUIRED 500G- 1KG OF SAMPLE FOR FOOD ANALYSIS</p>
   {
     id: 'sec_6',
     presetKey: 'suspension_of_work',
-    pageNumber: 2,
+    pageNumber: 1,
     title: '5. Suspension of Work',
     content: `<ul>
   <li>Customers may request suspension of work by written notice.</li>
@@ -78,7 +78,7 @@ REQUIRED 500G- 1KG OF SAMPLE FOR FOOD ANALYSIS</p>
   {
     id: 'sec_7',
     presetKey: 'invoicing_reports',
-    pageNumber: 2,
+    pageNumber: 1,
     title: '6. Invoicing & Reports',
     content: `<ul>
   <li>If no payment advice is received, invoices will be adjusted on a <strong>FIFO basis</strong> within 2 working days.</li>
