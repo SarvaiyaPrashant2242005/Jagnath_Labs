@@ -444,6 +444,8 @@ const ClientMaster = () => {
 
     const payload = {
       ...formData,
+      workOrderNo: formData.workOrderNo && formData.workOrderNo.trim() !== '' ? formData.workOrderNo.trim() : null,
+      workOrderDate: formData.workOrderDate && formData.workOrderDate.trim() !== '' ? formData.workOrderDate : null,
       companyName: activeCompanyName || formData.companyName
     };
 

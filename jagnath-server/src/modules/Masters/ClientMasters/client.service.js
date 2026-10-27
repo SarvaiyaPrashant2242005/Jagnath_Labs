@@ -139,6 +139,25 @@ const getChangesBlock = (oldValues, newValues) => {
     return "\nChanges\n\n" + lines.join("\n\n");
 };
 
+const sanitizeWorkOrderNo = (val) => {
+    if (val === undefined || val === null) return null;
+    const str = String(val).trim();
+    return str.length > 0 ? str : null;
+};
+
+const sanitizeWorkOrderDate = (val) => {
+    if (val === undefined || val === null) return null;
+    const str = String(val).trim();
+    if (!str || str.toLowerCase() === "invalid date" || str.toLowerCase() === "null" || str.toLowerCase() === "undefined") {
+        return null;
+    }
+    const d = new Date(str);
+    if (isNaN(d.getTime())) {
+        return null;
+    }
+    return d.toISOString().slice(0, 10);
+};
+
 /**
  * Creates a new client.
  */
@@ -160,12 +179,13 @@ const createClient = async (clientData, userId, reqInfo) => {
     if (clientData.udyam_no !== undefined && clientData.udyamNo === undefined) {
         clientData.udyamNo = clientData.udyam_no;
     }
-    if (clientData.work_order_no !== undefined && clientData.workOrderNo === undefined) {
-        clientData.workOrderNo = clientData.work_order_no;
-    }
-    if (clientData.work_order_date !== undefined && clientData.workOrderDate === undefined) {
-        clientData.workOrderDate = clientData.work_order_date;
-    }
+    const rawWorkOrderNo = clientData.workOrderNo !== undefined ? clientData.workOrderNo : clientData.work_order_no;
+    clientData.workOrderNo = sanitizeWorkOrderNo(rawWorkOrderNo);
+    clientData.work_order_no = clientData.workOrderNo;
+
+    const rawWorkOrderDate = clientData.workOrderDate !== undefined ? clientData.workOrderDate : clientData.work_order_date;
+    clientData.workOrderDate = sanitizeWorkOrderDate(rawWorkOrderDate);
+    clientData.work_order_date = clientData.workOrderDate;
 
     const transaction = await sequelize.transaction();
     try {
@@ -258,11 +278,16 @@ const updateClient = async (clientId, clientData, userId, reqInfo) => {
     if (clientData.udyam_no !== undefined && clientData.udyamNo === undefined) {
         clientData.udyamNo = clientData.udyam_no;
     }
-    if (clientData.work_order_no !== undefined && clientData.workOrderNo === undefined) {
-        clientData.workOrderNo = clientData.work_order_no;
+    if (clientData.workOrderNo !== undefined || clientData.work_order_no !== undefined) {
+        const rawWorkOrderNo = clientData.workOrderNo !== undefined ? clientData.workOrderNo : clientData.work_order_no;
+        clientData.workOrderNo = sanitizeWorkOrderNo(rawWorkOrderNo);
+        clientData.work_order_no = clientData.workOrderNo;
     }
-    if (clientData.work_order_date !== undefined && clientData.workOrderDate === undefined) {
-        clientData.workOrderDate = clientData.work_order_date;
+
+    if (clientData.workOrderDate !== undefined || clientData.work_order_date !== undefined) {
+        const rawWorkOrderDate = clientData.workOrderDate !== undefined ? clientData.workOrderDate : clientData.work_order_date;
+        clientData.workOrderDate = sanitizeWorkOrderDate(rawWorkOrderDate);
+        clientData.work_order_date = clientData.workOrderDate;
     }
 
     const transaction = await sequelize.transaction();
@@ -554,8 +579,8 @@ module.exports = {
                     contactNumber: raw.contactNumber || 'N/A',
                     gstNo: raw.gstNo || raw.gst_no || raw['GST Number'] || raw['GST No'] || raw['GSTIN'] || null,
                     udyamNo: raw.udyamNo || raw.udyam_no || raw['Udyam Number'] || raw['Udyam No'] || raw['Udyam Registration Number'] || null,
-                    workOrderNo: raw.workOrderNo || raw.work_order_no || raw['Work Order Number'] || raw['Work Order No'] || null,
-                    workOrderDate: raw.workOrderDate || raw.work_order_date || raw['Work Order Date'] || null,
+                    workOrderNo: sanitizeWorkOrderNo(raw.workOrderNo || raw.work_order_no || raw['Work Order Number'] || raw['Work Order No']),
+                    workOrderDate: sanitizeWorkOrderDate(raw.workOrderDate || raw.work_order_date || raw['Work Order Date']),
                     officeAddress: officeAddr,
                     plantAddress: plantAddr,
                     address: officeAddr,

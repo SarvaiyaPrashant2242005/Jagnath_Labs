@@ -46,12 +46,31 @@ const Client = sequelize.define("Client", {
     workOrderNo: {
         type: DataTypes.STRING,
         allowNull: true,
-        field: "work_order_no"
+        field: "work_order_no",
+        set(val) {
+            if (val === undefined || val === null || String(val).trim() === '') {
+                this.setDataValue('workOrderNo', null);
+            } else {
+                this.setDataValue('workOrderNo', String(val).trim());
+            }
+        }
     },
     workOrderDate: {
         type: DataTypes.DATEONLY,
         allowNull: true,
-        field: "work_order_date"
+        field: "work_order_date",
+        set(val) {
+            if (!val || String(val).trim() === '' || String(val).toLowerCase() === 'invalid date' || String(val).toLowerCase() === 'null') {
+                this.setDataValue('workOrderDate', null);
+            } else {
+                const d = new Date(val);
+                if (isNaN(d.getTime())) {
+                    this.setDataValue('workOrderDate', null);
+                } else {
+                    this.setDataValue('workOrderDate', d.toISOString().slice(0, 10));
+                }
+            }
+        }
     },
     officeAddress: {
         type: DataTypes.TEXT,
