@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import emailjs from '@emailjs/browser';
 import { 
   MapPin, 
   Phone, 
@@ -11,6 +12,7 @@ import {
 } from 'lucide-react';
 
 export default function ContactView() {
+  const formRef = useRef(null);
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -32,7 +34,7 @@ export default function ContactView() {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name.trim() || !formData.phone.trim()) {
       setStatus({ submitted: false, loading: false, error: 'Please enter your name and contact phone number.' });
@@ -41,8 +43,45 @@ export default function ContactView() {
 
     setStatus({ submitted: false, loading: true, error: '' });
 
-    // Simulate submission delay with smooth feedback
-    setTimeout(() => {
+    // Authoritative EmailJS credentials from .env with fallback
+    const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID || 'service_sblhl1i';
+    const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID || 'template_kcca5s7';
+    const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY || '2xIOl2_pOepJw2vjI';
+
+    // Comprehensive template parameters matching all common EmailJS template field names
+    const templateParams = {
+      name: formData.name,
+      from_name: formData.name,
+      user_name: formData.name,
+
+      phone: formData.phone,
+      from_phone: formData.phone,
+      user_phone: formData.phone,
+      contact_number: formData.phone,
+
+      email: formData.email || 'Not provided',
+      from_email: formData.email || 'Not provided',
+      user_email: formData.email || 'Not provided',
+      reply_to: formData.email || '',
+
+      service: formData.service || 'General Inquiry',
+      selected_service: formData.service || 'General Inquiry',
+      service_name: formData.service || 'General Inquiry',
+
+      message: formData.message || 'No additional message provided',
+      user_message: formData.message || 'No additional message provided',
+
+      to_name: 'Jagnath Labs',
+      submitted_at: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+    };
+
+    try {
+      if (!serviceId || !templateId || !publicKey) {
+        throw new Error('EmailJS Service ID, Template ID, or Public Key is missing.');
+      }
+
+      await emailjs.send(serviceId, templateId, templateParams, { publicKey });
+
       setStatus({ submitted: true, loading: false, error: '' });
       setFormData({
         name: '',
@@ -51,7 +90,15 @@ export default function ContactView() {
         service: '',
         message: ''
       });
-    }, 800);
+    } catch (err) {
+      console.error('EmailJS submission error:', err);
+      const errMsg = err?.text || err?.message || (typeof err === 'string' ? err : 'Failed to send your message. Please try again.');
+      setStatus({
+        submitted: false,
+        loading: false,
+        error: errMsg
+      });
+    }
   };
 
   return (
@@ -171,7 +218,7 @@ export default function ContactView() {
                     </button>
                   </div>
                 ) : (
-                  <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.15rem' }}>
+                  <form ref={formRef} onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.15rem' }}>
                     {status.error && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', padding: '0.75rem 1rem', borderRadius: '8px', fontSize: '0.88rem' }}>
                         <AlertCircle size={18} />
@@ -275,7 +322,7 @@ export default function ContactView() {
         </div>
       </section>
 
-      {/* Location Banner (as seen in Video 2 frame 64) */}
+      {/* Location Banner */}
       <section style={{ background: '#f1f5f9', borderTop: '1px solid #e2e8f0', padding: '3.5rem 1.5rem', textAlign: 'center' }}>
         <div style={{ maxWidth: '600px', margin: '0 auto' }}>
           <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#eaf7e4', color: '#66b834', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.75rem' }}>
