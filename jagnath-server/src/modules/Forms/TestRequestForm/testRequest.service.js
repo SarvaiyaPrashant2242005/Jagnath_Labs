@@ -504,10 +504,63 @@ const getTestRequestsByCompany = async (companyId, options = {}) => {
     }
 };
 
+/**
+ * Get latest TestRequest for a client that has a generated TestReport.
+ */
+const getLatestTestRequestByClient = async (clientId, companyId = null) => {
+    try {
+        const db = require("../../../database");
+        let whereClause = { clientId };
+        if (companyId && companyId !== 'ALL') {
+            whereClause.companyId = companyId;
+        }
+
+        // Find latest request of that client that HAS an associated TestReport (required inner join)
+        const tr = await TestRequest.findOne({
+            where: whereClause,
+            include: [
+                {
+                    model: db.TestReport,
+                    as: "testReport",
+                    required: true,
+                    attributes: ["id", "reportNumber", "created_at"]
+                }
+            ],
+            order: [['created_at', 'DESC']]
+        });
+
+        if (!tr) return null;
+
+        // Query parameters separately to avoid complex outer join issues
+        const trpRecords = await db.TestRequestParameter.findAll({
+            where: { testRequestId: tr.id },
+            attributes: ["id", "parameterId", "locationOfSample", "sequence", "testMethod", "price"],
+            order: [['sequence', 'ASC'], ['created_at', 'ASC']]
+        });
+
+        const formatted = formatTestRequest(tr);
+        formatted.hasReport = true;
+        formatted.reportCreatedAt = tr.testReport.created_at || tr.testReport.createdAt;
+        formatted.reportNumber = tr.testReport.reportNumber;
+        formatted.parameters = (trpRecords || []).map(p => ({
+            id: p.id,
+            parameterId: p.parameterId,
+            locationOfSample: p.locationOfSample,
+            sequence: p.sequence,
+            testMethod: p.testMethod,
+            price: p.price
+        }));
+        return formatted;
+    } catch (error) {
+        throw error;
+    }
+};
+
 module.exports = {
     createTestRequest,
     updateTestRequest,
     deleteTestRequest,
     getTestRequestById,
-    getTestRequestsByCompany
+    getTestRequestsByCompany,
+    getLatestTestRequestByClient
 };

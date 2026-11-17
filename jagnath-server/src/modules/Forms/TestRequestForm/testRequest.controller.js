@@ -416,10 +416,41 @@ const remove = async (req, res) => {
     }
 };
 
+/**
+ * Get latest TestRequest for a client that has a generated TestReport.
+ */
+const getLatestByClient = async (req, res) => {
+    try {
+        const { clientId } = req.params;
+        const userId = req.user.user_id;
+
+        let companyId = null;
+        try {
+            companyId = await resolveCompanyId(req.body, req.query, userId, req.headers, req.user);
+        } catch (e) {
+            // If resolveCompanyId fails because no company is specified yet or unauthorized, fallback gracefully
+            companyId = req.headers["x-company-id"] || req.query.companyId || null;
+        }
+
+        const latestTr = await testRequestService.getLatestTestRequestByClient(clientId, companyId);
+
+        return res.status(200).json(successResponse(
+            "LATEST_TEST_REQUEST_FETCHED",
+            "Latest test request fetched successfully.",
+            "Latest test request fetched successfully.",
+            latestTr
+        ));
+    } catch (err) {
+        console.error("[testRequest.controller.js] Error in getLatestByClient:", err);
+        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Failed to fetch latest test request for client."));
+    }
+};
+
 module.exports = {
     create,
     getAll,
     getById,
+    getLatestByClient,
     update,
     remove
 };

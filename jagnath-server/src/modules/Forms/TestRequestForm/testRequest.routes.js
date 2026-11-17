@@ -12,6 +12,8 @@ router.use(authenticateToken);
 
 router.post("/", testRequestController.create);
 router.get("/", testRequestController.getAll);
+router.get("/latest-report-by-client/:clientId", testRequestController.getLatestByClient);
+router.get("/latest-by-client/:clientId", testRequestController.getLatestByClient);
 router.get("/:id", testRequestController.getById);
 router.put("/:id", testRequestController.update);
 router.delete("/:id", testRequestController.remove);

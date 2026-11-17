@@ -130,6 +130,8 @@ export const CATEGORY_PARAMETER_ENDPOINTS = {
 export const TEST_REQUEST_ENDPOINTS = {
   CREATE: `${API_BASE_URL}/test-request`,
   GET_ALL: `${API_BASE_URL}/test-request`,
+  GET_LATEST_REPORT_BY_CLIENT: (clientId) => `${API_BASE_URL}/test-request/latest-report-by-client/${clientId}`,
+  GET_LATEST_BY_CLIENT: (clientId) => `${API_BASE_URL}/test-request/latest-by-client/${clientId}`,
   GET_BY_ID: (id) => `${API_BASE_URL}/test-request/${id}`,
   UPDATE: (id) => `${API_BASE_URL}/test-request/${id}`,
   DELETE: (id) => `${API_BASE_URL}/test-request/${id}`,

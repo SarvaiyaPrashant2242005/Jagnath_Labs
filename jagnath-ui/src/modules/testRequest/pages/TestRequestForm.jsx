@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   FaArrowLeft, FaCheck, FaExclamationCircle, FaEye, FaEyeSlash,
   FaSave, FaPrint, FaPlus, FaTrash, FaTimes, FaSpinner, FaFilePdf,
-  FaSearch, FaChevronLeft, FaChevronRight, FaUpload
+  FaSearch, FaChevronLeft, FaChevronRight, FaUpload, FaCopy
 } from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
 import {
@@ -158,6 +158,8 @@ const TestRequestForm = () => {
   const [paramSearch, setParamSearch] = useState('');
   const [paramPageSize, setParamPageSize] = useState(10);
   const [clientEmails, setClientEmails] = useState([]);
+  const [copyingSampleDetails, setCopyingSampleDetails] = useState(false);
+  const [copyingParameters, setCopyingParameters] = useState(false);
   const [showEmailDropdown, setShowEmailDropdown] = useState(false);
   const emailDropdownRef = useRef(null);
 
@@ -1151,6 +1153,160 @@ const TestRequestForm = () => {
     });
   };
 
+  const handleCopySampleDetails = async () => {
+    if (!formData.clientId) {
+      triggerToast('Select a client first', 'error');
+      return;
+    }
+    setCopyingSampleDetails(true);
+    try {
+      const endpoint = TEST_REQUEST_ENDPOINTS.GET_LATEST_REPORT_BY_CLIENT(formData.clientId);
+      const res = await apiService.get(endpoint);
+      const latest = res?.data;
+      if (!latest || !latest.id) {
+        triggerToast('No previous report found for this client', 'error');
+        return;
+      }
+
+      setFormData(prev => ({
+        ...prev,
+        industryType: latest.industryType || '',
+        industryPrice: latest.industryPrice !== undefined && latest.industryPrice !== null ? latest.industryPrice : (latest.industry_price !== undefined ? latest.industry_price : ''),
+        sampleCollectedBy: latest.sampleCollectedBy || '',
+        sampleQuantity: latest.sampleQuantity || '',
+        packingDetails: latest.packingDetails || '',
+        fieldDataSheet: latest.fieldDataSheet || 'Not Available',
+        sampleParticular: latest.sampleParticular || ''
+      }));
+
+      triggerToast('Sample details copied from last report');
+    } catch (err) {
+      console.error('[TestRequestForm] Error copying sample details from report:', err);
+      triggerToast('Failed to copy sample details', 'error');
+    } finally {
+      setCopyingSampleDetails(false);
+    }
+  };
+
+  const handleCopyParameters = async () => {
+    if (!formData.clientId) {
+      triggerToast('Select a client first', 'error');
+      return;
+    }
+
+    const currentCheckedIds = getAllCheckedParamIds();
+    if (currentCheckedIds.length > 0) {
+      const confirmed = window.confirm('This will replace the currently selected parameters. Continue?');
+      if (!confirmed) return;
+    }
+
+    setCopyingParameters(true);
+    try {
+      const endpoint = TEST_REQUEST_ENDPOINTS.GET_LATEST_REPORT_BY_CLIENT(formData.clientId);
+      const res = await apiService.get(endpoint);
+      const latest = res?.data;
+      if (!latest || !latest.id || !Array.isArray(latest.parameters) || latest.parameters.length === 0) {
+        triggerToast('No previous report found for this client', 'error');
+        return;
+      }
+
+      // Fetch all active parameters to validate against currently active master records
+      let activeParamsMaster = [];
+      try {
+        const paramRes = await apiService.get(`${PARAMETER_ENDPOINTS.GET_ALL}?status=Active&all=true`);
+        activeParamsMaster = Array.isArray(paramRes?.data) ? paramRes.data : (paramRes?.data?.rows || []);
+      } catch (e) {
+        console.error('[TestRequestForm] Error fetching master parameters:', e);
+      }
+
+      const activeParamIdMap = new Map();
+      activeParamsMaster.forEach(p => activeParamIdMap.set(p.id, p));
+
+      const locParamsMap = {};
+      const locSeqMap = {};
+      const checks = {};
+      const loadedSeq = [];
+      const discoveredLocations = [];
+      let skippedCount = 0;
+
+      latest.parameters.forEach(p => {
+        if (!p.parameterId) return;
+        // Check if parameter exists and is active in master (if master list was fetched)
+        if (activeParamsMaster.length > 0 && !activeParamIdMap.has(p.parameterId)) {
+          skippedCount++;
+          return;
+        }
+
+        const loc = (p.locationOfSample || p.location_of_sample || (latest.locationOfSample ? latest.locationOfSample.split(',')[0].trim() : '') || 'Inlet').trim();
+        if (!discoveredLocations.includes(loc)) {
+          discoveredLocations.push(loc);
+        }
+        if (!locParamsMap[loc]) locParamsMap[loc] = {};
+        if (!locSeqMap[loc]) locSeqMap[loc] = [];
+
+        locParamsMap[loc][p.parameterId] = true;
+        if (!locSeqMap[loc].includes(p.parameterId)) {
+          locSeqMap[loc].push(p.parameterId);
+        }
+
+        checks[p.parameterId] = true;
+        if (!loadedSeq.includes(p.parameterId)) {
+          loadedSeq.push(p.parameterId);
+        }
+      });
+
+      if (loadedSeq.length === 0) {
+        triggerToast('No valid active parameters found in the previous report', 'error');
+        return;
+      }
+
+      const trLocs = (latest.locationOfSample || '')
+        .split(',')
+        .map(l => l.trim())
+        .filter(Boolean);
+      const mergedLocs = Array.from(new Set([...discoveredLocations, ...trLocs]));
+      const finalLocations = mergedLocs.length > 0 ? mergedLocs : ['Inlet'];
+
+      setConfiguredLocations(finalLocations);
+      setActiveLocationTab(finalLocations[0]);
+      setLocationParameters(locParamsMap);
+      setLocationParamSequence(locSeqMap);
+      setCheckedParameters(checks);
+      setSelectedParamSequence(loadedSeq);
+
+      // Trigger department, category, subcategory and parameter fetching so parameters table displays properly
+      const catIds = latest.categoryId ? [latest.categoryId] : [];
+      setSelectedCategoryIds(catIds);
+      if (latest.subCategoryId) {
+        setSelectedSubCategory(latest.subCategoryId);
+      }
+      if (latest.departmentId) {
+        setFormData(prev => ({
+          ...prev,
+          departmentId: latest.departmentId,
+          categoryId: latest.categoryId || '',
+          subCategoryId: latest.subCategoryId || ''
+        }));
+        fetchCategoriesForDepartment(latest.departmentId, isGpcbOnly);
+      }
+      if (catIds.length > 0) {
+        fetchSubCategoriesForCategories(catIds, isGpcbOnly);
+      }
+      fetchParameters(latest.subCategoryId || '', catIds, loadedSeq, isGpcbOnly);
+
+      if (skippedCount > 0) {
+        triggerToast(`Parameters copied (${skippedCount} inactive/deleted skipped)`);
+      } else {
+        triggerToast('Parameters copied from last report');
+      }
+    } catch (err) {
+      console.error('[TestRequestForm] Error copying parameters from report:', err);
+      triggerToast('Failed to copy parameters', 'error');
+    } finally {
+      setCopyingParameters(false);
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -1236,7 +1392,7 @@ const TestRequestForm = () => {
     }
   };
 
-  const handleToggleEmail = (email) => {
+    const handleToggleEmail = (email) => {
     const currentEmails = formData.email ? formData.email.split(',').map(e => e.trim()).filter(Boolean) : [];
     let updated;
     if (currentEmails.includes(email)) {
@@ -1741,9 +1897,39 @@ const TestRequestForm = () => {
 
           {/* Sample Details Card */}
           <div className="test-request-form-card" style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc' }}>
-              <div style={{ width: '12px', height: '24px', background: 'linear-gradient(to bottom, #10b981, #34d399)', borderRadius: '6px' }}></div>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Sample Details</h3>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '2px solid #f8fafc' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ width: '12px', height: '24px', background: 'linear-gradient(to bottom, #10b981, #34d399)', borderRadius: '6px' }}></div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Sample Details</h3>
+              </div>
+
+              {/* Copy from Last Report Button (New Request Only) */}
+              {!id && !savedRequestId && (
+                <button
+                  type="button"
+                  onClick={handleCopySampleDetails}
+                  disabled={!formData.clientId || copyingSampleDetails}
+                  title={!formData.clientId ? 'Select a client first' : 'Copy sample details from client\'s latest generated report'}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.45rem 0.9rem',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    borderRadius: '8px',
+                    border: '1px solid',
+                    borderColor: !formData.clientId ? '#cbd5e1' : '#10b981',
+                    backgroundColor: !formData.clientId ? '#f1f5f9' : '#ecfdf5',
+                    color: !formData.clientId ? '#94a3b8' : '#059669',
+                    cursor: !formData.clientId || copyingSampleDetails ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  {copyingSampleDetails ? <FaSpinner className="fa-spin" /> : <FaCopy />}
+                  <span>{copyingSampleDetails ? 'Copying...' : 'Copy from Last Report'}</span>
+                </button>
+              )}
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.75rem' }}>
@@ -1871,8 +2057,35 @@ const TestRequestForm = () => {
                 <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Testing Parameters</h3>
               </div>
 
-              {/* GPCB Parameters Toggle */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              {/* Actions & GPCB Parameters Toggle */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                {!id && !savedRequestId && (
+                  <button
+                    type="button"
+                    onClick={handleCopyParameters}
+                    disabled={!formData.clientId || copyingParameters}
+                    title={!formData.clientId ? 'Select a client first' : 'Copy testing parameters from client\'s latest generated report'}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      padding: '0.45rem 0.9rem',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      borderRadius: '8px',
+                      border: '1px solid',
+                      borderColor: !formData.clientId ? '#cbd5e1' : '#8b5cf6',
+                      backgroundColor: !formData.clientId ? '#f1f5f9' : '#f5f3ff',
+                      color: !formData.clientId ? '#94a3b8' : '#7c3aed',
+                      cursor: !formData.clientId || copyingParameters ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    {copyingParameters ? <FaSpinner className="fa-spin" /> : <FaCopy />}
+                    <span>{copyingParameters ? 'Copying...' : 'Copy Parameters from Last Report'}</span>
+                  </button>
+                )}
+
                 <label style={{
                   display: 'flex',
                   alignItems: 'center',
