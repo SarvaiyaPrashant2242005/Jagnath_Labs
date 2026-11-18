@@ -417,7 +417,7 @@ const remove = async (req, res) => {
 };
 
 /**
- * Get latest TestRequest for a client that has a generated TestReport.
+ * Get latest TestRequest (TRF) for a client.
  */
 const getLatestByClient = async (req, res) => {
     try {

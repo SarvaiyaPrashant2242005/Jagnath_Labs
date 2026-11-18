@@ -505,7 +505,8 @@ const getTestRequestsByCompany = async (companyId, options = {}) => {
 };
 
 /**
- * Get latest TestRequest for a client that has a generated TestReport.
+ * Get latest TestRequest (TRF) for a client, without requiring a TestReport.
+ * If the latest TRF has no parameters, fall back to the most recent earlier TRF with parameters.
  */
 const getLatestTestRequestByClient = async (clientId, companyId = null) => {
     try {
@@ -515,33 +516,61 @@ const getLatestTestRequestByClient = async (clientId, companyId = null) => {
             whereClause.companyId = companyId;
         }
 
-        // Find latest request of that client that HAS an associated TestReport (required inner join)
+        // 1. Find client's most recent TestRequest (TRF) ordered by created_at DESC
         const tr = await TestRequest.findOne({
             where: whereClause,
-            include: [
-                {
-                    model: db.TestReport,
-                    as: "testReport",
-                    required: true,
-                    attributes: ["id", "reportNumber", "created_at"]
-                }
-            ],
             order: [['created_at', 'DESC']]
         });
 
         if (!tr) return null;
 
-        // Query parameters separately to avoid complex outer join issues
-        const trpRecords = await db.TestRequestParameter.findAll({
+        // 2. Query parameters for this TRF
+        let trpRecords = await db.TestRequestParameter.findAll({
             where: { testRequestId: tr.id },
             attributes: ["id", "parameterId", "locationOfSample", "sequence", "testMethod", "price"],
             order: [['sequence', 'ASC'], ['created_at', 'ASC']]
         });
 
         const formatted = formatTestRequest(tr);
-        formatted.hasReport = true;
-        formatted.reportCreatedAt = tr.testReport.created_at || tr.testReport.createdAt;
-        formatted.reportNumber = tr.testReport.reportNumber;
+
+        // 3. Fallback for parameters: if latest TRF has no parameters, find most recent earlier TRF with parameters
+        if (!trpRecords || trpRecords.length === 0) {
+            const trWithParams = await TestRequest.findOne({
+                where: whereClause,
+                include: [
+                    {
+                        model: db.TestRequestParameter,
+                        as: "testRequestParameters",
+                        required: true,
+                        attributes: []
+                    }
+                ],
+                order: [['created_at', 'DESC']]
+            });
+
+            if (trWithParams) {
+                trpRecords = await db.TestRequestParameter.findAll({
+                    where: { testRequestId: trWithParams.id },
+                    attributes: ["id", "parameterId", "locationOfSample", "sequence", "testMethod", "price"],
+                    order: [['sequence', 'ASC'], ['created_at', 'ASC']]
+                });
+                // Also copy category/subcategory/department from that TRF if current has none
+                if (!formatted.departmentId && trWithParams.departmentId) {
+                    formatted.departmentId = trWithParams.departmentId;
+                }
+                if (!formatted.categoryId && trWithParams.categoryId) {
+                    formatted.categoryId = trWithParams.categoryId;
+                }
+                if (!formatted.subCategoryId && trWithParams.subCategoryId) {
+                    formatted.subCategoryId = trWithParams.subCategoryId;
+                }
+                if (!formatted.locationOfSample && trWithParams.locationOfSample) {
+                    formatted.locationOfSample = trWithParams.locationOfSample;
+                }
+            }
+        }
+
+        formatted.hasReport = false;
         formatted.parameters = (trpRecords || []).map(p => ({
             id: p.id,
             parameterId: p.parameterId,

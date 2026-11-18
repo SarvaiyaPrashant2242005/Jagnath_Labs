@@ -1160,11 +1160,11 @@ const TestRequestForm = () => {
     }
     setCopyingSampleDetails(true);
     try {
-      const endpoint = TEST_REQUEST_ENDPOINTS.GET_LATEST_REPORT_BY_CLIENT(formData.clientId);
+      const endpoint = TEST_REQUEST_ENDPOINTS.GET_LATEST_BY_CLIENT(formData.clientId);
       const res = await apiService.get(endpoint);
       const latest = res?.data;
       if (!latest || !latest.id) {
-        triggerToast('No previous report found for this client', 'error');
+        triggerToast('No previous TRF found for this client', 'error');
         return;
       }
 
@@ -1179,9 +1179,9 @@ const TestRequestForm = () => {
         sampleParticular: latest.sampleParticular || ''
       }));
 
-      triggerToast('Sample details copied from last report');
+      triggerToast('Sample details copied from last TRF');
     } catch (err) {
-      console.error('[TestRequestForm] Error copying sample details from report:', err);
+      console.error('[TestRequestForm] Error copying sample details from TRF:', err);
       triggerToast('Failed to copy sample details', 'error');
     } finally {
       setCopyingSampleDetails(false);
@@ -1202,11 +1202,11 @@ const TestRequestForm = () => {
 
     setCopyingParameters(true);
     try {
-      const endpoint = TEST_REQUEST_ENDPOINTS.GET_LATEST_REPORT_BY_CLIENT(formData.clientId);
+      const endpoint = TEST_REQUEST_ENDPOINTS.GET_LATEST_BY_CLIENT(formData.clientId);
       const res = await apiService.get(endpoint);
       const latest = res?.data;
       if (!latest || !latest.id || !Array.isArray(latest.parameters) || latest.parameters.length === 0) {
-        triggerToast('No previous report found for this client', 'error');
+        triggerToast('No previous TRF found for this client', 'error');
         return;
       }
 
@@ -1256,7 +1256,7 @@ const TestRequestForm = () => {
       });
 
       if (loadedSeq.length === 0) {
-        triggerToast('No valid active parameters found in the previous report', 'error');
+        triggerToast('No valid active parameters found in the previous TRF', 'error');
         return;
       }
 
@@ -1297,10 +1297,10 @@ const TestRequestForm = () => {
       if (skippedCount > 0) {
         triggerToast(`Parameters copied (${skippedCount} inactive/deleted skipped)`);
       } else {
-        triggerToast('Parameters copied from last report');
+        triggerToast('Parameters copied from last TRF');
       }
     } catch (err) {
-      console.error('[TestRequestForm] Error copying parameters from report:', err);
+      console.error('[TestRequestForm] Error copying parameters from TRF:', err);
       triggerToast('Failed to copy parameters', 'error');
     } finally {
       setCopyingParameters(false);
@@ -1903,13 +1903,13 @@ const TestRequestForm = () => {
                 <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Sample Details</h3>
               </div>
 
-              {/* Copy from Last Report Button (New Request Only) */}
+              {/* Copy from Last TRF Button (New Request Only) */}
               {!id && !savedRequestId && (
                 <button
                   type="button"
                   onClick={handleCopySampleDetails}
                   disabled={!formData.clientId || copyingSampleDetails}
-                  title={!formData.clientId ? 'Select a client first' : 'Copy sample details from client\'s latest generated report'}
+                  title={!formData.clientId ? 'Select a client first' : 'Copy sample details from client\'s latest TRF'}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -1927,7 +1927,7 @@ const TestRequestForm = () => {
                   }}
                 >
                   {copyingSampleDetails ? <FaSpinner className="fa-spin" /> : <FaCopy />}
-                  <span>{copyingSampleDetails ? 'Copying...' : 'Copy from Last Report'}</span>
+                  <span>{copyingSampleDetails ? 'Copying...' : 'Copy from Last TRF'}</span>
                 </button>
               )}
             </div>
@@ -2064,7 +2064,7 @@ const TestRequestForm = () => {
                     type="button"
                     onClick={handleCopyParameters}
                     disabled={!formData.clientId || copyingParameters}
-                    title={!formData.clientId ? 'Select a client first' : 'Copy testing parameters from client\'s latest generated report'}
+                    title={!formData.clientId ? 'Select a client first' : 'Copy testing parameters from client\'s latest TRF'}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -2082,7 +2082,7 @@ const TestRequestForm = () => {
                     }}
                   >
                     {copyingParameters ? <FaSpinner className="fa-spin" /> : <FaCopy />}
-                    <span>{copyingParameters ? 'Copying...' : 'Copy Parameters from Last Report'}</span>
+                    <span>{copyingParameters ? 'Copying...' : 'Copy Parameters from Last TRF'}</span>
                   </button>
                 )}
 
