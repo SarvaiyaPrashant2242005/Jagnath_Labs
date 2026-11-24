@@ -22,6 +22,7 @@ const Login = ({ onLoginSuccess, onNavigate }) => {
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [authenticatedUserData, setAuthenticatedUserData] = useState(null);
   const [selectedType, setSelectedType] = useState(null);
+  const [underDevModal, setUnderDevModal] = useState({ open: false, title: '' });
 
   // Forgot Password Modal State
   const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
@@ -181,6 +182,15 @@ const Login = ({ onLoginSuccess, onNavigate }) => {
 
   // Handle workspace/login-type selection
   const handleSelectLoginType = (typeKey) => {
+    if (typeKey === 'nabl') {
+      setUnderDevModal({ open: true, title: 'NABL Workspace' });
+      return;
+    }
+    if (typeKey === 'non-nabl') {
+      setUnderDevModal({ open: true, title: 'NON NABL Workspace' });
+      return;
+    }
+
     setSelectedType(typeKey);
     try {
       localStorage.setItem('selectedWorkspace', typeKey);
@@ -804,6 +814,105 @@ const Login = ({ onLoginSuccess, onNavigate }) => {
                 <FaChevronRight style={{ color: '#94a3b8', fontSize: '0.85rem', flexShrink: 0 }} />
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Under Development / Feature Not Ready Popup */}
+      {underDevModal.open && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.6)',
+            backdropFilter: 'blur(5px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            padding: '1.5rem',
+            animation: 'fadeIn 0.2s ease-out'
+          }}
+          onClick={() => setUnderDevModal({ open: false, title: '' })}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: '20px',
+              padding: '2.5rem 2rem',
+              width: '100%',
+              maxWidth: '430px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              textAlign: 'center',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                width: '60px',
+                height: '60px',
+                borderRadius: '50%',
+                background: '#fef3c7',
+                color: '#d97706',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: '1.25rem',
+                fontSize: '1.75rem'
+              }}
+            >
+              ⚠️
+            </div>
+
+            <h3
+              style={{
+                margin: '0 0 0.5rem 0',
+                fontSize: '1.35rem',
+                fontWeight: 700,
+                color: '#0f172a'
+              }}
+            >
+              Under Development
+            </h3>
+
+            <p
+              style={{
+                margin: '0 0 1.75rem 0',
+                fontSize: '0.925rem',
+                color: '#64748b',
+                lineHeight: 1.55
+              }}
+            >
+              The <strong>{underDevModal.title}</strong> module is currently not done and under active development. Please select <strong>General</strong> to continue.
+            </p>
+
+            <button
+              type="button"
+              onClick={() => setUnderDevModal({ open: false, title: '' })}
+              style={{
+                width: '100%',
+                padding: '0.85rem 1.5rem',
+                borderRadius: '12px',
+                border: 'none',
+                background: '#047857',
+                color: '#ffffff',
+                fontSize: '0.95rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'background 0.2s ease',
+                boxShadow: '0 4px 12px rgba(4, 120, 87, 0.25)'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#065f46'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = '#047857'; }}
+            >
+              Got it
+            </button>
           </div>
         </div>
       )}

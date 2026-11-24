@@ -113,19 +113,8 @@ export const Navbar = ({
                         />
                       </button>
 
-                      {/* Dropdown Menu - Exclusively the 5 Main Categories */}
+                      {/* Dropdown Menu - Exclusively the 5 Main Categories (Clean, Compact, Elegant) */}
                       <div className={`jlt-services-dropdown-menu ${servicesDropdownOpen ? 'open' : ''}`}>
-                        <div className="jlt-dropdown-header">
-                          <span className="jlt-dropdown-header-title">Service Categories</span>
-                          <button
-                            type="button"
-                            className="jlt-dropdown-view-all"
-                            onClick={() => handleNavClick('services')}
-                          >
-                            All Services Overview &rarr;
-                          </button>
-                        </div>
-
                         <div className="jlt-services-dropdown-list">
                           {SERVICE_CATEGORIES.map((cat) => {
                             const isCurrent = currentCategorySlug === cat.slug;
@@ -137,16 +126,24 @@ export const Navbar = ({
                                 onClick={() => handleCategorySelect(cat)}
                               >
                                 <div className="jlt-dropdown-item-icon">
-                                  {categoryIconMap[cat.iconName] || <Briefcase size={20} />}
+                                  {categoryIconMap[cat.iconName] || <Briefcase size={16} />}
                                 </div>
-                                <div className="jlt-dropdown-item-info">
-                                  <span className="jlt-dropdown-item-title">{cat.title}</span>
-                                  <span className="jlt-dropdown-item-badge">{cat.services.length} Specialized Services</span>
-                                </div>
-                                <ArrowRight size={14} className="jlt-dropdown-item-arrow" />
+                                <span className="jlt-dropdown-item-title">{cat.title}</span>
                               </button>
                             );
                           })}
+                        </div>
+
+                        {/* All Services Overview link at bottom */}
+                        <div className="jlt-dropdown-footer">
+                          <button
+                            type="button"
+                            className="jlt-dropdown-view-all"
+                            onClick={() => handleNavClick('services')}
+                          >
+                            <span>All Services Overview</span>
+                            <ArrowRight size={13} />
+                          </button>
                         </div>
                       </div>
                     </div>
