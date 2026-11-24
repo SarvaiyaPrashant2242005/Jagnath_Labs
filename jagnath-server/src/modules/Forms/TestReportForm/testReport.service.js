@@ -12,15 +12,20 @@ const formatTestReport = (tr) => {
     if (!tr) return null;
     const trObj = tr.toJSON ? tr.toJSON() : { ...tr };
     
-    // Resolve Client address mapping dynamically from associated TestRequest -> Client
+    // Resolve Client address mapping and sampling date dynamically from associated TestRequest -> Client or directly associated Client
     if (trObj.testRequest) {
-        trObj.dateOfSampling = trObj.testRequest.dateOfCollection || null;
+        trObj.dateOfSampling = trObj.dateOfSampling || trObj.testRequest.dateOfCollection || trObj.testRequest.dateOfSampling || trObj.testRequest.samplingDate || null;
         if (trObj.testRequest.client) {
             const client = trObj.testRequest.client;
             trObj.reportIssuedTo = client.plantAddress ? `${client.clientName}\n${client.plantAddress}` : client.clientName;
             trObj.agencyName = client.clientName;
             trObj.agencyAddress = client.officeAddress;
         }
+    } else if (trObj.client) {
+        const client = trObj.client;
+        trObj.reportIssuedTo = trObj.reportIssuedTo || (client.plantAddress ? `${client.clientName}\n${client.plantAddress}` : client.clientName);
+        trObj.agencyName = trObj.agencyName || client.clientName;
+        trObj.agencyAddress = trObj.agencyAddress || client.officeAddress;
     }
     
     if (trObj.company) {
@@ -83,7 +88,7 @@ const updateTestReport = async (id, reportData, companyId) => {
  * Gets all Test Reports for a company with pagination & filtering.
  */
 const getTestReportsByCompany = async (companyId, options = {}) => {
-    const { page, limit, search, status } = options;
+    const { page, limit, search, status, clientId } = options;
 
     const whereClause = { companyId };
 
@@ -101,16 +106,37 @@ const getTestReportsByCompany = async (companyId, options = {}) => {
         ];
     }
 
+    const testRequestInclude = {
+        model: db.TestRequest,
+        as: "testRequest",
+        include: [{ model: db.Client, as: "client" }]
+    };
+
+    if (clientId) {
+        // Find all TestRequests belonging to this clientId
+        const clientTRs = await db.TestRequest.findAll({
+            where: { clientId },
+            attributes: ['id']
+        });
+        const clientTRIds = clientTRs.map(tr => tr.id);
+
+        if (clientTRIds.length > 0) {
+            whereClause[Op.or] = [
+                { clientId },
+                { testRequestId: { [Op.in]: clientTRIds } }
+            ];
+        } else {
+            whereClause.clientId = clientId;
+        }
+    }
+
     const queryOptions = {
         where: whereClause,
         order: [['created_at', 'DESC']],
         include: [
             { model: Company, as: "company", attributes: ["id", "company_name", "logo"] },
-            {
-                model: db.TestRequest,
-                as: "testRequest",
-                include: [{ model: db.Client, as: "client" }]
-            }
+            { model: db.Client, as: "client", required: false },
+            testRequestInclude
         ]
     };
 
@@ -144,6 +170,7 @@ const getTestReportById = async (id, companyId = null) => {
         where: whereClause,
         include: [
             { model: Company, as: "company", attributes: ["id", "company_name", "logo"] },
+            { model: db.Client, as: "client", required: false },
             {
                 model: db.TestRequest,
                 as: "testRequest",
@@ -157,6 +184,7 @@ const getTestReportById = async (id, companyId = null) => {
             where: { id },
             include: [
                 { model: Company, as: "company", attributes: ["id", "company_name", "logo"] },
+                { model: db.Client, as: "client", required: false },
                 {
                     model: db.TestRequest,
                     as: "testRequest",

@@ -20,6 +20,15 @@ const TestReport = sequelize.define("TestReport", {
             key: "id",
         }
     },
+    clientId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        field: "client_id",
+        references: {
+            model: "clients",
+            key: "id",
+        }
+    },
     testRequestId: {
         type: DataTypes.UUID,
         allowNull: true,

@@ -22,6 +22,8 @@ import TestReportList from './modules/testReport/pages/TestReportList';
 import TestReportForm from './modules/testReport/pages/TestReportForm';
 import TestReportPrint from './modules/testReport/pages/TestReportPrint';
 import Profile from './modules/profile/pages/Profile';
+import BlogManagement from './modules/blog/pages/BlogManagement';
+import BlogDetailView from './modules/landingPage/components/BlogDetailView';
 import PriceList from './modules/pricelist/pages/PriceList';
 import CautionMaster from './modules/cautionMaster/pages/CautionMaster';
 import LocationSampleMaster from './modules/locationSampleMaster/pages/LocationSampleMaster';
@@ -139,6 +141,14 @@ function App() {
           element={<LandingPage initialTab="contact" onNavigate={(page) => window.location.hash = `#/${page}`} />}
         />
         <Route
+          path="/blog"
+          element={<LandingPage initialTab="blog" onNavigate={(page) => window.location.hash = `#/${page}`} />}
+        />
+        <Route
+          path="/blog/:slug"
+          element={<BlogDetailView />}
+        />
+        <Route
           path="/login"
           element={
             <PublicRoute>
@@ -212,6 +222,7 @@ function App() {
         <Route path="/dispatch" element={<ProtectedRoute><PlaceholderPage title="Dispatch Directory" /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><PlaceholderPage title="Settings Directory" /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        <Route path="/manage-blogs" element={<ProtectedRoute><BlogManagement /></ProtectedRoute>} />
 
         {/* Catch-all fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />

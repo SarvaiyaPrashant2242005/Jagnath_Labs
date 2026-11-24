@@ -15,6 +15,7 @@ export default function Footer({ onNavigateTab }) {
     { label: 'About Us', tab: 'about' },
     { label: 'Services', tab: 'services' },
     { label: 'Certificates', tab: 'certificates' },
+    { label: 'Blog', tab: 'blog' },
     { label: 'Contact Us', tab: 'contact' }
   ];
 

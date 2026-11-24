@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FaEnvelope, FaLock, FaEye, FaEyeSlash, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
+import { FaEnvelope, FaLock, FaEye, FaEyeSlash, FaCheckCircle, FaExclamationCircle, FaFlask, FaAward, FaMicroscope, FaChevronRight } from 'react-icons/fa';
 import landingVideo from '../../../assets/video/jagnath Landing page.mp4';
 import '../../../assets/styles/login.css';
 import { loginUser } from '../services/authService';
@@ -17,6 +17,11 @@ const Login = ({ onLoginSuccess, onNavigate }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [alert, setAlert] = useState({ type: '', message: '' }); // 'success' | 'error' | ''
   const [errors, setErrors] = useState({ email: '', password: '' });
+
+  // Login Type Selection Modal State
+  const [showTypeModal, setShowTypeModal] = useState(false);
+  const [authenticatedUserData, setAuthenticatedUserData] = useState(null);
+  const [selectedType, setSelectedType] = useState(null);
 
   // Forgot Password Modal State
   const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
@@ -158,12 +163,13 @@ const Login = ({ onLoginSuccess, onNavigate }) => {
         message: response.messageToShow || 'Successfully authenticated. Access granted!',
       });
 
-      // Navigate to dashboard after a brief delay for visual feedback
+      const userData = response.data?.user || { email, rememberMe };
+      setAuthenticatedUserData(userData);
+
+      // Immediately display the "Which way would you like to login?" popup modal
       setTimeout(() => {
-        if (onLoginSuccess) {
-          onLoginSuccess(response.data?.user || { email, rememberMe });
-        }
-      }, 1000);
+        setShowTypeModal(true);
+      }, 500);
     } catch (err) {
       setIsLoading(false);
       setAlert({
@@ -171,6 +177,25 @@ const Login = ({ onLoginSuccess, onNavigate }) => {
         message: err.messageToShow || err.message || 'Login failed. Please try again.',
       });
     }
+  };
+
+  // Handle workspace/login-type selection
+  const handleSelectLoginType = (typeKey) => {
+    setSelectedType(typeKey);
+    try {
+      localStorage.setItem('selectedWorkspace', typeKey);
+      sessionStorage.setItem('selectedWorkspace', typeKey);
+    } catch (e) {
+      console.warn('Could not store selectedWorkspace', e);
+    }
+
+    setTimeout(() => {
+      if (onLoginSuccess) {
+        onLoginSuccess(authenticatedUserData, typeKey);
+      } else {
+        window.location.hash = '#/dashboard';
+      }
+    }, 250);
   };
 
   return (
@@ -518,6 +543,267 @@ const Login = ({ onLoginSuccess, onNavigate }) => {
                 </button>
               </form>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Login Type Selection Modal - Centered, Clean & Minimal */}
+      {showTypeModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.45)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '1rem',
+            animation: 'fadeIn 0.2s ease-out'
+          }}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: '18px',
+              padding: '2.35rem 2.1rem',
+              width: '100%',
+              maxWidth: '490px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(226, 232, 240, 0.8)',
+              display: 'flex',
+              flexDirection: 'column',
+              boxSizing: 'border-box'
+            }}
+          >
+            {/* Header */}
+            <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '12px',
+                  background: '#ecfdf5',
+                  color: '#047857',
+                  marginBottom: '1rem'
+                }}
+              >
+                <FaFlask size={22} />
+              </div>
+              <h3
+                style={{
+                  margin: '0 0 0.45rem 0',
+                  fontSize: '1.45rem',
+                  fontWeight: 700,
+                  color: '#0f172a',
+                  letterSpacing: '-0.015em'
+                }}
+              >
+                Choose Login Type
+              </h3>
+              <p
+                style={{
+                  margin: '0 0 0.3rem 0',
+                  fontSize: '0.925rem',
+                  fontWeight: 600,
+                  color: '#047857'
+                }}
+              >
+                Which way would you like to login?
+              </p>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: '0.85rem',
+                  color: '#64748b'
+                }}
+              >
+                Please select how you want to continue.
+              </p>
+            </div>
+
+            {/* Three Selectable Options Vertically Arranged */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+              {/* Option 1: General */}
+              <button
+                type="button"
+                onClick={() => handleSelectLoginType('general')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '1.15rem',
+                  padding: '1.15rem 1.3rem',
+                  borderRadius: '14px',
+                  border: selectedType === 'general' ? '2px solid #047857' : '1px solid #e2e8f0',
+                  background: selectedType === 'general' ? '#ecfdf5' : '#ffffff',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'all 0.18s ease',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+                }}
+                onMouseEnter={(e) => {
+                  if (selectedType !== 'general') {
+                    e.currentTarget.style.borderColor = '#a7f3d0';
+                    e.currentTarget.style.background = '#f0fdf4';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (selectedType !== 'general') {
+                    e.currentTarget.style.borderColor = '#e2e8f0';
+                    e.currentTarget.style.background = '#ffffff';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }
+                }}
+              >
+                <div
+                  style={{
+                    width: '44px',
+                    height: '44px',
+                    borderRadius: '11px',
+                    background: '#ecfdf5',
+                    color: '#047857',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}
+                >
+                  <FaFlask size={20} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a' }}>General</span>
+                  </div>
+                  <span style={{ fontSize: '0.825rem', color: '#64748b', display: 'block', marginTop: '0.2rem' }}>
+                    For general users and standard laboratory management.
+                  </span>
+                </div>
+                <FaChevronRight style={{ color: '#94a3b8', fontSize: '0.85rem', flexShrink: 0 }} />
+              </button>
+
+              {/* Option 2: NABL */}
+              <button
+                type="button"
+                onClick={() => handleSelectLoginType('nabl')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '1.15rem',
+                  padding: '1.15rem 1.3rem',
+                  borderRadius: '14px',
+                  border: selectedType === 'nabl' ? '2px solid #0d9488' : '1px solid #e2e8f0',
+                  background: selectedType === 'nabl' ? '#f0fdfa' : '#ffffff',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'all 0.18s ease',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+                }}
+                onMouseEnter={(e) => {
+                  if (selectedType !== 'nabl') {
+                    e.currentTarget.style.borderColor = '#99f6e4';
+                    e.currentTarget.style.background = '#f0fdfa';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (selectedType !== 'nabl') {
+                    e.currentTarget.style.borderColor = '#e2e8f0';
+                    e.currentTarget.style.background = '#ffffff';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }
+                }}
+              >
+                <div
+                  style={{
+                    width: '44px',
+                    height: '44px',
+                    borderRadius: '11px',
+                    background: '#f0fdfa',
+                    color: '#0d9488',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}
+                >
+                  <FaAward size={20} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a' }}>NABL</span>
+                  </div>
+                  <span style={{ fontSize: '0.825rem', color: '#64748b', display: 'block', marginTop: '0.2rem' }}>
+                    For NABL-related users and accredited operations.
+                  </span>
+                </div>
+                <FaChevronRight style={{ color: '#94a3b8', fontSize: '0.85rem', flexShrink: 0 }} />
+              </button>
+
+              {/* Option 3: NON NABL */}
+              <button
+                type="button"
+                onClick={() => handleSelectLoginType('non-nabl')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '1.15rem',
+                  padding: '1.15rem 1.3rem',
+                  borderRadius: '14px',
+                  border: selectedType === 'non-nabl' ? '2px solid #334155' : '1px solid #e2e8f0',
+                  background: selectedType === 'non-nabl' ? '#f8fafc' : '#ffffff',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'all 0.18s ease',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+                }}
+                onMouseEnter={(e) => {
+                  if (selectedType !== 'non-nabl') {
+                    e.currentTarget.style.borderColor = '#cbd5e1';
+                    e.currentTarget.style.background = '#f8fafc';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (selectedType !== 'non-nabl') {
+                    e.currentTarget.style.borderColor = '#e2e8f0';
+                    e.currentTarget.style.background = '#ffffff';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }
+                }}
+              >
+                <div
+                  style={{
+                    width: '44px',
+                    height: '44px',
+                    borderRadius: '11px',
+                    background: '#f1f5f9',
+                    color: '#475569',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}
+                >
+                  <FaMicroscope size={20} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a' }}>NON NABL</span>
+                  </div>
+                  <span style={{ fontSize: '0.825rem', color: '#64748b', display: 'block', marginTop: '0.2rem' }}>
+                    For non-NABL-related users and routine operations.
+                  </span>
+                </div>
+                <FaChevronRight style={{ color: '#94a3b8', fontSize: '0.85rem', flexShrink: 0 }} />
+              </button>
+            </div>
           </div>
         </div>
       )}

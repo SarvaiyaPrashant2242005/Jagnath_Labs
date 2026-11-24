@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getStoredUser } from '../../auth/services/authService';
-import { FaUserCircle, FaEnvelope, FaPhoneAlt, FaMapMarkerAlt, FaEdit, FaSave, FaTimes } from 'react-icons/fa';
+import { FaUserCircle, FaEnvelope, FaPhoneAlt, FaMapMarkerAlt, FaEdit, FaSave, FaTimes, FaArrowLeft, FaNewspaper } from 'react-icons/fa';
 
 const Profile = () => {
+  const navigate = useNavigate();
   const [user, setUser] = useState(getStoredUser() || {});
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
@@ -37,14 +39,34 @@ const Profile = () => {
   return (
     <div className="profile-page-container">
       <div className="profile-header">
-        <div>
-          <h2 className="page-title">My Profile</h2>
-          <p className="page-subtitle">View and manage your account details</p>
+        <div className="profile-header-left">
+          <button 
+            type="button" 
+            className="back-btn" 
+            onClick={() => navigate(-1)}
+            title="Go Back"
+          >
+            <FaArrowLeft />
+            <span>Back</span>
+          </button>
+          <div>
+            <h2 className="page-title">My Profile</h2>
+            <p className="page-subtitle">View and manage your account details</p>
+          </div>
         </div>
         {!isEditing ? (
-          <button className="action-btn edit-btn" onClick={() => setIsEditing(true)}>
-            <FaEdit /> Edit Profile
-          </button>
+          <div className="action-group">
+            <button 
+              type="button" 
+              className="action-btn manage-blogs-btn" 
+              onClick={() => navigate('/manage-blogs')}
+            >
+              <FaNewspaper /> Manage Blogs
+            </button>
+            <button className="action-btn edit-btn" onClick={() => setIsEditing(true)}>
+              <FaEdit /> Edit Profile
+            </button>
+          </div>
         ) : (
           <div className="action-group">
             <button className="action-btn cancel-btn" onClick={handleCancel}>
@@ -158,6 +180,32 @@ const Profile = () => {
           align-items: center;
           margin-bottom: 2rem;
         }
+
+        .profile-header-left {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+        }
+
+        .back-btn {
+          display: flex;
+          align-items: center;
+          gap: 0.4rem;
+          background-color: #f1f5f9;
+          color: #475569;
+          border: 1px solid #cbd5e1;
+          border-radius: 8px;
+          padding: 0.5rem 0.85rem;
+          font-weight: 600;
+          font-size: 0.9rem;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .back-btn:hover {
+          background-color: #e2e8f0;
+          color: #0f172a;
+        }
         
         .page-title {
           font-size: 1.75rem;
@@ -196,6 +244,16 @@ const Profile = () => {
           border: 1px solid #e2e8f0;
         }
         .edit-btn:hover { background-color: #e2e8f0; }
+
+        .manage-blogs-btn {
+          background-color: #047857;
+          color: #ffffff;
+          border: 1px solid #047857;
+        }
+        .manage-blogs-btn:hover {
+          background-color: #065f46;
+          border-color: #065f46;
+        }
 
         .cancel-btn {
           background-color: #fee2e2;

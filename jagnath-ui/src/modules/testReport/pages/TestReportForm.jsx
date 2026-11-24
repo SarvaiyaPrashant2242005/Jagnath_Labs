@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   FaArrowLeft, FaSave, FaPrint, FaEye, FaEyeSlash, FaPlus, FaTrash,
-  FaCheck, FaExclamationCircle, FaClipboardList, FaFlask, FaFilePdf
+  FaCheck, FaExclamationCircle, FaClipboardList, FaFlask, FaFilePdf, FaUserTie
 } from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
 import {
@@ -15,6 +15,10 @@ import {
   BACKEND_ROOT_URL
 } from '../../../shared/services/apiEndpoints';
 import SearchableSelect from '../../../shared/components/Select/SearchableSelect';
+import { validateReportDataIntegrity, groupParametersByLocationScope } from '../services/testReportValidation';
+import CustomerReportImportModal from '../components/CustomerReportImportModal';
+import ParameterSelectionModal from '../components/ParameterSelectionModal';
+import { sanitizeSamplingParamName } from '../../../shared/utils/parameterDisplayUtils';
 
 /**
  * @component TestReportForm
@@ -31,6 +35,17 @@ const TestReportForm = () => {
   const [selectedTRId, setSelectedTRId] = useState('');
   const [trLoading, setTrLoading] = useState(false);
 
+  // Active Import Tab: 'tr' | 'customer'
+  const [activeImportTab, setActiveImportTab] = useState('tr');
+
+  // Customer & Previous Report Import State
+  const [isCustomerImportModalOpen, setIsCustomerImportModalOpen] = useState(false);
+  const [selectedCustomerDirect, setSelectedCustomerDirect] = useState(null);
+  const [lastImportedSource, setLastImportedSource] = useState(null); // { type: 'tr' | 'customer', label: string }
+
+  // Database Parameter Selection Modal State
+  const [isParamModalOpen, setIsParamModalOpen] = useState(false);
+
   // Condition of sample options state
   const [conditionOptions, setConditionOptions] = useState(['Satisfactory', 'Non-Satisfactory', 'Other']);
   const [selectedConditionSelect, setSelectedConditionSelect] = useState('Satisfactory');
@@ -46,6 +61,7 @@ const TestReportForm = () => {
     packingDetails: '',
     reportIssuedTo: '',
     referenceNo: '',
+    dateOfSampling: '',
     dateOfReceipt: '',
     agencyName: '',
     agencyAddress: '',
@@ -170,6 +186,7 @@ const TestReportForm = () => {
               packingDetails: report.packingDetails || '',
               reportIssuedTo: report.reportIssuedTo || report.agencyName || '',
               referenceNo: report.referenceNo || report.reportNumber || '',
+              dateOfSampling: report.dateOfSampling || (report.testRequest ? report.testRequest.dateOfCollection : '') || '',
               dateOfReceipt: report.dateOfReceipt || '',
               agencyName: report.agencyName || report.reportIssuedTo || '',
               agencyAddress: report.agencyAddress || '',
@@ -255,6 +272,7 @@ const TestReportForm = () => {
       const reportIssuedToVal = plantAddress ? `${clientName}\n${plantAddress}` : clientName;
       const agencyNameVal = clientName;
       const agencyAddressVal = officeAddress;
+      const samplingDateVal = targetTR.dateOfCollection || targetTR.dateOfSampling || targetTR.samplingDate || '';
 
       setFormData(prev => ({
         ...prev,
@@ -266,6 +284,7 @@ const TestReportForm = () => {
         detailsOfSample: sampleParticularVal,
         packingDetails: packingDetailsVal,
         dateOfReceipt: receiptDate,
+        dateOfSampling: samplingDateVal || prev.dateOfSampling || '',
         sampleQuantity: targetTR.sampleQuantity || 'Standard Bottle',
         samplingLocation: targetTR.locationOfSample || 'Site Location',
         sampleCollectedBy: targetTR.sampleCollectedBy || 'Client / Representative',
@@ -307,6 +326,10 @@ const TestReportForm = () => {
               };
             });
             setParametersList(formatted);
+            setLastImportedSource({
+              type: 'tr',
+              label: `Test Request: ${reportNoDisplay} (${clientName || 'Client'})`
+            });
             triggerToast(`Auto-filled details & ${formatted.length} parameters from Test Request #${reportNoDisplay}`, 'success');
             return;
           }
@@ -315,10 +338,154 @@ const TestReportForm = () => {
         console.error('Failed to fetch TR parameters:', err);
       }
 
+      setLastImportedSource({
+        type: 'tr',
+        label: `Test Request: ${reportNoDisplay} (${clientName || 'Client'})`
+      });
       triggerToast(`Auto-filled details from Test Request #${reportNoDisplay}`, 'success');
     } catch (err) {
       console.error('Error selecting test request:', err);
       triggerToast('Error auto-filling details from test request', 'error');
+    }
+  };
+
+  // Auto-fill from a Customer's Previous Test Report
+  const handleSelectCustomerPreviousReport = (prevReport, client) => {
+    if (!prevReport) return;
+
+    try {
+      // 1. Generate new unique report number using standard convention if creating a new report
+      const now = new Date();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const yy = String(now.getFullYear()).slice(-2);
+      const timestampSuffix = String(Date.now()).slice(-5);
+      const generatedNewReportNo = isEditing 
+        ? (formData.reportNumber || prevReport.reportNumber) 
+        : `JLT01${mm}${yy}RR${timestampSuffix}`;
+
+      // 2. Resolve client info
+      const clientName = client?.clientName || prevReport.agencyName || prevReport.reportIssuedTo || '';
+      const plantAddress = client?.plantAddress || '';
+      const officeAddress = client?.officeAddress || prevReport.agencyAddress || '';
+      const reportIssuedToVal = plantAddress ? `${clientName}\n${plantAddress}` : (prevReport.reportIssuedTo || clientName);
+
+      // 3. Populate form fields from the selected previous report
+      setFormData(prev => ({
+        ...prev,
+        formatNo: prevReport.formatNo || prev.formatNo || 'Format No. 7.8 F-02',
+        reportDate: new Date().toISOString().split('T')[0], // Fresh date for the new report
+        reportNumber: generatedNewReportNo,
+        referenceNo: generatedNewReportNo,
+        nameOfWork: prevReport.nameOfWork || prev.nameOfWork || 'WATER & WASTE WATER',
+        detailsOfSample: prevReport.detailsOfSample || prev.detailsOfSample || 'Water Sample',
+        packingDetails: prevReport.packingDetails || prev.packingDetails || 'Sample Sealed in Plastic Bottle',
+        reportIssuedTo: reportIssuedToVal,
+        dateOfSampling: prevReport.dateOfSampling || '',
+        dateOfReceipt: prevReport.dateOfReceipt || new Date().toISOString().split('T')[0],
+        agencyName: clientName,
+        agencyAddress: officeAddress,
+        sampleQuantity: prevReport.sampleQuantity || 'Standard Bottle',
+        samplingLocation: prevReport.samplingLocation || 'Site Location',
+        conditionOnReceipt: prevReport.conditionOnReceipt || 'Satisfactory',
+        sampleCollectedBy: prevReport.sampleCollectedBy || 'Client / Representative',
+        startingDateOfTest: prevReport.startingDateOfTest || new Date().toISOString().split('T')[0],
+        completionDateOfTest: prevReport.completionDateOfTest || new Date().toISOString().split('T')[0],
+        sectionHeader: prevReport.sectionHeader || (prevReport.nameOfWork ? String(prevReport.nameOfWork).toUpperCase() : 'WATER & WASTE WATER'),
+        showPermissibleLimits: prevReport.showPermissibleLimits !== undefined ? prevReport.showPermissibleLimits : true
+      }));
+
+      // Update condition dropdown state if needed
+      if (prevReport.conditionOnReceipt) {
+        if (['Satisfactory', 'Non-Satisfactory'].includes(prevReport.conditionOnReceipt)) {
+          setSelectedConditionSelect(prevReport.conditionOnReceipt);
+        } else {
+          setSelectedConditionSelect('Other');
+          setCustomConditionText(prevReport.conditionOnReceipt);
+        }
+      }
+
+      // 4. Import parameters list safely
+      if (Array.isArray(prevReport.parametersList) && prevReport.parametersList.length > 0) {
+        const importedParams = prevReport.parametersList.map((p, idx) => ({
+          srNo: String(idx + 1).padStart(2, '0'),
+          parameterName: p.parameterName || p.parameter_name || `Parameter ${idx + 1}`,
+          locationOfSample: p.locationOfSample || p.location_of_sample || prevReport.samplingLocation || '-',
+          referenceMethod: p.referenceMethod || p.reference_method || p.testMethod || p.test_method || 'APHA, 24th Edition 2023',
+          unit: p.unit || '-',
+          result: p.result || '',
+          permissibleLimit: p.permissibleLimit || p.permissible_limit || '-'
+        }));
+        setParametersList(importedParams);
+      }
+
+      setIsCustomerImportModalOpen(false);
+      setSelectedCustomerDirect(client || null);
+      setLastImportedSource({
+        type: 'customer',
+        label: `Customer Report: ${prevReport.reportNumber || 'Previous'} (${clientName})`
+      });
+      triggerToast(
+        `Successfully imported data from Report #${prevReport.reportNumber} for ${clientName}`,
+        'success'
+      );
+    } catch (err) {
+      console.error('Error importing previous report:', err);
+      triggerToast('Failed to import previous report data.', 'error');
+    }
+  };
+
+  // Direct report creation for newly added / selected customer without previous reports
+  const handleSelectCustomerDirect = (client) => {
+    if (!client) return;
+
+    try {
+      // 1. Generate new unique report number if creating fresh report
+      const now = new Date();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const yy = String(now.getFullYear()).slice(-2);
+      const timestampSuffix = String(Date.now()).slice(-5);
+      const generatedNewReportNo = isEditing 
+        ? formData.reportNumber 
+        : `JLT01${mm}${yy}RR${timestampSuffix}`;
+
+      // 2. Resolve client info
+      const clientName = client.clientName || client.name || '';
+      const plantAddress = client.plantAddress || '';
+      const officeAddress = client.officeAddress || '';
+      const reportIssuedToVal = plantAddress ? `${clientName}\n${plantAddress}` : clientName;
+
+      // 3. Populate form fields directly with customer data
+      setFormData(prev => ({
+        ...prev,
+        clientId: client.id,
+        reportNumber: prev.reportNumber || generatedNewReportNo,
+        referenceNo: prev.referenceNo || generatedNewReportNo,
+        reportIssuedTo: reportIssuedToVal,
+        agencyName: clientName,
+        agencyAddress: officeAddress,
+        reportDate: prev.reportDate || new Date().toISOString().split('T')[0],
+        dateOfReceipt: prev.dateOfReceipt || new Date().toISOString().split('T')[0],
+        startingDateOfTest: prev.startingDateOfTest || new Date().toISOString().split('T')[0],
+        completionDateOfTest: prev.completionDateOfTest || new Date().toISOString().split('T')[0],
+        detailsOfSample: prev.detailsOfSample || 'Water Sample',
+        nameOfWork: prev.nameOfWork || 'WATER & WASTE WATER',
+        sectionHeader: prev.sectionHeader || 'WATER & WASTE WATER',
+        conditionOnReceipt: prev.conditionOnReceipt || 'Satisfactory',
+        sampleCollectedBy: prev.sampleCollectedBy || 'Client / Representative',
+        samplingLocation: prev.samplingLocation || (client.city ? `Site at ${client.city}` : 'Site Location')
+      }));
+
+      setSelectedCustomerDirect(client);
+      setIsCustomerImportModalOpen(false);
+      setLastImportedSource({
+        type: 'customer',
+        label: `Customer: ${clientName}`
+      });
+
+      triggerToast(`Customer "${clientName}" selected! You can now complete the Test Report.`, 'success');
+    } catch (err) {
+      console.error('Error selecting customer:', err);
+      triggerToast('Failed to select customer for test report.', 'error');
     }
   };
 
@@ -393,26 +560,49 @@ const TestReportForm = () => {
     });
   };
 
-  // Add new parameter row
-  const handleAddParamRow = () => {
-    const nextSrNo = String(parametersList.length + 1).padStart(2, '0');
-    setParametersList(prev => [
-      ...prev,
-      {
-        srNo: nextSrNo,
-        parameterName: '',
-        locationOfSample: formData.samplingLocation || '-',
-        referenceMethod: '',
-        unit: 'mg/L',
-        result: '',
-        permissibleLimit: '-'
-      }
-    ]);
+  // Add parameter rows from database selection modal
+  const handleAddParametersFromDb = (selectedParams) => {
+    if (!selectedParams || selectedParams.length === 0) return;
+
+    setParametersList(prev => {
+      const currentLen = prev.length;
+      const newRows = selectedParams.map((p, idx) => {
+        const nextSrNo = String(currentLen + idx + 1).padStart(2, '0');
+        const isLimitApp = p.isPermissibleLimitApplicable === true;
+        const limitVal = isLimitApp ? (p.permissibleLimit || 'Applicable') : (p.permissibleLimit || '-');
+
+        return {
+          srNo: nextSrNo,
+          parameterId: p.id,
+          parameterName: p.parameterName || '',
+          locationOfSample: p.locationOfSample || p.locationSample?.name || formData.samplingLocation || '-',
+          referenceMethod: p.testMethod || p.referenceStandard || 'APHA, 24th Edition 2023',
+          unit: p.unit || '-',
+          result: '',
+          permissibleLimit: limitVal
+        };
+      });
+
+      return [...prev, ...newRows];
+    });
+
+    triggerToast(`Added ${selectedParams.length} parameter(s) from database!`, 'success');
   };
 
-  // Delete parameter row
+  // Add new parameter row - opens Parameter Selection Modal
+  const handleAddParamRow = () => {
+    setIsParamModalOpen(true);
+  };
+
+  // Delete parameter row and re-number serial numbers
   const handleDeleteParamRow = (index) => {
-    setParametersList(prev => prev.filter((_, i) => i !== index));
+    setParametersList(prev => {
+      const filtered = prev.filter((_, i) => i !== index);
+      return filtered.map((row, i) => ({
+        ...row,
+        srNo: String(i + 1).padStart(2, '0')
+      }));
+    });
   };
 
   // Signature image upload handler — converts file to base64 data URL
@@ -458,6 +648,7 @@ const TestReportForm = () => {
         ...formData,
         reviewedBy: formData.reviewedByAnalyst || formData.reviewedBy || '',
         parametersList,
+        clientId: formData.clientId || selectedCustomerDirect?.id || null,
         testRequestId: selectedTRId || formData.testRequestId || null,
         companyId: activeCompId || null
       };
@@ -489,6 +680,7 @@ const TestReportForm = () => {
         ...formData,
         reviewedBy: formData.reviewedByAnalyst || formData.reviewedBy || '',
         parametersList,
+        clientId: formData.clientId || selectedCustomerDirect?.id || null,
         testRequestId: selectedTRId || formData.testRequestId || null,
         companyId: activeCompId || null
       };
@@ -517,8 +709,17 @@ const TestReportForm = () => {
     }
   };
 
-  // Public handlers — show confirmation if permissible limits is OFF
+  // Public handlers — show validation errors & confirmation if permissible limits is OFF
   const handleSave = () => {
+    const validation = validateReportDataIntegrity(formData, parametersList);
+    if (!validation.isValid) {
+      triggerToast(validation.errors[0], 'error');
+      return;
+    }
+    if (validation.warnings && validation.warnings.length > 0) {
+      console.warn('[TestReportForm Validation Warnings]:', validation.warnings);
+    }
+
     if (!formData.showPermissibleLimits) {
       setConfirmModal({ show: true, action: 'save' });
     } else {
@@ -527,6 +728,15 @@ const TestReportForm = () => {
   };
 
   const handleSaveAndPrint = () => {
+    const validation = validateReportDataIntegrity(formData, parametersList);
+    if (!validation.isValid) {
+      triggerToast(validation.errors[0], 'error');
+      return;
+    }
+    if (validation.warnings && validation.warnings.length > 0) {
+      console.warn('[TestReportForm Validation Warnings]:', validation.warnings);
+    }
+
     if (!formData.showPermissibleLimits) {
       setConfirmModal({ show: true, action: 'saveAndPrint' });
     } else {
@@ -676,25 +886,209 @@ const TestReportForm = () => {
         {/* Left Column: Form Inputs */}
         <div style={{ flex: showLivePreview ? '1 1 55%' : '1 1 100%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '1.5rem', transition: 'all 0.3s' }}>
 
-          {/* Card 1: Auto-Fill from Test Request Selection */}
-          <div style={{ background: 'linear-gradient(135deg, #eff6ff 0%, #ffffff 100%)', borderRadius: '16px', padding: '1.5rem', border: '1px solid #bfdbfe', boxShadow: '0 4px 15px -2px rgba(59, 130, 246, 0.08)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-              <FaClipboardList style={{ color: '#2563eb', fontSize: '1.2rem' }} />
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1e3a8a', margin: 0 }}>Import Details from Test Request</h3>
+          {/* Unified Card 1: Import Existing Details (Test Request & Customer Options) */}
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: '16px',
+              padding: '1.5rem',
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 4px 15px -2px rgba(15, 23, 42, 0.05)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1rem'
+            }}
+          >
+            {/* Unified Section Header */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                  <div
+                    style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '8px',
+                      background: '#ecfdf5',
+                      color: '#047857',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '0.95rem'
+                    }}
+                  >
+                    <FaClipboardList />
+                  </div>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+                    Import Existing Details
+                  </h3>
+                </div>
+                <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.85rem', color: '#64748b' }}>
+                  Choose a source to automatically populate customer, sample, and report information.
+                </p>
+              </div>
+
+              {lastImportedSource && (
+                <span
+                  style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    padding: '0.3rem 0.65rem',
+                    borderRadius: '6px',
+                    background: '#ecfdf5',
+                    color: '#047857',
+                    border: '1px solid #a7f3d0',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.35rem'
+                  }}
+                >
+                  <FaCheck size={10} />
+                  <span>Imported from: {lastImportedSource.label}</span>
+                </span>
+              )}
             </div>
-            <p style={{ margin: '0 0 1rem 0', fontSize: '0.85rem', color: '#3b82f6' }}>
-              Select an existing Test Request to auto-fill sample metadata, client details, and report numbers:
-            </p>
-            <SearchableSelect
-              options={testRequests.map(tr => ({
-                id: tr.id,
-                label: `${tr.reportNumber ? `Report No: ${tr.reportNumber}` : `TR #${tr.id.slice(0, 8)}`} | ${tr.clientName || 'Client N/A'} (${tr.dateOfReceipt || 'Date N/A'})`
-              }))}
-              value={selectedTRId}
-              onChange={(selectedVal) => handleTestRequestSelect(selectedVal)}
-              placeholder="-- Select Test Request / Report No. --"
-              searchPlaceholder="Search test request or report number..."
-            />
+
+            {/* Segmented Control / Compact Tabs */}
+            <div
+              style={{
+                display: 'inline-flex',
+                background: '#f1f5f9',
+                padding: '4px',
+                borderRadius: '10px',
+                width: 'fit-content',
+                border: '1px solid #e2e8f0'
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setActiveImportTab('tr')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.45rem 1rem',
+                  borderRadius: '7px',
+                  border: 'none',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.18s ease',
+                  background: activeImportTab === 'tr' ? '#ffffff' : 'transparent',
+                  color: activeImportTab === 'tr' ? '#1e3a8a' : '#64748b',
+                  boxShadow: activeImportTab === 'tr' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                }}
+              >
+                <FaClipboardList size={13} style={{ color: activeImportTab === 'tr' ? '#2563eb' : '#94a3b8' }} />
+                <span>Option 1: Test Request</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveImportTab('customer')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.45rem 1rem',
+                  borderRadius: '7px',
+                  border: 'none',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.18s ease',
+                  background: activeImportTab === 'customer' ? '#ffffff' : 'transparent',
+                  color: activeImportTab === 'customer' ? '#047857' : '#64748b',
+                  boxShadow: activeImportTab === 'customer' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                }}
+              >
+                <FaUserTie size={13} style={{ color: activeImportTab === 'customer' ? '#047857' : '#94a3b8' }} />
+                <span>Option 2: Customer & Previous Report</span>
+              </button>
+            </div>
+
+            {/* TAB CONTENT 1: Import from Test Request */}
+            {activeImportTab === 'tr' && (
+              <div
+                style={{
+                  background: 'linear-gradient(135deg, #eff6ff 0%, #ffffff 100%)',
+                  borderRadius: '12px',
+                  padding: '1.25rem',
+                  border: '1px solid #bfdbfe'
+                }}
+              >
+                <p style={{ margin: '0 0 0.85rem 0', fontSize: '0.85rem', color: '#1e40af', fontWeight: 500 }}>
+                  Select an existing Test Request to auto-fill sample metadata, client details, and report numbers:
+                </p>
+                <SearchableSelect
+                  options={testRequests.map(tr => ({
+                    id: tr.id,
+                    label: `${tr.reportNumber ? `Report No: ${tr.reportNumber}` : `TR #${tr.id.slice(0, 8)}`} | ${tr.clientName || 'Client N/A'} (${tr.dateOfReceipt || 'Date N/A'})`
+                  }))}
+                  value={selectedTRId}
+                  onChange={(selectedVal) => handleTestRequestSelect(selectedVal)}
+                  placeholder="-- Select Test Request / Report No. --"
+                  searchPlaceholder="Search test request or report number..."
+                />
+              </div>
+            )}
+
+            {/* TAB CONTENT 2: Import from Customer & Previous Report */}
+            {activeImportTab === 'customer' && (
+              <div
+                style={{
+                  background: 'linear-gradient(135deg, #ecfdf5 0%, #ffffff 100%)',
+                  borderRadius: '12px',
+                  padding: '1.25rem',
+                  border: '1px solid #a7f3d0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '1rem'
+                }}
+              >
+                <div>
+                  <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '0.95rem', fontWeight: 700, color: '#065f46' }}>
+                    Customer Report Import
+                  </h4>
+                  <p style={{ margin: 0, fontSize: '0.825rem', color: '#047857' }}>
+                    Browse existing customers, create new clients, and import previous test reports and parameters.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsCustomerImportModalOpen(true)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.6rem 1.15rem',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: '#047857',
+                    color: '#ffffff',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.18s ease',
+                    boxShadow: '0 2px 4px rgba(4, 120, 87, 0.25)',
+                    whiteSpace: 'nowrap'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#065f46';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = '#047857';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  <FaUserTie size={13} />
+                  <span>Browse Customers & Past Reports</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Card 2: Report Metadata Information */}
@@ -801,18 +1195,31 @@ const TestReportForm = () => {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>Date of Receipt of Sample (Auto-Fetched)</label>
-                <input
-                  type="date"
-                  name="dateOfReceipt"
-                  value={formData.dateOfReceipt}
-                  onChange={handleChange}
-                  readOnly
-                  disabled
-                  className="premium-input"
-                  style={{ backgroundColor: '#f1f5f9', cursor: 'not-allowed', color: '#64748b' }}
-                />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>Date of Sampling (Collection)</label>
+                  <input
+                    type="date"
+                    name="dateOfSampling"
+                    value={formData.dateOfSampling}
+                    onChange={handleChange}
+                    className="premium-input"
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>Date of Receipt of Sample (Auto-Fetched)</label>
+                  <input
+                    type="date"
+                    name="dateOfReceipt"
+                    value={formData.dateOfReceipt}
+                    onChange={handleChange}
+                    readOnly
+                    disabled
+                    className="premium-input"
+                    style={{ backgroundColor: '#f1f5f9', cursor: 'not-allowed', color: '#64748b' }}
+                  />
+                </div>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
@@ -971,6 +1378,7 @@ const TestReportForm = () => {
                     <th style={{ padding: '0.5rem', width: '80px' }}>UNIT</th>
                     <th style={{ padding: '0.5rem', width: '100px' }}>RESULT</th>
                     {formData.showPermissibleLimits && <th style={{ padding: '0.5rem', width: '110px' }}>PERMISSIBLE LIMIT</th>}
+                    <th style={{ padding: '0.5rem', width: '40px', textAlign: 'center' }}></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -980,17 +1388,17 @@ const TestReportForm = () => {
                         <input
                           type="text"
                           value={param.srNo}
-                          onChange={(e) => handleParamChange(idx, 'srNo', e.target.value)}
-                          style={tableInputStyle}
+                          readOnly
+                          style={{ ...tableInputStyle, backgroundColor: '#f8fafc', textAlign: 'center', cursor: 'default' }}
                         />
                       </td>
                       <td style={{ padding: '0.4rem' }}>
                         <input
                           type="text"
-                          value={param.parameterName}
-                          onChange={(e) => handleParamChange(idx, 'parameterName', e.target.value)}
-                          placeholder="Parameter name"
-                          style={{ ...tableInputStyle, fontWeight: 600 }}
+                          value={sanitizeSamplingParamName(param.parameterName)}
+                          readOnly
+                          title="Parameter loaded from database Parameter Master"
+                          style={{ ...tableInputStyle, fontWeight: 600, backgroundColor: '#f8fafc', color: '#0f172a', cursor: 'default' }}
                         />
                       </td>
                       <td style={{ padding: '0.4rem' }}>
@@ -1031,6 +1439,29 @@ const TestReportForm = () => {
                           />
                         </td>
                       )}
+                      <td style={{ padding: '0.4rem', textAlign: 'center' }}>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteParamRow(idx)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#ef4444',
+                            cursor: 'pointer',
+                            padding: '0.3rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: '4px',
+                            transition: 'background 0.15s ease'
+                          }}
+                          title="Remove Parameter"
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fef2f2'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                        >
+                          <FaTrash size={12} />
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -1340,7 +1771,7 @@ const TestReportForm = () => {
                 <tbody>
                   <tr style={{ borderBottom: '1px solid #000000' }}>
                     <td colSpan={2} rowSpan={2} style={{ padding: '0.2rem 0.35rem', fontWeight: 'bold', fontSize: '0.78rem', borderRight: '1px solid #000000', verticalAlign: 'middle' }}>
-                      UID- {formData.reportNumber || formData.referenceNo || 'JLT010726RR00307'}
+                      D- {formData.reportNumber || formData.referenceNo || 'JLT010726RR00307'}
                     </td>
                     <td colSpan={2} style={{ padding: '0.2rem 0.35rem', textAlign: 'right', fontWeight: 'bold', fontSize: '0.78rem' }}>
                       {formData.formatNo || 'Format No. 7.8 F-02'}
@@ -1428,7 +1859,7 @@ const TestReportForm = () => {
                   {parametersList.map((p, index) => (
                     <tr key={index} style={{ borderBottom: '1px solid #000000' }}>
                       <td style={{ padding: '0.25rem', borderRight: '1px solid #000000', textAlign: 'center' }}>{p.srNo || String(index + 1).padStart(2, '0')}</td>
-                      <td style={{ padding: '0.25rem 0.35rem', borderRight: '1px solid #000000', fontWeight: 'bold' }}>{p.parameterName}</td>
+                      <td style={{ padding: '0.25rem 0.35rem', borderRight: '1px solid #000000', fontWeight: 'bold' }}>{sanitizeSamplingParamName(p.parameterName)}</td>
                       <td style={{ padding: '0.25rem 0.35rem', borderRight: '1px solid #000000', textAlign: 'center' }}>{p.referenceMethod}</td>
                       <td style={{ padding: '0.25rem', borderRight: '1px solid #000000', textAlign: 'center' }}>{p.unit}</td>
                       <td style={{
@@ -1599,6 +2030,27 @@ const TestReportForm = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Customer & Previous Report Import Modal */}
+      {isCustomerImportModalOpen && (
+        <CustomerReportImportModal
+          isOpen={isCustomerImportModalOpen}
+          onClose={() => setIsCustomerImportModalOpen(false)}
+          onSelectReport={handleSelectCustomerPreviousReport}
+          onSelectCustomerOnly={handleSelectCustomerDirect}
+          currentCompanyId={localStorage.getItem('selectedCompanyId') || ''}
+        />
+      )}
+
+      {/* Database Parameter Selection Modal */}
+      {isParamModalOpen && (
+        <ParameterSelectionModal
+          isOpen={isParamModalOpen}
+          onClose={() => setIsParamModalOpen(false)}
+          onAddParameters={handleAddParametersFromDb}
+          companyId={localStorage.getItem('selectedCompanyId') || ''}
+        />
       )}
 
     </div>

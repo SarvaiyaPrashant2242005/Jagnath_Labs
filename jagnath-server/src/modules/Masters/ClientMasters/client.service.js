@@ -198,7 +198,27 @@ const createClient = async (clientData, userId, reqInfo) => {
                 transaction
             });
             if (existingClient) {
-                throw new Error(`Client "${clientData.clientName}" already exists for this company.`);
+                const err = new Error(`Client "${clientData.clientName}" already exists for this company.`);
+                err.statusCode = 409;
+                throw err;
+            }
+        }
+
+        if (emails.length > 0 && clientData.companyId) {
+            const existingWithEmail = await Client.findOne({
+                where: {
+                    companyId: clientData.companyId,
+                    [Op.or]: emails.map(em => sequelize.where(
+                        sequelize.fn('lower', sequelize.fn('TRIM', sequelize.col('email'))),
+                        em.trim().toLowerCase()
+                    ))
+                },
+                transaction
+            });
+            if (existingWithEmail) {
+                const err = new Error(`A client with this email (${existingWithEmail.email}) already exists (${existingWithEmail.clientName}).`);
+                err.statusCode = 409;
+                throw err;
             }
         }
 

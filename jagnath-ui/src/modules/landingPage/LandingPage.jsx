@@ -14,6 +14,7 @@ import AboutView from './components/AboutView';
 import ServicesView from './components/ServicesView';
 import CertificatesView from './components/CertificatesView';
 import ContactView from './components/ContactView';
+import BlogView from './components/BlogView';
 import Footer from './components/Footer';
 
 // Register GSAP ScrollTrigger
@@ -22,7 +23,7 @@ gsap.registerPlugin(ScrollTrigger);
 export default function LandingPage({ onNavigate, initialTab }) {
   const getTabFromHash = () => {
     const hash = window.location.hash.replace('#/', '').replace('#', '').trim().toLowerCase();
-    if (['about', 'services', 'certificates', 'contact'].includes(hash)) {
+    if (['about', 'services', 'certificates', 'blog', 'contact'].includes(hash)) {
       return hash;
     }
     return initialTab || 'home';
@@ -129,6 +130,12 @@ export default function LandingPage({ onNavigate, initialTab }) {
         {activeTab === 'certificates' && (
           <CertificatesView 
             onNavigateTab={handleTabChange} 
+            onAppointmentClick={handleAppointmentClick} 
+          />
+        )}
+
+        {activeTab === 'blog' && (
+          <BlogView 
             onAppointmentClick={handleAppointmentClick} 
           />
         )}

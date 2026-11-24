@@ -28,14 +28,8 @@ const createClientSchema = Joi.object({
     work_order_no: Joi.string().trim().max(100).allow("", null).optional(),
     workOrderDate: Joi.string().allow("", null).optional(),
     work_order_date: Joi.string().allow("", null).optional(),
-    officeAddress: Joi.string().required().messages({
-        "any.required": "Office Address is required.",
-        "string.empty": "Office Address is required."
-    }),
-    plantAddress: Joi.string().required().messages({
-        "any.required": "Plant / Industry Address is required.",
-        "string.empty": "Plant / Industry Address is required."
-    }),
+    officeAddress: Joi.string().allow("", null).default("N/A").optional(),
+    plantAddress: Joi.string().allow("", null).default("N/A").optional(),
     address: Joi.string().allow("", null).optional(),
     city: Joi.string().required().messages({
         "any.required": "City is required."
@@ -48,9 +42,8 @@ const createClientSchema = Joi.object({
         Joi.array().items(Joi.string().email()),
         Joi.string().allow("", null)
     ).optional(),
-    gender: Joi.string().valid("Male", "Female", "Other").required().messages({
-        "any.only": "Gender must be Male, Female, or Other.",
-        "any.required": "Gender is required."
+    gender: Joi.string().valid("Male", "Female", "Other").default("Male").allow("", null).optional().messages({
+        "any.only": "Gender must be Male, Female, or Other."
     }),
     status: Joi.string().valid("Active", "Inactive").default("Active").optional()
 });

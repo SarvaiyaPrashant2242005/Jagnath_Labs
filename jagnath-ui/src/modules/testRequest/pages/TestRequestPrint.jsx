@@ -11,6 +11,7 @@ import {
   CAUTION_ENDPOINTS,
   BACKEND_ROOT_URL
 } from '../../../shared/services/apiEndpoints';
+import { sanitizeSamplingParamName } from '../../../shared/utils/parameterDisplayUtils';
 
 const TestRequestPrint = () => {
   const { id } = useParams();
@@ -392,7 +393,7 @@ const TestRequestPrint = () => {
           <tbody>
             {Array.from({ length: Math.max(20, parameters.length) }).map((_, i) => {
               const param = parameters[i];
-              const pName = param ? (param.parameterName || param.name || param.parameter?.parameterName || '') : '';
+              const pName = param ? sanitizeSamplingParamName(param.parameterName || param.name || param.parameter?.parameterName || '') : '';
               const pLoc = param?.locationOfSample ? ` [${param.locationOfSample}]` : '';
               const displayName = pName ? `${pName}${pLoc}` : '';
               const pMethod = param ? (param.testMethod || param.defaultTestMethod || param.test_method || '') : '';

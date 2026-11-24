@@ -5,6 +5,7 @@
 const Joi = require("joi");
 
 const createTestReportSchema = Joi.object({
+    clientId: Joi.string().optional().allow("", null),
     testRequestId: Joi.string().optional().allow("", null),
     reportNumber: Joi.string().required().messages({
         "any.required": "Report Number is required.",
@@ -42,6 +43,7 @@ const createTestReportSchema = Joi.object({
 }).unknown(true);
 
 const updateTestReportSchema = Joi.object({
+    clientId: Joi.string().optional().allow("", null),
     testRequestId: Joi.string().optional().allow("", null),
     reportNumber: Joi.string().optional().allow("", null),
     referenceNo: Joi.string().optional().allow("", null),

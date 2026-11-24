@@ -26,6 +26,7 @@ import InlineMasterModal from '../../../shared/components/InlineMasterModal/Inli
 import AddMasterButton from '../../../shared/components/InlineMasterModal/AddMasterButton';
 import SearchableSelect from '../../../shared/components/Select/SearchableSelect';
 import { INDUSTRY_TYPES, INDUSTRY_PRICES, INDUSTRY_LABELS } from '../../../shared/constants/industryConstants';
+import { sanitizeSamplingParamName } from '../../../shared/utils/parameterDisplayUtils';
 
 const DEFAULT_INTRO_TEXT = `With the reference to above subject we are herewith sending our offer.
 
@@ -1097,7 +1098,7 @@ const TestRequestForm = () => {
     const locChecks = locationParameters[currentLoc] || {};
     const displayedParams = parameters.filter(param => {
       if (selectedSubCategory) {
-        return param.subCategoryId === selectedSubCategory || param.subCategory?.id === selectedSubCategory || locChecks[param.id];
+        return param.subCategoryId === selectedSubCategory || param.subCategory?.id === selectedSubCategory;
       }
       return true;
     });
@@ -2254,8 +2255,7 @@ const TestRequestForm = () => {
               const categoryFilteredParams = parameters.filter(param => {
                 const matchesSubCat = !selectedSubCategory ||
                   param.subCategoryId === selectedSubCategory ||
-                  param.subCategory?.id === selectedSubCategory ||
-                  curLocChecks[param.id];
+                  param.subCategory?.id === selectedSubCategory;
                 return matchesSubCat;
               });
               const searchFilteredParams = categoryFilteredParams
@@ -2540,7 +2540,7 @@ const TestRequestForm = () => {
                                   </td>
                                   <td style={{ padding: '0.75rem 1rem' }}>
                                     <div style={{ color: isChecked ? '#166534' : '#1e293b', fontWeight: isChecked ? 600 : 500 }}>
-                                      {param.parameterName}
+                                      {sanitizeSamplingParamName(param.parameterName)}
                                     </div>
                                     {(catLabel || subCatLabel) && (
                                       <div style={{ fontSize: '0.75rem', color: '#64748b', display: 'flex', gap: '0.4rem', marginTop: '3px', flexWrap: 'wrap' }}>
@@ -3781,7 +3781,7 @@ const TestRequestForm = () => {
                         return (
                           <tr key={i} style={{ borderBottom: '1px solid #000000' }}>
                             <td style={{ padding: '2px', borderRight: '1px solid #000000', textAlign: 'center' }}>{i + 1}.</td>
-                            <td style={{ padding: '2px 4px', borderRight: '1px solid #000000', textAlign: 'left' }}>{param ? (param.parameterName || param.name) : ''}</td>
+                            <td style={{ padding: '2px 4px', borderRight: '1px solid #000000', textAlign: 'left' }}>{param ? sanitizeSamplingParamName(param.parameterName || param.name) : ''}</td>
                             <td style={{ padding: '2px', borderRight: '1px solid #000000', textAlign: 'center', fontWeight: 'bold', color: '#15803d' }}>{isChecked ? '√' : ''}</td>
                             <td style={{ padding: '2px 4px', textAlign: 'left' }}>{param ? (param.testMethod || '') : ''}</td>
                           </tr>

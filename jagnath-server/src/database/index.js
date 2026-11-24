@@ -35,10 +35,14 @@ db.Department = require("../modules/Masters/DepartmentMasters/department.model")
 db.AuditQuotation = require("../modules/Forms/AuditQuotationForm/auditQuotation.model");
 db.RegularQuotation = require("../modules/Forms/RegularQuotationForm/regularQuotation.model");
 db.GeneralTestingQuotation = require("../modules/Forms/GeneralTestingQuotationForm/generalTestingQuotation.model");
+db.Blog = require("../modules/Blog/blog.model");
 
 // Define Associations
 db.Users.hasMany(db.RefreshTokens, { foreignKey: "user_id" });
 db.RefreshTokens.belongsTo(db.Users, { foreignKey: "user_id" });
+
+db.Users.hasMany(db.Blog, { foreignKey: "user_id", as: "blogs" });
+db.Blog.belongsTo(db.Users, { foreignKey: "user_id", as: "user" });
 
 db.Users.belongsToMany(db.Company, { through: db.UserCompanies, foreignKey: "user_id" });
 db.Company.belongsToMany(db.Users, { through: db.UserCompanies, foreignKey: "company_id" });
@@ -142,6 +146,10 @@ db.TestRequest.belongsTo(db.Department, { foreignKey: "departmentId", as: "depar
 // TestRequest - TestReport Associations
 db.TestRequest.hasOne(db.TestReport, { foreignKey: "testRequestId", as: "testReport" });
 db.TestReport.belongsTo(db.TestRequest, { foreignKey: "testRequestId", as: "testRequest" });
+
+// Client - TestReport Associations
+db.Client.hasMany(db.TestReport, { foreignKey: "clientId", as: "testReports" });
+db.TestReport.belongsTo(db.Client, { foreignKey: "clientId", as: "client" });
 
 // AuditQuotation Associations
 db.TestRequest.hasOne(db.AuditQuotation, { foreignKey: "testRequestId", as: "auditQuotation" });

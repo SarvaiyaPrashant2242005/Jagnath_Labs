@@ -18,6 +18,7 @@ const locationSampleRoutes = require('./modules/Masters/LocationSampleMasters/lo
 const dashboardRoutes = require('./modules/Dashboard/dashboard.routes');
 const auditQuotationRoutes = require('./modules/Forms/AuditQuotationForm/auditQuotation.routes');
 const provisionalQuotationRoutes = require('./modules/Forms/ProvisionalQuotation/provisionalQuotation.routes');
+const blogRoutes = require('./modules/Blog/blog.routes');
 
 // Mount routes
 router.use('/auth', authRoutes);
@@ -39,5 +40,6 @@ router.use('/caution', cautionRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/audit-quotation', auditQuotationRoutes);
 router.use('/provisional-quotations', provisionalQuotationRoutes);
+router.use('/blogs', blogRoutes);
 
 module.exports = router;

@@ -9,6 +9,7 @@ export const Navbar = ({ activeTab, setActiveTab, onAppointmentClick, isScrolled
     { id: 'about', label: 'About Us' },
     { id: 'services', label: 'Services' },
     { id: 'certificates', label: 'Certificates' },
+    { id: 'blog', label: 'Blog' },
     { id: 'contact', label: 'Contact Us' },
   ];
 

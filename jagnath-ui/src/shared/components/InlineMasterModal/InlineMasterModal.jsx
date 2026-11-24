@@ -129,6 +129,14 @@ const InlineMasterModal = ({
       status: 'Active'
     };
 
+    if (masterType === 'client') {
+      const cityOrNA = formData.city ? String(formData.city).trim() : 'N/A';
+      if (!payload.officeAddress) payload.officeAddress = cityOrNA;
+      if (!payload.plantAddress) payload.plantAddress = cityOrNA;
+      if (!payload.gender) payload.gender = 'Male';
+      if (!payload.contactNumber) payload.contactNumber = '0000000000';
+    }
+
     const activeCompanyId = parentData.companyId || localStorage.getItem('selectedCompanyId');
     if (activeCompanyId) {
       payload.companyId = activeCompanyId;
@@ -160,7 +168,7 @@ const InlineMasterModal = ({
         onSuccess(createdItem);
       }
     } catch (err) {
-      const errMsg = err?.response?.data?.message || err?.message || 'Failed to create item.';
+      const errMsg = err?.messageToShow || err?.message || err?.response?.data?.message || err?.response?.data?.messageToShow || 'Failed to create item.';
       triggerToast(errMsg, 'error');
     } finally {
       setIsSaving(false);

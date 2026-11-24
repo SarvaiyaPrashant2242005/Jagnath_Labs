@@ -91,7 +91,16 @@ const create = async (req, res) => {
             newClient
         ));
     } catch (err) {
-        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Failed to create client."));
+        console.error("[client.controller create error]:", err);
+        const statusCode = err.statusCode || (err.name === 'SequelizeUniqueConstraintError' ? 409 : 500);
+        const userMsg = err.statusCode === 409 || err.name === 'SequelizeUniqueConstraintError'
+            ? (err.errors && err.errors[0]?.message ? err.errors[0].message : err.message)
+            : "Failed to create client.";
+        return res.status(statusCode).json(errorResponse(
+            statusCode === 409 ? "CONFLICT" : "INTERNAL_SERVER_ERROR",
+            err.message,
+            userMsg
+        ));
     }
 };
 

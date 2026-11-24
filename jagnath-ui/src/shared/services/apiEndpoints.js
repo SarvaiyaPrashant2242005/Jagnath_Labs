@@ -198,5 +198,18 @@ export const AUDIT_QUOTATION_ENDPOINTS = {
   UPDATE: (id) => `${API_BASE_URL}/audit-quotation/${id}`,
 };
 
+export const BLOG_ENDPOINTS = {
+  PUBLIC_GET_ALL: `${API_BASE_URL}/blogs/public`,
+  PUBLIC_GET_BY_SLUG: (slug) => `${API_BASE_URL}/blogs/public/${slug}`,
+  PUBLIC_GET_CATEGORIES: `${API_BASE_URL}/blogs/public/categories`,
+  GET_MY_BLOGS: `${API_BASE_URL}/blogs/my-blogs`,
+  GET_BY_ID: (id) => `${API_BASE_URL}/blogs/${id}`,
+  CREATE: `${API_BASE_URL}/blogs`,
+  UPDATE: (id) => `${API_BASE_URL}/blogs/${id}`,
+  DELETE: (id) => `${API_BASE_URL}/blogs/${id}`,
+  UPLOAD_IMAGE: `${API_BASE_URL}/blogs/upload-image`,
+};
+
+
 
 
