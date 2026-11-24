@@ -1,0 +1,131 @@
+/* ==========================================================================
+   JAGNATH LABS OFFICIAL LETTERHEAD STYLESHEET
+   Supports: Test Request Form (TRF), Test Report Form, Print Pages & Batch PDF
+   ========================================================================== */
+
+/* Main A4 Document Sheet with Fine Horizontal Letterhead Ruled Lines */
+.letterhead-sheet {
+  position: relative !important;
+  background-color: #ffffff !important;
+  /* Extremely subtle, closely spaced horizontal ruled-paper lines */
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 21px,
+    rgba(16, 185, 129, 0.07) 22px
+  ) !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+
+/* Background Watermark Layer anchored at bottom-left */
+.letterhead-watermark {
+  position: absolute !important;
+  left: -40px !important;
+  bottom: -30px !important;
+  width: 540px !important;
+  max-width: 65% !important;
+  height: auto !important;
+  object-fit: contain !important;
+  opacity: 0.88 !important;
+  pointer-events: none !important;
+  user-select: none !important;
+  z-index: 0 !important;
+}
+
+/* Foreground Content Wrapper - Ensures 100% crisp text readability */
+.letterhead-content {
+  position: relative !important;
+  z-index: 1 !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* Top-Left Dynamic Header Logo Container */
+.letterhead-header-logo {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  margin-bottom: 8px !important;
+}
+
+.letterhead-header-logo img {
+  max-height: 62px !important;
+  max-width: 250px !important;
+  width: auto !important;
+  height: auto !important;
+  object-fit: contain !important;
+  display: block !important;
+}
+
+/* Professional Official Footer Component */
+.letterhead-footer-container {
+  margin-top: auto !important;
+  padding-top: 6px !important;
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif !important;
+  z-index: 1 !important;
+  position: relative !important;
+}
+
+.letterhead-footer-contact-row {
+  display: flex !important;
+  justify-content: flex-start !important;
+  align-items: flex-start !important;
+  gap: 28px !important;
+  margin-left: 34% !important;
+  font-size: 0.62rem !important;
+  line-height: 1.35 !important;
+  color: #047857 !important;
+  font-weight: 600 !important;
+  margin-bottom: 4px !important;
+}
+
+.letterhead-footer-address {
+  white-space: nowrap !important;
+}
+
+.letterhead-footer-contact {
+  white-space: nowrap !important;
+  text-align: left !important;
+}
+
+.letterhead-footer-divider {
+  width: 100% !important;
+  height: 1px !important;
+  background-color: #059669 !important;
+  margin: 3px 0 !important;
+}
+
+.letterhead-footer-designation {
+  text-align: center !important;
+  font-size: 0.66rem !important;
+  font-weight: 700 !important;
+  color: #1e3a8a !important; /* Dark blue/purple designation per spec */
+  margin-top: 2px !important;
+  letter-spacing: 0.2px !important;
+}
+
+/* Print Specific Rules */
+@media print {
+  .letterhead-sheet {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    /* Maintain fine horizontal lines during print */
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 21px,
+      rgba(16, 185, 129, 0.07) 22px
+    ) !important;
+  }
+
+  .letterhead-watermark {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    display: block !important;
+    visibility: visible !important;
+  }
+}
+

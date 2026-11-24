@@ -226,6 +226,292 @@
   border-radius: 2px;
 }
 
+/* Services Dropdown Styles */
+.jlt-nav-dropdown-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.jlt-nav-link-dropdown {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.jlt-nav-chevron {
+  transition: transform 0.25s ease;
+  color: var(--jlt-slate-500);
+}
+
+.jlt-nav-chevron.rotated {
+  transform: rotate(180deg);
+  color: var(--jlt-primary);
+}
+
+.jlt-services-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 14px);
+  left: 50%;
+  transform: translateX(-50%) translateY(10px);
+  width: 380px;
+  max-width: 90vw;
+  background: #ffffff;
+  border: 1px solid var(--jlt-slate-200);
+  border-radius: var(--jlt-radius-lg);
+  box-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.12), 0 0 1px 1px rgba(15, 23, 42, 0.05);
+  padding: 0.75rem 0.6rem;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.22s ease, transform 0.22s ease, visibility 0.22s ease;
+  z-index: 1000;
+}
+
+/* Invisible bridge so mouse doesn't leave dropdown during hover */
+.jlt-services-dropdown-menu::before {
+  content: '';
+  position: absolute;
+  top: -16px;
+  left: 0;
+  right: 0;
+  height: 16px;
+}
+
+.jlt-services-dropdown-menu.open,
+.jlt-nav-dropdown-wrapper:hover .jlt-services-dropdown-menu {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+
+.jlt-nav-dropdown-wrapper:hover .jlt-nav-chevron {
+  transform: rotate(180deg);
+  color: var(--jlt-primary);
+}
+
+.jlt-dropdown-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.45rem 0.65rem 0.65rem 0.65rem;
+  border-bottom: 1px solid var(--jlt-slate-100);
+  margin-bottom: 0.35rem;
+}
+
+.jlt-dropdown-header-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--jlt-slate-500);
+}
+
+.jlt-dropdown-view-all {
+  background: none;
+  border: none;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--jlt-primary);
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.2s;
+}
+
+.jlt-dropdown-view-all:hover {
+  color: var(--jlt-primary-hover);
+  text-decoration: underline;
+}
+
+.jlt-services-dropdown-list {
+  max-height: 380px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding-right: 0.25rem;
+}
+
+/* Custom subtle scrollbar */
+.jlt-services-dropdown-list::-webkit-scrollbar {
+  width: 5px;
+}
+.jlt-services-dropdown-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.jlt-services-dropdown-list::-webkit-scrollbar-thumb {
+  background: var(--jlt-slate-200);
+  border-radius: 10px;
+}
+.jlt-services-dropdown-list::-webkit-scrollbar-thumb:hover {
+  background: var(--jlt-slate-400);
+}
+
+.jlt-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--jlt-radius-md);
+  padding: 0.6rem 0.65rem;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  position: relative;
+}
+
+.jlt-dropdown-item:hover {
+  background-color: var(--jlt-slate-50);
+  border-color: var(--jlt-slate-200);
+}
+
+.jlt-dropdown-item.active {
+  background-color: var(--jlt-primary-light);
+  border-color: rgba(102, 184, 52, 0.3);
+}
+
+.jlt-dropdown-item-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--jlt-radius-sm);
+  background: var(--jlt-slate-100);
+  color: var(--jlt-slate-700);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.18s ease;
+}
+
+.jlt-dropdown-item:hover .jlt-dropdown-item-icon {
+  background: var(--jlt-primary-light);
+  color: var(--jlt-primary);
+}
+
+.jlt-dropdown-item.active .jlt-dropdown-item-icon {
+  background: var(--jlt-primary);
+  color: #ffffff;
+}
+
+.jlt-dropdown-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.jlt-dropdown-item-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--jlt-slate-800);
+  line-height: 1.35;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.jlt-dropdown-item.active .jlt-dropdown-item-title {
+  color: var(--jlt-slate-900);
+  font-weight: 700;
+}
+
+.jlt-dropdown-item-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--jlt-primary);
+  letter-spacing: 0.3px;
+}
+
+.jlt-dropdown-item-arrow {
+  color: var(--jlt-slate-400);
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: all 0.18s ease;
+  flex-shrink: 0;
+}
+
+.jlt-dropdown-item:hover .jlt-dropdown-item-arrow {
+  opacity: 1;
+  transform: translateX(0);
+  color: var(--jlt-primary);
+}
+
+/* Mobile Dropdown Styling in Drawer */
+.jlt-mobile-has-dropdown {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.jlt-mobile-link-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.jlt-mobile-expand-btn {
+  background: none;
+  border: none;
+  padding: 0.6rem;
+  cursor: pointer;
+  color: var(--jlt-slate-600);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.jlt-mobile-subservices {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-left: 0.85rem;
+  margin-top: 0.35rem;
+  margin-bottom: 0.5rem;
+  border-left: 2px solid var(--jlt-slate-200);
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.jlt-mobile-subservice-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: var(--jlt-radius-sm);
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+}
+
+.jlt-mobile-subservice-btn:hover,
+.jlt-mobile-subservice-btn.active {
+  background: var(--jlt-slate-100);
+}
+
+.jlt-mobile-subservice-icon {
+  color: var(--jlt-primary);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.jlt-mobile-subservice-title {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--jlt-slate-700);
+  line-height: 1.3;
+}
+
 .jlt-btn-appointment {
   display: inline-flex;
   align-items: center;

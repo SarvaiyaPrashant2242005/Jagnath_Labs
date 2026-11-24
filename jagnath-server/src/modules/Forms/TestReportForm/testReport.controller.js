@@ -72,13 +72,76 @@ const create = async (req, res) => {
             signatureImage: value.signatureImage || null,
             parametersList: value.parametersList || [],
             status: value.status || "Completed",
-            showPermissibleLimits: value.showPermissibleLimits !== undefined ? value.showPermissibleLimits : true
+            showPermissibleLimits: value.showPermissibleLimits !== undefined ? value.showPermissibleLimits : true,
+            batchId: value.batchId || null
         };
 
         const newReport = await testReportService.createTestReport(reportData);
         return res.status(201).json(successResponse("TEST_REPORT_CREATED", "Test report saved successfully.", "Test report saved successfully.", newReport));
     } catch (err) {
         return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Failed to create test report."));
+    }
+};
+
+const createBatch = async (req, res) => {
+    try {
+        const userId = req.user.user_id;
+        const body = req.body || {};
+        const reports = Array.isArray(body.reports) ? body.reports : [];
+
+        if (reports.length === 0) {
+            return res.status(400).json(errorResponse("VALIDATION_ERROR", "Reports array is required and cannot be empty.", "No reports provided."));
+        }
+
+        const companyId = await resolveCompanyId(body, req.query, userId, req.headers, req.user);
+        const sanitizeDate = (d) => (d && typeof d === 'string' && d.trim() !== '' ? d.trim() : null);
+        const sanitizeUUID = (u) => (u && typeof u === 'string' && u.length === 36 ? u : null);
+
+        const sanitizedReports = [];
+        for (const item of reports) {
+            const { error, value } = createTestReportSchema.validate(item);
+            if (error) {
+                return res.status(400).json(errorResponse("VALIDATION_ERROR", error.details[0].message, `Validation error in report "${item.samplingLocation || item.reportNumber || 'Untitled'}": ${error.details[0].message}`));
+            }
+
+            sanitizedReports.push({
+                companyId,
+                clientId: sanitizeUUID(value.clientId),
+                testRequestId: sanitizeUUID(value.testRequestId),
+                reportNumber: value.reportNumber,
+                referenceNo: value.referenceNo || value.reportNumber,
+                reportIssuedTo: value.reportIssuedTo,
+                agencyName: value.agencyName || value.reportIssuedTo,
+                agencyAddress: value.agencyAddress || "",
+                detailsOfSample: value.detailsOfSample || "",
+                packingDetails: value.packingDetails || "",
+                dateOfReceipt: sanitizeDate(value.dateOfReceipt),
+                sampleQuantity: value.sampleQuantity || "",
+                samplingLocation: value.samplingLocation || "",
+                conditionOnReceipt: value.conditionOnReceipt || "Satisfactory",
+                sampleCollectedBy: value.sampleCollectedBy || "",
+                nameOfWork: value.nameOfWork || "",
+                startingDateOfTest: sanitizeDate(value.startingDateOfTest),
+                completionDateOfTest: sanitizeDate(value.completionDateOfTest),
+                sectionHeader: value.sectionHeader || "",
+                formatNo: value.formatNo || "",
+                formatDate: value.formatDate || "",
+                reviewedBy: value.reviewedBy || "",
+                reviewedBySignature: value.reviewedBySignature || null,
+                authorizedSignatory: value.authorizedSignatory || "",
+                signatureImage: value.signatureImage || null,
+                parametersList: value.parametersList || [],
+                status: value.status || "Completed",
+                showPermissibleLimits: value.showPermissibleLimits !== undefined ? value.showPermissibleLimits : true,
+                batchId: value.batchId || body.batchId || null
+            });
+        }
+
+        const createdReports = await testReportService.createBatchTestReports(sanitizedReports, companyId);
+        return res.status(201).json(successResponse("TEST_REPORTS_BATCH_CREATED", `Successfully generated ${createdReports.length} test reports.`, `Successfully generated ${createdReports.length} test reports.`, createdReports));
+    } catch (err) {
+        console.error("Batch test report creation error:", err);
+        return res.status(500).json(errorResponse("INTERNAL_SERVER_ERROR", err.message, "Failed to create multiple test reports."));
     }
 };
 
@@ -197,6 +260,7 @@ const remove = async (req, res) => {
 
 module.exports = {
     create,
+    createBatch,
     update,
     getAll,
     getById,

@@ -140,6 +140,7 @@ export const TEST_REQUEST_ENDPOINTS = {
 // ─── Test Report Endpoints ──────────────────────────────────────────────────────
 export const TEST_REPORT_ENDPOINTS = {
   CREATE: `${API_BASE_URL}/test-report`,
+  CREATE_BATCH: `${API_BASE_URL}/test-report/batch`,
   GET_ALL: `${API_BASE_URL}/test-report`,
   GET_BY_ID: (id) => `${API_BASE_URL}/test-report/${id}`,
   UPDATE: (id) => `${API_BASE_URL}/test-report/${id}`,

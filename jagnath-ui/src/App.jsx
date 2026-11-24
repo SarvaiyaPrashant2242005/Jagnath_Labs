@@ -133,6 +133,10 @@ function App() {
           element={<LandingPage initialTab="services" onNavigate={(page) => window.location.hash = `#/${page}`} />}
         />
         <Route
+          path="/services/:categorySlug"
+          element={<LandingPage initialTab="services" onNavigate={(page) => window.location.hash = `#/${page}`} />}
+        />
+        <Route
           path="/certificates"
           element={<LandingPage initialTab="certificates" onNavigate={(page) => window.location.hash = `#/${page}`} />}
         />

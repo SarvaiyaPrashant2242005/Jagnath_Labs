@@ -172,36 +172,45 @@ const TestRequestPrint = () => {
   return (
     <div className="print-container">
       {/* ======================= PAGE 1 ======================= */}
-      <div className="print-page">
+      <div className="print-page letterhead-sheet">
+        {/* Background Watermark Image */}
+        <img
+          src="/images/letterpad_watermark.png"
+          alt="Watermark"
+          className="letterhead-watermark"
+        />
 
-        {/* Header Table */}
-        <table className="print-header-table">
-          <tbody>
-            <tr>
-              <td className="header-logo-cell" style={{ textAlign: 'center', padding: '3px 6px', verticalAlign: 'middle', height: '85px', boxSizing: 'border-box' }}>
-                <img src={getLogoUrl()} alt="Logo" style={{ maxHeight: '79px', maxWidth: '100%', width: 'auto', height: 'auto', objectFit: 'contain', display: 'block', margin: '0 auto' }} />
-              </td>
-              <td className="header-title-cell">
-                <h2>FORMATS</h2>
-              </td>
-              <td className="header-info-cell">
-                <table className="header-inner-table">
-                  <tbody>
-                    <tr><td>Amendment No.</td><td>00</td></tr>
-                    <tr><td>Amendment Date</td><td>--</td></tr>
-                    <tr><td>Issue No.</td><td>01</td></tr>
-                    <tr><td>Issue Date</td><td>01/09/2018</td></tr>
-                    <tr><td style={{ borderBottom: 'none' }}>Format No.</td><td style={{ borderBottom: 'none' }}>7.1 F-01</td></tr>
-                  </tbody>
-                </table>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        {/* Foreground Content */}
+        <div className="letterhead-content">
 
-        <div className="form-title-bar">
-          <h3>TEST REQUEST FORM FOR {(formData.formTitle || 'WATER & WASTE WATER').replace(/^TEST REQUEST FORM FOR /i, '')}</h3>
-        </div>
+          {/* Header Table */}
+          <table className="print-header-table">
+            <tbody>
+              <tr>
+                <td className="header-logo-cell" style={{ textAlign: 'center', padding: '3px 6px', verticalAlign: 'middle', height: '85px', boxSizing: 'border-box' }}>
+                  <img src={getLogoUrl()} alt="Logo" style={{ maxHeight: '79px', maxWidth: '100%', width: 'auto', height: 'auto', objectFit: 'contain', display: 'block', margin: '0 auto' }} />
+                </td>
+                <td className="header-title-cell">
+                  <h2>FORMATS</h2>
+                </td>
+                <td className="header-info-cell">
+                  <table className="header-inner-table">
+                    <tbody>
+                      <tr><td>Amendment No.</td><td>00</td></tr>
+                      <tr><td>Amendment Date</td><td>--</td></tr>
+                      <tr><td>Issue No.</td><td>01</td></tr>
+                      <tr><td>Issue Date</td><td>01/09/2018</td></tr>
+                      <tr><td style={{ borderBottom: 'none' }}>Format No.</td><td style={{ borderBottom: 'none' }}>7.1 F-01</td></tr>
+                    </tbody>
+                  </table>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div className="form-title-bar">
+            <h3>TEST REQUEST FORM FOR {(formData.formTitle || 'WATER & WASTE WATER').replace(/^TEST REQUEST FORM FOR /i, '')}</h3>
+          </div>
 
         {/* Main Form Table */}
         <table className="print-main-table">
@@ -329,7 +338,7 @@ const TestRequestPrint = () => {
         </table>
 
         {/* Footer Page 1 */}
-        <table className="print-footer-table" style={{ marginTop: 'auto' }}>
+        <table className="print-footer-table" style={{ marginTop: 'auto', marginBottom: '4px' }}>
           <tbody>
             <tr>
               <td style={{ width: '33.33%', borderRight: '1px solid #000' }}>Doc No: JLT/ 7.1 F-01</td>
@@ -347,10 +356,36 @@ const TestRequestPrint = () => {
             </tr>
           </tbody>
         </table>
+
+        {/* Official Letterhead Footer with Company Info */}
+        <div style={{ marginTop: '2px', borderTop: '1px solid #047857', paddingTop: '2px', fontSize: '0.62rem', fontFamily: 'sans-serif' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ color: '#047857', fontWeight: 600 }}>📍 5-6/B, Nayanjyot Chambers, First Floor, Opp. Vachhera Vada, Gondal-360 311. Dist. : Rajkot. (Guj.)</div>
+            <div style={{ color: '#047857', fontWeight: 600 }}>✉ jagnathtechnologies@yahoo.com</div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1px' }}>
+            <div style={{ color: '#047857', fontWeight: 600 }}>🌐 www.jagnath.com</div>
+            <div style={{ color: '#047857', fontWeight: 600 }}>📞 +91 8140 5555 15</div>
+          </div>
+          <div style={{ textAlign: 'center', fontSize: '0.64rem', fontWeight: 'bold', color: '#1e3a8a', marginTop: '2px' }}>
+            Environment Consultant & Gujarat Pollution Control Board Schedule-II Auditors
+          </div>
+        </div>
+
+        </div>{/* End letterhead-content Page 1 */}
       </div>
 
       {/* ======================= PAGE 2 ======================= */}
-      <div className="print-page">
+      <div className="print-page letterhead-sheet">
+        {/* Background Watermark Image */}
+        <img
+          src="/images/letterpad_watermark.png"
+          alt="Watermark"
+          className="letterhead-watermark"
+        />
+
+        {/* Foreground Content */}
+        <div className="letterhead-content">
 
         {/* Header Table (Repeated) */}
         <table className="print-header-table">
@@ -434,7 +469,7 @@ const TestRequestPrint = () => {
         </div>
 
         {/* Footer Page 2 */}
-        <table className="print-footer-table" style={{ marginTop: 'auto' }}>
+        <table className="print-footer-table" style={{ marginTop: 'auto', marginBottom: '4px' }}>
           <tbody>
             <tr>
               <td style={{ width: '33.33%', borderRight: '1px solid #000' }}>Doc No: JLT/ 7.1 F-01</td>
@@ -452,6 +487,23 @@ const TestRequestPrint = () => {
             </tr>
           </tbody>
         </table>
+
+        {/* Official Letterhead Footer with Company Info */}
+        <div style={{ marginTop: '2px', borderTop: '1px solid #047857', paddingTop: '2px', fontSize: '0.62rem', fontFamily: 'sans-serif' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ color: '#047857', fontWeight: 600 }}>📍 5-6/B, Nayanjyot Chambers, First Floor, Opp. Vachhera Vada, Gondal-360 311. Dist. : Rajkot. (Guj.)</div>
+            <div style={{ color: '#047857', fontWeight: 600 }}>✉ jagnathtechnologies@yahoo.com</div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1px' }}>
+            <div style={{ color: '#047857', fontWeight: 600 }}>🌐 www.jagnath.com</div>
+            <div style={{ color: '#047857', fontWeight: 600 }}>📞 +91 8140 5555 15</div>
+          </div>
+          <div style={{ textAlign: 'center', fontSize: '0.64rem', fontWeight: 'bold', color: '#1e3a8a', marginTop: '2px' }}>
+            Environment Consultant & Gujarat Pollution Control Board Schedule-II Auditors
+          </div>
+        </div>
+
+        </div>{/* End letterhead-content Page 2 */}
       </div>
 
       {/* Print styles */}

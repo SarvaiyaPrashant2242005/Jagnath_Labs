@@ -209,8 +209,44 @@ const deleteTestReport = async (id, companyId) => {
     return true;
 };
 
+/**
+ * Creates multiple Test Reports in a single batch safely.
+ */
+const createBatchTestReports = async (reportsDataArray, companyId) => {
+    if (!Array.isArray(reportsDataArray) || reportsDataArray.length === 0) {
+        throw new Error("No reports provided for batch creation.");
+    }
+
+    const transaction = await sequelize.transaction();
+    const createdReports = [];
+
+    try {
+        for (const reportItem of reportsDataArray) {
+            const dataToInsert = {
+                ...reportItem,
+                companyId
+            };
+            const newReport = await TestReport.create(dataToInsert, { transaction });
+            createdReports.push(newReport);
+        }
+        await transaction.commit();
+
+        // Retrieve and format created reports
+        const formattedList = [];
+        for (const rep of createdReports) {
+            const fullRep = await getTestReportById(rep.id, rep.companyId);
+            if (fullRep) formattedList.push(fullRep);
+        }
+        return formattedList;
+    } catch (error) {
+        await transaction.rollback();
+        throw error;
+    }
+};
+
 module.exports = {
     createTestReport,
+    createBatchTestReports,
     updateTestReport,
     getTestReportsByCompany,
     getTestReportById,

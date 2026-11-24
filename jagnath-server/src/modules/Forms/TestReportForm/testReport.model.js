@@ -150,6 +150,11 @@ const TestReport = sequelize.define("TestReport", {
         defaultValue: [],
         field: "parameters_list"
     },
+    batchId: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        field: "batch_id"
+    },
     status: {
         type: DataTypes.STRING,
         defaultValue: "Completed",

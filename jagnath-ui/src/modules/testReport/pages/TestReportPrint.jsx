@@ -238,7 +238,16 @@ const TestReportPrint = () => {
       </div>
 
       {/* ======================= A4 PRINT PAGE ======================= */}
-      <div className="print-page">
+      <div className="print-page letterhead-sheet">
+        {/* Background Watermark Image */}
+        <img
+          src="/images/letterpad_watermark.png"
+          alt="Watermark"
+          className="letterhead-watermark"
+        />
+
+        {/* Foreground Content */}
+        <div className="letterhead-content">
         
         {/* Top Header Logo & Title Row */}
         {withHeaderFooter ? (
@@ -521,10 +530,10 @@ const TestReportPrint = () => {
               </div>
               
               {/* Horizontal Line separating columns and Auditors title */}
-              <div style={{ borderTop: '1px solid #000', margin: '3px 0' }}></div>
+              <div style={{ borderTop: '1px solid #059669', margin: '3px 0' }}></div>
 
               {/* Auditors Title */}
-              <div style={{ textAlign: 'center', fontSize: '0.68rem', fontWeight: 'bold', color: '#047857', marginTop: '3px' }}>
+              <div style={{ textAlign: 'center', fontSize: '0.68rem', fontWeight: 'bold', color: '#1e3a8a', marginTop: '3px' }}>
                 Environment Consultant & Gujarat Pollution Control Board Schedule-II Auditors
               </div>
             </div>
@@ -533,6 +542,7 @@ const TestReportPrint = () => {
           )}
         </div>
 
+        </div>{/* End letterhead-content */}
       </div>
 
       {/* Embedded CSS matching TestRequestPrint print styling */}

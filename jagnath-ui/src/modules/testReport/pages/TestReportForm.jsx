@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   FaArrowLeft, FaSave, FaPrint, FaEye, FaEyeSlash, FaPlus, FaTrash,
-  FaCheck, FaExclamationCircle, FaClipboardList, FaFlask, FaFilePdf, FaUserTie
+  FaCheck, FaExclamationCircle, FaClipboardList, FaFlask, FaFilePdf, FaUserTie,
+  FaFileArchive, FaCopy, FaLayerGroup
 } from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
 import {
@@ -18,6 +19,8 @@ import SearchableSelect from '../../../shared/components/Select/SearchableSelect
 import { validateReportDataIntegrity, groupParametersByLocationScope } from '../services/testReportValidation';
 import CustomerReportImportModal from '../components/CustomerReportImportModal';
 import ParameterSelectionModal from '../components/ParameterSelectionModal';
+import MultiReportNavigator from '../components/MultiReportNavigator';
+import { SimpleZip } from '../services/simpleZip';
 import { sanitizeSamplingParamName } from '../../../shared/utils/parameterDisplayUtils';
 
 /**
@@ -28,7 +31,62 @@ import { sanitizeSamplingParamName } from '../../../shared/utils/parameterDispla
 const TestReportForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const isEditing = !!id;
+
+  // Multi-Report Session Management
+  const queryParams = new URLSearchParams(location.search);
+  const isMultiParamMode = queryParams.get('mode') === 'multiple';
+
+  // Helper to generate distinct report numbers for new reports
+  const generateNewReportNumber = (offset = 0) => {
+    const now = new Date();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const yy = String(now.getFullYear()).slice(-2);
+    const suffix = String(Date.now() + offset).slice(-5);
+    return `JLT01${mm}${yy}RR${suffix}`;
+  };
+
+  const initialReportItem = {
+    _sessionReportId: `rep_${Date.now()}_0`,
+    formData: {
+      formatNo: 'Format No. 7.8 F-02',
+      reportDate: new Date().toISOString().split('T')[0],
+      reportNumber: generateNewReportNumber(0),
+      nameOfWork: '',
+      detailsOfSample: '',
+      packingDetails: '',
+      reportIssuedTo: '',
+      referenceNo: '',
+      dateOfSampling: '',
+      dateOfReceipt: '',
+      agencyName: '',
+      agencyAddress: '',
+      sampleQuantity: '',
+      samplingLocation: '',
+      conditionOnReceipt: '',
+      sampleCollectedBy: '',
+      startingDateOfTest: '',
+      completionDateOfTest: '',
+      sectionHeader: '',
+      reviewedByAnalyst: '',
+      authorizedSignatory: '',
+      signatureImage: '',
+      reviewedBySignature: '',
+      termsAndConditions: 'The report is analyzed with the quality standards. These results are related to sample collection as specified above. This report in full or part, shall not be published advertised, used for any legal action, unless written consent and prior permission has been secured from the owner, JAGNATH LAB TECHNOLOGIES, GONDAL-RAJKOT.',
+      showPermissibleLimits: true
+    },
+    parametersList: [],
+    selectedTRId: '',
+    selectedCustomerDirect: null,
+    selectedConditionSelect: 'Satisfactory',
+    customConditionText: ''
+  };
+
+  const [sessionReports, setSessionReports] = useState([initialReportItem]);
+  const [activeReportIndex, setActiveReportIndex] = useState(0);
+  const [isBatchSaving, setIsBatchSaving] = useState(false);
+  const [sessionValidationErrors, setSessionValidationErrors] = useState({});
 
   // Available Test Requests for Auto-Fill Dropdown
   const [testRequests, setTestRequests] = useState([]);
@@ -753,6 +811,706 @@ const TestReportForm = () => {
     }
   };
 
+  // ─── MULTI-REPORT SESSION HANDLERS ──────────────────────────────────
+  // Switch to another report in session (auto-syncing current form state first)
+  const handleSelectSessionReport = (newIdx) => {
+    if (newIdx === activeReportIndex || !sessionReports[newIdx]) return;
+
+    setSessionReports(prev => {
+      const updated = [...prev];
+      if (updated[activeReportIndex]) {
+        updated[activeReportIndex] = {
+          ...updated[activeReportIndex],
+          formData: { ...formData },
+          parametersList: [...parametersList],
+          selectedTRId,
+          selectedCustomerDirect,
+          selectedConditionSelect,
+          customConditionText
+        };
+      }
+      return updated;
+    });
+
+    const target = sessionReports[newIdx];
+    if (target) {
+      setFormData(target.formData);
+      setParametersList(target.parametersList || []);
+      setSelectedTRId(target.selectedTRId || '');
+      setSelectedCustomerDirect(target.selectedCustomerDirect || null);
+      setSelectedConditionSelect(target.selectedConditionSelect || 'Satisfactory');
+      setCustomConditionText(target.customConditionText || '');
+    }
+    setActiveReportIndex(newIdx);
+  };
+
+  // Add new report to session
+  const handleAddNewSessionReport = (creationType = 'blank') => {
+    // 1. Sync current report first
+    const currentSynced = {
+      ...sessionReports[activeReportIndex],
+      formData: { ...formData },
+      parametersList: [...parametersList],
+      selectedTRId,
+      selectedCustomerDirect,
+      selectedConditionSelect,
+      customConditionText
+    };
+
+    const nextIdx = sessionReports.length;
+    const newReportNo = generateNewReportNumber(nextIdx);
+
+    let newReportItem;
+    if (creationType === 'reuse') {
+      // Reuse customer, work, date info from current report, with fresh location and parameter copies
+      newReportItem = {
+        _sessionReportId: `rep_${Date.now()}_${nextIdx}`,
+        formData: {
+          ...formData,
+          reportNumber: newReportNo,
+          referenceNo: newReportNo,
+          samplingLocation: `Sample Location 0${nextIdx + 1}`
+        },
+        parametersList: parametersList.map(p => ({ ...p, result: '' })), // keep parameters, clear results
+        selectedTRId,
+        selectedCustomerDirect,
+        selectedConditionSelect,
+        customConditionText
+      };
+    } else {
+      // Option A: Start Blank
+      newReportItem = {
+        _sessionReportId: `rep_${Date.now()}_${nextIdx}`,
+        formData: {
+          formatNo: 'Format No. 7.8 F-02',
+          reportDate: new Date().toISOString().split('T')[0],
+          reportNumber: newReportNo,
+          nameOfWork: formData.nameOfWork || '',
+          detailsOfSample: '',
+          packingDetails: 'Sample Sealed in Plastic Bottle',
+          reportIssuedTo: '',
+          referenceNo: newReportNo,
+          dateOfSampling: '',
+          dateOfReceipt: new Date().toISOString().split('T')[0],
+          agencyName: '',
+          agencyAddress: '',
+          sampleQuantity: '01 (1 ltr)',
+          samplingLocation: `Sample Location 0${nextIdx + 1}`,
+          conditionOnReceipt: 'Satisfactory',
+          sampleCollectedBy: 'Client / Representative',
+          startingDateOfTest: new Date().toISOString().split('T')[0],
+          completionDateOfTest: new Date().toISOString().split('T')[0],
+          sectionHeader: formData.sectionHeader || '',
+          reviewedByAnalyst: formData.reviewedByAnalyst || '',
+          authorizedSignatory: formData.authorizedSignatory || '',
+          signatureImage: formData.signatureImage || '',
+          reviewedBySignature: formData.reviewedBySignature || '',
+          termsAndConditions: formData.termsAndConditions || '',
+          showPermissibleLimits: formData.showPermissibleLimits !== undefined ? formData.showPermissibleLimits : true
+        },
+        parametersList: [],
+        selectedTRId: '',
+        selectedCustomerDirect: null,
+        selectedConditionSelect: 'Satisfactory',
+        customConditionText: ''
+      };
+    }
+
+    setSessionReports(prev => {
+      const updated = [...prev];
+      updated[activeReportIndex] = currentSynced;
+      return [...updated, newReportItem];
+    });
+
+    // Switch form immediately to the new report
+    setFormData(newReportItem.formData);
+    setParametersList(newReportItem.parametersList);
+    setSelectedTRId(newReportItem.selectedTRId);
+    setSelectedCustomerDirect(newReportItem.selectedCustomerDirect);
+    setSelectedConditionSelect(newReportItem.selectedConditionSelect);
+    setCustomConditionText(newReportItem.customConditionText);
+    setActiveReportIndex(nextIdx);
+
+    triggerToast(`Added Report 0${nextIdx + 1}: ${newReportItem.formData.samplingLocation}`, 'success');
+  };
+
+  // Duplicate an existing report in session
+  const handleDuplicateSessionReport = (idxToDup) => {
+    const source = sessionReports[idxToDup];
+    if (!source) return;
+
+    // Sync active if duplicating active
+    const sourceData = (idxToDup === activeReportIndex)
+      ? {
+          formData: { ...formData },
+          parametersList: [...parametersList],
+          selectedTRId,
+          selectedCustomerDirect,
+          selectedConditionSelect,
+          customConditionText
+        }
+      : source;
+
+    const nextIdx = sessionReports.length;
+    const newReportNo = generateNewReportNumber(nextIdx);
+
+    const duplicatedItem = {
+      _sessionReportId: `rep_${Date.now()}_${nextIdx}`,
+      formData: {
+        ...sourceData.formData,
+        reportNumber: newReportNo,
+        referenceNo: newReportNo,
+        samplingLocation: `${sourceData.formData.samplingLocation || 'Location'} (Copy)`
+      },
+      parametersList: (sourceData.parametersList || []).map(p => ({ ...p })),
+      selectedTRId: sourceData.selectedTRId || '',
+      selectedCustomerDirect: sourceData.selectedCustomerDirect || null,
+      selectedConditionSelect: sourceData.selectedConditionSelect || 'Satisfactory',
+      customConditionText: sourceData.customConditionText || ''
+    };
+
+    setSessionReports(prev => {
+      const updated = [...prev];
+      if (activeReportIndex < updated.length) {
+        updated[activeReportIndex] = {
+          ...updated[activeReportIndex],
+          formData: { ...formData },
+          parametersList: [...parametersList],
+          selectedTRId,
+          selectedCustomerDirect,
+          selectedConditionSelect,
+          customConditionText
+        };
+      }
+      return [...updated, duplicatedItem];
+    });
+
+    // Switch to duplicate
+    setFormData(duplicatedItem.formData);
+    setParametersList(duplicatedItem.parametersList);
+    setSelectedTRId(duplicatedItem.selectedTRId);
+    setSelectedCustomerDirect(duplicatedItem.selectedCustomerDirect);
+    setSelectedConditionSelect(duplicatedItem.selectedConditionSelect);
+    setCustomConditionText(duplicatedItem.customConditionText);
+    setActiveReportIndex(nextIdx);
+
+    triggerToast(`Duplicated: ${duplicatedItem.formData.samplingLocation}`, 'success');
+  };
+
+  // Remove report from session
+  const handleRemoveSessionReport = (idxToRemove) => {
+    if (sessionReports.length <= 1) {
+      triggerToast('At least one report must remain in workspace.', 'error');
+      return;
+    }
+
+    const updatedList = sessionReports.filter((_, idx) => idx !== idxToRemove);
+    let newActiveIdx = activeReportIndex;
+    if (idxToRemove === activeReportIndex) {
+      newActiveIdx = Math.max(0, activeReportIndex - 1);
+    } else if (idxToRemove < activeReportIndex) {
+      newActiveIdx = activeReportIndex - 1;
+    }
+
+    setSessionReports(updatedList);
+    setActiveReportIndex(newActiveIdx);
+
+    const nextTarget = updatedList[newActiveIdx];
+    if (nextTarget) {
+      setFormData(nextTarget.formData);
+      setParametersList(nextTarget.parametersList || []);
+      setSelectedTRId(nextTarget.selectedTRId || '');
+      setSelectedCustomerDirect(nextTarget.selectedCustomerDirect || null);
+      setSelectedConditionSelect(nextTarget.selectedConditionSelect || 'Satisfactory');
+      setCustomConditionText(nextTarget.customConditionText || '');
+    }
+
+    triggerToast('Report removed from session.', 'info');
+  };
+
+  // Batch Save all session reports
+  const handleSaveAllSessionReports = async () => {
+    // 1. Snapshot all reports
+    const allSnapshot = sessionReports.map((rep, idx) => {
+      if (idx === activeReportIndex) {
+        return {
+          ...rep,
+          formData: { ...formData },
+          parametersList: [...parametersList],
+          selectedTRId,
+          selectedCustomerDirect
+        };
+      }
+      return rep;
+    });
+
+    // 2. Validate all reports
+    const errors = {};
+    let hasErr = false;
+    allSnapshot.forEach((rep, idx) => {
+      const val = validateReportDataIntegrity(rep.formData, rep.parametersList);
+      if (!val.isValid) {
+        errors[idx] = val.errors;
+        hasErr = true;
+      }
+    });
+
+    setSessionValidationErrors(errors);
+    if (hasErr) {
+      const firstErrIdx = Object.keys(errors)[0];
+      handleSelectSessionReport(Number(firstErrIdx));
+      triggerToast(`Validation failed for Report 0${Number(firstErrIdx) + 1}: ${errors[firstErrIdx][0]}`, 'error');
+      return;
+    }
+
+    setIsBatchSaving(true);
+    try {
+      const activeCompId = localStorage.getItem('selectedCompanyId');
+      const batchSessionId = `BATCH_${Date.now()}`;
+
+      const payloadReports = allSnapshot.map(item => ({
+        ...item.formData,
+        reviewedBy: item.formData.reviewedByAnalyst || item.formData.reviewedBy || '',
+        parametersList: item.parametersList,
+        clientId: item.formData.clientId || item.selectedCustomerDirect?.id || null,
+        testRequestId: item.selectedTRId || item.formData.testRequestId || null,
+        companyId: activeCompId || null,
+        batchId: batchSessionId,
+        referenceNo: item.formData.referenceNo || item.formData.reportNumber,
+        status: 'Completed'
+      }));
+
+      const res = await apiService.post(TEST_REPORT_ENDPOINTS.CREATE_BATCH, {
+        batchId: batchSessionId,
+        reports: payloadReports
+      });
+
+      triggerToast(`Successfully saved all ${payloadReports.length} test reports!`, 'success');
+      setTimeout(() => {
+        navigate('/test-reports');
+      }, 700);
+    } catch (err) {
+      console.error('Batch save error:', err);
+      triggerToast(err?.response?.data?.message || err?.message || 'Failed to save all reports.', 'error');
+    } finally {
+      setIsBatchSaving(false);
+    }
+  };
+
+  // Helper to generate full printable A4 HTML for any report snapshot
+  const generateReportHtml = (rData, pList, isSingleDoc = true) => {
+    const safeLogo = getPreviewLogoUrl();
+    const rows = (pList || []).map((p, pIdx) => {
+      const bold = shouldBoldResult(p.result, p.permissibleLimit);
+      return `
+        <tr>
+          <td style="text-align:center; padding: 3px 5px; border: 1px solid #000;">${p.srNo || String(pIdx + 1).padStart(2, '0')}</td>
+          <td style="padding: 3px 6px; border: 1px solid #000; font-weight: bold; text-align: left;">${sanitizeSamplingParamName(p.parameterName)}</td>
+          <td style="text-align:center; padding: 3px 5px; border: 1px solid #000;">${p.referenceMethod || '-'}</td>
+          <td style="text-align:center; padding: 3px 5px; border: 1px solid #000;">${p.unit || '-'}</td>
+          <td style="text-align:center; padding: 3px 5px; border: 1px solid #000; font-weight: ${bold ? 'bold' : 'normal'};">${p.result || '-'}</td>
+          ${rData.showPermissibleLimits !== false ? `<td style="text-align:center; padding: 3px 5px; border: 1px solid #000;">${p.permissibleLimit || '-'}</td>` : ''}
+        </tr>
+      `;
+    }).join('');
+
+    const agencyPart = rData.agencyName || (rData.reportIssuedTo ? rData.reportIssuedTo.split('\n')[0] : '');
+    const addressPart = rData.agencyAddress ? `<div style="font-size: 10px; margin-top: 1px;">${rData.agencyAddress}</div>` : '';
+
+    return `
+      <div class="test-report-page letterhead-sheet" style="position: relative; page-break-after: always; padding: 10mm 12mm; box-sizing: border-box; max-width: 210mm; min-height: 297mm; margin: 0 auto; background-color: #fff; background-image: repeating-linear-gradient(to bottom, transparent 0px, transparent 21px, rgba(16, 185, 129, 0.07) 22px); font-family: 'Times New Roman', Times, serif; color: #000; overflow: hidden;">
+        <!-- Background Watermark Image -->
+        <img
+          src="/images/letterpad_watermark.png"
+          alt="Watermark"
+          class="letterhead-watermark"
+          style="position: absolute; left: -40px; bottom: -30px; width: 540px; max-width: 65%; height: auto; object-fit: contain; opacity: 0.88; pointer-events: none; z-index: 0;"
+        />
+
+        <!-- Foreground Content -->
+        <div class="letterhead-content" style="position: relative; z-index: 1; width: 100%; height: 100%; display: flex; flex-direction: column;">
+
+        ${withHeaderFooter ? `
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <img src="${safeLogo}" alt="Company Logo" style="height: 60px; max-width: 220px; object-fit: contain;" />
+          </div>
+        ` : `<div style="height: 45px; margin-bottom: 8px;"></div>`}
+
+        <div style="text-align: center; font-size: 18px; font-weight: bold; text-decoration: underline; margin: 8px 0; letter-spacing: 0.5px;">
+          TEST REPORT
+        </div>
+
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px; border: 1px solid #000; margin-bottom: 0;">
+          <colgroup>
+            <col style="width: 32%" />
+            <col style="width: 28%" />
+            <col style="width: 22%" />
+            <col style="width: 18%" />
+          </colgroup>
+          <tbody>
+            <tr>
+              <td colspan="2" rowspan="2" style="padding: 3px 5px; font-weight: bold; font-size: 12px; border: 1px solid #000; vertical-align: middle;">
+                D- ${rData.reportNumber || rData.referenceNo || 'N/A'}
+              </td>
+              <td colspan="2" style="padding: 3px 5px; text-align: right; font-weight: bold; font-size: 12px; border: 1px solid #000;">
+                ${rData.formatNo || 'Format No. 7.8 F-02'}
+              </td>
+            </tr>
+            <tr>
+              <td colspan="2" style="padding: 3px 5px; text-align: right; font-weight: bold; font-size: 12px; border: 1px solid #000;">
+                Date: - ${formatDateDDMMYYYY(rData.formatDate || rData.dateOfReceipt || new Date().toISOString())}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 3px 5px; border: 1px solid #000;">Name Of Work</td>
+              <td colspan="3" style="padding: 3px 5px; font-weight: bold; border: 1px solid #000;">${rData.nameOfWork || ''}</td>
+            </tr>
+            <tr>
+              <td style="padding: 3px 5px; border: 1px solid #000;">Details of sample</td>
+              <td colspan="3" style="padding: 3px 5px; border: 1px solid #000;">${rData.detailsOfSample || '-'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 3px 5px; border: 1px solid #000;">Mode of Packing</td>
+              <td colspan="3" style="padding: 3px 5px; border: 1px solid #000;">${rData.packingDetails || 'Sample Sealed in Plastic Bottle'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 3px 5px; border: 1px solid #000;">Report Issued To</td>
+              <td colspan="3" style="padding: 3px 5px; font-weight: bold; border: 1px solid #000; white-space: pre-wrap;">${rData.reportIssuedTo || '-'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 3px 5px; border: 1px solid #000;">Reference No. / Report No.</td>
+              <td colspan="3" style="padding: 3px 5px; font-weight: bold; border: 1px solid #000;">${rData.reportNumber || rData.referenceNo || '-'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 3px 5px; border: 1px solid #000;">Date Of Receipt Of Sample</td>
+              <td colspan="3" style="padding: 3px 5px; border: 1px solid #000;">${formatDateDDMMYYYY(rData.dateOfReceipt)}</td>
+            </tr>
+            <tr>
+              <td style="padding: 3px 5px; border: 1px solid #000;">Name Of Agency/Company</td>
+              <td colspan="3" style="padding: 3px 5px; border: 1px solid #000;">
+                <div style="font-weight: bold; white-space: pre-wrap;">${agencyPart}</div>
+                ${addressPart}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 3px 5px; border: 1px solid #000;">Sample Quantity</td>
+              <td colspan="3" style="padding: 3px 5px; border: 1px solid #000;">${rData.sampleQuantity || '01 (1 ltr)'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 3px 5px; border: 1px solid #000;">Sampling Location / Type</td>
+              <td colspan="3" style="padding: 3px 5px; font-weight: bold; border: 1px solid #000;">${rData.samplingLocation || '-'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 3px 5px; border: 1px solid #000;">Condition of sample during receipt</td>
+              <td colspan="3" style="padding: 3px 5px; border: 1px solid #000;">${rData.conditionOnReceipt || 'Satisfactory'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 3px 5px; border: 1px solid #000;">Sample Collected / Submitted by.</td>
+              <td colspan="3" style="padding: 3px 5px; border: 1px solid #000;">${rData.sampleCollectedBy || 'By Party'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 3px 5px; border: 1px solid #000;">Starting Date of Test / Analysis</td>
+              <td style="padding: 3px 5px; border: 1px solid #000;">${formatDateDDMMYYYY(rData.startingDateOfTest)}</td>
+              <td style="padding: 3px 5px; border: 1px solid #000;">Completion Date of Test</td>
+              <td style="padding: 3px 5px; border: 1px solid #000;">${formatDateDDMMYYYY(rData.completionDateOfTest)}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style="text-align: center; font-weight: bold; font-size: 12px; border: 1px solid #000; border-top: none; padding: 3px 0; text-transform: uppercase;">
+          ${rData.sectionHeader || 'WASTE WATER ANALYSIS'}
+        </div>
+
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px; border: 1px solid #000; border-top: none; margin-bottom: 0;">
+          <thead>
+            <tr style="text-align: center; font-weight: bold; background: #f8fafc;">
+              <th style="width: 8%; padding: 4px; border: 1px solid #000;">SR.NO.</th>
+              <th style="width: ${rData.showPermissibleLimits !== false ? '28%' : '34%'}; padding: 4px; border: 1px solid #000; text-align: left;">TESTS PARAMETERS</th>
+              <th style="width: ${rData.showPermissibleLimits !== false ? '32%' : '37%'}; padding: 4px; border: 1px solid #000; text-align: center;">REFERENCE METHOD</th>
+              <th style="width: 10%; padding: 4px; border: 1px solid #000; text-align: center;">UNIT</th>
+              <th style="width: 11%; padding: 4px; border: 1px solid #000; text-align: center;">RESULTS</th>
+              ${rData.showPermissibleLimits !== false ? `<th style="width: 11%; padding: 4px; border: 1px solid #000; text-align: center;">PERMISSIBLE LIMITS</th>` : ''}
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+        </table>
+
+        <div style="border: 1px solid #000; border-top: none; padding: 4px 6px; font-size: 9px; line-height: 1.2; text-align: justify;">
+          <div style="font-weight: bold; text-decoration: underline; margin-bottom: 2px;">
+            This Report is Issued Under Following Terms & Conditions: -
+          </div>
+          <div>${rData.termsAndConditions || '1. Test results relate only to the items tested. 2. This report cannot be reproduced except in full without written permission.'}</div>
+        </div>
+
+        <div style="border: 1px solid #000; border-top: none; padding: 6px 10px; display: flex; justify-content: space-between; align-items: flex-start; min-height: 80px;">
+          <div>
+            <div style="font-weight: bold; font-size: 11px;">Reviewed by,</div>
+            ${rData.reviewedBySignature ? `
+              <div style="margin: 4px 0;">
+                <img src="${rData.reviewedBySignature}" alt="Reviewed Signature" style="max-height: 45px; max-width: 140px; object-fit: contain;" />
+              </div>
+            ` : `<div style="height: 35px;"></div>`}
+            <div style="font-size: 10px; font-weight: bold;">${rData.reviewedByAnalyst || 'Sr. Analyst'}</div>
+            <div style="font-size: 10px; font-weight: bold; color: #334155;">(Sr. Analyst/Analyst)</div>
+            <div style="font-weight: bold; font-size: 11px; margin-top: 1px;">Lab Incharge Signatory.</div>
+          </div>
+
+          <div style="text-align: right;">
+            <div style="font-weight: bold; font-size: 11px;">Thanking you in anticipation!</div>
+            <div style="font-weight: bold; font-size: 11px;">For Jagnath Lab Technologies,</div>
+            ${rData.signatureImage ? `
+              <div style="margin: 4px 0; display: flex; justify-content: flex-end;">
+                <img src="${rData.signatureImage}" alt="Authorized Signature" style="max-height: 45px; max-width: 140px; object-fit: contain;" />
+              </div>
+            ` : `<div style="height: 35px;"></div>`}
+            <div style="font-weight: bold; font-size: 11px;">(${rData.authorizedSignatory || 'Technical/Quality Manager'})</div>
+            <div style="font-weight: bold; font-size: 10px;">(Mr. Ankit Rathod/ Mr. Purvin Raiyan)</div>
+            <div style="font-weight: bold; font-size: 11px;">Authorized Signatory</div>
+          </div>
+        </div>
+
+        <div style="text-align: center; font-size: 10px; font-weight: bold; margin: 6px 0;">
+          --------------------------------- END OF TEST REPORT ---------------------------------
+        </div>
+
+        ${withHeaderFooter ? `
+          <div style="border-top: 1px solid #059669; padding-top: 4px; font-size: 9px; font-family: sans-serif; margin-top: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div style="color: #047857; font-weight: 600;">📍 5-6/B, Nayanjyot Chambers, First Floor, Opp. Vachhera Vada, Gondal-360 311. Dist. : Rajkot. (Guj.)</div>
+              <div style="color: #047857; font-weight: 600;">✉ jagnathtechnologies@yahoo.com</div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1px;">
+              <div style="color: #047857; font-weight: 600;">🌐 www.jagnath.com</div>
+              <div style="color: #047857; font-weight: 600;">📞 +91 8140 5555 15</div>
+            </div>
+            <div style="text-align: center; font-size: 8px; font-weight: bold; color: #1e3a8a; margin-top: 2px;">
+              Environment Consultant & Gujarat Pollution Control Board Schedule-II Auditors
+            </div>
+          </div>
+        ` : `<div style="height: 25px;"></div>`}
+        </div><!-- End letterhead-content -->
+      </div>
+    `;
+  };
+
+  // 1. Print & Save as PDF for ALL Reports in ONE Combined Document
+  const handlePrintAllCombined = () => {
+    const allSnapshot = sessionReports.map((rep, idx) => {
+      if (idx === activeReportIndex) {
+        return {
+          ...rep,
+          formData: { ...formData },
+          parametersList: [...parametersList]
+        };
+      }
+      return rep;
+    });
+
+    const pagesHtml = allSnapshot.map(item => generateReportHtml(item.formData, item.parametersList, false)).join('');
+
+    const printDoc = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>All Test Reports (${allSnapshot.length}) - Jagnath Lab Technologies</title>
+        <style>
+          @page {
+            size: A4 portrait;
+            margin: 8mm 10mm;
+          }
+          html, body {
+            margin: 0;
+            padding: 0;
+            background: #fff;
+            color: #000;
+          }
+          .test-report-page {
+            page-break-after: always;
+            break-after: page;
+          }
+          .test-report-page:last-child {
+            page-break-after: auto;
+            break-after: auto;
+          }
+          @media print {
+            body {
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        ${pagesHtml}
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 300);
+          };
+        </script>
+      </body>
+      </html>
+    `;
+
+    const printWin = window.open('', '_blank');
+    if (printWin) {
+      printWin.document.open();
+      printWin.document.write(printDoc);
+      printWin.document.close();
+    } else {
+      triggerToast('Popup blocked. Please allow popups to print/download reports.', 'error');
+    }
+  };
+
+  // 2. Print Single Report
+  const handlePrintSingleReport = (idx) => {
+    const targetItem = idx === activeReportIndex
+      ? { formData: { ...formData }, parametersList: [...parametersList] }
+      : sessionReports[idx];
+
+    if (!targetItem) return;
+
+    const singlePageHtml = generateReportHtml(targetItem.formData, targetItem.parametersList, true);
+
+    const printDoc = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>Test Report - ${targetItem.formData.reportNumber || 'Report'}</title>
+        <style>
+          @page {
+            size: A4 portrait;
+            margin: 8mm 10mm;
+          }
+          html, body {
+            margin: 0;
+            padding: 0;
+            background: #fff;
+            color: #000;
+          }
+          @media print {
+            body {
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        ${singlePageHtml}
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 300);
+          };
+        </script>
+      </body>
+      </html>
+    `;
+
+    const printWin = window.open('', '_blank');
+    if (printWin) {
+      printWin.document.open();
+      printWin.document.write(printDoc);
+      printWin.document.close();
+    } else {
+      triggerToast('Popup blocked. Please allow popups to print/download reports.', 'error');
+    }
+  };
+
+  // 3. Download Single Report as standalone printable HTML / Document
+  const handleDownloadSingleReport = (idx) => {
+    const targetItem = idx === activeReportIndex
+      ? { formData: { ...formData }, parametersList: [...parametersList] }
+      : sessionReports[idx];
+
+    if (!targetItem) return;
+
+    const rData = targetItem.formData;
+    const safeLoc = (rData.samplingLocation || `Location_${idx + 1}`).replace(/[^a-zA-Z0-9_-]/g, '_');
+    const filename = `${rData.reportNumber || `Report_${idx + 1}`}_${safeLoc}.html`;
+
+    const htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Test Report - ${rData.reportNumber || 'Report'}</title>
+  <style>
+    @page { size: A4 portrait; margin: 8mm 10mm; }
+    html, body { margin: 0; padding: 0; background: #fff; }
+    @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+  </style>
+</head>
+<body>
+  ${generateReportHtml(rData, targetItem.parametersList, true)}
+</body>
+</html>`;
+
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    triggerToast(`Downloaded report: ${filename}`, 'success');
+  };
+
+  // Download all session reports as a single ZIP
+  const handleDownloadSessionZip = () => {
+    const allSnapshot = sessionReports.map((rep, idx) => {
+      if (idx === activeReportIndex) {
+        return {
+          ...rep,
+          formData: { ...formData },
+          parametersList: [...parametersList]
+        };
+      }
+      return rep;
+    });
+
+    try {
+      const zip = new SimpleZip();
+      allSnapshot.forEach((item, idx) => {
+        const rData = item.formData;
+        const safeLoc = (rData.samplingLocation || `Location_${idx + 1}`).replace(/[^a-zA-Z0-9_-]/g, '_');
+        const filename = `${rData.reportNumber || `Report_${idx + 1}`}_${safeLoc}.html`;
+
+        const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Test Report - ${rData.reportNumber}</title>
+  <style>
+    @page { size: A4 portrait; margin: 8mm 10mm; }
+    html, body { margin: 0; padding: 0; background: #fff; }
+    @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+  </style>
+</head>
+<body>
+  ${generateReportHtml(rData, item.parametersList, true)}
+</body>
+</html>`;
+
+        zip.file(filename, html);
+      });
+
+      zip.download(`Jagnath_Labs_TestReports_${Date.now()}.zip`);
+      triggerToast('Downloaded all reports in ZIP file!', 'success');
+    } catch (e) {
+      console.error('ZIP generation error:', e);
+      triggerToast('Failed to create ZIP download.', 'error');
+    }
+  };
+
   const handleConfirmCancel = () => {
     setConfirmModal({ show: false, action: null });
   };
@@ -859,6 +1617,17 @@ const TestReportForm = () => {
             {showLivePreview ? <FaEyeSlash /> : <FaEye />}
             <span>{showLivePreview ? 'Hide Preview' : 'Live Preview'}</span>
           </button>
+          {sessionReports.length > 1 && (
+            <button
+              type="button"
+              onClick={handleSaveAllSessionReports}
+              disabled={isBatchSaving}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#047857', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1.25rem', fontWeight: 600, cursor: isBatchSaving ? 'not-allowed' : 'pointer' }}
+            >
+              <FaLayerGroup />
+              <span>{isBatchSaving ? 'Saving All...' : `Save All (${sessionReports.length})`}</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={handleSave}
@@ -880,11 +1649,42 @@ const TestReportForm = () => {
         </div>
       </div>
 
-      {/* Main Split Screen Area */}
-      <div className="premium-ui-form test-report-split-container hide-on-print" style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
+      {/* Main Split Screen Area with Multi-Report Navigator */}
+      <div className="premium-ui-form test-report-split-container hide-on-print" style={{ display: 'flex', gap: '1.25rem', alignItems: 'flex-start' }}>
 
-        {/* Left Column: Form Inputs */}
-        <div style={{ flex: showLivePreview ? '1 1 55%' : '1 1 100%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '1.5rem', transition: 'all 0.3s' }}>
+        {/* 1. Left Navigator Panel (Active whenever creating reports) */}
+        {!isEditing && (
+          <div style={{ flex: '0 0 240px', maxWidth: '240px', minWidth: '220px', position: 'sticky', top: '24px', zIndex: 10 }}>
+            <MultiReportNavigator
+              reports={sessionReports.map((r, i) => i === activeReportIndex ? {
+                ...r,
+                samplingLocation: formData.samplingLocation,
+                reportIssuedTo: formData.reportIssuedTo,
+                parametersList
+              } : r.formData ? {
+                ...r.formData,
+                _sessionReportId: r._sessionReportId,
+                parametersList: r.parametersList
+              } : r)}
+              activeReportIndex={activeReportIndex}
+              onSelectReport={handleSelectSessionReport}
+              onAddNewReport={handleAddNewSessionReport}
+              onDuplicateReport={handleDuplicateSessionReport}
+              onRemoveReport={handleRemoveSessionReport}
+              onOpenCustomerImport={() => setIsCustomerImportModalOpen(true)}
+              onSaveAll={handleSaveAllSessionReports}
+              onPrintAllCombined={handlePrintAllCombined}
+              onDownloadAllZip={handleDownloadSessionZip}
+              onPrintSingleReport={handlePrintSingleReport}
+              onDownloadSingleReport={handleDownloadSingleReport}
+              isBatchSaving={isBatchSaving}
+              validationErrors={sessionValidationErrors}
+            />
+          </div>
+        )}
+
+        {/* Center Column: Form Inputs */}
+        <div style={{ flex: showLivePreview ? '1 1 48%' : '1 1 76%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '1.25rem', transition: 'all 0.3s' }}>
 
           {/* Unified Card 1: Import Existing Details (Test Request & Customer Options) */}
           <div
@@ -1689,49 +2489,33 @@ const TestReportForm = () => {
               <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 LIVE DOCUMENT PREVIEW
               </span>
-              <div style={{ display: 'flex', gap: '4px', background: '#e2e8f0', padding: '2px', borderRadius: '8px' }}>
-                <button
-                  type="button"
-                  onClick={() => setWithHeaderFooter(true)}
+              <label style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                cursor: 'pointer',
+                userSelect: 'none',
+                fontSize: '0.825rem',
+                fontWeight: 600,
+                color: '#334155'
+              }}>
+                <input
+                  type="checkbox"
+                  checked={withHeaderFooter}
+                  onChange={(e) => setWithHeaderFooter(e.target.checked)}
                   style={{
-                    border: 'none',
-                    borderRadius: '6px',
-                    padding: '0.25rem 0.5rem',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    background: withHeaderFooter ? '#ffffff' : 'transparent',
-                    color: withHeaderFooter ? '#1e293b' : '#64748b',
-                    boxShadow: withHeaderFooter ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                    transition: 'all 0.15s ease'
+                    width: '16px',
+                    height: '16px',
+                    accentColor: '#22c55e',
+                    cursor: 'pointer'
                   }}
-                >
-                  With Header/Footer
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setWithHeaderFooter(false)}
-                  style={{
-                    border: 'none',
-                    borderRadius: '6px',
-                    padding: '0.25rem 0.5rem',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    background: !withHeaderFooter ? '#ffffff' : 'transparent',
-                    color: !withHeaderFooter ? '#1e293b' : '#64748b',
-                    boxShadow: !withHeaderFooter ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  Without Header/Footer
-                </button>
-              </div>
+                />
+                <span>With Header/Footer</span>
+              </label>
             </div>
 
             {/* A4 Document Box */}
-            <div ref={printRef} className="printable-report-sheet" style={{
-              background: '#ffffff',
+            <div ref={printRef} className="printable-report-sheet letterhead-sheet" style={{
               borderRadius: '8px',
               padding: '0.4rem 0.6rem',
               boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
@@ -1741,6 +2525,15 @@ const TestReportForm = () => {
               lineHeight: '1.2',
               boxSizing: 'border-box'
             }}>
+              {/* Background Watermark Image */}
+              <img
+                src="/images/letterpad_watermark.png"
+                alt="Watermark"
+                className="letterhead-watermark"
+              />
+
+              {/* Foreground Content */}
+              <div className="letterhead-content">
 
               {/* 1. Header with Logo ONLY */}
               {withHeaderFooter ? (
@@ -1938,7 +2731,7 @@ const TestReportForm = () => {
 
               {/* 9. Footer Info */}
               {withHeaderFooter ? (
-                <div style={{ borderTop: '1px solid #64748b', paddingTop: '0.3rem', fontSize: '0.58rem', fontFamily: 'sans-serif' }}>
+                <div style={{ borderTop: '1px solid #059669', paddingTop: '0.3rem', fontSize: '0.58rem', fontFamily: 'sans-serif' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ color: '#047857', fontWeight: 600 }}>📍 5-6/B, Nayanjyot Chambers, First Floor, Opp. Vachhera Vada, Gondal-360 311. Dist. : Rajkot. (Guj.)</div>
                     <div style={{ color: '#047857', fontWeight: 600 }}>✉ jagnathtechnologies@yahoo.com</div>
@@ -1947,7 +2740,7 @@ const TestReportForm = () => {
                     <div style={{ color: '#047857', fontWeight: 600 }}>🌐 www.jagnath.com</div>
                     <div style={{ color: '#047857', fontWeight: 600 }}>📞 +91 8140 5555 15</div>
                   </div>
-                  <div style={{ textAlign: 'center', fontSize: '0.55rem', fontWeight: 'bold', color: '#1e293b', marginTop: '2px' }}>
+                  <div style={{ textAlign: 'center', fontSize: '0.62rem', fontWeight: 'bold', color: '#1e3a8a', marginTop: '2px' }}>
                     Environment Consultant & Gujarat Pollution Control Board Schedule-II Auditors
                   </div>
                 </div>
@@ -1955,6 +2748,7 @@ const TestReportForm = () => {
                 <div style={{ height: '30px' }}></div>
               )}
 
+              </div>{/* End letterhead-content */}
             </div>
           </div>
         )}

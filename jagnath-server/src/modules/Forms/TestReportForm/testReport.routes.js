@@ -10,6 +10,7 @@ const { authenticateToken } = require("../../../middlewares/auth.middleware");
 // Protect all test-report routes
 router.use(authenticateToken);
 
+router.post("/batch", testReportController.createBatch);
 router.post("/", testReportController.create);
 router.get("/", testReportController.getAll);
 router.get("/:id", testReportController.getById);

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   FaFileAlt, FaPlus, FaDownload, FaSearch, FaPrint,
   FaEdit, FaTrash, FaCheck, FaExclamationCircle,
-  FaChevronLeft, FaChevronRight, FaFilePdf, FaFileCsv, FaFileExcel, FaCopy
+  FaChevronLeft, FaChevronRight, FaFilePdf, FaFileCsv, FaFileExcel, FaCopy, FaLayerGroup
 } from 'react-icons/fa';
 import { apiService } from '../../../shared/services/apiService';
 import { CLIENT_ENDPOINTS, TEST_REPORT_ENDPOINTS } from '../../../shared/services/apiEndpoints';

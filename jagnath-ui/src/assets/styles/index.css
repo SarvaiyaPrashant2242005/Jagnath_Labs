@@ -11,6 +11,7 @@
 @import './animation.css';
 @import './dashboard.css';
 @import './responsive.css';
+@import './letterhead.css';
 @import '../../modules/Forms/ProvisionalQuotation/styles/provisionalQuotation.css';
 
 /* Premium Form & Input Styles */
@@ -125,14 +126,15 @@ textarea.premium-input {
   }
 }
 
-@media (max-width: 768px) {
-  .test-request-bottom-actions {
-    padding: 1rem !important;
-    justify-content: stretch !important;
+@media (max-width: 1024px) {
+  .test-report-split-container {
+    flex-direction: column !important;
   }
-  .test-request-bottom-actions button {
+  .test-report-split-container > div {
     flex: 1 1 100% !important;
-    justify-content: center !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    position: static !important;
   }
 }
 
