@@ -3246,7 +3246,30 @@ const LegacyGeneralQuotationForm = ({ id: propId }) => {
             ) : (
               <>
                 {/* PAGE 1: COVERING LETTER */}
-                <div id="preview-page-1" className="a4-sheet" style={{ width: '100%', minHeight: 'auto', padding: '12mm 15mm 10mm 15mm', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: '11px', background: '#ffffff', borderRadius: '4px', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+                <div id="preview-page-1" className="a4-sheet letterhead-sheet" style={{ width: '100%', minHeight: 'auto', flexShrink: 0, padding: '12mm 15mm 10mm 15mm', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: '11px', background: '#ffffff', borderRadius: '4px', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                  {/* Background Watermark Image */}
+                  <img
+                    src="/images/letterpad_watermark.png"
+                    alt="Watermark"
+                    className="letterhead-watermark"
+                    style={{
+                      position: 'absolute',
+                      left: '-30px',
+                      top: '50%',
+                      bottom: 'auto',
+                      transform: 'translateY(-50%)',
+                      width: '470px',
+                      maxWidth: '58%',
+                      height: 'auto',
+                      objectFit: 'contain',
+                      opacity: 0.88,
+                      mixBlendMode: 'multiply',
+                      pointerEvents: 'none',
+                      userSelect: 'none',
+                      zIndex: 0
+                    }}
+                  />
+                  <div className="letterhead-content" style={{ position: 'relative', zIndex: 1, width: '100%', display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
                   {/* TOP HEADER: LOGO */}
                   <div style={{ textAlign: 'center', marginBottom: '8px' }}>
                     <img
@@ -3327,10 +3350,34 @@ const LegacyGeneralQuotationForm = ({ id: propId }) => {
                   </div>
 
                   {renderStandardPageFooter(1)}
+                  </div>
                 </div>
 
                 {/* PAGE 2: SCOPE OF WORK */}
-                <div id="preview-page-2" className="a4-sheet" style={{ width: '100%', minHeight: 'auto', padding: '12mm 15mm 10mm 15mm', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: '11px', background: '#ffffff', borderRadius: '4px', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+                <div id="preview-page-2" className="a4-sheet letterhead-sheet" style={{ width: '100%', minHeight: 'auto', flexShrink: 0, padding: '12mm 15mm 10mm 15mm', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: '11px', background: '#ffffff', borderRadius: '4px', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                  {/* Background Watermark Image */}
+                  <img
+                    src="/images/letterpad_watermark.png"
+                    alt="Watermark"
+                    className="letterhead-watermark"
+                    style={{
+                      position: 'absolute',
+                      left: '-30px',
+                      top: '50%',
+                      bottom: 'auto',
+                      transform: 'translateY(-50%)',
+                      width: '470px',
+                      maxWidth: '58%',
+                      height: 'auto',
+                      objectFit: 'contain',
+                      opacity: 0.88,
+                      mixBlendMode: 'multiply',
+                      pointerEvents: 'none',
+                      userSelect: 'none',
+                      zIndex: 0
+                    }}
+                  />
+                  <div className="letterhead-content" style={{ position: 'relative', zIndex: 1, width: '100%', display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
                   {/* TOP HEADER: LOGO */}
                   <div style={{ textAlign: 'center', marginBottom: '10px' }}>
                     <img
@@ -3635,10 +3682,34 @@ const LegacyGeneralQuotationForm = ({ id: propId }) => {
                   })()}
 
                   {renderStandardPageFooter(2)}
+                  </div>
                 </div>
 
                 {/* PAGE 3: TERMS & CONDITIONS */}
-                <div id="preview-page-3" className="a4-sheet" style={{ width: '100%', minHeight: 'auto', padding: '12mm 15mm 10mm 15mm', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: '11px', background: '#ffffff', borderRadius: '4px', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+                <div id="preview-page-3" className="a4-sheet letterhead-sheet" style={{ width: '100%', minHeight: 'auto', flexShrink: 0, padding: '12mm 15mm 10mm 15mm', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: '11px', background: '#ffffff', borderRadius: '4px', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                  {/* Background Watermark Image */}
+                  <img
+                    src="/images/letterpad_watermark.png"
+                    alt="Watermark"
+                    className="letterhead-watermark"
+                    style={{
+                      position: 'absolute',
+                      left: '-30px',
+                      top: '50%',
+                      bottom: 'auto',
+                      transform: 'translateY(-50%)',
+                      width: '470px',
+                      maxWidth: '58%',
+                      height: 'auto',
+                      objectFit: 'contain',
+                      opacity: 0.88,
+                      mixBlendMode: 'multiply',
+                      pointerEvents: 'none',
+                      userSelect: 'none',
+                      zIndex: 0
+                    }}
+                  />
+                  <div className="letterhead-content" style={{ position: 'relative', zIndex: 1, width: '100%', display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
                   {/* CENTERED LOGO & DIVIDER */}
                   <div style={{ textAlign: 'center', marginBottom: '10px' }}>
                     <img
@@ -3686,10 +3757,34 @@ const LegacyGeneralQuotationForm = ({ id: propId }) => {
                   </div>
 
                   {renderStandardPageFooter(3)}
+                  </div>
                 </div>
 
                 {/* ================= PAGE 4: ANNEXURE - I & ANNEXURE - A (Combined Same Page) ================= */}
-                <div id="preview-page-4" className="a4-sheet" style={{ width: '100%', minHeight: 'auto', padding: '10mm 14mm 8mm 14mm', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: '10.5px', background: '#ffffff', borderRadius: '4px', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+                <div id="preview-page-4" className="a4-sheet letterhead-sheet" style={{ width: '100%', minHeight: 'auto', flexShrink: 0, padding: '10mm 14mm 8mm 14mm', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: '10.5px', background: '#ffffff', borderRadius: '4px', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                  {/* Background Watermark Image */}
+                  <img
+                    src="/images/letterpad_watermark.png"
+                    alt="Watermark"
+                    className="letterhead-watermark"
+                    style={{
+                      position: 'absolute',
+                      left: '-30px',
+                      top: '50%',
+                      bottom: 'auto',
+                      transform: 'translateY(-50%)',
+                      width: '470px',
+                      maxWidth: '58%',
+                      height: 'auto',
+                      objectFit: 'contain',
+                      opacity: 0.88,
+                      mixBlendMode: 'multiply',
+                      pointerEvents: 'none',
+                      userSelect: 'none',
+                      zIndex: 0
+                    }}
+                  />
+                  <div className="letterhead-content" style={{ position: 'relative', zIndex: 1, width: '100%', display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
                   {/* TOP HEADER: LOGO */}
                   <div style={{ textAlign: 'center', marginBottom: '6px' }}>
                     <img
@@ -3980,6 +4075,7 @@ const LegacyGeneralQuotationForm = ({ id: propId }) => {
                   </div>
 
                   {renderStandardPageFooter(4)}
+                  </div>
                 </div>
 
                 {/* ================= PAGE 5: ANNEXURE - B (Discipline Groups & Parameters) ================= */}
@@ -3988,7 +4084,30 @@ const LegacyGeneralQuotationForm = ({ id: propId }) => {
                   if (!allGroups.length) return null;
 
                   return (
-                    <div className="a4-sheet" style={{ width: '100%', minHeight: 'auto', padding: '8mm 12mm 4mm 12mm', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: '10.5px', background: '#ffffff', borderRadius: '4px', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+                    <div className="a4-sheet letterhead-sheet" style={{ width: '100%', minHeight: 'auto', flexShrink: 0, padding: '8mm 12mm 4mm 12mm', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: '10.5px', background: '#ffffff', borderRadius: '4px', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                  {/* Background Watermark Image */}
+                  <img
+                    src="/images/letterpad_watermark.png"
+                    alt="Watermark"
+                    className="letterhead-watermark"
+                    style={{
+                      position: 'absolute',
+                      left: '-30px',
+                      top: '50%',
+                      bottom: 'auto',
+                      transform: 'translateY(-50%)',
+                      width: '470px',
+                      maxWidth: '58%',
+                      height: 'auto',
+                      objectFit: 'contain',
+                      opacity: 0.88,
+                      mixBlendMode: 'multiply',
+                      pointerEvents: 'none',
+                      userSelect: 'none',
+                      zIndex: 0
+                    }}
+                  />
+                      <div className="letterhead-content" style={{ position: 'relative', zIndex: 1, width: '100%', display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
                       {/* TOP HEADER: LOGO */}
                       <div style={{ textAlign: 'center', marginBottom: '4px' }}>
                         <img
@@ -4080,6 +4199,7 @@ const LegacyGeneralQuotationForm = ({ id: propId }) => {
                       </table>
 
                       {renderStandardPageFooter(5)}
+                      </div>
                     </div>
                   );
                 })()}

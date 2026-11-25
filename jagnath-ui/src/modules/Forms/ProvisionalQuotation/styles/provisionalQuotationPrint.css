@@ -239,10 +239,12 @@
   .print-sheet-page {
     box-shadow: none !important;
     border: none !important;
-    width: 100% !important;
+    width: 210mm !important;
+    max-width: 210mm !important;
+    margin: 0 auto !important;
     min-height: auto !important;
     height: auto !important;
-    padding: 8mm 12mm 4mm 12mm !important;
+    padding: 10mm 15mm 8mm 15mm !important;
     page-break-after: always !important;
     break-after: page !important;
     box-sizing: border-box !important;

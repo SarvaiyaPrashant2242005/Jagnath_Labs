@@ -463,7 +463,29 @@ const AuditQuotationForm = () => {
         <div style={{ width: '55%', background: '#cbd5e1', overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '2rem 0', boxSizing: 'border-box' }}>
           
           {/* Preview Page 1 */}
-          <div className="preview-page" style={{ width: '210mm', height: '297mm', background: '#ffffff', padding: '20mm', boxSizing: 'border-box', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.15)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', fontFamily: '"Times New Roman", Times, serif', fontSize: '11pt', color: '#000000', lineHeight: '1.4', marginBottom: '2rem' }}>
+            {/* Background Watermark */}
+            <img
+              src="/images/letterpad_watermark.png"
+              alt="Watermark"
+              className="letterhead-watermark"
+              style={{
+                position: 'absolute',
+                left: '-30px',
+                top: '50%',
+                bottom: 'auto',
+                transform: 'translateY(-50%)',
+                width: '470px',
+                maxWidth: '58%',
+                height: 'auto',
+                objectFit: 'contain',
+                opacity: 0.88,
+                mixBlendMode: 'multiply',
+                pointerEvents: 'none',
+                userSelect: 'none',
+                zIndex: 0
+              }}
+            />
+          <div className="preview-page letterhead-sheet" style={{ position: 'relative', overflow: 'hidden', width: '210mm', height: '297mm', background: '#ffffff', padding: '20mm', boxSizing: 'border-box', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.15)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', fontFamily: '"Times New Roman", Times, serif', fontSize: '11pt', color: '#000000', lineHeight: '1.4', marginBottom: '2rem' }}>
             <div>
               <div style={{ textAlign: 'center', marginBottom: '5px' }}>
                 <img src={getLogoUrl()} alt="Company Logo" style={{ maxHeight: '60px', objectFit: 'contain' }} />
@@ -513,7 +535,29 @@ const AuditQuotationForm = () => {
           </div>
 
           {/* Preview Page 2 */}
-          <div className="preview-page" style={{ width: '210mm', height: '297mm', background: '#ffffff', padding: '20mm', boxSizing: 'border-box', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.15)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', fontFamily: '"Times New Roman", Times, serif', fontSize: '11pt', color: '#000000', lineHeight: '1.4', marginBottom: '2rem' }}>
+            {/* Background Watermark */}
+            <img
+              src="/images/letterpad_watermark.png"
+              alt="Watermark"
+              className="letterhead-watermark"
+              style={{
+                position: 'absolute',
+                left: '-30px',
+                top: '50%',
+                bottom: 'auto',
+                transform: 'translateY(-50%)',
+                width: '470px',
+                maxWidth: '58%',
+                height: 'auto',
+                objectFit: 'contain',
+                opacity: 0.88,
+                mixBlendMode: 'multiply',
+                pointerEvents: 'none',
+                userSelect: 'none',
+                zIndex: 0
+              }}
+            />
+          <div className="preview-page letterhead-sheet" style={{ position: 'relative', overflow: 'hidden', width: '210mm', height: '297mm', background: '#ffffff', padding: '20mm', boxSizing: 'border-box', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.15)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', fontFamily: '"Times New Roman", Times, serif', fontSize: '11pt', color: '#000000', lineHeight: '1.4', marginBottom: '2rem' }}>
             <div>
               <div style={{ textAlign: 'center', marginBottom: '5px' }}>
                 <img src={getLogoUrl()} alt="Company Logo" style={{ maxHeight: '60px', objectFit: 'contain' }} />
@@ -615,7 +659,29 @@ const AuditQuotationForm = () => {
           </div>
 
           {/* Preview Page 3 */}
-          <div className="preview-page" style={{ width: '210mm', height: '297mm', background: '#ffffff', padding: '20mm', boxSizing: 'border-box', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.15)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', fontFamily: '"Times New Roman", Times, serif', fontSize: '11pt', color: '#000000', lineHeight: '1.4', marginBottom: '2rem' }}>
+            {/* Background Watermark */}
+            <img
+              src="/images/letterpad_watermark.png"
+              alt="Watermark"
+              className="letterhead-watermark"
+              style={{
+                position: 'absolute',
+                left: '-30px',
+                top: '50%',
+                bottom: 'auto',
+                transform: 'translateY(-50%)',
+                width: '470px',
+                maxWidth: '58%',
+                height: 'auto',
+                objectFit: 'contain',
+                opacity: 0.88,
+                mixBlendMode: 'multiply',
+                pointerEvents: 'none',
+                userSelect: 'none',
+                zIndex: 0
+              }}
+            />
+          <div className="preview-page letterhead-sheet" style={{ position: 'relative', overflow: 'hidden', width: '210mm', height: '297mm', background: '#ffffff', padding: '20mm', boxSizing: 'border-box', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.15)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', fontFamily: '"Times New Roman", Times, serif', fontSize: '11pt', color: '#000000', lineHeight: '1.4', marginBottom: '2rem' }}>
             <div>
               <div style={{ textAlign: 'center', marginBottom: '5px' }}>
                 <img src={getLogoUrl()} alt="Company Logo" style={{ maxHeight: '60px', objectFit: 'contain' }} />
@@ -662,7 +728,29 @@ const AuditQuotationForm = () => {
           </div>
 
           {/* Preview Page 4 */}
-          <div className="preview-page" style={{ width: '210mm', height: '297mm', background: '#ffffff', padding: '15mm', boxSizing: 'border-box', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.15)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', fontFamily: '"Times New Roman", Times, serif', fontSize: '10pt', color: '#000000', lineHeight: '1.3', marginBottom: '2rem' }}>
+            {/* Background Watermark */}
+            <img
+              src="/images/letterpad_watermark.png"
+              alt="Watermark"
+              className="letterhead-watermark"
+              style={{
+                position: 'absolute',
+                left: '-30px',
+                top: '50%',
+                bottom: 'auto',
+                transform: 'translateY(-50%)',
+                width: '470px',
+                maxWidth: '58%',
+                height: 'auto',
+                objectFit: 'contain',
+                opacity: 0.88,
+                mixBlendMode: 'multiply',
+                pointerEvents: 'none',
+                userSelect: 'none',
+                zIndex: 0
+              }}
+            />
+          <div className="preview-page letterhead-sheet" style={{ position: 'relative', overflow: 'hidden', width: '210mm', height: '297mm', background: '#ffffff', padding: '15mm', boxSizing: 'border-box', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.15)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', fontFamily: '"Times New Roman", Times, serif', fontSize: '10pt', color: '#000000', lineHeight: '1.3', marginBottom: '2rem' }}>
             <div>
               <div style={{ textAlign: 'center', marginBottom: '2px' }}>
                 <img src={getLogoUrl()} alt="Company Logo" style={{ maxHeight: '50px', objectFit: 'contain' }} />

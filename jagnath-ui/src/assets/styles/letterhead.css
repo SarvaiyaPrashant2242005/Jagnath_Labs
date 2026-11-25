@@ -21,13 +21,16 @@
 /* Background Watermark Layer anchored at bottom-left */
 .letterhead-watermark {
   position: absolute !important;
-  left: -40px !important;
-  bottom: -30px !important;
-  width: 540px !important;
-  max-width: 65% !important;
+  left: -30px !important;
+  top: 50% !important;
+  bottom: auto !important;
+  transform: translateY(-50%) !important;
+  width: 470px !important;
+  max-width: 58% !important;
   height: auto !important;
   object-fit: contain !important;
   opacity: 0.88 !important;
+  mix-blend-mode: multiply !important;
   pointer-events: none !important;
   user-select: none !important;
   z-index: 0 !important;
@@ -74,8 +77,9 @@
   justify-content: flex-start !important;
   align-items: flex-start !important;
   gap: 28px !important;
-  margin-left: 34% !important;
-  font-size: 0.62rem !important;
+  margin-left: auto !important;
+  justify-content: flex-end !important;
+  font-size: 0.74rem !important;
   line-height: 1.35 !important;
   color: #047857 !important;
   font-weight: 600 !important;
@@ -99,8 +103,8 @@
 }
 
 .letterhead-footer-designation {
-  text-align: center !important;
-  font-size: 0.66rem !important;
+  text-align: right !important;
+  font-size: 0.76rem !important;
   font-weight: 700 !important;
   color: #1e3a8a !important; /* Dark blue/purple designation per spec */
   margin-top: 2px !important;

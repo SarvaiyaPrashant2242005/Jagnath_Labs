@@ -259,7 +259,29 @@ const ProvisionalQuotationPreview = () => {
       {/* A4 Paper Document Container */}
       <div className="a4-preview-scroll-wrapper">
         {/* ================= PAGE 1: COVERING LETTER ================= */}
-        <div className="a4-sheet">
+        <div className="a4-sheet letterhead-sheet" style={{ position: "relative", overflow: "hidden" }}>
+        {/* Background Watermark Image */}
+        <img
+          src="/images/letterpad_watermark.png"
+          alt="Watermark"
+          className="letterhead-watermark"
+          style={{
+            position: 'absolute',
+            left: '-30px',
+            top: '50%',
+            bottom: 'auto',
+            transform: 'translateY(-50%)',
+            width: '470px',
+            maxWidth: '58%',
+            height: 'auto',
+            objectFit: 'contain',
+            opacity: 0.88,
+            mixBlendMode: 'multiply',
+            pointerEvents: 'none',
+            userSelect: 'none',
+            zIndex: 0
+          }}
+        />
           {/* CENTERED COMPANY LOGO FROM MASTERS & HORIZONTAL DIVIDER */}
           <div style={{ textAlign: 'center', marginBottom: '12px' }}>
             <img
@@ -369,7 +391,29 @@ const ProvisionalQuotationPreview = () => {
         </div>
 
         {/* ================= PAGE 2: PROVISIONAL ESTIMATED QUOTE & METADATA ================= */}
-        <div className="a4-sheet" style={{ width: '100%', minHeight: 'auto', padding: '15mm', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: '11.5px', background: '#ffffff', borderRadius: '4px', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+        <div className="a4-sheet letterhead-sheet" style={{ width: '100%', minHeight: 'auto', padding: '15mm', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: '11.5px', background: '#ffffff', borderRadius: '4px', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        {/* Background Watermark Image */}
+        <img
+          src="/images/letterpad_watermark.png"
+          alt="Watermark"
+          className="letterhead-watermark"
+          style={{
+            position: 'absolute',
+            left: '-30px',
+            top: '50%',
+            bottom: 'auto',
+            transform: 'translateY(-50%)',
+            width: '470px',
+            maxWidth: '58%',
+            height: 'auto',
+            objectFit: 'contain',
+            opacity: 0.88,
+            mixBlendMode: 'multiply',
+            pointerEvents: 'none',
+            userSelect: 'none',
+            zIndex: 0
+          }}
+        />
           {/* CENTERED LOGO */}
           <div style={{ textAlign: 'center', marginBottom: '10px' }}>
             <img
@@ -677,7 +721,29 @@ const ProvisionalQuotationPreview = () => {
         </div>
 
         {/* ================= PAGE 3: TERMS & CONDITIONS ================= */}
-        <div className="a4-sheet" style={{ width: '100%', minHeight: 'auto', padding: '15mm', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: '11px', background: '#ffffff', borderRadius: '4px', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+        <div className="a4-sheet letterhead-sheet" style={{ width: '100%', minHeight: 'auto', padding: '15mm', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: '11px', background: '#ffffff', borderRadius: '4px', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        {/* Background Watermark Image */}
+        <img
+          src="/images/letterpad_watermark.png"
+          alt="Watermark"
+          className="letterhead-watermark"
+          style={{
+            position: 'absolute',
+            left: '-30px',
+            top: '50%',
+            bottom: 'auto',
+            transform: 'translateY(-50%)',
+            width: '470px',
+            maxWidth: '58%',
+            height: 'auto',
+            objectFit: 'contain',
+            opacity: 0.88,
+            mixBlendMode: 'multiply',
+            pointerEvents: 'none',
+            userSelect: 'none',
+            zIndex: 0
+          }}
+        />
           {/* CENTERED LOGO & DIVIDER */}
           <div style={{ textAlign: 'center', marginBottom: '10px' }}>
             <img
@@ -728,7 +794,29 @@ const ProvisionalQuotationPreview = () => {
         </div>
 
         {/* ================= PAGE 4: ANNEXURE - I & ANNEXURE - A (Combined Same Page) ================= */}
-        <div className="a4-sheet" style={{ width: '100%', minHeight: 'auto', padding: '10mm 14mm 8mm 14mm', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: '10.5px', background: '#ffffff', borderRadius: '4px', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+        <div className="a4-sheet letterhead-sheet" style={{ width: '100%', minHeight: 'auto', padding: '10mm 14mm 8mm 14mm', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: '10.5px', background: '#ffffff', borderRadius: '4px', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        {/* Background Watermark Image */}
+        <img
+          src="/images/letterpad_watermark.png"
+          alt="Watermark"
+          className="letterhead-watermark"
+          style={{
+            position: 'absolute',
+            left: '-30px',
+            top: '50%',
+            bottom: 'auto',
+            transform: 'translateY(-50%)',
+            width: '470px',
+            maxWidth: '58%',
+            height: 'auto',
+            objectFit: 'contain',
+            opacity: 0.88,
+            mixBlendMode: 'multiply',
+            pointerEvents: 'none',
+            userSelect: 'none',
+            zIndex: 0
+          }}
+        />
           {/* TOP HEADER: LOGO */}
           <div style={{ textAlign: 'center', marginBottom: '6px' }}>
             <img
@@ -1017,7 +1105,29 @@ const ProvisionalQuotationPreview = () => {
           if (!allGroups.length) return null;
 
           return (
-            <div className="a4-sheet" style={{ width: '100%', minHeight: 'auto', padding: '8mm 12mm 4mm 12mm', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: '10.5px', background: '#ffffff', borderRadius: '4px', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+            <div className="a4-sheet letterhead-sheet" style={{ width: '100%', minHeight: 'auto', padding: '8mm 12mm 4mm 12mm', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: '10.5px', background: '#ffffff', borderRadius: '4px', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        {/* Background Watermark Image */}
+        <img
+          src="/images/letterpad_watermark.png"
+          alt="Watermark"
+          className="letterhead-watermark"
+          style={{
+            position: 'absolute',
+            left: '-30px',
+            top: '50%',
+            bottom: 'auto',
+            transform: 'translateY(-50%)',
+            width: '470px',
+            maxWidth: '58%',
+            height: 'auto',
+            objectFit: 'contain',
+            opacity: 0.88,
+            mixBlendMode: 'multiply',
+            pointerEvents: 'none',
+            userSelect: 'none',
+            zIndex: 0
+          }}
+        />
               {/* TOP HEADER: LOGO */}
               <div style={{ textAlign: 'center', marginBottom: '4px' }}>
                 <img

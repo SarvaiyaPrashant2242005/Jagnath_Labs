@@ -88,30 +88,27 @@ const PageContainer = ({
           zIndex: 1,
         }}
       >
-        {/* Centered Faded Watermark */}
-        {watermarkEnabled && (
-          <div
-            style={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              opacity: 0.08,
-              zIndex: 0,
-              pointerEvents: 'none',
-              width: '65%',
-              textAlign: 'center',
-              userSelect: 'none',
-            }}
-          >
-            <img
-              src={logoUrl || '/Images/Navbar_Logo.png'}
-              alt="Watermark"
-              style={{ maxWidth: '100%', maxHeight: '340px', objectFit: 'contain', filter: 'grayscale(100%)' }}
-              onError={(e) => { e.target.style.display = 'none'; }}
-            />
-          </div>
-        )}
+        {/* Official Jagnath Labs Emblem Watermark */}
+        <img
+          src="/images/letterpad_watermark.png"
+          alt="Watermark"
+          className="letterhead-watermark"
+          style={{
+            position: 'absolute',
+            left: '-30px',
+            top: '50%',
+            bottom: 'auto',
+            transform: 'translateY(-50%)',
+            width: '470px',
+            maxWidth: '58%',
+            height: 'auto',
+            objectFit: 'contain',
+            opacity: 0.88,
+            pointerEvents: 'none',
+            userSelect: 'none',
+            zIndex: 0
+          }}
+        />
 
         {/* Page Inner Content */}
         <div style={{ position: 'relative', zIndex: 1, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>

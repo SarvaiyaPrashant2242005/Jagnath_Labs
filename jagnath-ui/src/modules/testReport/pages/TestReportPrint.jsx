@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiService } from '../../../shared/services/apiService';
-import { TEST_REPORT_ENDPOINTS, BACKEND_ROOT_URL } from '../../../shared/services/apiEndpoints';
-import { groupParametersByLocationScope } from '../services/testReportValidation';
-import { sanitizeSamplingParamName } from '../../../shared/utils/parameterDisplayUtils';
+import { TEST_REPORT_ENDPOINTS } from '../../../shared/services/apiEndpoints';
+import { TestReportDocument } from '../components/TestReportDocument';
 
 /**
  * @component TestReportPrint
- * @description Dedicated A4 Print View for Test Reports (Same print architecture as TestRequestPrint)
+ * @description Dedicated A4 Print & PDF View for Test Reports using the unified TestReportDocument.
  */
 const TestReportPrint = () => {
   const { id } = useParams();
@@ -39,7 +38,7 @@ const TestReportPrint = () => {
       const res = await apiService.get(TEST_REPORT_ENDPOINTS.GET_BY_ID(id));
       if (res?.data) {
         setReport(res.data);
-        // Auto-trigger window.print() same as TestRequestPrint
+        // Auto-trigger window.print()
         setTimeout(() => {
           window.print();
         }, 500);
@@ -52,72 +51,6 @@ const TestReportPrint = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatDateDDMMYYYY = (dateStr) => {
-    if (!dateStr || dateStr === 'N/A') return 'N/A';
-    const cleanStr = String(dateStr).split('T')[0];
-    const parts = cleanStr.split('-');
-    if (parts.length === 3) {
-      const [year, month, day] = parts;
-      if (year.length === 4 && month.length === 2 && day.length === 2) {
-        return `${day}/${month}/${year}`;
-      }
-    }
-    return dateStr;
-  };
-
-  const shouldBoldResult = (resultStr, limitStr) => {
-    if (!resultStr || !limitStr) return false;
-    const resClean = String(resultStr).trim();
-    const limClean = String(limitStr).trim();
-    if (resClean === limClean || limClean === '-' || limClean === 'N/A') return false;
-
-    const parseNumber = (str) => {
-      const match = str.replace(/,/g, '').match(/[-+]?[0-9]*\.?[0-9]+/);
-      return match ? parseFloat(match[0]) : null;
-    };
-
-    const resVal = parseNumber(resClean);
-    if (resVal === null) return false;
-
-    // Range: "6.5 - 8.5" or "6.5 to 8.5"
-    const rangeMatch = limClean.match(/([-+]?[0-9]*\.?[0-9]+)\s*(?:-|to)\s*([-+]?[0-9]*\.?[0-9]+)/i);
-    if (rangeMatch) {
-      const min = parseFloat(rangeMatch[1]);
-      const max = parseFloat(rangeMatch[2]);
-      return resVal < min || resVal > max;
-    }
-
-    // Less than / Max limits
-    if (/(?:<|<=|max|below|less)/i.test(limClean)) {
-      const limVal = parseNumber(limClean);
-      if (limVal !== null) return resVal > limVal;
-    }
-
-    // Greater than / Min limits
-    if (/(?:>|>=|min|above|more)/i.test(limClean)) {
-      const limVal = parseNumber(limClean);
-      if (limVal !== null) return resVal < limVal;
-    }
-
-    // Simple numeric limit (assumed maximum limit)
-    const simpleLimVal = parseNumber(limClean);
-    if (simpleLimVal !== null && !isNaN(simpleLimVal)) {
-      return resVal > simpleLimVal;
-    }
-
-    return false;
-  };
-
-  const getLogoUrl = () => {
-    if (!report || !report.companyLogo) return '/Images/Navbar_Logo.png';
-    const cleanPath = report.companyLogo.replace(/\\/g, '/');
-    const idx = cleanPath.lastIndexOf('uploads/');
-    if (idx !== -1) {
-      return `${BACKEND_ROOT_URL}/${cleanPath.substring(idx)}`;
-    }
-    return report.companyLogo;
   };
 
   if (loading) {
@@ -136,10 +69,6 @@ const TestReportPrint = () => {
     );
   }
 
-  const parameters = Array.isArray(report.parametersList) ? report.parametersList : [];
-
-  const defaultTerms = "The report is analyzed with the quality standards. These results are related to sample collection as specified above. This report in full or part, shall not be published advertised, used for any legal action, unless written consent and prior permission has been secured from the owner, JAGNATH LAB TECHNOLOGIES, GONDAL-RAJKOT. We are authorized to take strict action if the data and result of report is to be changed/corrected by any external source or body. Report varies according to samples and their composition of the materials. JLTs strictly maintains confidentiality of all the test results and analysis and customer supplied products/samples and will not reveal this information to third party unless required for statutory/legal compliance. The report is referring only to the tested sample and for applicable parameters. The sample is destroyed after retention time (15 Days) unless otherwise specified specially. Subject to Gondal Jurdiction.";
-
   const handlePrint = () => {
     window.print();
   };
@@ -150,7 +79,7 @@ const TestReportPrint = () => {
       <div className="print-control-bar" style={{
         width: '100%',
         maxWidth: '210mm',
-        background: 'rgba(255, 255, 255, 0.9)',
+        background: 'rgba(255, 255, 255, 0.95)',
         backdropFilter: 'blur(8px)',
         border: '1px solid #cbd5e1',
         borderRadius: '12px',
@@ -222,7 +151,7 @@ const TestReportPrint = () => {
             onClick={handlePrint}
             style={{
               border: 'none',
-              background: '#22c55e',
+              background: '#047857',
               borderRadius: '8px',
               padding: '0.35rem 1rem',
               fontSize: '0.8rem',
@@ -238,314 +167,17 @@ const TestReportPrint = () => {
       </div>
 
       {/* ======================= A4 PRINT PAGE ======================= */}
-      <div className="print-page letterhead-sheet">
-        {/* Background Watermark Image */}
-        <img
-          src="/images/letterpad_watermark.png"
-          alt="Watermark"
-          className="letterhead-watermark"
+      <div className="print-page-wrapper">
+        <TestReportDocument
+          report={report}
+          parameters={report.parametersList}
+          company={null}
+          withHeaderFooter={withHeaderFooter}
+          isPrintMode={true}
         />
-
-        {/* Foreground Content */}
-        <div className="letterhead-content">
-        
-        {/* Top Header Logo & Title Row */}
-        {withHeaderFooter ? (
-          <div style={{ position: 'relative', width: '100%', minHeight: '62px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px' }}>
-            <div style={{ position: 'absolute', left: 0, top: 0 }}>
-              <img src={getLogoUrl()} alt="Company Logo" style={{ height: '60px', maxWidth: '100%', objectFit: 'contain' }} />
-            </div>
-            <div style={{ fontSize: '1.15rem', fontWeight: 'bold', textDecoration: 'underline', letterSpacing: '0.5px' }}>
-              TEST REPORT
-            </div>
-          </div>
-        ) : (
-          <div style={{ position: 'relative', width: '100%', minHeight: '62px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px' }}>
-            <div style={{ fontSize: '1.15rem', fontWeight: 'bold', textDecoration: 'underline', letterSpacing: '0.5px' }}>
-              TEST REPORT
-            </div>
-          </div>
-        )}
-
-        {/* Main Metadata Grid Table */}
-        <table className="print-report-table">
-          <colgroup>
-            <col style={{ width: '33%' }} />
-            <col style={{ width: '27%' }} />
-            <col style={{ width: '20%' }} />
-            <col style={{ width: '20%' }} />
-          </colgroup>
-          <tbody>
-            <tr>
-              <td colSpan={2} rowSpan={2} style={{ fontWeight: 'bold', fontSize: '0.82rem', verticalAlign: 'middle' }}>
-                D- {report.reportNumber || report.referenceNo || 'JLT010726RR00307'}
-              </td>
-              <td colSpan={2} style={{ textAlign: 'left', fontWeight: 'bold', fontSize: '0.82rem' }}>
-                {report.formatNo || 'Format No. 7.8 F-02'}
-              </td>
-            </tr>
-            <tr>
-              <td colSpan={2} style={{ textAlign: 'left', fontWeight: 'bold', fontSize: '0.82rem' }}>
-                Date: - {formatDateDDMMYYYY(report.formatDate || report.dateOfReceipt || new Date().toISOString())}
-              </td>
-            </tr>
-            <tr>
-              <td>Name of Work</td>
-              <td colSpan={3} style={{ fontWeight: 'bold' }}>{report.nameOfWork || report.title || '-'}</td>
-            </tr>
-            <tr>
-              <td>Details of sample/Mode of Packing</td>
-              <td colSpan={3}>
-                {report.detailsOfSample && report.packingDetails
-                  ? `${report.detailsOfSample} / ${report.packingDetails}`
-                  : (report.packingDetails || report.detailsOfSample || '-')}
-              </td>
-            </tr>
-            <tr>
-              <td>Report Issued To</td>
-              <td colSpan={3} style={{ fontWeight: 'bold', whiteSpace: 'pre-wrap' }}>{report.reportIssuedTo || report.agencyName || '-'}</td>
-            </tr>
-            <tr>
-              <td>Reference No. / Report No.</td>
-              <td colSpan={3} style={{ fontWeight: 'bold' }}>{report.reportNumber || report.referenceNo || '-'}</td>
-            </tr>
-            <tr>
-              <td>Date of Sampling</td>
-              <td>{formatDateDDMMYYYY(report.dateOfSampling) || '-'}</td>
-              <td>Date of Receipt</td>
-              <td>{formatDateDDMMYYYY(report.dateOfReceipt)}</td>
-            </tr>
-            <tr>
-              <td>Name of Agency/Company</td>
-              <td colSpan={3}>
-                <div style={{ fontWeight: 'bold', whiteSpace: 'pre-wrap' }}>{report.agencyName || (report.reportIssuedTo ? report.reportIssuedTo.split('\n')[0] : '')}</div>
-                {report.agencyAddress && <div style={{ fontSize: '0.75rem', marginTop: '1px', whiteSpace: 'pre-wrap' }}>{report.agencyAddress}</div>}
-              </td>
-            </tr>
-            <tr>
-              <td>Sample Quantity</td>
-              <td colSpan={3}>{report.sampleQuantity || '-'}</td>
-            </tr>
-            <tr>
-              <td>Sampling Location / Type</td>
-              <td colSpan={3}>{report.samplingLocation || '-'}</td>
-            </tr>
-            <tr>
-              <td>Condition of sample during receipt</td>
-              <td colSpan={3}>{report.conditionOnReceipt || '-'}</td>
-            </tr>
-            <tr>
-              <td>Sample Collected / Submitted by.</td>
-              <td colSpan={3}>{report.sampleCollectedBy || '-'}</td>
-            </tr>
-            <tr>
-              <td>Starting Date Of Test/ Analysis</td>
-              <td>{formatDateDDMMYYYY(report.startingDateOfTest)}</td>
-              <td>Completion Date of Test</td>
-              <td>{formatDateDDMMYYYY(report.completionDateOfTest)}</td>
-            </tr>
-          </tbody>
-        </table>
-
-        {/* Test Parameters Results Section - Supports Intelligent Grouping by Scope/Location */}
-        {(() => {
-          const locationGroups = groupParametersByLocationScope(parameters);
-          // If only 1 group or no location distinctions, render standard single table
-          if (locationGroups.length <= 1) {
-            return (
-              <table className="print-report-table" style={{ borderTop: 'none' }}>
-                <thead>
-                  {/* Embedded Sub-Header Section Banner inside parameters table */}
-                  <tr style={{ borderBottom: '1px solid #000' }}>
-                    <th colSpan={report.showPermissibleLimits !== false ? 6 : 5} style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '0.85rem', padding: '4px 0', textTransform: 'uppercase', background: '#ffffff', color: '#000' }}>
-                      <u>{report.sectionHeader || 'PHYSICAL CHEMICAL PARAMETERS'}</u>
-                    </th>
-                  </tr>
-                  <tr style={{ textAlign: 'center', fontWeight: 'bold' }}>
-                    <th style={{ width: '7%', textAlign: 'center' }}>SR.NO.</th>
-                    <th style={{ width: report.showPermissibleLimits !== false ? '29%' : '39%', textAlign: 'center' }}>TESTS PARAMETERS</th>
-                    <th style={{ width: report.showPermissibleLimits !== false ? '30%' : '36%', textAlign: 'center' }}>REFERENCE METHOD</th>
-                    <th style={{ width: '10%', textAlign: 'center' }}>UNIT</th>
-                    <th style={{ width: '10%', textAlign: 'center' }}>RESULTS</th>
-                    {report.showPermissibleLimits !== false && (
-                      <th style={{ width: '14%', textAlign: 'center' }}>
-                        PERMISSIBLE LIMIT <br />
-                        <span style={{ fontSize: '0.65rem', fontWeight: 'normal' }}>(IS 10500:2012)</span>
-                      </th>
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {parameters.length === 0 ? (
-                    <tr>
-                      <td colSpan={report.showPermissibleLimits !== false ? 6 : 5} style={{ padding: '1rem', textAlign: 'center', color: '#64748b' }}>No parameters recorded</td>
-                    </tr>
-                  ) : (
-                    parameters.map((param, index) => (
-                      <tr key={index}>
-                        <td style={{ textAlign: 'center' }}>{param.srNo || String(index + 1).padStart(2, '0')}</td>
-                        <td style={{ fontWeight: 'bold', textAlign: 'left' }}>{sanitizeSamplingParamName(param.parameterName) || '-'}</td>
-                        <td style={{ textAlign: 'center' }}>{param.referenceMethod || '-'}</td>
-                        <td style={{ textAlign: 'center' }}>{param.unit || '-'}</td>
-                        <td style={{
-                          textAlign: 'center',
-                          fontWeight: shouldBoldResult(param.result, param.permissibleLimit) ? 'bold' : 'normal'
-                        }}>{param.result || '-'}</td>
-                        {report.showPermissibleLimits !== false && <td style={{ textAlign: 'center' }}>{param.permissibleLimit || '-'}</td>}
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            );
-          }
-
-          // Multiple locations/scopes detected -> Render discrete, properly headed tables
-          return locationGroups.map((grp, gIdx) => (
-            <table key={gIdx} className="print-report-table" style={{ borderTop: gIdx === 0 ? 'none' : '1px solid #000', marginTop: gIdx > 0 ? '8px' : 0 }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid #000' }}>
-                  <th colSpan={report.showPermissibleLimits !== false ? 6 : 5} style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '0.85rem', padding: '4px 0', textTransform: 'uppercase', background: '#f8fafc', color: '#000' }}>
-                    <u>{(report.sectionHeader ? `${report.sectionHeader} - ` : '')}LOCATION: {grp.location.toUpperCase()}</u>
-                  </th>
-                </tr>
-                <tr style={{ textAlign: 'center', fontWeight: 'bold' }}>
-                  <th style={{ width: '7%', textAlign: 'center' }}>SR.NO.</th>
-                  <th style={{ width: report.showPermissibleLimits !== false ? '29%' : '39%', textAlign: 'center' }}>TESTS PARAMETERS</th>
-                  <th style={{ width: report.showPermissibleLimits !== false ? '30%' : '36%', textAlign: 'center' }}>REFERENCE METHOD</th>
-                  <th style={{ width: '10%', textAlign: 'center' }}>UNIT</th>
-                  <th style={{ width: '10%', textAlign: 'center' }}>RESULTS</th>
-                  {report.showPermissibleLimits !== false && (
-                    <th style={{ width: '14%', textAlign: 'center' }}>
-                      PERMISSIBLE LIMIT <br />
-                      <span style={{ fontSize: '0.65rem', fontWeight: 'normal' }}>(IS 10500:2012)</span>
-                    </th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {grp.parameters.map((param, index) => (
-                  <tr key={index}>
-                    <td style={{ textAlign: 'center' }}>{param.srNo || String(index + 1).padStart(2, '0')}</td>
-                    <td style={{ fontWeight: 'bold', textAlign: 'left' }}>{sanitizeSamplingParamName(param.parameterName) || '-'}</td>
-                    <td style={{ textAlign: 'center' }}>{param.referenceMethod || '-'}</td>
-                    <td style={{ textAlign: 'center' }}>{param.unit || '-'}</td>
-                    <td style={{
-                      textAlign: 'center',
-                      fontWeight: shouldBoldResult(param.result, param.permissibleLimit) ? 'bold' : 'normal'
-                    }}>{param.result || '-'}</td>
-                    {report.showPermissibleLimits !== false && <td style={{ textAlign: 'center' }}>{param.permissibleLimit || '-'}</td>}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ));
-        })()}
-
-        {/* Report Closing Container: terms, signatures, end marker, and footer styled for coherent pagination */}
-        <div className="report-closing-container" style={{ marginTop: '0', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-          {/* Terms & Conditions Box */}
-          <div className="report-terms-box" style={{ border: '1px solid #000', borderTop: 'none', padding: '4px 6px', fontSize: '0.60rem', lineHeight: '1.2', textAlign: 'justify' }}>
-            <div style={{ fontWeight: 'bold', textDecoration: 'underline', marginBottom: '2px' }}>
-              This Report is Issued Under Following Terms & Conditions: -
-            </div>
-            <div>{report.termsAndConditions || defaultTerms}</div>
-          </div>
-
-          {/* Signatures Block with 2-column layout */}
-          <div className="report-signature-block" style={{ border: '1px solid #000', borderTop: 'none', padding: '6px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', minHeight: '95px' }}>
-            {/* Left Signature Column */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'space-between', height: '100%', minHeight: '95px' }}>
-              <div>
-                <div style={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Reviewed by,</div>
-                <div style={{ fontSize: '0.72rem', fontWeight: 'bold', color: '#334155' }}>(Sr. Analyst/ Analyst)</div>
-              </div>
-              {report.reviewedBySignature ? (
-                <div style={{ margin: '4px 0', display: 'flex', justifyContent: 'flex-start' }}>
-                  <img
-                    src={report.reviewedBySignature}
-                    alt="Reviewed By Signature"
-                    style={{ maxHeight: '42px', maxWidth: '140px', objectFit: 'contain' }}
-                  />
-                </div>
-              ) : (
-                <div style={{ height: '42px' }} />
-              )}
-              <div style={{ fontWeight: 'bold', fontSize: '0.75rem' }}>
-                Lab Incharge Signatory.
-              </div>
-            </div>
-
-            {/* Right Signature Column */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'space-between', height: '100%', minHeight: '95px', textAlign: 'right' }}>
-              <div>
-                <div style={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Thanking you in anticipation!</div>
-                <div style={{ fontWeight: 'bold', fontSize: '0.75rem' }}>For Jagnath Lab Technologies,</div>
-              </div>
-              {report.signatureImage ? (
-                <div style={{ margin: '4px 0', display: 'flex', justifyContent: 'flex-end' }}>
-                  <img
-                    src={report.signatureImage}
-                    alt="Authorized Signature"
-                    style={{ maxHeight: '42px', maxWidth: '140px', objectFit: 'contain' }}
-                  />
-                </div>
-              ) : (
-                <div style={{ height: '42px' }} />
-              )}
-              <div>
-                <div style={{ fontWeight: 'bold', fontSize: '0.75rem', color: '#1e293b' }}>
-                  ({report.authorizedSignatory || 'Quality/ Technical Manager'})
-                </div>
-                <div style={{ fontWeight: 'bold', fontSize: '0.75rem', color: '#1e293b' }}>
-                  ({report.authorizedSignatoryName || 'Mr. Purvin Raiyani / Mr. Ankit Rathod'})
-                </div>
-                <div style={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Authorized Signatory</div>
-              </div>
-            </div>
-          </div>
-
-          {/* End of Report Indicator */}
-          <div style={{ textAlign: 'center', fontSize: '0.68rem', fontWeight: 'bold', margin: '4px 0', letterSpacing: '0.5px' }}>
-            --------------------------------- END OF TEST REPORT ---------------------------------
-          </div>
-
-          {/* Footer Information */}
-          {withHeaderFooter ? (
-            <div className="report-footer-section" style={{ fontSize: '0.64rem', fontFamily: 'sans-serif', marginTop: '10px' }}>
-              <div style={{ display: 'flex', justifyContent: 'flex-start', gap: '30px', marginLeft: '36%', alignItems: 'flex-start', marginBottom: '4px' }}>
-                {/* Left Column: Address */}
-                <div style={{ color: '#047857', fontWeight: 600, lineHeight: '1.35', whiteSpace: 'nowrap' }}>
-                  <div>📍 5-6/B, Nayanjyot Chambers,</div>
-                  <div style={{ paddingLeft: '14px' }}>First Floor, Opp. Vachhera Vada,</div>
-                  <div style={{ paddingLeft: '14px' }}>Gondal-360 311. Dist. : Rajkot. (Guj.)</div>
-                </div>
-                
-                {/* Right Column: Contact info */}
-                <div style={{ color: '#047857', fontWeight: 600, lineHeight: '1.35', textAlign: 'left', whiteSpace: 'nowrap' }}>
-                  <div>✉ jagnathtechnologies@yahoo.com</div>
-                  <div>🌐 www.jagnath.com</div>
-                  <div>📞 +91 8140 5555 15</div>
-                </div>
-              </div>
-              
-              {/* Horizontal Line separating columns and Auditors title */}
-              <div style={{ borderTop: '1px solid #059669', margin: '3px 0' }}></div>
-
-              {/* Auditors Title */}
-              <div style={{ textAlign: 'center', fontSize: '0.68rem', fontWeight: 'bold', color: '#1e3a8a', marginTop: '3px' }}>
-                Environment Consultant & Gujarat Pollution Control Board Schedule-II Auditors
-              </div>
-            </div>
-          ) : (
-            <div style={{ height: '20px' }}></div>
-          )}
-        </div>
-
-        </div>{/* End letterhead-content */}
       </div>
 
-      {/* Embedded CSS matching TestRequestPrint print styling */}
+      {/* Embedded CSS matching standard A4 print styling */}
       <style>{`
         .print-container {
           width: 100%;
@@ -557,56 +189,12 @@ const TestReportPrint = () => {
           min-height: 100vh;
         }
 
-        .print-page {
-          background-color: #ffffff;
+        .print-page-wrapper {
           width: 210mm;
           min-height: 297mm;
-          padding: 8mm 12mm;
+          background: #ffffff;
           box-shadow: 0 4px 10px rgba(0,0,0,0.15);
           box-sizing: border-box;
-          font-family: "Times New Roman", Times, serif;
-          color: #000;
-          line-height: 1.2;
-        }
-
-        .print-report-table {
-          width: 100%;
-          border-collapse: collapse;
-          border: 1px solid #000;
-          font-size: 0.76rem;
-          page-break-inside: auto;
-          table-layout: fixed;
-        }
-
-        .print-report-table tr {
-          page-break-inside: avoid !important;
-          break-inside: avoid !important;
-        }
-
-        .print-report-table thead {
-          display: table-header-group !important;
-        }
-
-        .print-report-table tbody {
-          display: table-row-group !important;
-        }
-
-        .print-report-table td, .print-report-table th {
-          border: 1px solid #000;
-          padding: 2.2px 4px;
-          word-wrap: break-word;
-          overflow-wrap: break-word;
-          vertical-align: middle;
-        }
-
-        .report-closing-container {
-          page-break-inside: avoid !important;
-          break-inside: avoid !important;
-        }
-
-        .report-terms-box, .report-signature-block, .report-footer-section {
-          page-break-inside: avoid !important;
-          break-inside: avoid !important;
         }
 
         @media print {
@@ -615,37 +203,43 @@ const TestReportPrint = () => {
           }
           @page {
             size: A4 portrait;
-            margin: 8mm 12mm;
+            margin: 0;
           }
-          html, body { 
+          html, body {
             width: 100% !important;
             height: auto !important;
             margin: 0 !important;
             padding: 0 !important;
-            background: #ffffff !important; 
+            background: #ffffff !important;
             overflow: visible !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
-          .print-container { 
-            width: 100% !important; 
+          .print-container {
+            width: 100% !important;
             max-width: 100% !important;
-            margin: 0 !important; 
-            padding: 0 !important; 
+            margin: 0 !important;
+            padding: 0 !important;
             background: #ffffff !important;
           }
-          .print-page { 
-            width: 100% !important; 
+          .print-page-wrapper {
+            width: 100% !important;
             max-width: 100% !important;
             min-height: auto !important;
             height: auto !important;
-            padding: 0 !important; 
-            margin: 0 !important; 
+            padding: 0 !important;
+            margin: 0 !important;
             box-shadow: none !important;
             box-sizing: border-box !important;
-            page-break-after: auto;
             overflow: visible !important;
-            display: block !important;
+          }
+          .test-report-document-container {
+            box-shadow: none !important;
+            border: none !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 8mm 12mm !important;
           }
         }
       `}</style>

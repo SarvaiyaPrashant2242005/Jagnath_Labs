@@ -118,6 +118,39 @@ const AuditQuotationPrint = () => {
             padding: 2rem 0;
           }
           .audit-print-page {
+          position: relative !important;
+          overflow: hidden !important;
+        }
+        .audit-print-page::before {
+          content: "" !important;
+          position: absolute !important;
+          left: -40px !important;
+          bottom: -30px !important;
+          width: 540px !important;
+          max-width: 65% !important;
+          height: 540px !important;
+          background-image: url('/images/letterpad_watermark.png') !important;
+          background-repeat: no-repeat !important;
+          background-position: left bottom !important;
+          background-size: contain !important;
+          opacity: 0.88 !important;
+          pointer-events: none !important;
+          user-select: none !important;
+          z-index: 0 !important;
+        }
+        .audit-print-page > * {
+          position: relative !important;
+          z-index: 1 !important;
+        }
+        @media print {
+          .audit-print-page::before {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            display: block !important;
+            visibility: visible !important;
+          }
+        }
+        .audit-print-page-base {
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
             margin: 0 auto 2rem auto;
           }

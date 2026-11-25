@@ -27,6 +27,7 @@ import AddMasterButton from '../../../shared/components/InlineMasterModal/AddMas
 import SearchableSelect from '../../../shared/components/Select/SearchableSelect';
 import { INDUSTRY_TYPES, INDUSTRY_PRICES, INDUSTRY_LABELS } from '../../../shared/constants/industryConstants';
 import { sanitizeSamplingParamName } from '../../../shared/utils/parameterDisplayUtils';
+import TestRequestDocument from '../components/TestRequestDocument';
 
 const DEFAULT_INTRO_TEXT = `With the reference to above subject we are herewith sending our offer.
 
@@ -1651,6 +1652,7 @@ const TestRequestForm = () => {
   const selCompany = companies.find(c => c.id === formData.companyId) || {};
   const selClient = clients.find(c => c.id === formData.clientId) || {};
   const selCategory = categories.find(c => c.id === formData.sampleParticular) || {};
+  const selCaution = cautions.find(c => c.id === formData.cautionId) || null;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', position: 'relative' }}>
@@ -1718,8 +1720,8 @@ const TestRequestForm = () => {
       {/* Main Split Screen Area (Screen Only) */}
       <div className="premium-ui-form test-request-split-container hide-on-print" style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
 
-        {/* Left Column: Form Inputs */}
-        <div style={{ flex: '1', minWidth: '0', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+        {/* Left Column: Form Inputs (Half Screen / 50%) */}
+        <div style={{ flex: showLivePreview ? '1 1 50%' : '1 1 100%', minWidth: '0', display: 'flex', flexDirection: 'column', gap: '2rem', transition: 'all 0.2s ease' }}>
 
           {/* General Information Card */}
           <div className="test-request-form-card" style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)', border: '1px solid #f1f5f9' }}>
@@ -3141,14 +3143,14 @@ const TestRequestForm = () => {
           </div>
         </div>
 
-        {/* Right Column: Sticky Live Preview Simulator */}
+        {/* Right Column: Sticky Live Preview Simulator (Half Screen / 50%) */}
         {showLivePreview && (
           <div className="live-preview-container hide-on-mobile" style={{
-            width: '460px',
-            flexShrink: 0,
+            flex: '1 1 50%',
+            minWidth: '0',
             position: 'sticky',
             top: '24px',
-            maxHeight: 'calc(100vh - 120px)',
+            maxHeight: 'calc(100vh - 48px)',
             overflowY: 'auto',
             background: '#f8fafc',
             borderRadius: '16px',
@@ -3228,6 +3230,7 @@ const TestRequestForm = () => {
                   boxSizing: 'border-box',
                   marginBottom: '1.5rem',
                   position: 'relative',
+                  overflow: 'hidden',
                   minHeight: '580px',
                   display: 'flex',
                   flexDirection: 'column',
@@ -3265,7 +3268,29 @@ const TestRequestForm = () => {
                 return (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     {/* Page 1 */}
-                    <div style={pageStyle}>
+                    <div style={pageStyle} className="letterhead-sheet">
+                      {/* Background Watermark Image */}
+                      <img
+                        src="/images/letterpad_watermark.png"
+                        alt="Watermark"
+                        className="letterhead-watermark"
+                        style={{
+                          position: 'absolute',
+                          left: '-30px',
+                          top: '50%',
+                          bottom: 'auto',
+                          transform: 'translateY(-50%)',
+                          width: '470px',
+                          maxWidth: '58%',
+                          height: 'auto',
+                          objectFit: 'contain',
+                          opacity: 0.88,
+                          mixBlendMode: 'multiply',
+                          pointerEvents: 'none',
+                          userSelect: 'none',
+                          zIndex: 0
+                        }}
+                      />
                       <div>
                         <div style={{ textAlign: 'center', marginBottom: '8px' }}>
                           <img src={companyLogo} alt="Logo" style={{ maxHeight: '45px', objectFit: 'contain' }} />
@@ -3314,7 +3339,29 @@ const TestRequestForm = () => {
                     </div>
 
                     {/* Page 2 */}
-                    <div style={pageStyle}>
+                    <div style={pageStyle} className="letterhead-sheet">
+                      {/* Background Watermark Image */}
+                      <img
+                        src="/images/letterpad_watermark.png"
+                        alt="Watermark"
+                        className="letterhead-watermark"
+                        style={{
+                          position: 'absolute',
+                          left: '-30px',
+                          top: '50%',
+                          bottom: 'auto',
+                          transform: 'translateY(-50%)',
+                          width: '470px',
+                          maxWidth: '58%',
+                          height: 'auto',
+                          objectFit: 'contain',
+                          opacity: 0.88,
+                          mixBlendMode: 'multiply',
+                          pointerEvents: 'none',
+                          userSelect: 'none',
+                          zIndex: 0
+                        }}
+                      />
                       <div>
                         <div style={{ textAlign: 'center', marginBottom: '8px' }}>
                           <img src={companyLogo} alt="Logo" style={{ maxHeight: '45px', objectFit: 'contain' }} />
@@ -3401,7 +3448,29 @@ const TestRequestForm = () => {
                     </div>
 
                     {/* Page 3 */}
-                    <div style={pageStyle}>
+                    <div style={pageStyle} className="letterhead-sheet">
+                      {/* Background Watermark Image */}
+                      <img
+                        src="/images/letterpad_watermark.png"
+                        alt="Watermark"
+                        className="letterhead-watermark"
+                        style={{
+                          position: 'absolute',
+                          left: '-30px',
+                          top: '50%',
+                          bottom: 'auto',
+                          transform: 'translateY(-50%)',
+                          width: '470px',
+                          maxWidth: '58%',
+                          height: 'auto',
+                          objectFit: 'contain',
+                          opacity: 0.88,
+                          mixBlendMode: 'multiply',
+                          pointerEvents: 'none',
+                          userSelect: 'none',
+                          zIndex: 0
+                        }}
+                      />
                       <div>
                         <div style={{ textAlign: 'center', marginBottom: '8px' }}>
                           <img src={companyLogo} alt="Logo" style={{ maxHeight: '45px', objectFit: 'contain' }} />
@@ -3441,7 +3510,29 @@ const TestRequestForm = () => {
                     </div>
 
                     {/* Page 4 */}
-                    <div style={pageStyle}>
+                    <div style={pageStyle} className="letterhead-sheet">
+                      {/* Background Watermark Image */}
+                      <img
+                        src="/images/letterpad_watermark.png"
+                        alt="Watermark"
+                        className="letterhead-watermark"
+                        style={{
+                          position: 'absolute',
+                          left: '-30px',
+                          top: '50%',
+                          bottom: 'auto',
+                          transform: 'translateY(-50%)',
+                          width: '470px',
+                          maxWidth: '58%',
+                          height: 'auto',
+                          objectFit: 'contain',
+                          opacity: 0.88,
+                          mixBlendMode: 'multiply',
+                          pointerEvents: 'none',
+                          userSelect: 'none',
+                          zIndex: 0
+                        }}
+                      />
                       <div>
                         <div style={{ textAlign: 'center', marginBottom: '4px' }}>
                           <img src={companyLogo} alt="Logo" style={{ maxHeight: '40px', objectFit: 'contain' }} />
@@ -3499,324 +3590,20 @@ const TestRequestForm = () => {
                 );
               })()
             ) : (
-              // Original TRF Preview
-              <>
-                <div style={{
-                  background: '#ffffff',
-                  border: '1px solid #000000',
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
-                  padding: '1.25rem',
-                  fontSize: '10px',
-                  fontFamily: '"Plus Jakarta Sans", "Inter", sans-serif',
-                  color: '#000000',
-                  lineHeight: '1.3'
-                }}>
-                  {/* Header block */}
-                  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', marginBottom: '8px' }}>
-                    <tbody>
-                      <tr>
-                        <td style={{ width: '45%', height: '75px', border: '1px solid #000000', padding: '3px 6px', verticalAlign: 'middle', textAlign: 'center', boxSizing: 'border-box' }}>
-                          <img src={getSelectedCompanyLogo()} alt="Logo" style={{ maxHeight: '69px', maxWidth: '100%', width: 'auto', height: 'auto', objectFit: 'contain', display: 'block', margin: '0 auto' }} />
-                        </td>
-                        <td style={{ width: '25%', border: '1px solid #000000', padding: '4px', textAlign: 'center', fontWeight: 'bold', fontSize: '10px' }}>
-                          FORMATS
-                        </td>
-                        <td style={{ width: '30%', border: '1px solid #000000', padding: '0' }}>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '7px' }}>
-                            <tbody>
-                              <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Amendment No.</td><td style={{ padding: '2px 3px' }}>00</td></tr>
-                              <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Amendment Date</td><td style={{ padding: '2px 3px' }}>--</td></tr>
-                              <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Issue No.</td><td style={{ padding: '2px 3px' }}>01</td></tr>
-                              <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Issue Date</td><td style={{ padding: '2px 3px' }}>01/09/2018</td></tr>
-                              <tr><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Format No.</td><td style={{ padding: '2px 3px' }}>7.1 F-01</td></tr>
-                            </tbody>
-                          </table>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-
-                  {/* Document Title */}
-                  <div style={{ border: '1px solid #000000', borderTop: 'none', background: '#f8fafc', padding: '3px', textAlign: 'center', fontWeight: 'bold', fontSize: '8px', marginBottom: '8px' }}>
-                    TEST REQUEST FORM FOR {formData.formTitle || 'WATER & WASTE WATER'}
-                  </div>
-
-                  {/* Form Fields Table */}
-                  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '8px' }}>
-                    <tbody>
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ width: '32%', padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Name of Company / Customer</td>
-                        <td style={{ padding: '3px 4px' }}>{selCompany.companyName || selCompany.company_name || '(Select Company)'} {selClient.clientName ? `- ${selClient.clientName}` : ''}</td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Address for Communication</td>
-                        <td style={{ padding: '3px 4px' }}>{formData.address || 'N/A'}</td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Email ID</td>
-                        <td style={{ padding: '3px 4px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span>{formData.email || 'N/A'}</span>
-                            <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Location of Sample</span>
-                            <span style={{ paddingLeft: '6px' }}>{formData.locationOfSample || 'N/A'}</span>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Contact Person</td>
-                        <td style={{ padding: '3px 4px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span>{formData.contactPerson || 'N/A'}</span>
-                            <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Contact No.</span>
-                            <span style={{ paddingLeft: '6px' }}>{formData.contactNumber || 'N/A'}</span>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Date of Collection</td>
-                        <td style={{ padding: '3px 4px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span>{formData.dateOfCollection || 'N/A'}</span>
-                            <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Date of Receipt</span>
-                            <span style={{ paddingLeft: '6px' }}>{formData.dateOfReceipt || 'N/A'}</span>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Sample Collected By</td>
-                        <td style={{ padding: '3px 4px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span>{formData.sampleCollectedBy || 'N/A'}</span>
-                            <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Sample Quantity</span>
-                            <span style={{ paddingLeft: '6px' }}>{formData.sampleQuantity || 'N/A'}</span>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Field Data Sheet</td>
-                        <td style={{ padding: '3px 4px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span>{formData.fieldDataSheet}</span>
-                            <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px' }}>Packing details</span>
-                            <span>{formData.packingDetails || 'N/A'}</span>
-                            <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Form Type</span>
-                            <span style={{ paddingLeft: '6px' }}>{formData.formType || 'Regular'}</span>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Sample ID No.</td>
-                        <td style={{ padding: '3px 4px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span>{formData.sampleIdNumber || 'N/A'}</span>
-                            <span style={{ fontWeight: '600', borderLeft: '1px solid #000000', paddingLeft: '6px', borderRight: '1px solid #000000', paddingRight: '6px', marginLeft: 'auto' }}>Report No.</span>
-                            <span style={{ paddingLeft: '6px' }}>{formData.reportNumber || 'N/A'}</span>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Sample Particular</td>
-                        <td style={{ padding: '3px 4px', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{formData.sampleParticular || selCategory.name || 'N/A'}</td>
-                      </tr>
-
-                      {/* Feasibility table inner block */}
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ padding: '0', fontWeight: '600' }} colSpan={2}>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '7.5px' }}>
-                            <tbody>
-                              <tr style={{ borderBottom: '1px solid #000000' }}>
-                                <td style={{ width: '25%', padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Availability of Equip.</td>
-                                <td style={{ width: '25%', padding: '2px 3px', borderRight: '1px solid #000000' }}>{formData.equipmentAvailability}</td>
-                                <td style={{ width: '25%', padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Availability of Ref Std.</td>
-                                <td style={{ width: '25%', padding: '2px 3px' }}>{formData.referenceStandardAvailability}</td>
-                              </tr>
-                              <tr style={{ borderBottom: '1px solid #000000' }}>
-                                <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Availability of Test Method</td>
-                                <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>{formData.testMethodAvailability}</td>
-                                <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Availability of Trained Person</td>
-                                <td style={{ padding: '2px 3px' }}>{formData.trainedPersonAvailability}</td>
-                              </tr>
-                              <tr>
-                                <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Adequacy of sample qty</td>
-                                <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>{formData.sampleAdequacy}</td>
-                                <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>Tentative Report Days</td>
-                                <td style={{ padding: '2px 3px' }}>{formData.tentativeDays}</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </td>
-                      </tr>
-
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000' }}>Facility reviewed by</td>
-                        <td style={{ padding: '3px 4px' }}>{formData.sampleTestingFacilityReviewedBy}</td>
-                      </tr>
-
-                      {/* Signatures space */}
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ padding: '0', fontWeight: '600' }} colSpan={2}>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '7.5px' }}>
-                            <tbody>
-                              <tr style={{ borderBottom: '1px solid #000000', height: '20px' }}>
-                                <td style={{ width: '50%', padding: '2px 3px', borderRight: '1px solid #000000', verticalAlign: 'top', fontWeight: 'bold' }}>Signature of Customer Representative:</td>
-                                <td style={{ width: '50%', padding: '2px 3px', verticalAlign: 'top', fontWeight: 'bold' }}>Signature of Sample Received By:</td>
-                              </tr>
-                              <tr>
-                                <td style={{ padding: '2px 3px', borderRight: '1px solid #000000', fontWeight: 'bold' }}>
-                                  Name & Designation: <span style={{ fontWeight: 'normal' }}>{formData.customerRepresentativeName || 'N/A'}</span>
-                                </td>
-                                <td style={{ padding: '2px 3px', fontWeight: 'bold' }}>
-                                  Name & Designation: <span style={{ fontWeight: 'normal' }}>{formData.sampleReceiverName || 'N/A'}</span>
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </td>
-                      </tr>
-
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000', verticalAlign: 'top' }}>Test Protocol adopted</td>
-                        <td style={{ padding: '3px 4px', whiteSpace: 'pre-wrap' }}>{formData.testProtocol}</td>
-                      </tr>
-
-                      <tr>
-                        <td style={{ padding: '3px 4px', fontWeight: '600', borderRight: '1px solid #000000', verticalAlign: 'top' }}>Remarks / Notes</td>
-                        <td style={{ padding: '3px 4px', whiteSpace: 'pre-wrap' }}>
-                          <ol style={{ margin: 0, paddingLeft: '1rem', fontSize: '7px' }}>
-                            <li>Please mention specific tests to be applied</li>
-                            <li>All the test procedures are followed as per National & International Standards.</li>
-                            <li>In case of sampling conducted by JLT, sampling plan is followed as per National & International Standards.</li>
-                            <li>If due to any unavoidable condition, testing will be sub-contracted only to NABL-complying competent agencies.</li>
-                          </ol>
-                          {formData.remarks && <div style={{ marginTop: '3px', borderTop: '1px dashed #cbd5e1', paddingTop: '3px' }}><strong>Additional:</strong> {formData.remarks}</div>}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-
-                  {/* Footer Page 1 */}
-                  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '7px', marginTop: 'auto' }}>
-                    <tbody>
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}>Doc No: JLT/ 7.1 F-01</td>
-                        <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}></td>
-                        <td style={{ width: '33.33%', padding: '2px 3px', textAlign: 'right' }}>Page 1 of 2</td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Format No. 7.1 F-01</td>
-                        <td colSpan={2} style={{ padding: '2px 3px' }}>Format: Test Request Form (Water & Waste Water)</td>
-                      </tr>
-                      <tr>
-                        <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Prepared By: TM</td>
-                        <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Approved By: QM</td>
-                        <td style={{ padding: '2px 3px' }}>Issue By/Reviewed By: TM</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* PAGE BREAK / SPACER */}
-                <div style={{ margin: '2rem 0', borderTop: '2px dashed #cbd5e1', position: 'relative' }}>
-                  <span style={{ position: 'absolute', top: '-10px', left: '50%', transform: 'translateX(-50%)', background: '#f8fafc', padding: '0 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Page 2 Preview</span>
-                </div>
-
-                {/* PAGE 2 */}
-                <div style={{
-                  background: '#ffffff',
-                  border: '1px solid #000000',
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
-                  padding: '1.25rem',
-                  fontSize: '10px',
-                  fontFamily: '"Plus Jakarta Sans", "Inter", sans-serif',
-                  color: '#000000',
-                  lineHeight: '1.3',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  minHeight: '297mm',
-                  boxSizing: 'border-box'
-                }}>
-                  {/* Header block (repeated from Page 1) */}
-                  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', marginBottom: '8px' }}>
-                    <tbody>
-                      <tr>
-                        <td style={{ width: '45%', height: '75px', border: '1px solid #000000', padding: '3px 6px', verticalAlign: 'middle', textAlign: 'center', boxSizing: 'border-box' }}>
-                          <img src={getSelectedCompanyLogo()} alt="Logo" style={{ maxHeight: '69px', maxWidth: '100%', width: 'auto', height: 'auto', objectFit: 'contain', display: 'block', margin: '0 auto' }} />
-                        </td>
-                        <td style={{ width: '25%', border: '1px solid #000000', padding: '4px', textAlign: 'center', fontWeight: 'bold', fontSize: '10px' }}>
-                          FORMATS
-                        </td>
-                        <td style={{ width: '30%', border: '1px solid #000000', padding: '0' }}>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '7px' }}>
-                            <tbody>
-                              <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Amendment No.</td><td style={{ padding: '2px 3px' }}>00</td></tr>
-                              <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Amendment Date</td><td style={{ padding: '2px 3px' }}>--</td></tr>
-                              <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Issue No.</td><td style={{ padding: '2px 3px' }}>01</td></tr>
-                              <tr style={{ borderBottom: '1px solid #000000' }}><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Issue Date</td><td style={{ padding: '2px 3px' }}>01/09/2018</td></tr>
-                              <tr><td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Format No.</td><td style={{ padding: '2px 3px' }}>7.1 F-01</td></tr>
-                            </tbody>
-                          </table>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-
-                  <div style={{ fontWeight: 'bold', fontSize: '8px', marginBottom: '8px', border: '1px solid #000000', borderTop: 'none', background: '#f8fafc', padding: '3px', textAlign: 'center' }}>
-                    Test Parameter to Be Analyzed: - {selCategory.name || 'WATER & WASTE WATER'}
-                  </div>
-
-                  {/* Parameters Grid */}
-                  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '8px', marginBottom: '8px' }}>
-                    <thead>
-                      <tr style={{ background: '#f8fafc', borderBottom: '1px solid #000000' }}>
-                        <th style={{ width: '8%', padding: '3px', borderRight: '1px solid #000000', textAlign: 'center' }}>Sr. No.</th>
-                        <th style={{ width: '42%', padding: '3px', borderRight: '1px solid #000000', textAlign: 'left' }}>Test Parameters</th>
-                        <th style={{ width: '10%', padding: '3px', borderRight: '1px solid #000000', textAlign: 'center' }}>Tick √</th>
-                        <th style={{ width: '40%', padding: '3px', textAlign: 'center' }}>Test Method</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Array.from({ length: Math.max(20, parameters.length) }).map((_, i) => {
-                        const param = parameters[i];
-                        const isChecked = param ? !!checkedParameters[param.id] : false;
-                        return (
-                          <tr key={i} style={{ borderBottom: '1px solid #000000' }}>
-                            <td style={{ padding: '2px', borderRight: '1px solid #000000', textAlign: 'center' }}>{i + 1}.</td>
-                            <td style={{ padding: '2px 4px', borderRight: '1px solid #000000', textAlign: 'left' }}>{param ? sanitizeSamplingParamName(param.parameterName || param.name) : ''}</td>
-                            <td style={{ padding: '2px', borderRight: '1px solid #000000', textAlign: 'center', fontWeight: 'bold', color: '#15803d' }}>{isChecked ? '√' : ''}</td>
-                            <td style={{ padding: '2px 4px', textAlign: 'left' }}>{param ? (param.testMethod || '') : ''}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-
-                  {/* Approved By Technical Manager */}
-                  <div style={{ textAlign: 'right', marginTop: '1.5rem', fontWeight: 'bold', fontSize: '8px', paddingRight: '1.5rem' }}>
-                    Approved By<br />
-                    Technical Manager
-                  </div>
-
-                  {/* Footer Page 2 */}
-                  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000000', fontSize: '7px', marginTop: 'auto' }}>
-                    <tbody>
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}>Doc No: JLT/ 7.1 F-01</td>
-                        <td style={{ width: '33.33%', padding: '2px 3px', borderRight: '1px solid #000000' }}></td>
-                        <td style={{ width: '33.33%', padding: '2px 3px', textAlign: 'right' }}>Page 2 of 2</td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid #000000' }}>
-                        <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Format No. 7.1 F-01</td>
-                        <td colSpan={2} style={{ padding: '2px 3px' }}>Format: Test Request Form (Water & Waste Water)</td>
-                      </tr>
-                      <tr>
-                        <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Prepared By: TM</td>
-                        <td style={{ padding: '2px 3px', borderRight: '1px solid #000000' }}>Approved By: QM</td>
-                        <td style={{ padding: '2px 3px' }}>Issue By/Reviewed By: TM</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </>
+              // Unified Pixel-Perfect TRF Preview (Page 1 & Page 2)
+              <div style={{ width: '100%' }}>
+                <TestRequestDocument
+                  formData={formData}
+                  company={selCompany}
+                  client={selClient}
+                  category={selCategory}
+                  parameters={parameters}
+                  checkedParameters={checkedParameters}
+                  caution={selCaution}
+                  isPrintMode={false}
+                  customLogoUrl={getSelectedCompanyLogo()}
+                />
+              </div>
             )}
           </div>
         )}

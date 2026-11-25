@@ -239,45 +239,51 @@ const QuotationPrint = () => {
   const paramNamesList = parameters.map(p => p.parameterName || p.name).join(', ') || '';
 
   return (
-    <div className="paper-quotation-container" style={{
-      width: '100%',
+    <div className="paper-quotation-container letterhead-sheet" style={{
+      width: '210mm',
       maxWidth: '210mm',
       minHeight: '297mm',
       margin: '0 auto',
-      padding: '8mm 12mm',
+      padding: '10mm 15mm 10mm 15mm',
       boxSizing: 'border-box',
       backgroundColor: '#ffffff',
       fontFamily: '"Times New Roman", Times, serif, Arial',
       fontSize: '10pt',
       color: '#000000',
       lineHeight: '1.35',
-      position: 'relative'
+      position: 'relative',
+      overflow: 'hidden',
+      display: 'flex',
+      flexDirection: 'column'
     }}>
       <style>{`
-        body {
+        html, body {
           margin: 0;
           padding: 0;
           background: #ffffff;
-          overflow-x: hidden;
         }
         * {
           box-sizing: border-box;
         }
         @media screen {
           .paper-quotation-container {
-            width: 100% !important;
-            max-width: 100% !important;
-            padding: 12px 14px !important;
-            font-size: 9pt !important;
+            width: 210mm !important;
+            max-width: 210mm !important;
+            min-height: 297mm !important;
+            padding: 10mm 15mm 10mm 15mm !important;
+            margin: 0 auto 24px auto !important;
+            box-sizing: border-box !important;
+            font-size: 10pt !important;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
           }
         }
         @media print {
           @page {
             size: A4 portrait;
-            margin: 8mm 10mm;
+            margin: 0 !important;
           }
           html, body {
-            width: 100% !important;
+            width: 210mm !important;
             height: auto !important;
             margin: 0 !important;
             padding: 0 !important;
@@ -286,15 +292,40 @@ const QuotationPrint = () => {
             print-color-adjust: exact !important;
           }
           .paper-quotation-container {
-            width: 100% !important;
-            max-width: 100% !important;
-            padding: 0 !important;
-            margin: 0 !important;
+            width: 210mm !important;
+            max-width: 210mm !important;
+            min-height: 297mm !important;
+            padding: 10mm 15mm 10mm 15mm !important;
+            margin: 0 auto !important;
             box-shadow: none !important;
-            font-size: 10.5pt !important;
+            box-sizing: border-box !important;
+            font-size: 10pt !important;
+            page-break-after: avoid !important;
+            break-after: avoid !important;
           }
         }
       `}</style>
+
+      {/* Official Jagnath Labs Emblem Watermark */}
+      <img
+        src="/images/letterpad_watermark.png"
+        alt="Watermark"
+        className="letterhead-watermark"
+        style={{
+          position: 'absolute',
+          left: '-30px',
+          top: '50%', transform: 'translateY(-50%)',
+          width: '470px',
+          maxWidth: '58%',
+          height: 'auto',
+          objectFit: 'contain',
+          opacity: 0.88,
+          mixBlendMode: 'multiply',
+          pointerEvents: 'none',
+          userSelect: 'none',
+          zIndex: 0
+        }}
+      />
 
       <div style={{ textAlign: 'center', marginBottom: '8px' }}>
         <img src={getLogoUrl()} alt="Company Logo" style={{ height: '110px', maxWidth: '100%', objectFit: 'contain' }} />
